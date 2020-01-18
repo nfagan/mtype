@@ -2,6 +2,37 @@
 
 namespace mt {
 
+namespace {
+  bool is_keyword_impl(std::string_view str, const char** keywords, int num_keywords) {
+    for (int i = 0; i < num_keywords; i++) {
+      if (str == keywords[i]) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+const char** typing::keywords(int* count) {
+  static const char* keywords[] = {
+    "begin", "export", "given", "let", "namespace", "struct"
+  };
+
+  *count = sizeof(keywords) / sizeof(keywords[0]);
+  return keywords;
+}
+
+bool typing::is_keyword(std::string_view str) {
+  int num_keywords;
+  const auto kws = typing::keywords(&num_keywords);
+  return is_keyword_impl(str, kws, num_keywords);
+}
+
+bool typing::is_end_terminated(std::string_view kw) {
+  return kw == "begin" || kw == "namespace" || kw == "struct";
+}
+
 const char** matlab::keywords(int* count) {
   //  help iskeyword
   static const char* keywords[] = {
@@ -15,15 +46,17 @@ const char** matlab::keywords(int* count) {
 
 bool matlab::is_keyword(std::string_view str) {
   int num_keywords;
-  auto kws = keywords(&num_keywords);
+  const auto kws = matlab::keywords(&num_keywords);
+  return is_keyword_impl(str, kws, num_keywords);
+}
 
-  for (int i = 0; i < num_keywords; i++) {
-    if (str == kws[i]) {
-      return true;
-    }
-  }
+bool matlab::is_end_terminated(std::string_view kw) {
+  return kw == "classdef" || kw == "if" || kw == "for" || kw == "function" || kw == "parfor" || kw == "spmd" ||
+    kw == "switch" || kw == "try" || kw == "while";
+}
 
-  return false;
+bool is_end_terminated(std::string_view kw) {
+  return matlab::is_end_terminated(kw) || typing::is_end_terminated(kw);
 }
 
 }

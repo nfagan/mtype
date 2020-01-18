@@ -4,6 +4,7 @@
 #include <string_view>
 #include <string>
 #include <iostream>
+#include <vector>
 
 namespace mt {
 
@@ -12,6 +13,30 @@ struct Token {
   std::string_view lexeme;
 
   std::string pretty_lexeme() const;
+};
+
+class TokenIterator {
+public:
+  TokenIterator() : TokenIterator(nullptr) {
+    //
+  }
+  explicit TokenIterator(const std::vector<Token>* tokens) : tokens(tokens), current_index(0) {
+    //
+  }
+  ~TokenIterator() = default;
+
+  bool has_next() const;
+
+  const Token& peek() const;
+  const Token& peek_nth(int64_t num) const;
+  void advance();
+
+private:
+  static const Token& null_token();
+
+private:
+  const std::vector<Token>* tokens;
+  int64_t current_index;
 };
 
 }

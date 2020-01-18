@@ -24,6 +24,7 @@ public:
   int64_t size() const;
 
   Character advance();
+  void advance(int64_t num);
   Character peek() const;
   Character peek_nth(int64_t num) const;
   Character peek_next() const;

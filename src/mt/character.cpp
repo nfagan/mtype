@@ -44,6 +44,12 @@ Character CharacterIterator::advance() {
   return result;
 }
 
+void CharacterIterator::advance(int64_t num) {
+  for (int i = 0; i < num; i++) {
+    advance();
+  }
+}
+
 Character CharacterIterator::peek_previous() const {
   if (current_index == 0) {
     return Character('\0');

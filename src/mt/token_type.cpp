@@ -79,8 +79,12 @@ TokenType from_symbol(std::string_view s) {
   };
 
   const auto it = symbol_map.find(std::string(s));
-  assert(it != symbol_map.end() && "No such symbol for string.");
-  return it->second;
+
+  if (it == symbol_map.end()) {
+    return TokenType::null;
+  } else {
+    return it->second;
+  }
 }
 
 const char* to_symbol(TokenType type) {
@@ -98,6 +102,8 @@ const char* to_symbol(TokenType type) {
     case TokenType::right_bracket:
       return "]";
       //  Punct
+    case TokenType::ellipsis:
+      return "...";
     case TokenType::equal:
       return "=";
     case TokenType::equal_equal:
@@ -142,6 +148,8 @@ const char* to_symbol(TokenType type) {
       return ".\\";
     case TokenType::dot_carat:
       return ".^";
+    case TokenType::dot_apostrophe:
+      return ".'";
     case TokenType::at:
       return "@";
     case TokenType::new_line:
@@ -260,6 +268,8 @@ const char* to_string(TokenType type) {
     case TokenType::right_bracket:
       return "right_bracket";
     //  Punct
+    case TokenType::ellipsis:
+      return "ellipsis";
     case TokenType::equal:
       return "equal";
     case TokenType::equal_equal:
@@ -296,6 +306,8 @@ const char* to_string(TokenType type) {
       return "back_slash";
     case TokenType::carat:
       return "carat";
+    case TokenType::dot_apostrophe:
+      return "dot_apostrophe";
     case TokenType::dot_asterisk:
       return "dot_asterisk";
     case TokenType::dot_forward_slash:

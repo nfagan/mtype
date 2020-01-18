@@ -13,6 +13,7 @@ enum class TokenType {
   left_bracket,
   right_bracket,
   //  Punctuation
+  ellipsis,
   equal,
   equal_equal,
   not_equal,
@@ -35,6 +36,7 @@ enum class TokenType {
   dot_forward_slash,
   dot_back_slash,
   dot_carat,
+  dot_apostrophe,
   at,
   new_line,
   question,

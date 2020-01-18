@@ -19,6 +19,7 @@ public:
     //
   }
 
+  // NOLINTNEXTLINE
   operator bool() const {
     return !is_error;
   }

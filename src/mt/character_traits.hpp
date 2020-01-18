@@ -16,6 +16,10 @@ inline bool is_whitespace(const Character& c) {
   return c.is_ascii() && (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f');
 }
 
+inline bool is_whitespace_excluding_new_line(const Character& c) {
+  return c.is_ascii() && (c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f');
+}
+
 inline bool is_digit(const Character& c) {
   return c.is_ascii() && c >= '0' && c <= '9';
 }

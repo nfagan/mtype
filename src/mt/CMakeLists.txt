@@ -3,11 +3,16 @@ set(MT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src/mt)
 function(configure_common)
 
 set(sources
+        ast.hpp
+        ast.cpp
+        ast_gen.hpp
+        ast_gen.cpp
         character.hpp
         character.cpp
         character_traits.hpp
         keyword.hpp
         keyword.cpp
+        Optional.hpp
         Result.hpp
         scan.hpp
         scan.cpp
