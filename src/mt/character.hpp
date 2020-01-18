@@ -76,6 +76,10 @@ public:
     return std::string_view(data(), count_units());
   }
 
+  explicit operator std::string() const {
+    return std::string(data(), count_units());
+  }
+
   explicit operator char() const {
     return units[0];
   }

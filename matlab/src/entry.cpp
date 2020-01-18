@@ -1,6 +1,7 @@
 #include "util.hpp"
 
 #include "mt/scan.hpp"
+#include "mt/ast_gen.hpp"
 #include "mt/unicode.hpp"
 #include "mt/string.hpp"
 
@@ -17,15 +18,22 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   if (is_valid_unicode) {      
     mt::Scanner scanner;
-    auto res = scanner.scan(str);
-
-    if (res) {
-      for (const auto& tok : res.value) {
-        std::cout << tok << std::endl;
-      }
-    } else {
-      for (const auto& err : res.error.errors) {
+    mt::AstGenerator ast_generator;
+    
+    auto scan_res = scanner.scan(str);
+    
+    if (!scan_res) {
+      for (const auto& err : scan_res.error.errors) {
         std::cout << err.message << std::endl;
+      }
+      return;
+    }
+    
+    auto parse_res = ast_generator.parse(scan_res.value, str);
+    
+    if (!parse_res) {
+      for (const auto& err : parse_res.error) {
+        err.show();
       }
     }
 

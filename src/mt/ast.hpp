@@ -35,26 +35,29 @@ struct Block : public AstNode {
   Block() = default;
   ~Block() override = default;
 
+  void append(BoxedAstNode other) {
+    nodes.emplace_back(std::move(other));
+  }
+
   std::vector<BoxedAstNode> nodes;
 };
 
+struct FunctionHeader {
+  std::string_view name;
+  std::vector<std::string_view> outputs;
+  std::vector<std::string_view> inputs;
+};
+
 struct FunctionDef : public Def {
-  FunctionDef(std::string_view name,
-              std::vector<std::string_view>&& outputs,
-              std::vector<std::string_view>&& inputs,
-              std::unique_ptr<Block> body) :
-              name(name), outputs(std::move(outputs)), inputs(std::move(inputs)), body(std::move(body)) {
+  FunctionDef(FunctionHeader&& header, std::unique_ptr<Block> body) :
+  header(std::move(header)), body(std::move(body)) {
     //
   }
 
   ~FunctionDef() override = default;
 
-  std::string_view name;
-  std::vector<std::string_view> outputs;
-  std::vector<std::string_view> inputs;
+  FunctionHeader header;
   std::unique_ptr<Block> body;
 };
-
-
 
 }

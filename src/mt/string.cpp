@@ -38,21 +38,6 @@ std::vector<std::string_view> split(const char* str, int64_t len, const Characte
   return result;
 }
 
-std::string join(const std::vector<std::string_view>& strs, const Character& by) {
-  std::string result;
-  const int64_t n = strs.size();
-
-  for (int64_t i = 0; i < n; i++) {
-    result += strs[i];
-
-    if (i < n-1) {
-      result += std::string_view(by);
-    }
-  }
-
-  return result;
-}
-
 std::vector<int64_t> find_character(const char* str, int64_t len, const Character& look_for) {
   CharacterIterator it(str, len);
   std::vector<int64_t> result;

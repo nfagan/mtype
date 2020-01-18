@@ -29,6 +29,25 @@ void TokenIterator::advance() {
   current_index++;
 }
 
+void TokenIterator::advance_to_one(const TokenType* types, int64_t num_types) {
+  bool found_type = false;
+
+  while (has_next() && !found_type) {
+    const auto t = peek().type;
+
+    for (int64_t i = 0; i < num_types; i++) {
+      if (t == types[i]) {
+        found_type = true;
+        break;
+      }
+    }
+
+    if (!found_type) {
+      advance();
+    }
+  }
+}
+
 const Token& TokenIterator::peek() const {
   if (has_next()) {
     return (*tokens)[current_index];
