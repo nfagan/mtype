@@ -4,6 +4,8 @@
 #include <cstring>
 #include <cstdint>
 #include <type_traits>
+#include <iostream>
+#include <string_view>
 
 namespace mt {
 
@@ -19,13 +21,18 @@ public:
   int64_t next_index() const;
 
   const char* data() const;
+  int64_t size() const;
 
   Character advance();
   Character peek() const;
+  Character peek_nth(int64_t num) const;
+  Character peek_next() const;
+  Character peek_previous() const;
 
 private:
   int64_t current_index;
   int64_t end;
+  int64_t last_character_size;
 
   const char* str;
 };
@@ -64,6 +71,10 @@ public:
     return result;
   }
 
+  explicit operator std::string_view() const {
+    return std::string_view(data(), count_units());
+  }
+
   explicit operator char() const {
     return units[0];
   }
@@ -79,6 +90,10 @@ public:
   bool is_ascii() const {
     //  I.e., is everything 0 beyond the first byte.
     return units[1] == 0;
+  }
+
+  const char* data() const {
+    return &units[0];
   }
 
   bool is_valid() const {
@@ -104,6 +119,12 @@ private:
   char units[4];
 };
 
+}
+
+inline std::ostream& operator<<(std::ostream& source, const mt::Character& c) {
+  std::string_view str(c.data(), c.count_units());
+  source << str;
+  return source;
 }
 
 //  Char ops

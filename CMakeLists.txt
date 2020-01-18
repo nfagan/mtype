@@ -16,3 +16,4 @@ else()
 endif()
 
 add_subdirectory(src/mt)
+add_subdirectory(test)
