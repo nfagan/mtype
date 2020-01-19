@@ -1,31 +1,18 @@
 #pragma once
 
 #include <string_view>
+#include <array>
 
 namespace mt {
 
-enum class TokenType {
-  //  Grouping
-  left_parens,
-  right_parens,
-  left_brace,
-  right_brace,
-  left_bracket,
-  right_bracket,
-  //  Punctuation
-  ellipsis,
-  equal,
-  equal_equal,
+enum class TokenType : unsigned int {
+  //  Binary operators
+  equal_equal = 0,
   not_equal,
   less,
   greater,
   less_equal,
   greater_equal,
-  tilde,
-  colon,
-  semicolon,
-  period,
-  comma,
   plus,
   minus,
   asterisk,
@@ -36,16 +23,32 @@ enum class TokenType {
   dot_forward_slash,
   dot_back_slash,
   dot_carat,
-  dot_apostrophe,
-  at,
-  new_line,
-  question,
-  apostrophe,
-  quote,
   vertical_bar,
   ampersand,
   double_vertical_bar,
   double_ampersand,
+  colon,
+  //  Unary operators
+  tilde,
+  apostrophe,
+  dot_apostrophe,
+  //  Grouping
+  left_parens,
+  right_parens,
+  left_brace,
+  right_brace,
+  left_bracket,
+  right_bracket,
+  //  Punctuation
+  ellipsis,
+  equal,
+  semicolon,
+  period,
+  comma,
+  at,
+  new_line,
+  question,
+  quote,
   //  Ident + literals
   identifier,
   char_literal,
@@ -97,5 +100,17 @@ enum class TokenType {
 const char* to_string(TokenType type);
 const char* to_symbol(TokenType type);
 TokenType from_symbol(std::string_view s);
+
+bool represents_binary_operator(TokenType type);
+bool represents_unary_operator(TokenType type);
+bool represents_prefix_unary_operator(TokenType type);
+bool represents_postfix_unary_operator(TokenType type);
+bool represents_grouping_component(TokenType type);
+bool represents_grouping_initiator(TokenType type);
+bool represents_grouping_terminator(TokenType type);
+bool represents_expr_terminator(TokenType type);
+
+TokenType grouping_terminator_for(TokenType initiator);
+std::array<TokenType, 3> grouping_terminators();
 
 }

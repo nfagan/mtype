@@ -418,4 +418,60 @@ const char* to_string(TokenType type) {
       return "null";
   }
 }
+
+bool represents_expr_terminator(TokenType type) {
+  return type == TokenType::semicolon || type == TokenType::comma || type == TokenType::new_line ||
+    type == TokenType::null || type == TokenType::equal || represents_grouping_terminator(type);
+}
+
+bool represents_grouping_component(TokenType type) {
+  const auto min = static_cast<unsigned int>(TokenType::left_parens);
+  const auto max = static_cast<unsigned int>(TokenType::right_bracket);
+  const auto t = static_cast<unsigned int>(type);
+  return t >= min && t <= max;
+}
+
+bool represents_grouping_initiator(TokenType type) {
+  return type == TokenType::left_parens || type == TokenType::left_brace || type == TokenType::left_bracket;
+}
+
+bool represents_grouping_terminator(TokenType type) {
+  return type == TokenType::right_parens || type == TokenType::right_brace || type == TokenType::right_bracket;
+}
+
+bool represents_binary_operator(TokenType type) {
+  //  @Hack, first 21 token types are binary operators.
+  return static_cast<unsigned int>(type) < 21;
+}
+
+bool represents_unary_operator(TokenType type) {
+  return represents_postfix_unary_operator(type) || represents_prefix_unary_operator(type);
+}
+
+bool represents_prefix_unary_operator(TokenType type) {
+  return type == TokenType::plus || type == TokenType::minus || type == TokenType::tilde;
+}
+
+bool represents_postfix_unary_operator(TokenType type) {
+  return type == TokenType::apostrophe || type == TokenType::dot_apostrophe;
+}
+
+std::array<TokenType, 3> grouping_terminators() {
+  return {{TokenType::right_parens, TokenType::right_bracket, TokenType::right_bracket}};
+}
+
+TokenType grouping_terminator_for(TokenType initiator) {
+  switch (initiator) {
+    case TokenType::left_brace:
+      return TokenType::right_brace;
+    case TokenType::left_bracket:
+      return TokenType::right_bracket;
+    case TokenType::left_parens:
+      return TokenType::right_parens;
+    default:
+      assert(false && "No grouping terminator for type.");
+      return TokenType::null;
+  }
+}
+
 }

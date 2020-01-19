@@ -4,12 +4,13 @@ function(configure_common)
 
 set(sources
         ast.hpp
-        ast.cpp
         ast_gen.hpp
         ast_gen.cpp
         character.hpp
         character.cpp
         character_traits.hpp
+        lang_components.hpp
+        lang_components.cpp
         keyword.hpp
         keyword.cpp
         Optional.hpp
@@ -33,3 +34,5 @@ endforeach()
 endfunction(configure_common)
 
 configure_common()
+
+add_subdirectory(ast)

@@ -44,7 +44,21 @@ private:
   Result<ParseError, std::string_view> char_identifier();
   Result<ParseErrors, std::vector<std::string_view>> char_identifier_sequence(TokenType terminator);
 
+  Result<ParseError, BoxedExpr> expr(bool allow_empty = false);
+  Result<ParseError, BoxedExpr> grouping_expr();
+  Result<ParseError, BoxedExpr> identifier_reference_expr();
+  Result<ParseError, std::unique_ptr<SubscriptExpr>> period_subscript_expr();
+  Result<ParseError, std::unique_ptr<SubscriptExpr>> non_period_subscript_expr(SubscriptMethod method, TokenType term);
+  Result<ParseError, BoxedExpr> literal_field_reference_expr();
+  Result<ParseError, BoxedExpr> dynamic_field_reference_expr();
+
+  Result<ParseErrors, BoxedAstNode> expr_stmt();
+
   ParseError make_error_expected_token_type(const Token& at_token, const TokenType* types, int64_t num_types);
+  ParseError make_error_reference_after_parens_reference_expr(const Token& at_token);
+  ParseError make_error_invalid_expr_token(const Token& at_token);
+  ParseError make_error_incomplete_expr(const Token& at_token);
+
   Optional<ParseError> consume(TokenType type);
 
 private:
