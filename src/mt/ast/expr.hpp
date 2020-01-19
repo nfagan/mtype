@@ -7,6 +7,45 @@
 
 namespace mt {
 
+struct AnonymousFunctionExpr : public Expr {
+  AnonymousFunctionExpr(const Token& source_token,
+                        std::vector<std::string_view>&& input_identifiers,
+                        BoxedExpr expr) :
+  source_token(source_token),
+  input_identifiers(std::move(input_identifiers)),
+  expr(std::move(expr)) {
+    //
+  }
+  ~AnonymousFunctionExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  std::vector<std::string_view> input_identifiers;
+  BoxedExpr expr;
+};
+
+struct FunctionReferenceExpr : public Expr {
+  FunctionReferenceExpr(const Token& source_token, BoxedExpr expr) :
+  source_token(source_token), expr(std::move(expr)) {
+    //
+  }
+  ~FunctionReferenceExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  BoxedExpr expr;
+};
+
+struct ColonSubscriptExpr : public Expr {
+  explicit ColonSubscriptExpr(const Token& source_token) : source_token(source_token) {
+    //
+  }
+  ~ColonSubscriptExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+};
+
 struct StringLiteralExpr : public Expr {
   explicit StringLiteralExpr(const Token& source_token) : source_token(source_token) {
     //
@@ -65,13 +104,13 @@ struct DynamicFieldReferenceExpr : public Expr {
 };
 
 struct LiteralFieldReferenceExpr : public Expr {
-  explicit LiteralFieldReferenceExpr(const Token& identifier) : identifier(identifier) {
+  explicit LiteralFieldReferenceExpr(const Token& identifier) : identifier_token(identifier) {
     //
   }
   ~LiteralFieldReferenceExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
 
-  Token identifier;
+  Token identifier_token;
 };
 
 struct SubscriptExpr : public Expr {
@@ -90,7 +129,7 @@ struct SubscriptExpr : public Expr {
 struct IdentifierReferenceExpr : public Expr {
   IdentifierReferenceExpr(const Token& identifier,
                           std::vector<std::unique_ptr<SubscriptExpr>>&& subscripts) :
-  identifier(identifier), subscripts(std::move(subscripts)) {
+  identifier_token(identifier), subscripts(std::move(subscripts)) {
     //
   }
   ~IdentifierReferenceExpr() override = default;
@@ -100,7 +139,7 @@ struct IdentifierReferenceExpr : public Expr {
   }
   std::string accept(const StringVisitor& vis) const override;
 
-  Token identifier;
+  Token identifier_token;
   std::vector<std::unique_ptr<SubscriptExpr>> subscripts;
 };
 
@@ -166,5 +205,8 @@ struct BinaryOperatorExpr : public Expr {
   BoxedExpr left;
   BoxedExpr right;
 };
+
+using BoxedUnaryOperatorExpr = std::unique_ptr<UnaryOperatorExpr>;
+using BoxedBinaryOperatorExpr = std::unique_ptr<BinaryOperatorExpr>;
 
 }

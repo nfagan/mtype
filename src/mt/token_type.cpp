@@ -459,6 +459,24 @@ bool represents_prefix_unary_operator(TokenType type) {
   return type == TokenType::plus || type == TokenType::minus || type == TokenType::tilde;
 }
 
+bool can_precede_prefix_unary_operator(TokenType type) {
+  switch (type) {
+    case TokenType::identifier:
+    case TokenType::string_literal:
+    case TokenType::char_literal:
+    case TokenType::number_literal:
+    case TokenType::keyword_end:
+      return false;
+    default:
+      return !represents_grouping_terminator(type);
+  }
+}
+
+bool can_precede_postfix_unary_operator(TokenType type) {
+  return represents_literal(type) || represents_grouping_terminator(type) ||
+    type == TokenType::identifier || type == TokenType::apostrophe || type == TokenType::dot_apostrophe;
+}
+
 bool represents_postfix_unary_operator(TokenType type) {
   return type == TokenType::apostrophe || type == TokenType::dot_apostrophe;
 }

@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
   }
 
   mt::StringVisitor visitor;
-  visitor.parenthesize_exprs = false;
+  visitor.parenthesize_exprs = true;
 
   std::cout << parse_result.value->accept(visitor) << std::endl;
 }

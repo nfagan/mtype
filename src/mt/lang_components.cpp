@@ -3,7 +3,26 @@
 
 namespace mt {
 
-OperatorFixity fixity_of_unary_operator(UnaryOperator op) {
+int precedence(BinaryOperator op) {
+  switch (op) {
+    case BinaryOperator::colon:
+      return 5;
+    case BinaryOperator::plus:
+    case BinaryOperator::minus:
+      return 6;
+    case BinaryOperator::times:
+    case BinaryOperator::matrix_times:
+    case BinaryOperator::left_divide:
+    case BinaryOperator::matrix_left_divide:
+    case BinaryOperator::right_divide:
+    case BinaryOperator::matrix_right_divide:
+      return 7;
+    default:
+      return -1;
+  }
+}
+
+OperatorFixity fixity(UnaryOperator op) {
   switch (op) {
     case UnaryOperator::unary_plus:
     case UnaryOperator::unary_minus:
@@ -17,7 +36,7 @@ OperatorFixity fixity_of_unary_operator(UnaryOperator op) {
   }
 }
 
-OperatorFixity fixity_of_binary_operator(BinaryOperator) {
+OperatorFixity fixity(BinaryOperator) {
   return OperatorFixity::in;
 }
 

@@ -3,6 +3,18 @@
 
 namespace mt {
 
+std::string AnonymousFunctionExpr::accept(const StringVisitor& vis) const {
+  return vis.anonymous_function_expr(*this);
+}
+
+std::string FunctionReferenceExpr::accept(const StringVisitor& vis) const {
+  return vis.function_reference_expr(*this);
+}
+
+std::string ColonSubscriptExpr::accept(const StringVisitor& vis) const {
+  return vis.colon_subscript_expr(*this);
+}
+
 std::string CharLiteralExpr::accept(const StringVisitor& vis) const {
   return vis.char_literal_expr(*this);
 }

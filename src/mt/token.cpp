@@ -70,6 +70,14 @@ const Token& TokenIterator::peek_nth(int64_t num) const {
   }
 }
 
+const Token& TokenIterator::peek_prev() const {
+  return peek_nth(-1);
+}
+
+const Token& TokenIterator::peek_next() const {
+  return peek_nth(1);
+}
+
 const Token& TokenIterator::null_token() {
   static Token null_token{TokenType::null, std::string_view()};
   return null_token;

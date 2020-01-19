@@ -22,6 +22,9 @@ public:
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
 
+  std::string function_reference_expr(const FunctionReferenceExpr &expr) const;
+  std::string anonymous_function_expr(const AnonymousFunctionExpr& expr) const;
+  std::string colon_subscript_expr(const ColonSubscriptExpr& expr) const;
   std::string char_literal_expr(const CharLiteralExpr& expr) const;
   std::string string_literal_expr(const StringLiteralExpr& expr) const;
   std::string number_literal_expr(const NumberLiteralExpr& expr) const;

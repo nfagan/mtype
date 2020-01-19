@@ -56,6 +56,24 @@ std::string StringVisitor::assignment_stmt(const AssignmentStmt& stmt) const {
   return tab_str() + of + " = " + to + ";";
 }
 
+std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& expr) const {
+  auto str = "@" + expr.expr->accept(*this);
+  maybe_parenthesize(str);
+  return str;
+}
+
+std::string StringVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) const {
+  auto header = std::string("@(") + join(expr.input_identifiers, ", ") + ") ";
+  auto body = expr.expr->accept(*this);
+  auto str = header + body;
+  maybe_parenthesize(str);
+  return str;
+}
+
+std::string StringVisitor::colon_subscript_expr(const ColonSubscriptExpr&) const {
+  return ":";
+}
+
 std::string StringVisitor::char_literal_expr(const CharLiteralExpr& expr) const {
   return std::string("'") + std::string(expr.source_token.lexeme) + "'";
 }
@@ -79,12 +97,12 @@ std::string StringVisitor::dynamic_field_reference_expr(const DynamicFieldRefere
 }
 
 std::string StringVisitor::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) const {
-  return std::string(expr.identifier.lexeme);
+  return std::string(expr.identifier_token.lexeme);
 }
 
 std::string StringVisitor::identifier_reference_expr(const IdentifierReferenceExpr& expr) const {
   const auto sub_str = visit_array(expr.subscripts, "");
-  std::string str = std::string(expr.identifier.lexeme) + sub_str;
+  std::string str = std::string(expr.identifier_token.lexeme) + sub_str;
   maybe_parenthesize(str);
   return str;
 }
@@ -120,9 +138,9 @@ std::string StringVisitor::grouping_expr(const GroupingExpr& expr) const {
 std::string StringVisitor::unary_operator_expr(const UnaryOperatorExpr& expr) const {
   auto str = expr.expr->accept(*this);
   std::string op(to_symbol(expr.source_token.type));
-  auto fixity = fixity_of_unary_operator(expr.op);
+  auto fix = fixity(expr.op);
 
-  if (fixity == OperatorFixity::pre) {
+  if (fix == OperatorFixity::pre) {
     std::swap(op, str);
   }
 

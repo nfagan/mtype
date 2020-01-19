@@ -322,9 +322,7 @@ Result<ParseError, std::unique_ptr<SubscriptExpr>> AstGenerator::period_subscrip
   return make_success<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(subscript_expr));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr() {
-  const auto& main_ident_token = iterator.peek();
-
+Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_token) {
   auto main_ident_res = char_identifier();
   if (!main_ident_res) {
     return make_error<ParseError, BoxedExpr>(std::move(main_ident_res.error));
@@ -368,7 +366,44 @@ Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr() {
     }
   }
 
-  auto node = std::make_unique<IdentifierReferenceExpr>(main_ident_token, std::move(subscripts));
+  auto node = std::make_unique<IdentifierReferenceExpr>(source_token, std::move(subscripts));
+  return make_success<ParseError, BoxedExpr>(std::move(node));
+}
+
+Result<ParseError, BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& source_token) {
+  iterator.advance(); //  consume '@'
+  const auto& next_token = iterator.peek();
+
+  if (next_token.type == TokenType::identifier) {
+    //  @main
+    auto res = identifier_reference_expr(next_token);
+    if (!res) {
+      return res;
+    }
+
+    auto node = std::make_unique<FunctionReferenceExpr>(source_token, std::move(res.value));
+    return make_success<ParseError, BoxedExpr>(std::move(node));
+  }
+
+  //  Expect @(x, y, z) expr
+  auto err = consume(TokenType::left_parens);
+  if (err) {
+    return make_error<ParseError, BoxedExpr>(err.rvalue());
+  }
+
+  auto input_res = char_identifier_sequence(TokenType::right_parens);
+  if (!input_res) {
+    return make_error<ParseError, BoxedExpr>(std::move(input_res.error));
+  }
+
+  auto body_res = expr();
+  if (!body_res) {
+    return body_res;
+  }
+
+  auto node = std::make_unique<AnonymousFunctionExpr>(source_token,
+    std::move(input_res.value), std::move(body_res.value));
+
   return make_success<ParseError, BoxedExpr>(std::move(node));
 }
 
@@ -419,6 +454,13 @@ Result<ParseError, BoxedExpr> AstGenerator::grouping_expr(const Token& source_to
   return make_success<ParseError, BoxedExpr>(std::move(expr_node));
 }
 
+Result<ParseError, BoxedExpr> AstGenerator::colon_subscript_expr(const mt::Token& source_token) {
+  iterator.advance(); //  consume ':'
+
+  auto node = std::make_unique<ColonSubscriptExpr>(source_token);
+  return make_success<ParseError, BoxedExpr>(std::move(node));
+}
+
 Result<ParseError, BoxedExpr> AstGenerator::literal_expr(const Token& source_token) {
   iterator.advance();
   BoxedExpr expr_node;
@@ -447,10 +489,111 @@ Result<ParseError, BoxedExpr> AstGenerator::ignore_output_expr(const Token& sour
   return make_success<ParseError, BoxedExpr>(std::move(source_node));
 }
 
+std::unique_ptr<UnaryOperatorExpr> AstGenerator::pending_unary_prefix_expr(const mt::Token& source_token) {
+  iterator.advance();
+  const auto op = unary_operator_from_token_type(source_token.type);
+  //  Awaiting
+  return std::make_unique<UnaryOperatorExpr>(source_token, op, nullptr);
+}
+
+Optional<ParseError> AstGenerator::postfix_unary_expr(const mt::Token& source_token,
+                                                      std::vector<BoxedExpr>& completed) {
+  iterator.advance();
+
+  if (completed.empty()) {
+    return Optional<ParseError>(make_error_expected_lhs(source_token));
+  }
+
+  const auto op = unary_operator_from_token_type(source_token.type);
+  auto node = std::make_unique<UnaryOperatorExpr>(source_token, op, std::move(completed.back()));
+  completed.back() = std::move(node);
+
+  return NullOpt{};
+}
+
+Optional<ParseError>
+AstGenerator::handle_postfix_unary_exprs(std::vector<BoxedExpr>& completed) {
+  while (iterator.has_next()) {
+    const auto& curr = iterator.peek();
+    const auto& prev = iterator.peek_prev();
+
+    if (represents_postfix_unary_operator(curr.type) &&
+        can_precede_postfix_unary_operator(prev.type)) {
+      auto err = postfix_unary_expr(curr, completed);
+      if (err) {
+        return err;
+      }
+    } else {
+      break;
+    }
+  }
+
+  return NullOpt{};
+}
+
+void AstGenerator::handle_prefix_unary_exprs(std::vector<BoxedExpr>& completed,
+                                             std::vector<BoxedUnaryOperatorExpr>& unaries) {
+  while (!unaries.empty()) {
+    auto un = std::move(unaries.back());
+    unaries.pop_back();
+    assert(!un->expr && "Unary already had an expression.");
+    un->expr = std::move(completed.back());
+    completed.back() = std::move(un);
+  }
+}
+
+void AstGenerator::handle_binary_exprs(std::vector<BoxedExpr>& completed,
+                                       std::vector<BoxedBinaryOperatorExpr>& binaries,
+                                       std::vector<BoxedBinaryOperatorExpr>& pending_binaries) {
+  assert(!binaries.empty() && "Binaries were empty.");
+  auto bin = std::move(binaries.back());
+  binaries.pop_back();
+
+  const auto op_next = binary_operator_from_token_type(iterator.peek_next().type);
+  auto prec_curr = precedence(bin->op);
+  const auto prec_next = precedence(op_next);
+
+  if (prec_curr < prec_next) {
+    pending_binaries.emplace_back(std::move(bin));
+  } else {
+    assert(!bin->right && "Binary already had an expression.");
+    auto complete = std::move(completed.back());
+    bin->right = std::move(complete);
+    completed.back() = std::move(bin);
+
+    while (!pending_binaries.empty() && prec_next < prec_curr) {
+      auto pend = std::move(pending_binaries.back());
+      pending_binaries.pop_back();
+      prec_curr = precedence(pend->op);
+      pend->right = std::move(completed.back());
+      completed.back() = std::move(pend);
+    }
+  }
+}
+
+Optional<ParseError> AstGenerator::pending_binary_expr(const mt::Token& source_token,
+                                                       std::vector<BoxedExpr>& completed,
+                                                       std::vector<BoxedBinaryOperatorExpr>& binaries) {
+  iterator.advance(); //  Consume operator token.
+
+  if (completed.empty()) {
+    return Optional<ParseError>(make_error_expected_lhs(source_token));
+  }
+
+  auto left = std::move(completed.back());
+  completed.pop_back();
+
+  const auto op = binary_operator_from_token_type(source_token.type);
+  auto pending = std::make_unique<BinaryOperatorExpr>(source_token, op, std::move(left), nullptr);
+  binaries.emplace_back(std::move(pending));
+
+  return NullOpt{};
+}
+
 Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
-  std::vector<std::unique_ptr<BinaryOperatorExpr>> pending_binaries;
-  std::vector<std::unique_ptr<BinaryOperatorExpr>> binaries;
-  std::vector<std::unique_ptr<UnaryOperatorExpr>> unaries;
+  std::vector<BoxedBinaryOperatorExpr> pending_binaries;
+  std::vector<BoxedBinaryOperatorExpr> binaries;
+  std::vector<BoxedUnaryOperatorExpr> unaries;
   std::vector<BoxedExpr> completed;
 
   while (iterator.has_next()) {
@@ -458,7 +601,7 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
     const auto& tok = iterator.peek();
 
     if (tok.type == TokenType::identifier) {
-      node_res = identifier_reference_expr();
+      node_res = identifier_reference_expr(tok);
 
     } else if (is_ignore_output_expr(tok)) {
       node_res = ignore_output_expr(tok);
@@ -468,6 +611,23 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
 
     } else if (represents_literal(tok.type)) {
       node_res = literal_expr(tok);
+
+    } else if (is_unary_prefix_expr(tok)) {
+      auto node = pending_unary_prefix_expr(tok);
+      unaries.emplace_back(std::move(node));
+
+    } else if (represents_binary_operator(tok.type)) {
+      if (is_colon_subscript_expr(tok)) {
+        node_res = colon_subscript_expr(tok);
+      } else {
+        auto bin_res = pending_binary_expr(tok, completed, binaries);
+        if (bin_res) {
+          return make_error<ParseError, BoxedExpr>(bin_res.rvalue());
+        }
+      }
+
+    } else if (tok.type == TokenType::at) {
+      return anonymous_function_expr(tok);
 
     } else if (represents_expr_terminator(tok.type)) {
       break;
@@ -483,6 +643,19 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
 
     if (node_res.value) {
       completed.emplace_back(std::move(node_res.value));
+
+      auto err = handle_postfix_unary_exprs(completed);
+      if (err) {
+        return make_error<ParseError, BoxedExpr>(err.rvalue());
+      }
+    }
+
+    if (!completed.empty()) {
+      handle_prefix_unary_exprs(completed, unaries);
+    }
+
+    if (!completed.empty() && !binaries.empty()) {
+      handle_binary_exprs(completed, binaries, pending_binaries);
     }
   }
 
@@ -551,6 +724,21 @@ Result<ParseErrors, BoxedAstNode> AstGenerator::stmt() {
   }
 }
 
+bool AstGenerator::is_unary_prefix_expr(const mt::Token& curr_token) const {
+  return represents_prefix_unary_operator(curr_token.type) &&
+    (curr_token.type == TokenType::tilde ||
+    can_precede_prefix_unary_operator(iterator.peek_prev().type));
+}
+
+bool AstGenerator::is_colon_subscript_expr(const mt::Token& curr_token) const {
+  if (curr_token.type != TokenType::colon) {
+    return false;
+  }
+
+  auto next_type = iterator.peek_next().type;
+  return represents_grouping_terminator(next_type) || next_type == TokenType::comma;
+}
+
 bool AstGenerator::is_ignore_output_expr(const mt::Token& curr_token) const {
   //  [~] = func() | [~, a] = func()
   if (curr_token.type != TokenType::tilde) {
@@ -589,6 +777,10 @@ ParseError AstGenerator::make_error_incomplete_expr(const mt::Token& at_token) {
 
 ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& at_token) {
   return ParseError(text, at_token, "The expression on the left is not a valid target for assignment.");
+}
+
+ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) {
+  return ParseError(text, at_token, "Expected an expression on the left hand side.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,
