@@ -1,9 +1,6 @@
 #include "util.hpp"
 
-#include "mt/scan.hpp"
-#include "mt/ast_gen.hpp"
-#include "mt/unicode.hpp"
-#include "mt/string.hpp"
+#include "mt/mt.hpp"
 
 #include <iostream>
 #include <cassert>
@@ -29,9 +26,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       }
       return;
     } else {
-      for (const auto& tok : scan_res.value) {
-        std::cout << tok << std::endl;
-      }
+//       for (const auto& tok : scan_res.value) {
+//         std::cout << tok << std::endl;
+//       }
     }
     
     auto parse_res = ast_generator.parse(scan_res.value, str);
@@ -40,7 +37,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       for (const auto& err : parse_res.error) {
         err.show();
       }
+      return;
     }
+    
+    mt::StringVisitor visitor;
+    visitor.parenthesize_exprs = false;
+
+    std::cout << parse_res.value->accept(visitor) << std::endl;
 
   } else {
     std::cout << "Input is not valid unicode." << std::endl;

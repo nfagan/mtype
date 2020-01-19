@@ -62,4 +62,8 @@ BinaryOperator binary_operator_from_token_type(TokenType type);
 UnaryOperator unary_operator_from_token_type(TokenType type);
 GroupingMethod grouping_method_from_token_type(TokenType type);
 SubscriptMethod subscript_method_from_token_type(TokenType type);
+
+OperatorFixity fixity_of_unary_operator(UnaryOperator op);
+OperatorFixity fixity_of_binary_operator(UnaryOperator op);
+
 }

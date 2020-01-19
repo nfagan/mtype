@@ -2,6 +2,7 @@
 #include "string.hpp"
 #include "character.hpp"
 #include <array>
+#include <cassert>
 
 namespace mt {
 
@@ -16,9 +17,19 @@ void ParseError::show() const {
   }
 }
 
-Result<ParseErrors, BoxedAstNode> AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt) {
+namespace {
+  inline ParseErrors parse_error_to_errors(ParseError&& err) {
+    ParseErrors res;
+    res.emplace_back(std::move(err));
+    return res;
+  }
+}
+
+Result<ParseErrors, std::unique_ptr<Block>>
+AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt) {
   iterator = TokenIterator(&tokens);
   text = txt;
+  is_end_terminated_function = true;
 
   return block();
 }
@@ -34,17 +45,18 @@ Result<ParseError, std::string_view> AstGenerator::char_identifier() {
   }
 }
 
-Result<ParseErrors, std::vector<std::string_view>> AstGenerator::char_identifier_sequence(TokenType terminator) {
+Result<ParseError, std::vector<std::string_view>>
+AstGenerator::char_identifier_sequence(TokenType terminator) {
   std::vector<std::string_view> identifiers;
-  ParseErrors errors;
   bool expect_identifier = true;
 
-  while (iterator.has_next() && iterator.peek().type != terminator && errors.empty()) {
+  while (iterator.has_next() && iterator.peek().type != terminator) {
     const auto& tok = iterator.peek();
 
     if (expect_identifier && tok.type != TokenType::identifier) {
       std::array<TokenType, 2> possible_types{{TokenType::identifier, terminator}};
-      errors.emplace_back(make_error_expected_token_type(tok, possible_types.data(), possible_types.size()));
+      auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
+      return make_error<ParseError, std::vector<std::string_view>>(std::move(err));
 
     } else if (expect_identifier && tok.type == TokenType::identifier) {
       identifiers.push_back(tok.lexeme);
@@ -55,60 +67,50 @@ Result<ParseErrors, std::vector<std::string_view>> AstGenerator::char_identifier
 
     } else {
       std::array<TokenType, 2> possible_types{{TokenType::comma, terminator}};
-      errors.emplace_back(make_error_expected_token_type(tok, possible_types.data(), possible_types.size()));
+      auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
+      return make_error<ParseError, std::vector<std::string_view>>(std::move(err));
     }
 
-    if (errors.empty()) {
-      iterator.advance();
-    }
-  }
-
-  if (!errors.empty()) {
-    return make_error<ParseErrors, std::vector<std::string_view>>(std::move(errors));
+    iterator.advance();
   }
 
   auto term_err = consume(terminator);
   if (term_err) {
-    errors.emplace_back(term_err.rvalue());
-    return make_error<ParseErrors, std::vector<std::string_view>>(std::move(errors));
+    return make_error<ParseError, std::vector<std::string_view>>(term_err.rvalue());
   } else {
-    return make_success<ParseErrors, std::vector<std::string_view>>(std::move(identifiers));
+    return make_success<ParseError, std::vector<std::string_view>>(std::move(identifiers));
   }
 }
 
-Result<ParseErrors, FunctionHeader> AstGenerator::function_header() {
+Result<ParseError, FunctionHeader> AstGenerator::function_header() {
   auto output_res = function_outputs();
   if (!output_res) {
-    return make_error<ParseErrors, FunctionHeader>(std::move(output_res.error));
+    return make_error<ParseError, FunctionHeader>(std::move(output_res.error));
   }
 
   if (!output_res.value.empty()) {
     auto err = consume(TokenType::equal);
     if (err) {
-      ParseErrors errs;
-      errs.emplace_back(err.rvalue());
-      return make_error<ParseErrors, FunctionHeader>(std::move(errs));
+      return make_error<ParseError, FunctionHeader>(err.rvalue());
     }
   }
 
-  auto name_token = iterator.peek();
+  const auto& name_token = iterator.peek();
   auto name_res = char_identifier();
   if (!name_res) {
-    ParseErrors errs;
-    errs.emplace_back(name_res.error);
-    return make_error<ParseErrors, FunctionHeader>(std::move(errs));
+    return make_error<ParseError, FunctionHeader>(std::move(name_res.error));
   }
 
   auto input_res = function_inputs();
   if (!input_res) {
-    return make_error<ParseErrors, FunctionHeader>(std::move(input_res.error));
+    return make_error<ParseError, FunctionHeader>(std::move(input_res.error));
   }
 
   FunctionHeader header{name_token, name_res.value, std::move(output_res.value), std::move(input_res.value)};
-  return make_success<ParseErrors, FunctionHeader>(std::move(header));
+  return make_success<ParseError, FunctionHeader>(std::move(header));
 }
 
-Result<ParseErrors, std::vector<std::string_view>> AstGenerator::function_inputs() {
+Result<ParseError, std::vector<std::string_view>> AstGenerator::function_inputs() {
   if (iterator.peek().type == TokenType::left_parens) {
     iterator.advance();
     return char_identifier_sequence(TokenType::right_parens);
@@ -117,7 +119,7 @@ Result<ParseErrors, std::vector<std::string_view>> AstGenerator::function_inputs
   }
 }
 
-Result<ParseErrors, std::vector<std::string_view>> AstGenerator::function_outputs() {
+Result<ParseError, std::vector<std::string_view>> AstGenerator::function_outputs() {
   const auto& tok = iterator.peek();
   std::vector<std::string_view> outputs;
 
@@ -134,62 +136,97 @@ Result<ParseErrors, std::vector<std::string_view>> AstGenerator::function_output
       iterator.advance();
     }
 
-    return make_success<ParseErrors, std::vector<std::string_view>>(std::move(outputs));
+    return make_success<ParseError, std::vector<std::string_view>>(std::move(outputs));
   } else {
     std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
-    std::vector<ParseError> errors;
-    errors.emplace_back(make_error_expected_token_type(tok, possible_types.data(), possible_types.size()));
-    return make_error<ParseErrors, std::vector<std::string_view>>(std::move(errors));
+    auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
+    return make_error<ParseError, std::vector<std::string_view>>(std::move(err));
   }
 }
 
-Result<ParseErrors, BoxedAstNode> AstGenerator::function_def() {
+Result<ParseErrors, std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
   iterator.advance();
   auto header_result = function_header();
 
   if (!header_result) {
-    return make_error<ParseErrors, BoxedAstNode>(std::move(header_result.error));
+    auto errs = parse_error_to_errors(std::move(header_result.error));
+    return make_error<ParseErrors, std::unique_ptr<FunctionDef>>(std::move(errs));
   }
 
-  auto success = std::make_unique<FunctionDef>(std::move(header_result.value), nullptr);
-  return make_success<ParseErrors, BoxedAstNode>(std::move(success));
+  auto body_res = block();
+  if (!body_res) {
+    return make_error<ParseErrors, std::unique_ptr<FunctionDef>>(std::move(body_res.error));
+  }
+
+  if (is_end_terminated_function) {
+    auto err = consume(TokenType::keyword_end);
+    if (err) {
+      return make_error<ParseErrors, std::unique_ptr<FunctionDef>>(parse_error_to_errors(err.rvalue()));
+    }
+  }
+
+  auto success = std::make_unique<FunctionDef>(std::move(header_result.value),
+    std::move(body_res.value));
+  return make_success<ParseErrors, std::unique_ptr<FunctionDef>>(std::move(success));
 }
 
-Result<ParseErrors, BoxedAstNode> AstGenerator::block() {
+Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::block() {
   ParseErrors errors;
   auto block_node = std::make_unique<Block>();
+  bool should_proceed = true;
 
-  while (iterator.has_next()) {
-    Result<ParseErrors, BoxedAstNode> res;
+  while (iterator.has_next() && should_proceed) {
+    BoxedAstNode node;
+    ParseErrors error;
+    bool success = true;
+
     const auto& tok = iterator.peek();
 
     switch (tok.type) {
       case TokenType::new_line:
       case TokenType::null:
+      case TokenType::semicolon:
+      case TokenType::comma:
         iterator.advance();
         break;
-      case TokenType::keyword_function:
-        res = function_def();
+      case TokenType::keyword_end:
+        should_proceed = false;
         break;
-      default:
-        iterator.advance();
+      case TokenType::keyword_function: {
+        auto def_res = function_def();
+        if (def_res) {
+          node = std::move(def_res.value);
+        } else {
+          success = false;
+          error = std::move(def_res.error);
+        }
+        break;
+      }
+      default: {
+        auto stmt_res = stmt();
+        if (stmt_res) {
+          node = std::move(stmt_res.value);
+        } else {
+          success = false;
+          error = std::move(stmt_res.error);
+        }
+      }
     }
 
-    if (res) {
-      if (res.value) {
-        block_node->append(std::move(res.value));
-      }
-    } else {
-      errors.insert(errors.end(), res.error.cbegin(), res.error.cend());
+    if (!success) {
+      errors.insert(errors.end(), error.cbegin(), error.cend());
       std::array<TokenType, 1> possible_types{{TokenType::keyword_function}};
       iterator.advance_to_one(possible_types.data(), possible_types.size());
+
+    } else if (node) {
+      block_node->append(std::move(node));
     }
   }
 
   if (errors.empty()) {
-    return make_success<ParseErrors, BoxedAstNode>(std::move(block_node));
+    return make_success<ParseErrors, std::unique_ptr<Block>>(std::move(block_node));
   } else {
-    return make_error<ParseErrors, BoxedAstNode>(std::move(errors));
+    return make_error<ParseErrors, std::unique_ptr<Block>>(std::move(errors));
   }
 }
 
@@ -224,7 +261,7 @@ Result<ParseError, BoxedExpr> AstGenerator::dynamic_field_reference_expr() {
 
 Result<ParseError, std::unique_ptr<SubscriptExpr>>
 AstGenerator::non_period_subscript_expr(mt::SubscriptMethod method, mt::TokenType term) {
-  //  @TODO: Recode `end` to `end` subscript reference.
+  //  @TODO: Recode `end` to `end subscript reference`.
   const auto& source_token = iterator.peek();
   iterator.advance(); //  consume '(' or '{'
 
@@ -232,7 +269,6 @@ AstGenerator::non_period_subscript_expr(mt::SubscriptMethod method, mt::TokenTyp
 
   while (iterator.has_next() && iterator.peek().type != term) {
     auto expr_res = expr();
-
     if (!expr_res) {
       return make_error<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(expr_res.error));
     }
@@ -277,12 +313,13 @@ Result<ParseError, std::unique_ptr<SubscriptExpr>> AstGenerator::period_subscrip
 
   if (!expr_res) {
     return make_error<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(expr_res.error));
-  } else {
-    std::vector<BoxedExpr> args;
-    args.emplace_back(std::move(expr_res.value));
-    auto subscript_expr = std::make_unique<SubscriptExpr>(source_token, SubscriptMethod::period, std::move(args));
-    return make_success<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(subscript_expr));
   }
+
+  std::vector<BoxedExpr> args;
+  args.emplace_back(std::move(expr_res.value));
+  auto subscript_expr = std::make_unique<SubscriptExpr>(source_token, SubscriptMethod::period, std::move(args));
+
+  return make_success<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(subscript_expr));
 }
 
 Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr() {
@@ -299,29 +336,35 @@ Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr() {
   while (iterator.has_next()) {
     const auto& tok = iterator.peek();
     Result<ParseError, std::unique_ptr<SubscriptExpr>> sub_result;
+    bool has_subscript = true;
 
-    switch (tok.type) {
-      case TokenType::period:
-        sub_result = period_subscript_expr();
-        break;
-      case TokenType::left_parens:
-        sub_result = non_period_subscript_expr(SubscriptMethod::parens, TokenType::right_parens);
-        break;
-      case TokenType::left_brace:
-        sub_result = non_period_subscript_expr(SubscriptMethod::brace, TokenType::right_brace);
-      default:
-        break;
+    if (tok.type == TokenType::period) {
+      sub_result = period_subscript_expr();
+
+    } else if (tok.type == TokenType::left_parens) {
+      sub_result = non_period_subscript_expr(SubscriptMethod::parens, TokenType::right_parens);
+
+    } else if (tok.type == TokenType::left_brace) {
+      sub_result = non_period_subscript_expr(SubscriptMethod::brace, TokenType::right_brace);
+
+    } else {
+      has_subscript = false;
     }
 
     if (!sub_result) {
       return Result<ParseError, BoxedExpr>(std::move(sub_result.error));
+
+    } else if (!has_subscript) {
+      break;
     }
 
-    if (prev_method == SubscriptMethod::parens && sub_result.value->method != SubscriptMethod::period) {
+    auto& sub_expr = sub_result.value;
+
+    if (prev_method == SubscriptMethod::parens && sub_expr->method != SubscriptMethod::period) {
       return make_error<ParseError, BoxedExpr>(make_error_reference_after_parens_reference_expr(tok));
     } else {
-      prev_method = sub_result.value->method;
-      subscripts.emplace_back(std::move(sub_result.value));
+      prev_method = sub_expr->method;
+      subscripts.emplace_back(std::move(sub_expr));
     }
   }
 
@@ -329,12 +372,12 @@ Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr() {
   return make_success<ParseError, BoxedExpr>(std::move(node));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::grouping_expr() {
-  const auto& tok = iterator.peek();
-  const TokenType terminator = grouping_terminator_for(tok.type);
+Result<ParseError, BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
+  const TokenType terminator = grouping_terminator_for(source_token.type);
   iterator.advance();
 
-  const bool allow_empty = tok.type == TokenType::left_bracket || tok.type == TokenType::left_brace;
+  const bool allow_empty = source_token.type == TokenType::left_bracket ||
+    source_token.type == TokenType::left_brace;
   std::vector<std::unique_ptr<GroupingExprComponent>> exprs;
 
   while (iterator.has_next() && iterator.peek().type != terminator) {
@@ -360,6 +403,7 @@ Result<ParseError, BoxedExpr> AstGenerator::grouping_expr() {
     }
 
     if (expr_res.value) {
+      //  If non-empty.
       auto component_expr = std::make_unique<GroupingExprComponent>(std::move(expr_res.value), delim);
       exprs.emplace_back(std::move(component_expr));
     }
@@ -368,10 +412,39 @@ Result<ParseError, BoxedExpr> AstGenerator::grouping_expr() {
   auto err = consume(terminator);
   if (err) {
     return make_error<ParseError, BoxedExpr>(err.rvalue());
-  } else {
-    auto expr_node = std::make_unique<GroupingExpr>(tok, grouping_method_from_token_type(tok.type), std::move(exprs));
-    return make_success<ParseError, BoxedExpr>(std::move(expr_node));
   }
+
+  const auto grouping_method = grouping_method_from_token_type(source_token.type);
+  auto expr_node = std::make_unique<GroupingExpr>(source_token, grouping_method, std::move(exprs));
+  return make_success<ParseError, BoxedExpr>(std::move(expr_node));
+}
+
+Result<ParseError, BoxedExpr> AstGenerator::literal_expr(const Token& source_token) {
+  iterator.advance();
+  BoxedExpr expr_node;
+
+  if (source_token.type == TokenType::number_literal) {
+    const double num = std::stod(source_token.lexeme.data());
+    expr_node = std::make_unique<NumberLiteralExpr>(source_token, num);
+
+  } else if (source_token.type == TokenType::char_literal) {
+    expr_node = std::make_unique<CharLiteralExpr>(source_token);
+
+  } else if (source_token.type == TokenType::string_literal) {
+    expr_node = std::make_unique<StringLiteralExpr>(source_token);
+
+  } else {
+    assert(false && "Unhandled literal expression.");
+  }
+
+  return make_success<ParseError, BoxedExpr>(std::move(expr_node));
+}
+
+Result<ParseError, BoxedExpr> AstGenerator::ignore_output_expr(const Token& source_token) {
+  iterator.advance();
+
+  auto source_node = std::make_unique<IgnoreFunctionOutputArgumentExpr>(source_token);
+  return make_success<ParseError, BoxedExpr>(std::move(source_node));
 }
 
 Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
@@ -387,8 +460,14 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
     if (tok.type == TokenType::identifier) {
       node_res = identifier_reference_expr();
 
+    } else if (is_ignore_output_expr(tok)) {
+      node_res = ignore_output_expr(tok);
+
     } else if (represents_grouping_initiator(tok.type)) {
-      node_res = grouping_expr();
+      node_res = grouping_expr(tok);
+
+    } else if (represents_literal(tok.type)) {
+      node_res = literal_expr(tok);
 
     } else if (represents_expr_terminator(tok.type)) {
       break;
@@ -423,6 +502,65 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
   }
 }
 
+Result<ParseError, BoxedStmt> AstGenerator::assignment_stmt(BoxedExpr lhs, const Token& initial_token) {
+  iterator.advance(); //  consume =
+
+  if (!lhs->is_valid_assignment_target()) {
+    auto err = make_error_invalid_assignment_target(initial_token);
+    return make_error<ParseError, BoxedStmt>(std::move(err));
+  }
+
+  auto rhs_res = expr();
+  if (!rhs_res) {
+    return make_error<ParseError, BoxedStmt>(std::move(rhs_res.error));
+  }
+
+  auto assign_stmt = std::make_unique<AssignmentStmt>(std::move(lhs), std::move(rhs_res.value));
+  return make_success<ParseError, BoxedStmt>(std::move(assign_stmt));
+}
+
+Result<ParseError, BoxedStmt> AstGenerator::expr_stmt() {
+  const auto& initial_token = iterator.peek();
+  auto expr_res = expr();
+
+  if (!expr_res) {
+    return make_error<ParseError, BoxedStmt>(std::move(expr_res.error));
+  }
+
+  const auto& curr_token = iterator.peek();
+
+  if (curr_token.type == TokenType::equal) {
+    return assignment_stmt(std::move(expr_res.value), initial_token);
+  }
+
+  auto expr_stmt = std::make_unique<ExprStmt>(std::move(expr_res.value));
+  return make_success<ParseError, BoxedStmt>(std::move(expr_stmt));
+}
+
+Result<ParseErrors, BoxedAstNode> AstGenerator::stmt() {
+  const auto& token = iterator.peek();
+
+  switch (token.type) {
+    default:
+      auto res = expr_stmt();
+      if (res) {
+        return make_success<ParseErrors, BoxedAstNode>(std::move(res.value));
+      } else {
+        return make_error<ParseErrors, BoxedAstNode>(parse_error_to_errors(std::move(res.error)));
+      }
+  }
+}
+
+bool AstGenerator::is_ignore_output_expr(const mt::Token& curr_token) const {
+  //  [~] = func() | [~, a] = func()
+  if (curr_token.type != TokenType::tilde) {
+    return false;
+  }
+
+  const auto& next = iterator.peek_nth(1);
+  return next.type == TokenType::comma || next.type == TokenType::right_bracket;
+}
+
 Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
   const auto& tok = iterator.peek();
 
@@ -449,6 +587,10 @@ ParseError AstGenerator::make_error_incomplete_expr(const mt::Token& at_token) {
   return ParseError(text, at_token, "Expression is incomplete.");
 }
 
+ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& at_token) {
+  return ParseError(text, at_token, "The expression on the left is not a valid target for assignment.");
+}
+
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,
                                                         int64_t num_types) {
   std::vector<std::string> type_strs;
@@ -459,7 +601,8 @@ ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_toke
   }
 
   const auto expected_str = join(type_strs, ", ");
-  std::string message = "Expected to receive one of these types: \n\n" + expected_str + "\n\nInstead, received: `";
+  std::string message = "Expected to receive one of these types: \n\n" + expected_str;
+  message += "\n\nInstead, received: `";
   message += to_string(at_token.type);
   message += "`.";
 

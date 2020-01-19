@@ -109,6 +109,7 @@ bool represents_grouping_component(TokenType type);
 bool represents_grouping_initiator(TokenType type);
 bool represents_grouping_terminator(TokenType type);
 bool represents_expr_terminator(TokenType type);
+bool represents_literal(TokenType type);
 
 TokenType grouping_terminator_for(TokenType initiator);
 std::array<TokenType, 3> grouping_terminators();

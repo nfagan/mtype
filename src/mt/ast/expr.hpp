@@ -3,8 +3,54 @@
 #include "ast.hpp"
 #include "../lang_components.hpp"
 #include "../token.hpp"
+#include <algorithm>
 
 namespace mt {
+
+struct StringLiteralExpr : public Expr {
+  explicit StringLiteralExpr(const Token& source_token) : source_token(source_token) {
+    //
+  }
+
+  ~StringLiteralExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+};
+
+struct CharLiteralExpr : public Expr {
+  explicit CharLiteralExpr(const Token& source_token) : source_token(source_token) {
+    //
+  }
+
+  ~CharLiteralExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+};
+
+struct NumberLiteralExpr : public Expr {
+  NumberLiteralExpr(const Token& source_token, double value) :
+  source_token(source_token), value(value) {
+    //
+  }
+  ~NumberLiteralExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  double value;
+};
+
+struct IgnoreFunctionOutputArgumentExpr : public Expr {
+  explicit IgnoreFunctionOutputArgumentExpr(const Token& source_token) :
+  source_token(source_token) {
+    //
+  }
+  ~IgnoreFunctionOutputArgumentExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+};
 
 struct DynamicFieldReferenceExpr : public Expr {
   DynamicFieldReferenceExpr(const Token& source_token, BoxedExpr expr) :
@@ -12,16 +58,18 @@ struct DynamicFieldReferenceExpr : public Expr {
     //
   }
   ~DynamicFieldReferenceExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
   BoxedExpr expr;
 };
 
 struct LiteralFieldReferenceExpr : public Expr {
-  LiteralFieldReferenceExpr(const Token& identifier) : identifier(identifier) {
+  explicit LiteralFieldReferenceExpr(const Token& identifier) : identifier(identifier) {
     //
   }
   ~LiteralFieldReferenceExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
 
   Token identifier;
 };
@@ -32,6 +80,7 @@ struct SubscriptExpr : public Expr {
     //
   }
   ~SubscriptExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
   SubscriptMethod method;
@@ -39,11 +88,17 @@ struct SubscriptExpr : public Expr {
 };
 
 struct IdentifierReferenceExpr : public Expr {
-  IdentifierReferenceExpr(const Token& identifier, std::vector<std::unique_ptr<SubscriptExpr>>&& subscripts) :
+  IdentifierReferenceExpr(const Token& identifier,
+                          std::vector<std::unique_ptr<SubscriptExpr>>&& subscripts) :
   identifier(identifier), subscripts(std::move(subscripts)) {
     //
   }
   ~IdentifierReferenceExpr() override = default;
+
+  bool is_valid_assignment_target() const override {
+    return true;
+  }
+  std::string accept(const StringVisitor& vis) const override;
 
   Token identifier;
   std::vector<std::unique_ptr<SubscriptExpr>> subscripts;
@@ -56,20 +111,33 @@ struct GroupingExprComponent : public Expr {
   }
 
   ~GroupingExprComponent() override = default;
+  std::string accept(const StringVisitor& vis) const override;
 
   BoxedExpr expr;
   TokenType delimiter;
 };
 
 struct GroupingExpr : public Expr {
-  GroupingExpr(const Token& source_token, GroupingMethod method, std::vector<std::unique_ptr<GroupingExprComponent>>&& exprs):
-  source_token(source_token), method(method), exprs(std::move(exprs)) {
+  GroupingExpr(const Token& source_token, GroupingMethod method,
+               std::vector<std::unique_ptr<GroupingExprComponent>>&& exprs):
+  source_token(source_token), method(method), components(std::move(exprs)) {
     //
   }
 
+  bool is_valid_assignment_target() const override {
+    if (method != GroupingMethod::bracket || components.empty()) {
+      return false;
+    }
+
+    return std::all_of(components.cbegin(), components.cend(), [](const auto& arg) {
+      return arg->delimiter == TokenType::comma;
+    });
+  }
+  std::string accept(const StringVisitor& vis) const override;
+
   Token source_token;
   GroupingMethod method;
-  std::vector<std::unique_ptr<GroupingExprComponent>> exprs;
+  std::vector<std::unique_ptr<GroupingExprComponent>> components;
 };
 
 struct UnaryOperatorExpr : public Expr {
@@ -78,6 +146,7 @@ struct UnaryOperatorExpr : public Expr {
     //
   }
   ~UnaryOperatorExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
   UnaryOperator op;
@@ -90,6 +159,7 @@ struct BinaryOperatorExpr : public Expr {
 
   }
   ~BinaryOperatorExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
   BinaryOperator op;

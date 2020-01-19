@@ -68,6 +68,10 @@ int mt::utf8::count_code_units(const char* str, int64_t len) {
   return expected_n_bytes;
 }
 
+bool mt::utf8::is_valid(const std::string& str) {
+  return is_valid(str.c_str(), str.size());
+}
+
 bool mt::utf8::is_valid(const char* str, int64_t len) {
   int64_t index = 0;
 

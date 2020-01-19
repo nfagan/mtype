@@ -36,8 +36,8 @@ bool typing::is_end_terminated(std::string_view kw) {
 const char** matlab::keywords(int* count) {
   //  help iskeyword
   static const char* keywords[] = {
-    "break", "case", "catch", "classdef", "continue", "else", "elseif", "end", "for", "function", "global",
-    "if", "otherwise", "parfor", "persistent", "return", "spmd", "switch", "try", "while"
+    "break", "case", "catch", "classdef", "continue", "else", "elseif", "end", "for", "function",
+    "global", "if", "otherwise", "parfor", "persistent", "return", "spmd", "switch", "try", "while"
   };
 
   *count = sizeof(keywords) / sizeof(keywords[0]);
@@ -51,8 +51,8 @@ bool matlab::is_keyword(std::string_view str) {
 }
 
 bool matlab::is_end_terminated(std::string_view kw) {
-  return kw == "classdef" || kw == "if" || kw == "for" || kw == "function" || kw == "parfor" || kw == "spmd" ||
-    kw == "switch" || kw == "try" || kw == "while";
+  return kw == "classdef" || kw == "if" || kw == "for" || kw == "function" || kw == "parfor" ||
+    kw == "spmd" || kw == "switch" || kw == "try" || kw == "while";
 }
 
 bool is_end_terminated(std::string_view kw) {

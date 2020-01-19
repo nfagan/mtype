@@ -105,7 +105,8 @@ void Scanner::consume_whitespace() {
   }
 }
 
-void Scanner::check_add_token(mt::Result<mt::ScanError, mt::Token>& res, ScanErrors& errs, std::vector<Token>& tokens) {
+void Scanner::check_add_token(mt::Result<mt::ScanError, mt::Token>& res,
+                              ScanErrors& errs, std::vector<Token>& tokens) {
   if (res) {
     tokens.push_back(res.value);
   } else {

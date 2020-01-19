@@ -419,6 +419,11 @@ const char* to_string(TokenType type) {
   }
 }
 
+bool represents_literal(TokenType type) {
+  return type == TokenType::string_literal || type == TokenType::char_literal ||
+    type == TokenType::number_literal;
+}
+
 bool represents_expr_terminator(TokenType type) {
   return type == TokenType::semicolon || type == TokenType::comma || type == TokenType::new_line ||
     type == TokenType::null || type == TokenType::equal || represents_grouping_terminator(type);
@@ -432,11 +437,13 @@ bool represents_grouping_component(TokenType type) {
 }
 
 bool represents_grouping_initiator(TokenType type) {
-  return type == TokenType::left_parens || type == TokenType::left_brace || type == TokenType::left_bracket;
+  return type == TokenType::left_parens || type == TokenType::left_brace ||
+    type == TokenType::left_bracket;
 }
 
 bool represents_grouping_terminator(TokenType type) {
-  return type == TokenType::right_parens || type == TokenType::right_brace || type == TokenType::right_bracket;
+  return type == TokenType::right_parens || type == TokenType::right_brace ||
+    type == TokenType::right_bracket;
 }
 
 bool represents_binary_operator(TokenType type) {

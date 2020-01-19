@@ -2,10 +2,15 @@ function(configure_ast)
 
     set(sources
             ast.hpp
+            ast.cpp
             def.hpp
+            def.cpp
             expr.hpp
             expr.cpp
             stmt.hpp
+            stmt.cpp
+            StringVisitor.hpp
+            StringVisitor.cpp
     )
 
     foreach(source ${sources})

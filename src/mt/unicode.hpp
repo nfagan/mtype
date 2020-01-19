@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace mt {
   namespace utf8 {
@@ -8,5 +9,6 @@ namespace mt {
 
     int count_code_units(const char* str, int64_t len);
     bool is_valid(const char* str, int64_t len);
+    bool is_valid(const std::string& str);
   }
 }

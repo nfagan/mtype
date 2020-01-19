@@ -11,10 +11,12 @@ public:
     //
   }
 
-  Result(const Result& other) : error(other.error), value(other.value), is_error(other.is_error) {
+  Result(const Result& other) :
+  error(other.error), value(other.value), is_error(other.is_error) {
     //
   }
-  Result(Result&& other) noexcept : error(std::move(other.error)), value(std::move(other.value)), is_error(other.is_error) {
+  Result(Result&& other) noexcept :
+  error(std::move(other.error)), value(std::move(other.value)), is_error(other.is_error) {
     //
   }
 

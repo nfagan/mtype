@@ -1,8 +1,6 @@
-//
-// Created by Nick Fagan on 1/19/20.
-//
+#pragma once
 
-#ifndef MT_MT_HPP
-#define MT_MT_HPP
-
-#endif //MT_MT_HPP
+#include "scan.hpp"
+#include "ast_gen.hpp"
+#include "unicode.hpp"
+#include "ast/StringVisitor.hpp"

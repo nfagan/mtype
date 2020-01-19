@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "../token.hpp"
 
 namespace mt {
 
@@ -11,6 +12,7 @@ struct Block : public AstNode {
   void append(BoxedAstNode other) {
     nodes.emplace_back(std::move(other));
   }
+  std::string accept(const StringVisitor& vis) const override;
 
   std::vector<BoxedAstNode> nodes;
 };
@@ -29,6 +31,7 @@ struct FunctionDef : public Def {
   }
 
   ~FunctionDef() override = default;
+  std::string accept(const StringVisitor& vis) const override;
 
   FunctionHeader header;
   std::unique_ptr<Block> body;

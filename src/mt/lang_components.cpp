@@ -3,6 +3,24 @@
 
 namespace mt {
 
+OperatorFixity fixity_of_unary_operator(UnaryOperator op) {
+  switch (op) {
+    case UnaryOperator::unary_plus:
+    case UnaryOperator::unary_minus:
+    case UnaryOperator::op_not:
+      return OperatorFixity::pre;
+    case UnaryOperator::transpose:
+    case UnaryOperator::conjugate_transpose:
+      return OperatorFixity::post;
+    default:
+      return OperatorFixity::pre;
+  }
+}
+
+OperatorFixity fixity_of_binary_operator(BinaryOperator) {
+  return OperatorFixity::in;
+}
+
 SubscriptMethod subscript_method_from_token_type(TokenType type) {
   switch (type) {
     case TokenType::left_parens:

@@ -30,40 +30,53 @@ using ParseErrors = std::vector<ParseError>;
 
 class AstGenerator {
 public:
-  AstGenerator() = default;
+  AstGenerator() : is_end_terminated_function(true) {
+    //
+  }
+
   ~AstGenerator() = default;
 
-  Result<ParseErrors, BoxedAstNode> parse(const std::vector<Token>& tokens, std::string_view text);
+  Result<ParseErrors, std::unique_ptr<Block>>
+  parse(const std::vector<Token>& tokens, std::string_view text);
 
 private:
-  Result<ParseErrors, BoxedAstNode> block();
-  Result<ParseErrors, BoxedAstNode> function_def();
-  Result<ParseErrors, FunctionHeader> function_header();
-  Result<ParseErrors, std::vector<std::string_view>> function_inputs();
-  Result<ParseErrors, std::vector<std::string_view>> function_outputs();
+
+  Result<ParseErrors, std::unique_ptr<Block>> block();
+  Result<ParseErrors, std::unique_ptr<FunctionDef>> function_def();
+  Result<ParseError, FunctionHeader> function_header();
+  Result<ParseError, std::vector<std::string_view>> function_inputs();
+  Result<ParseError, std::vector<std::string_view>> function_outputs();
   Result<ParseError, std::string_view> char_identifier();
-  Result<ParseErrors, std::vector<std::string_view>> char_identifier_sequence(TokenType terminator);
+  Result<ParseError, std::vector<std::string_view>> char_identifier_sequence(TokenType terminator);
 
   Result<ParseError, BoxedExpr> expr(bool allow_empty = false);
-  Result<ParseError, BoxedExpr> grouping_expr();
+  Result<ParseError, BoxedExpr> grouping_expr(const Token& source_token);
   Result<ParseError, BoxedExpr> identifier_reference_expr();
   Result<ParseError, std::unique_ptr<SubscriptExpr>> period_subscript_expr();
   Result<ParseError, std::unique_ptr<SubscriptExpr>> non_period_subscript_expr(SubscriptMethod method, TokenType term);
   Result<ParseError, BoxedExpr> literal_field_reference_expr();
   Result<ParseError, BoxedExpr> dynamic_field_reference_expr();
+  Result<ParseError, BoxedExpr> ignore_output_expr(const Token& source_token);
+  Result<ParseError, BoxedExpr> literal_expr(const Token& source_token);
 
-  Result<ParseErrors, BoxedAstNode> expr_stmt();
+  Result<ParseError, BoxedStmt> assignment_stmt(BoxedExpr lhs, const Token& initial_token);
+  Result<ParseError, BoxedStmt> expr_stmt();
+  Result<ParseErrors, BoxedAstNode> stmt();
+
+  bool is_ignore_output_expr(const Token& curr_token) const;
 
   ParseError make_error_expected_token_type(const Token& at_token, const TokenType* types, int64_t num_types);
   ParseError make_error_reference_after_parens_reference_expr(const Token& at_token);
   ParseError make_error_invalid_expr_token(const Token& at_token);
   ParseError make_error_incomplete_expr(const Token& at_token);
+  ParseError make_error_invalid_assignment_target(const Token& at_token);
 
   Optional<ParseError> consume(TokenType type);
 
 private:
   TokenIterator iterator;
   std::string_view text;
+  bool is_end_terminated_function;
 };
 
 }

@@ -3,6 +3,7 @@
   <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
     <generated>
       <config projectName="mt" targetName="mt" />
+      <config projectName="mt" targetName="parse" />
       <config projectName="mt" targetName="string" />
     </generated>
   </component>
@@ -14,24 +15,36 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="241591a5-e02d-4c02-9757-d0d54435ab69" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/mt/ast/CMakeLists.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/mt/ast/ast.hpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/mt/ast/def.hpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/mt/ast/expr.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/mt/ast/expr.hpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/mt/ast/stmt.hpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/mt/lang_components.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/mt/lang_components.hpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mt/ast/StringVisitor.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mt/ast/StringVisitor.hpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mt/ast/ast.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mt/ast/def.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mt/ast/stmt.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mt/mt.hpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/parse/CMakeLists.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/parse/main.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/matlab/+mt/entry.mexmaci64" beforeDir="false" afterPath="$PROJECT_DIR$/matlab/+mt/entry.mexmaci64" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/matlab/src/entry.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/matlab/src/entry.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mt/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/CMakeLists.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mt/ast.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mt/ast.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/Result.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/Result.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/ast/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/ast/ast.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/ast.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/ast/def.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/def.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/ast/expr.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/expr.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/ast/expr.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/expr.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/ast/stmt.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/stmt.hpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/ast_gen.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast_gen.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/ast_gen.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast_gen.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/keyword.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/keyword.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/lang_components.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/lang_components.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/lang_components.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/lang_components.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/scan.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/scan.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/token_type.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token_type.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/token_type.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token_type.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/unicode.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/unicode.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/unicode.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/unicode.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/test/CMakeLists.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -52,6 +65,9 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="OCResolveContextSettings">
+    <option name="configuration" value="0-Debug-mt" />
+  </component>
   <component name="ProjectId" id="1WX1HCwC9flr7TOGkVqYSArl5rg" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
@@ -67,10 +83,15 @@
     <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="ObjectiveC" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
-    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
+    <property name="settings.editor.selected.configurable" value="preferences.sourceCode.C/C++" />
   </component>
-  <component name="RunManager" selected="CMake Application.mt">
+  <component name="RunManager" selected="CMake Application.parse">
     <configuration name="mt" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="mt" TARGET_NAME="mt" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="parse" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="mt" TARGET_NAME="parse" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="mt" RUN_TARGET_NAME="parse">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
@@ -82,6 +103,7 @@
     </configuration>
     <list>
       <item itemvalue="CMake Application.mt" />
+      <item itemvalue="CMake Application.parse" />
       <item itemvalue="CMake Application.string" />
     </list>
   </component>
@@ -107,7 +129,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1579281035713</updated>
-      <workItem from="1579281037080" duration="70190000" />
+      <workItem from="1579281037080" duration="85259000" />
     </task>
     <servers />
   </component>
@@ -119,42 +141,42 @@
       <screen x="0" y="23" width="1440" height="873" />
     </state>
     <state x="429" y="188" key="#mt/0.23.1440.873@0.23.1440.873" timestamp="1579299468037" />
-    <state width="1398" height="229" key="GridCell.Tab.0.bottom" timestamp="1579315538362">
+    <state width="1398" height="229" key="GridCell.Tab.0.bottom" timestamp="1579446910120">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.0.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579315538362" />
-    <state width="1398" height="229" key="GridCell.Tab.0.center" timestamp="1579315538361">
+    <state width="1398" height="229" key="GridCell.Tab.0.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579446910120" />
+    <state width="1398" height="229" key="GridCell.Tab.0.center" timestamp="1579446910119">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.0.center/0.23.1440.873@0.23.1440.873" timestamp="1579315538361" />
-    <state width="1398" height="229" key="GridCell.Tab.0.left" timestamp="1579315538361">
+    <state width="1398" height="229" key="GridCell.Tab.0.center/0.23.1440.873@0.23.1440.873" timestamp="1579446910119" />
+    <state width="1398" height="229" key="GridCell.Tab.0.left" timestamp="1579446910118">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.0.left/0.23.1440.873@0.23.1440.873" timestamp="1579315538361" />
-    <state width="1398" height="229" key="GridCell.Tab.0.right" timestamp="1579315538362">
+    <state width="1398" height="229" key="GridCell.Tab.0.left/0.23.1440.873@0.23.1440.873" timestamp="1579446910118" />
+    <state width="1398" height="229" key="GridCell.Tab.0.right" timestamp="1579446910119">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.0.right/0.23.1440.873@0.23.1440.873" timestamp="1579315538362" />
-    <state width="1398" height="229" key="GridCell.Tab.1.bottom" timestamp="1579293216379">
+    <state width="1398" height="229" key="GridCell.Tab.0.right/0.23.1440.873@0.23.1440.873" timestamp="1579446910119" />
+    <state width="1398" height="284" key="GridCell.Tab.1.bottom" timestamp="1579446869885">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.1.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579293216379" />
-    <state width="1398" height="229" key="GridCell.Tab.1.center" timestamp="1579293216378">
+    <state width="1398" height="284" key="GridCell.Tab.1.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579446869885" />
+    <state width="1398" height="284" key="GridCell.Tab.1.center" timestamp="1579446869884">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.1.center/0.23.1440.873@0.23.1440.873" timestamp="1579293216378" />
-    <state width="1398" height="229" key="GridCell.Tab.1.left" timestamp="1579293216377">
+    <state width="1398" height="284" key="GridCell.Tab.1.center/0.23.1440.873@0.23.1440.873" timestamp="1579446869884" />
+    <state width="1398" height="284" key="GridCell.Tab.1.left" timestamp="1579446869884">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.1.left/0.23.1440.873@0.23.1440.873" timestamp="1579293216377" />
-    <state width="1398" height="229" key="GridCell.Tab.1.right" timestamp="1579293216378">
+    <state width="1398" height="284" key="GridCell.Tab.1.left/0.23.1440.873@0.23.1440.873" timestamp="1579446869884" />
+    <state width="1398" height="284" key="GridCell.Tab.1.right" timestamp="1579446869884">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="229" key="GridCell.Tab.1.right/0.23.1440.873@0.23.1440.873" timestamp="1579293216378" />
-    <state x="229" y="98" key="SettingsEditor" timestamp="1579395281670">
+    <state width="1398" height="284" key="GridCell.Tab.1.right/0.23.1440.873@0.23.1440.873" timestamp="1579446869884" />
+    <state x="98" y="125" key="SettingsEditor" timestamp="1579451588244">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state x="229" y="98" key="SettingsEditor/0.23.1440.873@0.23.1440.873" timestamp="1579395281670" />
+    <state x="98" y="125" key="SettingsEditor/0.23.1440.873@0.23.1440.873" timestamp="1579451588244" />
     <state x="509" y="383" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1579292300543">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
@@ -163,9 +185,9 @@
       <screen x="0" y="23" width="1440" height="873" />
     </state>
     <state x="482" y="97" key="refactoring.ChangeSignatureDialog/0.23.1440.873@0.23.1440.873" timestamp="1579379154644" />
-    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup" timestamp="1579401260655">
+    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup" timestamp="1579457722894">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup/0.23.1440.873@0.23.1440.873" timestamp="1579401260655" />
+    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup/0.23.1440.873@0.23.1440.873" timestamp="1579457722894" />
   </component>
 </project>
