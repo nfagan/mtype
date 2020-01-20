@@ -29,13 +29,23 @@ ScanResult Scanner::scan(const std::string& str) {
   return scan(str.c_str(), str.size());
 }
 
-ScanResult Scanner::scan(const char* text, int64_t len) {
+void Scanner::begin_scan(const char* text, int64_t len) {
   iterator = CharacterIterator(text, len);
-  std::vector<Token> tokens;
-  ScanErrors errors;
+
   new_line_is_type_annotation_terminator = false;
   block_comment_depth = 0;
   type_annotation_block_depth = 0;
+
+  parens_depth = 0;
+  brace_depth = 0;
+  bracket_depth = 0;
+}
+
+ScanResult Scanner::scan(const char* text, int64_t len) {
+  begin_scan(text, len);
+
+  std::vector<Token> tokens;
+  ScanErrors errors;
 
   while (iterator.has_next()) {
     const auto c = iterator.peek();
@@ -68,9 +78,10 @@ ScanResult Scanner::scan(const char* text, int64_t len) {
       check_add_token(token_result, errors, tokens);
 
     } else {
-      handle_punctuation(tokens);
-
-//      iterator.advance();
+      auto err = handle_punctuation(tokens);
+      if (err) {
+        errors.errors.emplace_back(err.rvalue());
+      }
     }
   }
 
@@ -118,13 +129,13 @@ bool Scanner::is_within_type_annotation() const {
   return new_line_is_type_annotation_terminator || type_annotation_block_depth > 0;
 }
 
-void Scanner::handle_punctuation(std::vector<Token>& tokens) {
+Optional<ScanError> Scanner::handle_punctuation(std::vector<Token>& tokens) {
   const int64_t start = iterator.next_index();
   const auto curr = iterator.advance();
 
   TokenType type = from_symbol(std::string_view(curr));
   if (type == TokenType::null) {
-    return;
+    return NullOpt{};
   }
 
   int size = 1;
@@ -134,12 +145,12 @@ void Scanner::handle_punctuation(std::vector<Token>& tokens) {
 
     if (type == TokenType::ellipsis) {
       iterator.advance(2);
-      consume_whitespace_to_new_line();
+      consume_to_new_line();
       if (iterator.peek() == '\n') {
         iterator.advance();
       }
       //  Do not include ellipsis token.
-      return;
+      return NullOpt{};
     } else if (type != TokenType::period) {
       iterator.advance();
       size = 2;
@@ -182,7 +193,43 @@ void Scanner::handle_punctuation(std::vector<Token>& tokens) {
     }
   }
 
-  tokens.push_back({type, make_lexeme(start, size)});
+  auto grouping_character_err = update_grouping_character_depth(curr, start);
+  if (grouping_character_err) {
+    return grouping_character_err;
+  } else {
+    tokens.push_back({type, make_lexeme(start, size)});
+    return NullOpt{};
+  }
+}
+
+Optional<ScanError> Scanner::update_grouping_character_depth(const Character& c, int64_t start) {
+  bool is_grouping_char = true;
+
+  if (c == '(') {
+    parens_depth++;
+  } else if (c == ')') {
+    parens_depth--;
+  } else if (c == '[') {
+    bracket_depth++;
+  } else if (c == ']') {
+    bracket_depth--;
+  } else if (c == '{') {
+    brace_depth++;
+  } else if (c == '}') {
+    brace_depth--;
+  } else {
+    is_grouping_char = false;
+  }
+
+  if (!is_grouping_char) {
+    return NullOpt{};
+  }
+
+  if (parens_depth < 0 || brace_depth < 0 || bracket_depth < 0) {
+    return Optional<ScanError>(make_error_unbalanced_grouping_character(start));
+  } else {
+    return NullOpt{};
+  }
 }
 
 void Scanner::handle_new_line(std::vector<Token>& tokens) {
@@ -243,7 +290,8 @@ Optional<ScanError> Scanner::handle_comment(std::vector<Token>& tokens) {
   const bool is_type_annotation = curr == '@' && next == 't' && is_whitespace(next_next);
 
   if (is_type_annotation && is_within_type_annotation()) {
-    auto err = make_error_at_start(iterator.next_index(), "Type annotations cannot be nested in comments.");
+    auto err = make_error_at_start(iterator.next_index(),
+      "Type annotations cannot be nested in comments.");
     return Optional<ScanError>(err);
   }
 
@@ -318,18 +366,6 @@ Result<ScanError, Token> Scanner::string_literal_token(mt::TokenType type, const
   return make_success<ScanError, Token>(result);
 }
 
-Result<ScanError, Token> Scanner::make_error_unterminated_string_literal(int64_t start) {
-  ScanError err;
-  std::string_view text(iterator.data(), iterator.size());
-  err.message = mark_text_with_message_and_context(text, start, start, 100, "Unterminated string literal.");
-  return make_error<ScanError, Token>(std::move(err));
-}
-
-ScanError Scanner::make_error_at_start(int64_t start, const char* message) const {
-  std::string_view text(iterator.data() + start, iterator.size() - start);
-  return ScanError(mark_text_with_message_and_context(text, start, start, 100, message));
-}
-
 Result<ScanError, Token> Scanner::identifier_or_keyword_token() {
   const int64_t start = iterator.next_index();
   const int64_t prev_was_period = iterator.peek_previous() == '.';  //  s.global, s.persistent
@@ -367,6 +403,11 @@ Result<ScanError, Token> Scanner::identifier_or_keyword_token() {
           }
         }
       }
+
+      if (type == TokenType::keyword_end && (brace_depth > 0 || parens_depth > 0)) {
+        //  Recode (end) to op_end
+        type = TokenType::op_end;
+      }
     }
   }
 
@@ -399,6 +440,22 @@ Token Scanner::number_literal_token() {
   }
 
   return {TokenType::number_literal, make_lexeme(start, iterator.next_index() - start)};
+}
+
+ScanError Scanner::make_error_unbalanced_grouping_character(int64_t start) const {
+  return make_error_at_start(start, "Unbalanced `()`, `[]`, or `{}`.");
+}
+
+Result<ScanError, Token> Scanner::make_error_unterminated_string_literal(int64_t start) const {
+  ScanError err;
+  std::string_view text(iterator.data(), iterator.size());
+  err.message = mark_text_with_message_and_context(text, start, start, 100, "Unterminated string literal.");
+  return make_error<ScanError, Token>(std::move(err));
+}
+
+ScanError Scanner::make_error_at_start(int64_t start, const char* message) const {
+  std::string_view text(iterator.data(), iterator.size());
+  return ScanError(mark_text_with_message_and_context(text, start, start, 100, message));
 }
 
 }

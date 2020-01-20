@@ -32,6 +32,8 @@ enum class TokenType : unsigned int {
   tilde,
   apostrophe,
   dot_apostrophe,
+  //  Nullary operators
+  op_end,
   //  Grouping
   left_parens,
   right_parens,

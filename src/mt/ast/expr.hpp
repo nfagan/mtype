@@ -179,6 +179,16 @@ struct GroupingExpr : public Expr {
   std::vector<std::unique_ptr<GroupingExprComponent>> components;
 };
 
+struct EndOperatorExpr : public Expr {
+  explicit EndOperatorExpr(const Token& source_token) : source_token(source_token) {
+    //
+  }
+  ~EndOperatorExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+};
+
 struct UnaryOperatorExpr : public Expr {
   UnaryOperatorExpr(const Token& source_token, UnaryOperator op, BoxedExpr expr) :
   source_token(source_token), op(op), expr(std::move(expr)) {

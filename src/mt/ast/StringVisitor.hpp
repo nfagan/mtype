@@ -23,6 +23,12 @@ public:
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
   std::string for_stmt(const ForStmt& stmt) const;
   std::string if_stmt(const IfStmt& stmt) const;
+  std::string control_stmt(const ControlStmt& stmt) const;
+  std::string while_stmt(const WhileStmt& stmt) const;
+  std::string switch_stmt(const SwitchStmt& stmt) const;
+  std::string try_stmt(const TryStmt& stmt) const;
+  std::string command_stmt(const CommandStmt& stmt) const;
+
   std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
   std::string else_branch(const ElseBranch& branch) const;
 
@@ -41,6 +47,7 @@ public:
   std::string grouping_expr(const GroupingExpr& expr) const;
   std::string unary_operator_expr(const UnaryOperatorExpr& expr) const;
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;
+  std::string end_operator_expr(const EndOperatorExpr& expr) const;
 
 private:
   void maybe_parenthesize(std::string& str) const;

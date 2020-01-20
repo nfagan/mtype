@@ -1,7 +1,35 @@
 #include "stmt.hpp"
 #include "StringVisitor.hpp"
+#include "expr.hpp"
 
 namespace mt {
+
+CommandStmt::CommandStmt(const Token& identifier_token,
+                         std::vector<CharLiteralExpr>&& arguments) :
+                         identifier_token(identifier_token),
+                         arguments(std::move(arguments)) {
+  //
+}
+
+std::string CommandStmt::accept(const StringVisitor& vis) const {
+  return vis.command_stmt(*this);
+}
+
+std::string TryStmt::accept(const StringVisitor& vis) const {
+  return vis.try_stmt(*this);
+}
+
+std::string SwitchStmt::accept(const StringVisitor& vis) const {
+  return vis.switch_stmt(*this);
+}
+
+std::string WhileStmt::accept(const StringVisitor& vis) const {
+  return vis.while_stmt(*this);
+}
+
+std::string ControlStmt::accept(const StringVisitor& vis) const {
+  return vis.control_stmt(*this);
+}
 
 std::string ForStmt::accept(const StringVisitor& vis) const {
   return vis.for_stmt(*this);
@@ -9,14 +37,6 @@ std::string ForStmt::accept(const StringVisitor& vis) const {
 
 std::string IfStmt::accept(const StringVisitor& vis) const {
   return vis.if_stmt(*this);
-}
-
-std::string IfBranch::accept(const StringVisitor& vis) const {
-  return vis.if_branch(*this, "if");
-}
-
-std::string ElseBranch::accept(const StringVisitor& vis) const {
-  return vis.else_branch(*this);
 }
 
 std::string AssignmentStmt::accept(const StringVisitor& vis) const {

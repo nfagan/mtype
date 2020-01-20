@@ -54,7 +54,7 @@ Character CharacterIterator::peek_previous() const {
   if (current_index == 0) {
     return Character('\0');
   } else {
-    return Character(str - last_character_size, last_character_size);
+    return Character(str + current_index - last_character_size, last_character_size);
   }
 }
 

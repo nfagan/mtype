@@ -6,36 +6,34 @@
 
 namespace mt {
 
-namespace {
-  inline ParseErrors parse_error_to_errors(ParseError&& err) {
-    ParseErrors res;
-    res.emplace_back(std::move(err));
-    return res;
-  }
-}
-
 Result<ParseErrors, std::unique_ptr<Block>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt) {
   iterator = TokenIterator(&tokens);
   text = txt;
   is_end_terminated_function = true;
+  parse_errors.clear();
 
-  return block();
+  auto result = block();
+  if (result) {
+    return make_success<ParseErrors, std::unique_ptr<Block>>(result.rvalue());
+  } else {
+    return make_error<ParseErrors, std::unique_ptr<Block>>(std::move(parse_errors));
+  }
 }
 
-Result<ParseError, std::string_view> AstGenerator::char_identifier() {
+Optional<std::string_view> AstGenerator::char_identifier() {
   auto tok = iterator.peek();
   auto err = consume(TokenType::identifier);
 
   if (err) {
-    return make_error<ParseError, std::string_view>(err.rvalue());
+    add_error(err.rvalue());
+    return NullOpt{};
   } else {
-    return make_success<ParseError, std::string_view>(tok.lexeme);
+    return Optional<std::string_view>(tok.lexeme);
   }
 }
 
-Result<ParseError, std::vector<std::string_view>>
-AstGenerator::char_identifier_sequence(TokenType terminator) {
+Optional<std::vector<std::string_view>> AstGenerator::char_identifier_sequence(TokenType terminator) {
   std::vector<std::string_view> identifiers;
   bool expect_identifier = true;
 
@@ -45,7 +43,8 @@ AstGenerator::char_identifier_sequence(TokenType terminator) {
     if (expect_identifier && tok.type != TokenType::identifier) {
       std::array<TokenType, 2> possible_types{{TokenType::identifier, terminator}};
       auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-      return make_error<ParseError, std::vector<std::string_view>>(std::move(err));
+      add_error(std::move(err));
+      return NullOpt{};
 
     } else if (expect_identifier && tok.type == TokenType::identifier) {
       identifiers.push_back(tok.lexeme);
@@ -57,7 +56,8 @@ AstGenerator::char_identifier_sequence(TokenType terminator) {
     } else {
       std::array<TokenType, 2> possible_types{{TokenType::comma, terminator}};
       auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-      return make_error<ParseError, std::vector<std::string_view>>(std::move(err));
+      add_error(std::move(err));
+      return NullOpt{};
     }
 
     iterator.advance();
@@ -65,50 +65,52 @@ AstGenerator::char_identifier_sequence(TokenType terminator) {
 
   auto term_err = consume(terminator);
   if (term_err) {
-    return make_error<ParseError, std::vector<std::string_view>>(term_err.rvalue());
+    add_error(term_err.rvalue());
+    return NullOpt{};
   } else {
-    return make_success<ParseError, std::vector<std::string_view>>(std::move(identifiers));
+    return Optional<std::vector<std::string_view>>(std::move(identifiers));
   }
 }
 
-Result<ParseError, FunctionHeader> AstGenerator::function_header() {
+Optional<FunctionHeader> AstGenerator::function_header() {
   auto output_res = function_outputs();
   if (!output_res) {
-    return make_error<ParseError, FunctionHeader>(std::move(output_res.error));
+    return NullOpt{};
   }
 
-  if (!output_res.value.empty()) {
+  if (!output_res.value().empty()) {
     auto err = consume(TokenType::equal);
     if (err) {
-      return make_error<ParseError, FunctionHeader>(err.rvalue());
+      add_error(err.rvalue());
+      return NullOpt{};
     }
   }
 
   const auto& name_token = iterator.peek();
   auto name_res = char_identifier();
   if (!name_res) {
-    return make_error<ParseError, FunctionHeader>(std::move(name_res.error));
+    return NullOpt{};
   }
 
   auto input_res = function_inputs();
   if (!input_res) {
-    return make_error<ParseError, FunctionHeader>(std::move(input_res.error));
+    return NullOpt{};
   }
 
-  FunctionHeader header{name_token, name_res.value, std::move(output_res.value), std::move(input_res.value)};
-  return make_success<ParseError, FunctionHeader>(std::move(header));
+  FunctionHeader header{name_token, name_res.rvalue(), output_res.rvalue(), input_res.rvalue()};
+  return Optional<FunctionHeader>(std::move(header));
 }
 
-Result<ParseError, std::vector<std::string_view>> AstGenerator::function_inputs() {
+Optional<std::vector<std::string_view>> AstGenerator::function_inputs() {
   if (iterator.peek().type == TokenType::left_parens) {
     iterator.advance();
     return char_identifier_sequence(TokenType::right_parens);
   } else {
-    return {};
+    return Optional<std::vector<std::string_view>>(std::vector<std::string_view>());
   }
 }
 
-Result<ParseError, std::vector<std::string_view>> AstGenerator::function_outputs() {
+Optional<std::vector<std::string_view>> AstGenerator::function_outputs() {
   const auto& tok = iterator.peek();
   std::vector<std::string_view> outputs;
 
@@ -125,48 +127,47 @@ Result<ParseError, std::vector<std::string_view>> AstGenerator::function_outputs
       iterator.advance();
     }
 
-    return make_success<ParseError, std::vector<std::string_view>>(std::move(outputs));
+    return Optional<std::vector<std::string_view>>(std::move(outputs));
   } else {
     std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
     auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-    return make_error<ParseError, std::vector<std::string_view>>(std::move(err));
+    add_error(std::move(err));
+    return NullOpt{};
   }
 }
 
-Result<ParseErrors, std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
+Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
   iterator.advance();
   auto header_result = function_header();
 
   if (!header_result) {
-    auto errs = parse_error_to_errors(std::move(header_result.error));
-    return make_error<ParseErrors, std::unique_ptr<FunctionDef>>(std::move(errs));
+    return NullOpt{};
   }
 
   auto body_res = block();
   if (!body_res) {
-    return make_error<ParseErrors, std::unique_ptr<FunctionDef>>(std::move(body_res.error));
+    return NullOpt{};
   }
 
   if (is_end_terminated_function) {
     auto err = consume(TokenType::keyword_end);
     if (err) {
-      return make_error<ParseErrors, std::unique_ptr<FunctionDef>>(parse_error_to_errors(err.rvalue()));
+      add_error(err.rvalue());
+      return NullOpt{};
     }
   }
 
-  auto success = std::make_unique<FunctionDef>(std::move(header_result.value),
-    std::move(body_res.value));
-  return make_success<ParseErrors, std::unique_ptr<FunctionDef>>(std::move(success));
+  auto success = std::make_unique<FunctionDef>(header_result.rvalue(), body_res.rvalue());
+  return Optional<std::unique_ptr<FunctionDef>>(std::move(success));
 }
 
-Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::block() {
-  ParseErrors errors;
+Optional<std::unique_ptr<Block>> AstGenerator::block() {
   auto block_node = std::make_unique<Block>();
   bool should_proceed = true;
+  bool any_error = false;
 
   while (iterator.has_next() && should_proceed) {
     BoxedAstNode node;
-    ParseErrors error;
     bool success = true;
 
     const auto& tok = iterator.peek();
@@ -184,26 +185,24 @@ Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::block() {
       case TokenType::keyword_function: {
         auto def_res = function_def();
         if (def_res) {
-          node = std::move(def_res.value);
+          node = def_res.rvalue();
         } else {
           success = false;
-          error = std::move(def_res.error);
         }
         break;
       }
       default: {
         auto stmt_res = stmt();
         if (stmt_res) {
-          node = std::move(stmt_res.value);
+          node = stmt_res.rvalue();
         } else {
           success = false;
-          error = std::move(stmt_res.error);
         }
       }
     }
 
     if (!success) {
-      errors.insert(errors.end(), error.cbegin(), error.cend());
+      any_error = true;
       std::array<TokenType, 1> possible_types{{TokenType::keyword_function}};
       iterator.advance_to_one(possible_types.data(), possible_types.size());
 
@@ -212,21 +211,20 @@ Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::block() {
     }
   }
 
-  if (errors.empty()) {
-    return make_success<ParseErrors, std::unique_ptr<Block>>(std::move(block_node));
+  if (any_error) {
+    return NullOpt{};
   } else {
-    return make_error<ParseErrors, std::unique_ptr<Block>>(std::move(errors));
+    return Optional<std::unique_ptr<Block>>(std::move(block_node));
   }
 }
 
-Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::sub_block() {
-  ParseErrors errors;
+Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
   auto block_node = std::make_unique<Block>();
   bool should_proceed = true;
+  bool any_error = false;
 
   while (iterator.has_next() && should_proceed) {
     BoxedAstNode node;
-    ParseErrors error;
     bool success = true;
 
     const auto& tok = iterator.peek();
@@ -249,16 +247,15 @@ Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::sub_block() {
       default: {
         auto stmt_res = stmt();
         if (stmt_res) {
-          node = std::move(stmt_res.value);
+          node = stmt_res.rvalue();
         } else {
           success = false;
-          error = std::move(stmt_res.error);
         }
       }
     }
 
     if (!success) {
-      errors.insert(errors.end(), error.cbegin(), error.cend());
+      any_error = true;
       std::array<TokenType, 2> possible_types{
         {TokenType::keyword_if, TokenType::keyword_for}
       };
@@ -269,41 +266,42 @@ Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::sub_block() {
     }
   }
 
-  if (errors.empty()) {
-    return make_success<ParseErrors, std::unique_ptr<Block>>(std::move(block_node));
+  if (any_error) {
+    return NullOpt{};
   } else {
-    return make_error<ParseErrors, std::unique_ptr<Block>>(std::move(errors));
+    return Optional<std::unique_ptr<Block>>(std::move(block_node));
   }
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::literal_field_reference_expr(const Token& source_token) {
+Optional<BoxedExpr> AstGenerator::literal_field_reference_expr(const Token& source_token) {
   auto ident_res = char_identifier();
   if (!ident_res) {
-    return make_error<ParseError, BoxedExpr>(std::move(ident_res.error));
+    return NullOpt{};
   }
 
   auto expr = std::make_unique<LiteralFieldReferenceExpr>(source_token);
-  return make_success<ParseError, BoxedExpr>(std::move(expr));
+  return Optional<BoxedExpr>(std::move(expr));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::dynamic_field_reference_expr(const Token& source_token) {
+Optional<BoxedExpr> AstGenerator::dynamic_field_reference_expr(const Token& source_token) {
   iterator.advance(); //  consume (
 
   auto expr_res = expr();
   if (!expr_res) {
-    return make_error<ParseError, BoxedExpr>(std::move(expr_res.error));
+    return NullOpt{};
   }
 
   auto err = consume(TokenType::right_parens);
   if (err) {
-    return make_error<ParseError, BoxedExpr>(err.rvalue());
+    add_error(err.rvalue());
+    return NullOpt{};
   }
 
-  auto expr = std::make_unique<DynamicFieldReferenceExpr>(source_token, std::move(expr_res.value));
-  return make_success<ParseError, BoxedExpr>(std::move(expr));
+  auto expr = std::make_unique<DynamicFieldReferenceExpr>(source_token, expr_res.rvalue());
+  return Optional<BoxedExpr>(std::move(expr));
 }
 
-Result<ParseError, std::unique_ptr<SubscriptExpr>>
+Optional<std::unique_ptr<SubscriptExpr>>
 AstGenerator::non_period_subscript_expr(const Token& source_token,
                                         mt::SubscriptMethod method,
                                         mt::TokenType term) {
@@ -314,10 +312,10 @@ AstGenerator::non_period_subscript_expr(const Token& source_token,
   while (iterator.has_next() && iterator.peek().type != term) {
     auto expr_res = expr();
     if (!expr_res) {
-      return make_error<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(expr_res.error));
+      return NullOpt{};
     }
 
-    args.emplace_back(std::move(expr_res.value));
+    args.emplace_back(expr_res.rvalue());
 
     if (iterator.peek().type == TokenType::comma) {
       iterator.advance();
@@ -328,19 +326,19 @@ AstGenerator::non_period_subscript_expr(const Token& source_token,
 
   auto err = consume(term);
   if (err) {
-    return make_error<ParseError, std::unique_ptr<SubscriptExpr>>(err.rvalue());
+    add_error(err.rvalue());
+    return NullOpt{};
   }
 
   auto sub = std::make_unique<SubscriptExpr>(source_token, method, std::move(args));
-  return make_success<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(sub));
+  return Optional<std::unique_ptr<SubscriptExpr>>(std::move(sub));
 }
 
-Result<ParseError, std::unique_ptr<SubscriptExpr>>
-AstGenerator::period_subscript_expr(const Token& source_token) {
+Optional<std::unique_ptr<SubscriptExpr>> AstGenerator::period_subscript_expr(const Token& source_token) {
   iterator.advance(); //  consume '.'
 
   const auto& tok = iterator.peek();
-  Result<ParseError, BoxedExpr> expr_res;
+  Optional<BoxedExpr> expr_res;
 
   switch (tok.type) {
     case TokenType::identifier:
@@ -352,24 +350,25 @@ AstGenerator::period_subscript_expr(const Token& source_token) {
     default:
       std::array<TokenType, 2> possible_types{{TokenType::identifier, TokenType::left_parens}};
       auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-      return make_error<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(err));
+      add_error(std::move(err));
+      return NullOpt{};
   }
 
   if (!expr_res) {
-    return make_error<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(expr_res.error));
+    return NullOpt{};
   }
 
   std::vector<BoxedExpr> args;
-  args.emplace_back(std::move(expr_res.value));
+  args.emplace_back(expr_res.rvalue());
   auto subscript_expr = std::make_unique<SubscriptExpr>(source_token, SubscriptMethod::period, std::move(args));
 
-  return make_success<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(subscript_expr));
+  return Optional<std::unique_ptr<SubscriptExpr>>(std::move(subscript_expr));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_token) {
+Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_token) {
   auto main_ident_res = char_identifier();
   if (!main_ident_res) {
-    return make_error<ParseError, BoxedExpr>(std::move(main_ident_res.error));
+    return NullOpt{};
   }
 
   std::vector<std::unique_ptr<SubscriptExpr>> subscripts;
@@ -377,7 +376,8 @@ Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr(const Toke
 
   while (iterator.has_next()) {
     const auto& tok = iterator.peek();
-    Result<ParseError, std::unique_ptr<SubscriptExpr>> sub_result;
+    //  @Note: Fill with nullptr so that sub_result != NullOpt{}
+    Optional<std::unique_ptr<SubscriptExpr>> sub_result(nullptr);
     bool has_subscript = true;
 
     if (tok.type == TokenType::period) {
@@ -394,16 +394,17 @@ Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr(const Toke
     }
 
     if (!sub_result) {
-      return Result<ParseError, BoxedExpr>(std::move(sub_result.error));
+      return NullOpt{};
 
     } else if (!has_subscript) {
       break;
     }
 
-    auto& sub_expr = sub_result.value;
+    auto sub_expr = sub_result.rvalue();
 
     if (prev_method == SubscriptMethod::parens && sub_expr->method != SubscriptMethod::period) {
-      return make_error<ParseError, BoxedExpr>(make_error_reference_after_parens_reference_expr(tok));
+      add_error(make_error_reference_after_parens_reference_expr(tok));
+      return NullOpt{};
     } else {
       prev_method = sub_expr->method;
       subscripts.emplace_back(std::move(sub_expr));
@@ -411,10 +412,10 @@ Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr(const Toke
   }
 
   auto node = std::make_unique<IdentifierReferenceExpr>(source_token, std::move(subscripts));
-  return make_success<ParseError, BoxedExpr>(std::move(node));
+  return Optional<BoxedExpr>(std::move(node));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& source_token) {
+Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& source_token) {
   iterator.advance(); //  consume '@'
   const auto& next_token = iterator.peek();
 
@@ -422,36 +423,37 @@ Result<ParseError, BoxedExpr> AstGenerator::anonymous_function_expr(const mt::To
     //  @main
     auto res = identifier_reference_expr(next_token);
     if (!res) {
-      return res;
+      return NullOpt{};
     }
 
-    auto node = std::make_unique<FunctionReferenceExpr>(source_token, std::move(res.value));
-    return make_success<ParseError, BoxedExpr>(std::move(node));
+    auto node = std::make_unique<FunctionReferenceExpr>(source_token, res.rvalue());
+    return Optional<BoxedExpr>(std::move(node));
   }
 
   //  Expect @(x, y, z) expr
   auto err = consume(TokenType::left_parens);
   if (err) {
-    return make_error<ParseError, BoxedExpr>(err.rvalue());
+    add_error(err.rvalue());
+    return NullOpt{};
   }
 
   auto input_res = char_identifier_sequence(TokenType::right_parens);
   if (!input_res) {
-    return make_error<ParseError, BoxedExpr>(std::move(input_res.error));
+    return NullOpt{};
   }
 
   auto body_res = expr();
   if (!body_res) {
-    return body_res;
+    return NullOpt{};
   }
 
   auto node = std::make_unique<AnonymousFunctionExpr>(source_token,
-    std::move(input_res.value), std::move(body_res.value));
+    input_res.rvalue(), body_res.rvalue());
 
-  return make_success<ParseError, BoxedExpr>(std::move(node));
+  return Optional<BoxedExpr>(std::move(node));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
+Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
   const TokenType terminator = grouping_terminator_for(source_token.type);
   iterator.advance();
 
@@ -462,7 +464,7 @@ Result<ParseError, BoxedExpr> AstGenerator::grouping_expr(const Token& source_to
   while (iterator.has_next() && iterator.peek().type != terminator) {
     auto expr_res = expr(allow_empty);
     if (!expr_res) {
-      return expr_res;
+      return NullOpt{};
     }
 
     const auto& next = iterator.peek();
@@ -476,8 +478,8 @@ Result<ParseError, BoxedExpr> AstGenerator::grouping_expr(const Token& source_to
 
       if (source_token.type == TokenType::left_parens) {
         //  (1; 2)  is illegal.
-        auto err = make_error_semicolon_delimiter_in_parens_grouping_expr(next);
-        return make_error<ParseError, BoxedExpr>(std::move(err));
+        add_error(make_error_semicolon_delimiter_in_parens_grouping_expr(next));
+        return NullOpt{};
       } else {
         delim = TokenType::semicolon;
       }
@@ -487,34 +489,36 @@ Result<ParseError, BoxedExpr> AstGenerator::grouping_expr(const Token& source_to
         {TokenType::comma, TokenType::semicolon, TokenType::new_line, terminator}
       };
       auto err = make_error_expected_token_type(next, possible_types.data(), possible_types.size());
-      return make_error<ParseError, BoxedExpr>(std::move(err));
+      add_error(std::move(err));
+      return NullOpt{};
     }
 
-    if (expr_res.value) {
+    if (expr_res.value()) {
       //  If non-empty.
-      auto component_expr = std::make_unique<GroupingExprComponent>(std::move(expr_res.value), delim);
+      auto component_expr = std::make_unique<GroupingExprComponent>(expr_res.rvalue(), delim);
       exprs.emplace_back(std::move(component_expr));
     }
   }
 
   auto err = consume(terminator);
   if (err) {
-    return make_error<ParseError, BoxedExpr>(err.rvalue());
+    add_error(err.rvalue());
+    return NullOpt{};
   }
 
   const auto grouping_method = grouping_method_from_token_type(source_token.type);
   auto expr_node = std::make_unique<GroupingExpr>(source_token, grouping_method, std::move(exprs));
-  return make_success<ParseError, BoxedExpr>(std::move(expr_node));
+  return Optional<BoxedExpr>(std::move(expr_node));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::colon_subscript_expr(const mt::Token& source_token) {
+Optional<BoxedExpr> AstGenerator::colon_subscript_expr(const mt::Token& source_token) {
   iterator.advance(); //  consume ':'
 
   auto node = std::make_unique<ColonSubscriptExpr>(source_token);
-  return make_success<ParseError, BoxedExpr>(std::move(node));
+  return Optional<BoxedExpr>(std::move(node));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::literal_expr(const Token& source_token) {
+Optional<BoxedExpr> AstGenerator::literal_expr(const Token& source_token) {
   iterator.advance();
   BoxedExpr expr_node;
 
@@ -532,14 +536,14 @@ Result<ParseError, BoxedExpr> AstGenerator::literal_expr(const Token& source_tok
     assert(false && "Unhandled literal expression.");
   }
 
-  return make_success<ParseError, BoxedExpr>(std::move(expr_node));
+  return Optional<BoxedExpr>(std::move(expr_node));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::ignore_output_expr(const Token& source_token) {
+Optional<BoxedExpr> AstGenerator::ignore_output_expr(const Token& source_token) {
   iterator.advance();
 
   auto source_node = std::make_unique<IgnoreFunctionOutputArgumentExpr>(source_token);
-  return make_success<ParseError, BoxedExpr>(std::move(source_node));
+  return Optional<BoxedExpr>(std::move(source_node));
 }
 
 std::unique_ptr<UnaryOperatorExpr> AstGenerator::pending_unary_prefix_expr(const mt::Token& source_token) {
@@ -602,8 +606,8 @@ void AstGenerator::handle_binary_exprs(std::vector<BoxedExpr>& completed,
   auto bin = std::move(binaries.back());
   binaries.pop_back();
 
-  const auto op_next = binary_operator_from_token_type(iterator.peek_next().type);
   auto prec_curr = precedence(bin->op);
+  const auto op_next = binary_operator_from_token_type(iterator.peek().type);
   const auto prec_next = precedence(op_next);
 
   if (prec_curr < prec_next) {
@@ -643,14 +647,14 @@ Optional<ParseError> AstGenerator::pending_binary_expr(const mt::Token& source_t
   return NullOpt{};
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
+Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
   std::vector<BoxedBinaryOperatorExpr> pending_binaries;
   std::vector<BoxedBinaryOperatorExpr> binaries;
   std::vector<BoxedUnaryOperatorExpr> unaries;
   std::vector<BoxedExpr> completed;
 
   while (iterator.has_next()) {
-    Result<ParseError, BoxedExpr> node_res;
+    Optional<BoxedExpr> node_res(nullptr);
     const auto& tok = iterator.peek();
 
     if (tok.type == TokenType::identifier) {
@@ -665,9 +669,12 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
     } else if (represents_literal(tok.type)) {
       node_res = literal_expr(tok);
 
+    } else if (tok.type == TokenType::op_end) {
+      iterator.advance();
+      node_res = Optional<BoxedExpr>(std::make_unique<EndOperatorExpr>(tok));
+
     } else if (is_unary_prefix_expr(tok)) {
-      auto node = pending_unary_prefix_expr(tok);
-      unaries.emplace_back(std::move(node));
+      unaries.emplace_back(pending_unary_prefix_expr(tok));
 
     } else if (represents_binary_operator(tok.type)) {
       if (is_colon_subscript_expr(tok)) {
@@ -675,7 +682,8 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
       } else {
         auto bin_res = pending_binary_expr(tok, completed, binaries);
         if (bin_res) {
-          return make_error<ParseError, BoxedExpr>(bin_res.rvalue());
+          add_error(bin_res.rvalue());
+          return NullOpt{};
         }
       }
 
@@ -686,21 +694,22 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
       break;
 
     } else {
-      auto err = make_error_invalid_expr_token(tok);
-      return make_error<ParseError, BoxedExpr>(std::move(err));
+      add_error(make_error_invalid_expr_token(tok));
+      return NullOpt{};
     }
 
     if (!node_res) {
       //  An error occurred in one of the sub-expressions.
-      return node_res;
+      return NullOpt{};
     }
 
-    if (node_res.value) {
-      completed.emplace_back(std::move(node_res.value));
+    if (node_res.value()) {
+      completed.emplace_back(node_res.rvalue());
 
       auto err = handle_postfix_unary_exprs(completed);
       if (err) {
-        return make_error<ParseError, BoxedExpr>(err.rvalue());
+        add_error(err.rvalue());
+        return NullOpt{};
       }
     }
 
@@ -714,73 +723,194 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
   }
 
   if (completed.size() == 1) {
-    return make_success<ParseError, BoxedExpr>(std::move(completed.back()));
+    return Optional<BoxedExpr>(std::move(completed.back()));
 
   } else {
     const bool is_complete = completed.empty() && pending_binaries.empty() && binaries.empty() && unaries.empty();
     const bool is_valid = is_complete && allow_empty;
 
     if (!is_valid) {
-      return make_error<ParseError, BoxedExpr>(make_error_incomplete_expr(iterator.peek()));
+      add_error(make_error_incomplete_expr(iterator.peek()));
+      return NullOpt{};
     } else {
-      return make_success<ParseError, BoxedExpr>(nullptr);
+      return Optional<BoxedExpr>(nullptr);
     }
   }
 }
 
-Result<ParseErrors, BoxedStmt> AstGenerator::for_stmt() {
-  const auto& source_token = iterator.peek();
+Optional<BoxedStmt> AstGenerator::control_stmt(const Token& source_token) {
   iterator.advance();
 
-  auto loop_var_res = char_identifier();
-  if (!loop_var_res) {
-    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(std::move(loop_var_res.error)));
-  }
+  const auto kind = control_flow_manipulator_from_token_type(source_token.type);
+  auto node = std::make_unique<ControlStmt>(source_token, kind);
 
-  auto eq_err = consume(TokenType::equal);
-  if (eq_err) {
-    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(eq_err.rvalue()));
-  }
+  return Optional<BoxedStmt>(std::move(node));
+}
 
-  auto initializer_res = expr();
-  if (!initializer_res) {
-    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(std::move(initializer_res.error)));
+Optional<SwitchCase> AstGenerator::switch_case(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto condition_expr_res = expr();
+  if (!condition_expr_res) {
+    return NullOpt{};
   }
 
   auto block_res = sub_block();
   if (!block_res) {
-    return make_error<ParseErrors, BoxedStmt>(std::move(block_res.error));
+    return NullOpt{};
+  }
+
+  SwitchCase switch_case(source_token, condition_expr_res.rvalue(), block_res.rvalue());
+  return Optional<SwitchCase>(std::move(switch_case));
+}
+
+Optional<BoxedStmt> AstGenerator::switch_stmt(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto condition_expr_res = expr();
+  if (!condition_expr_res) {
+    return NullOpt{};
+  }
+
+  std::vector<SwitchCase> cases;
+  BoxedBlock otherwise;
+
+  while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
+    const auto& tok = iterator.peek();
+
+    switch (tok.type) {
+      case TokenType::new_line:
+      case TokenType::comma:
+        iterator.advance();
+        break;
+      case TokenType::keyword_case: {
+        auto case_res = switch_case(tok);
+        if (case_res) {
+          cases.emplace_back(case_res.rvalue());
+        } else {
+          return NullOpt{};
+        }
+        break;
+      }
+      case TokenType::keyword_otherwise: {
+        iterator.advance();
+
+        if (otherwise) {
+          //  Duplicate otherwise in switch statement.
+          add_error(make_error_duplicate_otherwise_in_switch_stmt(tok));
+          return NullOpt{};
+        }
+
+        auto block_res = sub_block();
+        if (!block_res) {
+          return NullOpt{};
+        } else {
+          otherwise = block_res.rvalue();
+        }
+        break;
+      }
+      default: {
+        std::array<TokenType, 2> possible_types{
+          {TokenType::keyword_case, TokenType::keyword_otherwise}
+        };
+        auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
+        add_error(std::move(err));
+        return NullOpt{};
+      }
+    }
+  }
+
+  auto err = consume(TokenType::keyword_end);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<SwitchStmt>(source_token,
+    condition_expr_res.rvalue(), std::move(cases), std::move(otherwise));
+
+  return Optional<BoxedStmt>(std::move(node));
+}
+
+Optional<BoxedStmt> AstGenerator::while_stmt(const Token& source_token) {
+  iterator.advance();
+
+  auto loop_condition_expr_res = expr();
+  if (!loop_condition_expr_res) {
+    return NullOpt{};
+  }
+
+  auto body_res = sub_block();
+  if (!body_res) {
+    return NullOpt{};
+  }
+
+  auto err = consume(TokenType::keyword_end);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<WhileStmt>(source_token,
+    loop_condition_expr_res.rvalue(), body_res.rvalue());
+
+  return Optional<BoxedStmt>(std::move(node));
+}
+
+Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
+  iterator.advance();
+
+  auto loop_var_res = char_identifier();
+  if (!loop_var_res) {
+    return NullOpt{};
+  }
+
+  auto eq_err = consume(TokenType::equal);
+  if (eq_err) {
+    add_error(eq_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto initializer_res = expr();
+  if (!initializer_res) {
+    return NullOpt{};
+  }
+
+  auto block_res = sub_block();
+  if (!block_res) {
+    return NullOpt{};
   }
 
   auto end_err = consume(TokenType::keyword_end);
   if (end_err) {
-    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(end_err.rvalue()));
+    add_error(end_err.rvalue());
+    return NullOpt{};
   }
 
-  auto node = std::make_unique<ForStmt>(source_token, loop_var_res.value,
-    std::move(initializer_res.value), std::move(block_res.value));
+  auto node = std::make_unique<ForStmt>(source_token, loop_var_res.rvalue(),
+    initializer_res.rvalue(), block_res.rvalue());
 
-  return make_success<ParseErrors, BoxedStmt>(std::move(node));
+  return Optional<BoxedStmt>(std::move(node));
 }
 
-Result<ParseErrors, BoxedStmt> AstGenerator::if_stmt() {
-  auto main_branch_res = if_branch(iterator.peek());
+Optional<BoxedStmt> AstGenerator::if_stmt(const Token& source_token) {
+  auto main_branch_res = if_branch(source_token);
   if (!main_branch_res) {
-    return make_error<ParseErrors, BoxedStmt>(std::move(main_branch_res.error));
+    return NullOpt{};
   }
 
-  std::vector<std::unique_ptr<IfBranch>> elseif_branches;
+  std::vector<IfBranch> elseif_branches;
 
   while (iterator.peek().type == TokenType::keyword_elseif) {
     auto sub_branch_res = if_branch(iterator.peek());
     if (!sub_branch_res) {
-      return make_error<ParseErrors, BoxedStmt>(std::move(sub_branch_res.error));
+      return NullOpt{};
     } else {
-      elseif_branches.emplace_back(std::move(sub_branch_res.value));
+      elseif_branches.emplace_back(sub_branch_res.rvalue());
     }
   }
 
-  std::unique_ptr<ElseBranch> else_branch = nullptr;
+  Optional<ElseBranch> else_branch = NullOpt{};
   const auto& maybe_else_token = iterator.peek();
 
   if (maybe_else_token.type == TokenType::keyword_else) {
@@ -788,106 +918,188 @@ Result<ParseErrors, BoxedStmt> AstGenerator::if_stmt() {
 
     auto else_block_res = sub_block();
     if (!else_block_res) {
-      return make_error<ParseErrors, BoxedStmt>(std::move(else_block_res.error));
+      return NullOpt{};
     } else {
-      else_branch = std::make_unique<ElseBranch>(maybe_else_token, std::move(else_block_res.value));
+      else_branch = ElseBranch(maybe_else_token, else_block_res.rvalue());
     }
   }
 
   auto err = consume(TokenType::keyword_end);
   if (err) {
-    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(err.rvalue()));
+    add_error(err.rvalue());
+    return NullOpt{};
   }
 
-  auto if_stmt_node = std::make_unique<IfStmt>(std::move(main_branch_res.value),
+  auto if_stmt_node = std::make_unique<IfStmt>(main_branch_res.rvalue(),
     std::move(elseif_branches), std::move(else_branch));
 
-  return make_success<ParseErrors, BoxedStmt>(std::move(if_stmt_node));
+  return Optional<BoxedStmt>(std::move(if_stmt_node));
 }
 
-Result<ParseErrors, std::unique_ptr<IfBranch>> AstGenerator::if_branch(const Token& source_token) {
+Optional<IfBranch> AstGenerator::if_branch(const Token& source_token) {
   iterator.advance(); //  consume if
 
   auto condition_res = expr();
   if (!condition_res) {
-    auto errs = parse_error_to_errors(std::move(condition_res.error));
-    return make_error<ParseErrors, std::unique_ptr<IfBranch>>(std::move(errs));
+    return NullOpt{};
   }
 
   auto block_res = sub_block();
   if (!block_res) {
-    return make_error<ParseErrors, std::unique_ptr<IfBranch>>(std::move(block_res.error));
+    return NullOpt{};
   }
 
-  auto node = std::make_unique<IfBranch>(source_token,
-    std::move(condition_res.value), std::move(block_res.value));
-  return make_success<ParseErrors, std::unique_ptr<IfBranch>>(std::move(node));
+  IfBranch if_branch(source_token, condition_res.rvalue(), block_res.rvalue());
+  return Optional<IfBranch>(std::move(if_branch));
 }
 
-Result<ParseError, BoxedStmt> AstGenerator::assignment_stmt(BoxedExpr lhs, const Token& initial_token) {
+Optional<BoxedStmt> AstGenerator::assignment_stmt(BoxedExpr lhs, const Token& initial_token) {
   iterator.advance(); //  consume =
 
   if (!lhs->is_valid_assignment_target()) {
-    auto err = make_error_invalid_assignment_target(initial_token);
-    return make_error<ParseError, BoxedStmt>(std::move(err));
+    add_error(make_error_invalid_assignment_target(initial_token));
+    return NullOpt{};
   }
 
   auto rhs_res = expr();
   if (!rhs_res) {
-    return make_error<ParseError, BoxedStmt>(std::move(rhs_res.error));
+    return NullOpt{};
   }
 
-  auto assign_stmt = std::make_unique<AssignmentStmt>(std::move(lhs), std::move(rhs_res.value));
-  return make_success<ParseError, BoxedStmt>(std::move(assign_stmt));
+  auto assign_stmt = std::make_unique<AssignmentStmt>(std::move(lhs), rhs_res.rvalue());
+  return Optional<BoxedStmt>(std::move(assign_stmt));
 }
 
-Result<ParseError, BoxedStmt> AstGenerator::expr_stmt() {
-  const auto& initial_token = iterator.peek();
+Optional<BoxedStmt> AstGenerator::command_stmt(const Token& source_token) {
+  auto ident_res = char_identifier();
+  if (!ident_res) {
+    return NullOpt{};
+  }
+
+  bool should_proceed = true;
+  std::vector<CharLiteralExpr> arguments;
+
+  while (iterator.has_next() && should_proceed) {
+    const auto& tok = iterator.peek();
+
+    switch (tok.type) {
+      case TokenType::null:
+      case TokenType::new_line:
+      case TokenType::semicolon:
+      case TokenType::comma:
+        should_proceed = false;
+        break;
+      default: {
+        arguments.emplace_back(CharLiteralExpr(tok));
+        iterator.advance();
+      }
+    }
+  }
+
+  std::array<TokenType, 4> possible_types{{
+    TokenType::null, TokenType::new_line, TokenType::semicolon, TokenType::comma
+  }};
+
+  auto err = consume_one_of(possible_types.data(), possible_types.size());
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<CommandStmt>(source_token, std::move(arguments));
+  return Optional<BoxedStmt>(std::move(node));
+}
+
+Optional<BoxedStmt> AstGenerator::expr_stmt(const Token& source_token) {
   auto expr_res = expr();
 
   if (!expr_res) {
-    return make_error<ParseError, BoxedStmt>(std::move(expr_res.error));
+    return NullOpt{};
   }
 
   const auto& curr_token = iterator.peek();
 
   if (curr_token.type == TokenType::equal) {
-    return assignment_stmt(std::move(expr_res.value), initial_token);
+    return assignment_stmt(expr_res.rvalue(), source_token);
   }
 
-  auto expr_stmt = std::make_unique<ExprStmt>(std::move(expr_res.value));
-  return make_success<ParseError, BoxedStmt>(std::move(expr_stmt));
+  auto expr_stmt = std::make_unique<ExprStmt>(expr_res.rvalue());
+  return Optional<BoxedStmt>(std::move(expr_stmt));
 }
 
-Result<ParseErrors, BoxedAstNode> AstGenerator::stmt() {
+Optional<BoxedStmt> AstGenerator::try_stmt(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto try_block_res = sub_block();
+  if (!try_block_res) {
+    return NullOpt{};
+  }
+
+  Optional<CatchBlock> catch_block = NullOpt{};
+  const auto& maybe_catch_token = iterator.peek();
+
+  if (maybe_catch_token.type == TokenType::keyword_catch) {
+    iterator.advance();
+
+    const bool allow_empty = true;  //  @Note: Allow empty catch expression.
+    auto catch_expr_res = expr(allow_empty);
+
+    if (!catch_expr_res) {
+      return NullOpt{};
+    }
+
+    auto catch_block_res = sub_block();
+    if (!catch_block_res) {
+      return NullOpt{};
+    }
+
+    catch_block = CatchBlock(maybe_catch_token, catch_expr_res.rvalue(), catch_block_res.rvalue());
+  }
+
+  auto end_err = consume(TokenType::keyword_end);
+  if (end_err) {
+    add_error(end_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<TryStmt>(source_token,
+    try_block_res.rvalue(), std::move(catch_block));
+
+  return Optional<BoxedStmt>(std::move(node));
+}
+
+Optional<BoxedStmt> AstGenerator::stmt() {
   const auto& token = iterator.peek();
 
   switch (token.type) {
-    case TokenType::keyword_for: {
-      auto for_res = for_stmt();
-      if (for_res) {
-        return make_success<ParseErrors, BoxedAstNode>(std::move(for_res.value));
+    case TokenType::keyword_return:
+    case TokenType::keyword_break:
+    case TokenType::keyword_continue:
+      return control_stmt(token);
+
+    case TokenType::keyword_for:
+    case TokenType::keyword_parfor:
+      return for_stmt(token);
+
+    case TokenType::keyword_if:
+      return if_stmt(token);
+
+    case TokenType::keyword_switch:
+      return switch_stmt(token);
+
+    case TokenType::keyword_while:
+      return while_stmt(token);
+
+    case TokenType::keyword_try:
+      return try_stmt(token);
+
+    default: {
+      if (is_command_stmt(token)) {
+        return command_stmt(token);
       } else {
-        return make_error<ParseErrors, BoxedAstNode>(std::move(for_res.error));
+        return expr_stmt(token);
       }
     }
-
-    case TokenType::keyword_if: {
-      auto if_res = if_stmt();
-      if (if_res) {
-        return make_success<ParseErrors, BoxedAstNode>(std::move(if_res.value));
-      } else {
-        return make_error<ParseErrors, BoxedAstNode>(std::move(if_res.error));
-      }
-    }
-
-    default:
-      auto res = expr_stmt();
-      if (res) {
-        return make_success<ParseErrors, BoxedAstNode>(std::move(res.value));
-      } else {
-        return make_error<ParseErrors, BoxedAstNode>(parse_error_to_errors(std::move(res.error)));
-      }
   }
 }
 
@@ -916,6 +1128,13 @@ bool AstGenerator::is_ignore_output_expr(const mt::Token& curr_token) const {
   return next.type == TokenType::comma || next.type == TokenType::right_bracket;
 }
 
+bool AstGenerator::is_command_stmt(const mt::Token& curr_token) const {
+  const auto next_t = iterator.peek_next().type;
+
+  return curr_token.type == TokenType::identifier &&
+    (represents_literal(next_t) || next_t == TokenType::identifier);
+}
+
 Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
   const auto& tok = iterator.peek();
 
@@ -925,6 +1144,23 @@ Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
   } else {
     return Optional<ParseError>(make_error_expected_token_type(tok, &type, 1));
   }
+}
+
+Optional<ParseError> AstGenerator::consume_one_of(const mt::TokenType* types, int64_t num_types) {
+  const auto& tok = iterator.peek();
+
+  for (int64_t i = 0; i < num_types; i++) {
+    if (types[i] == tok.type) {
+      iterator.advance();
+      return NullOpt{};
+    }
+  }
+
+  return Optional<ParseError>(make_error_expected_token_type(tok, types, num_types));
+}
+
+void AstGenerator::add_error(mt::ParseError&& err) {
+  parse_errors.emplace_back(std::move(err));
 }
 
 ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const mt::Token& at_token) {
@@ -953,6 +1189,10 @@ ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) {
 ParseError AstGenerator::make_error_semicolon_delimiter_in_parens_grouping_expr(const mt::Token& at_token) {
   return ParseError(text, at_token,
     "`()` grouping expressions cannot contain semicolons or span multiple lines.");
+}
+
+ParseError AstGenerator::make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) {
+  return ParseError(text, at_token, "Duplicate `otherwise` in `switch` statement.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

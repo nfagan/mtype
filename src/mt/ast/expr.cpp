@@ -55,6 +55,10 @@ std::string GroupingExpr::accept(const StringVisitor& vis) const {
   return vis.grouping_expr(*this);
 }
 
+std::string EndOperatorExpr::accept(const StringVisitor& vis) const {
+  return vis.end_operator_expr(*this);
+}
+
 std::string UnaryOperatorExpr::accept(const StringVisitor& vis) const {
   return vis.unary_operator_expr(*this);
 }

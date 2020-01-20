@@ -40,6 +40,20 @@ OperatorFixity fixity(BinaryOperator) {
   return OperatorFixity::in;
 }
 
+ControlFlowManipulator control_flow_manipulator_from_token_type(TokenType type) {
+  switch (type) {
+    case TokenType::keyword_return:
+      return ControlFlowManipulator::keyword_return;
+    case TokenType::keyword_break:
+      return ControlFlowManipulator::keyword_break;
+    case TokenType::keyword_continue:
+      return ControlFlowManipulator::keyword_continue;
+    default:
+      assert(false && "No such control flow manipulator for type.");
+      return ControlFlowManipulator::keyword_return;
+  }
+}
+
 SubscriptMethod subscript_method_from_token_type(TokenType type) {
   switch (type) {
     case TokenType::left_parens:

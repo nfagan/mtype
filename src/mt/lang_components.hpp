@@ -4,6 +4,12 @@
 
 namespace mt {
 
+enum class ControlFlowManipulator : uint8_t {
+  keyword_break,
+  keyword_continue,
+  keyword_return
+};
+
 enum class SubscriptMethod : uint8_t {
   parens,
   brace,
@@ -62,6 +68,7 @@ BinaryOperator binary_operator_from_token_type(TokenType type);
 UnaryOperator unary_operator_from_token_type(TokenType type);
 GroupingMethod grouping_method_from_token_type(TokenType type);
 SubscriptMethod subscript_method_from_token_type(TokenType type);
+ControlFlowManipulator control_flow_manipulator_from_token_type(TokenType type);
 
 OperatorFixity fixity(UnaryOperator op);
 OperatorFixity fixity(BinaryOperator op);

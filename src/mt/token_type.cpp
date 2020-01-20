@@ -168,6 +168,8 @@ const char* to_symbol(TokenType type) {
       return "||";
     case TokenType::double_ampersand:
       return "&&";
+    case TokenType::op_end:
+      return "end";
       //  Ident + literals
     case TokenType::identifier:
       return "<identifier>";
@@ -334,6 +336,8 @@ const char* to_string(TokenType type) {
       return "double_vertical_bar";
     case TokenType::double_ampersand:
       return "double_ampersand";
+    case TokenType::op_end:
+      return "op_end";
     //  Ident + literals
     case TokenType::identifier:
       return "identifier";
@@ -466,6 +470,7 @@ bool can_precede_prefix_unary_operator(TokenType type) {
     case TokenType::char_literal:
     case TokenType::number_literal:
     case TokenType::keyword_end:
+    case TokenType::op_end:
       return false;
     default:
       return !represents_grouping_terminator(type);

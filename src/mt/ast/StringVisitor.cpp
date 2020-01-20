@@ -64,20 +64,71 @@ std::string StringVisitor::for_stmt(const ForStmt& stmt) const {
 }
 
 std::string StringVisitor::if_stmt(const IfStmt& stmt) const {
-  auto str = stmt.if_branch->accept(*this);
+  auto str = if_branch(stmt.if_branch, "if");
   for (const auto& elseif_branch : stmt.elseif_branches) {
     //  @Note -- Directly pass branch to function here.
-    str += ("\n" + if_branch(*elseif_branch, "elseif"));
+    str += ("\n" + if_branch(elseif_branch, "elseif"));
   }
   if (stmt.else_branch) {
-    str += ("\n" + stmt.else_branch->accept(*this));
+    str += ("\n" + else_branch(stmt.else_branch.value()));
   }
   str += ("\n" + tab_str() + "end");
   return str;
 }
 
+std::string StringVisitor::while_stmt(const WhileStmt& stmt) const {
+  auto str = tab_str() + "while " + stmt.condition_expr->accept(*this) + "\n";
+  str += stmt.body->accept(*this);
+  str += ("\n" + tab_str() + "end");
+  return str;
+}
+
+std::string StringVisitor::switch_stmt(const SwitchStmt& stmt) const {
+  auto str = tab_str() + "switch " + stmt.condition_expr->accept(*this) + "\n";
+  enter_block();
+  for (const auto& case_block : stmt.cases) {
+    str += (tab_str() + "case " + case_block.expr->accept(*this) + "\n");
+    str += (case_block.block->accept(*this) + "\n");
+  }
+  if (stmt.otherwise) {
+    str += (tab_str() + "otherwise " + "\n" + stmt.otherwise->accept(*this) + "\n");
+  }
+  exit_block();
+  str += (tab_str() + "end");
+  return str;
+}
+
+std::string StringVisitor::try_stmt(const TryStmt& stmt) const {
+  auto str = tab_str() + "try\n";
+  str += (stmt.try_block->accept(*this) + "\n");
+
+  if (stmt.catch_block) {
+    str += (tab_str() + "catch ");
+    if (stmt.catch_block.value().expr) {
+      str += stmt.catch_block.value().expr->accept(*this);
+    }
+    str += ("\n" + stmt.catch_block.value().block->accept(*this) + "\n");
+  }
+
+  str += (tab_str() + "end");
+  return str;
+}
+
+std::string StringVisitor::command_stmt(const CommandStmt& stmt) const {
+  auto str = tab_str() + std::string(stmt.identifier_token.lexeme);
+  for (const auto& arg : stmt.arguments) {
+    str += (" " + std::string(arg.source_token.lexeme));
+  }
+  str += ";";
+  return str;
+}
+
+std::string StringVisitor::control_stmt(const ControlStmt& stmt) const {
+  return tab_str() + std::string(stmt.source_token.lexeme);
+}
+
 std::string StringVisitor::if_branch(const IfBranch& branch, const char* branch_prefix) const {
-  auto str = tab_str() + branch_prefix + " " + branch.condition->accept(*this) + "\n";
+  auto str = tab_str() + branch_prefix + " " + branch.condition_expr->accept(*this) + "\n";
   str += branch.block->accept(*this);
   return str;
 }
@@ -191,6 +242,8 @@ std::string StringVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) 
   return str;
 }
 
-
+std::string StringVisitor::end_operator_expr(const EndOperatorExpr&) const {
+  return "end";
+}
 
 }
