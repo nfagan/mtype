@@ -21,6 +21,10 @@ public:
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
+  std::string for_stmt(const ForStmt& stmt) const;
+  std::string if_stmt(const IfStmt& stmt) const;
+  std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
+  std::string else_branch(const ElseBranch& branch) const;
 
   std::string function_reference_expr(const FunctionReferenceExpr &expr) const;
   std::string anonymous_function_expr(const AnonymousFunctionExpr& expr) const;

@@ -5,18 +5,6 @@
 
 namespace mt {
 
-struct Block : public AstNode {
-  Block() = default;
-  ~Block() override = default;
-
-  void append(BoxedAstNode other) {
-    nodes.emplace_back(std::move(other));
-  }
-  std::string accept(const StringVisitor& vis) const override;
-
-  std::vector<BoxedAstNode> nodes;
-};
-
 struct FunctionHeader {
   Token name_token;
   std::string_view name;

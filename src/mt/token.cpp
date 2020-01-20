@@ -25,6 +25,10 @@ bool TokenIterator::has_next() const {
   return tokens ? current_index < int64_t(tokens->size()) : false;
 }
 
+int64_t TokenIterator::next_index() const {
+  return current_index;
+}
+
 void TokenIterator::advance() {
   current_index++;
 }

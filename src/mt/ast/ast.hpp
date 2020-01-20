@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace mt {
 
@@ -47,5 +48,19 @@ using BoxedAstNode = std::unique_ptr<AstNode>;
 using BoxedExpr = std::unique_ptr<Expr>;
 using BoxedStmt = std::unique_ptr<Stmt>;
 using BoxedDef = std::unique_ptr<Def>;
+
+struct Block : public AstNode {
+  Block() = default;
+  ~Block() override = default;
+
+  void append(BoxedAstNode other) {
+    nodes.emplace_back(std::move(other));
+  }
+  std::string accept(const StringVisitor& vis) const override;
+
+  std::vector<BoxedAstNode> nodes;
+};
+
+using BoxedBlock = std::unique_ptr<Block>;
 
 }

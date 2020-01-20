@@ -9,6 +9,8 @@ set(sources
         character.hpp
         character.cpp
         character_traits.hpp
+        error.hpp
+        error.cpp
         lang_components.hpp
         lang_components.cpp
         keyword.hpp
@@ -19,10 +21,12 @@ set(sources
         scan.cpp
         string.hpp
         string.cpp
-        token_type.hpp
-        token_type.cpp
         token.hpp
         token.cpp
+        token_manipulation.hpp
+        token_manipulation.cpp
+        token_type.hpp
+        token_type.cpp
         unicode.hpp
         unicode.cpp
 )

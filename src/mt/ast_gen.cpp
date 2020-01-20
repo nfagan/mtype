@@ -6,17 +6,6 @@
 
 namespace mt {
 
-void ParseError::show() const {
-  if (!message.empty()) {
-    const bool is_null = at_token.type == TokenType::null;
-    const auto start = is_null ? 0 : at_token.lexeme.data() - text.data();
-    const auto stop = is_null ? 0 : at_token.lexeme.data() + at_token.lexeme.size() - text.data();
-
-    auto msg = mark_text_with_message_and_context(text, start, stop, 100, message);
-    std::cout << msg << std::endl;
-  }
-}
-
 namespace {
   inline ParseErrors parse_error_to_errors(ParseError&& err) {
     ParseErrors res;
@@ -230,20 +219,76 @@ Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::block() {
   }
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::literal_field_reference_expr() {
-  const auto& tok = iterator.peek();
+Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::sub_block() {
+  ParseErrors errors;
+  auto block_node = std::make_unique<Block>();
+  bool should_proceed = true;
+
+  while (iterator.has_next() && should_proceed) {
+    BoxedAstNode node;
+    ParseErrors error;
+    bool success = true;
+
+    const auto& tok = iterator.peek();
+
+    switch (tok.type) {
+      case TokenType::new_line:
+      case TokenType::null:
+      case TokenType::semicolon:
+      case TokenType::comma:
+        iterator.advance();
+        break;
+      case TokenType::keyword_end:
+      case TokenType::keyword_else:
+      case TokenType::keyword_elseif:
+      case TokenType::keyword_catch:
+      case TokenType::keyword_case:
+      case TokenType::keyword_otherwise:
+        should_proceed = false;
+        break;
+      default: {
+        auto stmt_res = stmt();
+        if (stmt_res) {
+          node = std::move(stmt_res.value);
+        } else {
+          success = false;
+          error = std::move(stmt_res.error);
+        }
+      }
+    }
+
+    if (!success) {
+      errors.insert(errors.end(), error.cbegin(), error.cend());
+      std::array<TokenType, 5> possible_types{
+        {TokenType::keyword_if, TokenType::keyword_for, TokenType::keyword_while,
+        TokenType::keyword_try, TokenType::keyword_switch}
+      };
+      iterator.advance_to_one(possible_types.data(), possible_types.size());
+
+    } else if (node) {
+      block_node->append(std::move(node));
+    }
+  }
+
+  if (errors.empty()) {
+    return make_success<ParseErrors, std::unique_ptr<Block>>(std::move(block_node));
+  } else {
+    return make_error<ParseErrors, std::unique_ptr<Block>>(std::move(errors));
+  }
+}
+
+Result<ParseError, BoxedExpr> AstGenerator::literal_field_reference_expr(const Token& source_token) {
   auto ident_res = char_identifier();
   if (!ident_res) {
     return make_error<ParseError, BoxedExpr>(std::move(ident_res.error));
   }
 
-  auto expr = std::make_unique<LiteralFieldReferenceExpr>(tok);
+  auto expr = std::make_unique<LiteralFieldReferenceExpr>(source_token);
   return make_success<ParseError, BoxedExpr>(std::move(expr));
 }
 
-Result<ParseError, BoxedExpr> AstGenerator::dynamic_field_reference_expr() {
+Result<ParseError, BoxedExpr> AstGenerator::dynamic_field_reference_expr(const Token& source_token) {
   iterator.advance(); //  consume (
-  const auto& source_tok = iterator.peek();
 
   auto expr_res = expr();
   if (!expr_res) {
@@ -255,16 +300,16 @@ Result<ParseError, BoxedExpr> AstGenerator::dynamic_field_reference_expr() {
     return make_error<ParseError, BoxedExpr>(err.rvalue());
   }
 
-  auto expr = std::make_unique<DynamicFieldReferenceExpr>(source_tok, std::move(expr_res.value));
+  auto expr = std::make_unique<DynamicFieldReferenceExpr>(source_token, std::move(expr_res.value));
   return make_success<ParseError, BoxedExpr>(std::move(expr));
 }
 
 Result<ParseError, std::unique_ptr<SubscriptExpr>>
-AstGenerator::non_period_subscript_expr(mt::SubscriptMethod method, mt::TokenType term) {
+AstGenerator::non_period_subscript_expr(const Token& source_token,
+                                        mt::SubscriptMethod method,
+                                        mt::TokenType term) {
   //  @TODO: Recode `end` to `end subscript reference`.
-  const auto& source_token = iterator.peek();
   iterator.advance(); //  consume '(' or '{'
-
   std::vector<BoxedExpr> args;
 
   while (iterator.has_next() && iterator.peek().type != term) {
@@ -291,8 +336,8 @@ AstGenerator::non_period_subscript_expr(mt::SubscriptMethod method, mt::TokenTyp
   return make_success<ParseError, std::unique_ptr<SubscriptExpr>>(std::move(sub));
 }
 
-Result<ParseError, std::unique_ptr<SubscriptExpr>> AstGenerator::period_subscript_expr() {
-  const auto& source_token = iterator.peek();
+Result<ParseError, std::unique_ptr<SubscriptExpr>>
+AstGenerator::period_subscript_expr(const Token& source_token) {
   iterator.advance(); //  consume '.'
 
   const auto& tok = iterator.peek();
@@ -300,10 +345,10 @@ Result<ParseError, std::unique_ptr<SubscriptExpr>> AstGenerator::period_subscrip
 
   switch (tok.type) {
     case TokenType::identifier:
-      expr_res = literal_field_reference_expr();
+      expr_res = literal_field_reference_expr(tok);
       break;
     case TokenType::left_parens:
-      expr_res = dynamic_field_reference_expr();
+      expr_res = dynamic_field_reference_expr(tok);
       break;
     default:
       std::array<TokenType, 2> possible_types{{TokenType::identifier, TokenType::left_parens}};
@@ -337,13 +382,13 @@ Result<ParseError, BoxedExpr> AstGenerator::identifier_reference_expr(const Toke
     bool has_subscript = true;
 
     if (tok.type == TokenType::period) {
-      sub_result = period_subscript_expr();
+      sub_result = period_subscript_expr(tok);
 
     } else if (tok.type == TokenType::left_parens) {
-      sub_result = non_period_subscript_expr(SubscriptMethod::parens, TokenType::right_parens);
+      sub_result = non_period_subscript_expr(tok, SubscriptMethod::parens, TokenType::right_parens);
 
     } else if (tok.type == TokenType::left_brace) {
-      sub_result = non_period_subscript_expr(SubscriptMethod::brace, TokenType::right_brace);
+      sub_result = non_period_subscript_expr(tok, SubscriptMethod::brace, TokenType::right_brace);
 
     } else {
       has_subscript = false;
@@ -627,7 +672,7 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
       }
 
     } else if (tok.type == TokenType::at) {
-      return anonymous_function_expr(tok);
+      node_res = anonymous_function_expr(tok);
 
     } else if (represents_expr_terminator(tok.type)) {
       break;
@@ -638,6 +683,7 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
     }
 
     if (!node_res) {
+      //  An error occurred in one of the sub-expressions.
       return node_res;
     }
 
@@ -669,10 +715,105 @@ Result<ParseError, BoxedExpr> AstGenerator::expr(bool allow_empty) {
     if (!is_valid) {
       return make_error<ParseError, BoxedExpr>(make_error_incomplete_expr(iterator.peek()));
     } else {
-      //  @TODO: Make an empty expression class.
       return make_success<ParseError, BoxedExpr>(nullptr);
     }
   }
+}
+
+Result<ParseErrors, BoxedStmt> AstGenerator::for_stmt() {
+  const auto& source_token = iterator.peek();
+  iterator.advance();
+
+  auto loop_var_res = char_identifier();
+  if (!loop_var_res) {
+    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(std::move(loop_var_res.error)));
+  }
+
+  auto eq_err = consume(TokenType::equal);
+  if (eq_err) {
+    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(eq_err.rvalue()));
+  }
+
+  auto initializer_res = expr();
+  if (!initializer_res) {
+    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(std::move(initializer_res.error)));
+  }
+
+  auto block_res = sub_block();
+  if (!block_res) {
+    return make_error<ParseErrors, BoxedStmt>(std::move(block_res.error));
+  }
+
+  auto end_err = consume(TokenType::keyword_end);
+  if (end_err) {
+    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(end_err.rvalue()));
+  }
+
+  auto node = std::make_unique<ForStmt>(source_token, loop_var_res.value,
+    std::move(initializer_res.value), std::move(block_res.value));
+
+  return make_success<ParseErrors, BoxedStmt>(std::move(node));
+}
+
+Result<ParseErrors, BoxedStmt> AstGenerator::if_stmt() {
+  auto main_branch_res = if_branch(iterator.peek());
+  if (!main_branch_res) {
+    return make_error<ParseErrors, BoxedStmt>(std::move(main_branch_res.error));
+  }
+
+  std::vector<std::unique_ptr<IfBranch>> elseif_branches;
+
+  while (iterator.peek().type == TokenType::keyword_elseif) {
+    auto sub_branch_res = if_branch(iterator.peek());
+    if (!sub_branch_res) {
+      return make_error<ParseErrors, BoxedStmt>(std::move(sub_branch_res.error));
+    } else {
+      elseif_branches.emplace_back(std::move(sub_branch_res.value));
+    }
+  }
+
+  std::unique_ptr<ElseBranch> else_branch = nullptr;
+  const auto& maybe_else_token = iterator.peek();
+
+  if (maybe_else_token.type == TokenType::keyword_else) {
+    iterator.advance();
+
+    auto else_block_res = sub_block();
+    if (!else_block_res) {
+      return make_error<ParseErrors, BoxedStmt>(std::move(else_block_res.error));
+    } else {
+      else_branch = std::make_unique<ElseBranch>(maybe_else_token, std::move(else_block_res.value));
+    }
+  }
+
+  auto err = consume(TokenType::keyword_end);
+  if (err) {
+    return make_error<ParseErrors, BoxedStmt>(parse_error_to_errors(err.rvalue()));
+  }
+
+  auto if_stmt_node = std::make_unique<IfStmt>(std::move(main_branch_res.value),
+    std::move(elseif_branches), std::move(else_branch));
+
+  return make_success<ParseErrors, BoxedStmt>(std::move(if_stmt_node));
+}
+
+Result<ParseErrors, std::unique_ptr<IfBranch>> AstGenerator::if_branch(const Token& source_token) {
+  iterator.advance(); //  consume if
+
+  auto condition_res = expr();
+  if (!condition_res) {
+    auto errs = parse_error_to_errors(std::move(condition_res.error));
+    return make_error<ParseErrors, std::unique_ptr<IfBranch>>(std::move(errs));
+  }
+
+  auto block_res = sub_block();
+  if (!block_res) {
+    return make_error<ParseErrors, std::unique_ptr<IfBranch>>(std::move(block_res.error));
+  }
+
+  auto node = std::make_unique<IfBranch>(source_token,
+    std::move(condition_res.value), std::move(block_res.value));
+  return make_success<ParseErrors, std::unique_ptr<IfBranch>>(std::move(node));
 }
 
 Result<ParseError, BoxedStmt> AstGenerator::assignment_stmt(BoxedExpr lhs, const Token& initial_token) {
@@ -714,6 +855,24 @@ Result<ParseErrors, BoxedAstNode> AstGenerator::stmt() {
   const auto& token = iterator.peek();
 
   switch (token.type) {
+    case TokenType::keyword_for: {
+      auto for_res = for_stmt();
+      if (for_res) {
+        return make_success<ParseErrors, BoxedAstNode>(std::move(for_res.value));
+      } else {
+        return make_error<ParseErrors, BoxedAstNode>(std::move(for_res.error));
+      }
+    }
+
+    case TokenType::keyword_if: {
+      auto if_res = if_stmt();
+      if (if_res) {
+        return make_success<ParseErrors, BoxedAstNode>(std::move(if_res.value));
+      } else {
+        return make_error<ParseErrors, BoxedAstNode>(std::move(if_res.error));
+      }
+    }
+
     default:
       auto res = expr_stmt();
       if (res) {
@@ -761,7 +920,7 @@ Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
 }
 
 ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const mt::Token& at_token) {
-  const char* msg = "()-indexing must appear last in an index expression.";
+  const char* msg = "`()` indexing must appear last in an index expression.";
   return ParseError(text, at_token, msg);
 }
 

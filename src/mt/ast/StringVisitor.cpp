@@ -56,6 +56,36 @@ std::string StringVisitor::assignment_stmt(const AssignmentStmt& stmt) const {
   return tab_str() + of + " = " + to + ";";
 }
 
+std::string StringVisitor::for_stmt(const ForStmt& stmt) const {
+  std::string str = tab_str() + "for " + std::string(stmt.loop_variable_identifier) + " = ";
+  str += stmt.loop_variable_expr->accept(*this) + "\n";
+  str += (stmt.body->accept(*this) + "\n" + tab_str() + "end");
+  return str;
+}
+
+std::string StringVisitor::if_stmt(const IfStmt& stmt) const {
+  auto str = stmt.if_branch->accept(*this);
+  for (const auto& elseif_branch : stmt.elseif_branches) {
+    //  @Note -- Directly pass branch to function here.
+    str += ("\n" + if_branch(*elseif_branch, "elseif"));
+  }
+  if (stmt.else_branch) {
+    str += ("\n" + stmt.else_branch->accept(*this));
+  }
+  str += ("\n" + tab_str() + "end");
+  return str;
+}
+
+std::string StringVisitor::if_branch(const IfBranch& branch, const char* branch_prefix) const {
+  auto str = tab_str() + branch_prefix + " " + branch.condition->accept(*this) + "\n";
+  str += branch.block->accept(*this);
+  return str;
+}
+
+std::string StringVisitor::else_branch(const ElseBranch& branch) const {
+  return tab_str() + "else\n" + branch.block->accept(*this);
+}
+
 std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& expr) const {
   auto str = "@" + expr.expr->accept(*this);
   maybe_parenthesize(str);

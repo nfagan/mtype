@@ -37,8 +37,15 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  auto tokens = std::move(scan_result.value);
+  auto insert_res = insert_implicit_expression_delimiters(tokens, contents);
+  if (insert_res) {
+    insert_res.value().show();
+    return 0;
+  }
+
   mt::AstGenerator ast_gen;
-  auto parse_result = ast_gen.parse(scan_result.value, contents);
+  auto parse_result = ast_gen.parse(tokens, contents);
 
   if (!parse_result) {
     for (const auto& err : parse_result.error) {
@@ -52,4 +59,6 @@ int main(int argc, char** argv) {
   visitor.parenthesize_exprs = true;
 
   std::cout << parse_result.value->accept(visitor) << std::endl;
+
+  return 0;
 }

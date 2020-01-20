@@ -26,6 +26,7 @@ public:
   ~TokenIterator() = default;
 
   bool has_next() const;
+  int64_t next_index() const;
 
   const Token& peek() const;
   const Token& peek_nth(int64_t num) const;
