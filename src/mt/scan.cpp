@@ -251,11 +251,13 @@ Optional<ScanError> Scanner::handle_comment(std::vector<Token>& tokens) {
     handle_type_annotation_initializer(tokens, is_block_comment_start);
 
   } else if (!is_block_comment_start) {
+    //  @TODO: Only allow the insertion of a newline token if the comment was the first
+    //  non-whitespace character on that line.
     consume_to_new_line();
 
-    if (iterator.peek() == '\n') {
-      iterator.advance();
-    }
+//    if (iterator.peek() == '\n') {
+//      iterator.advance();
+//    }
   }
 
   return NullOpt{};

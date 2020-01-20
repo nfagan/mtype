@@ -259,9 +259,8 @@ Result<ParseErrors, std::unique_ptr<Block>> AstGenerator::sub_block() {
 
     if (!success) {
       errors.insert(errors.end(), error.cbegin(), error.cend());
-      std::array<TokenType, 5> possible_types{
-        {TokenType::keyword_if, TokenType::keyword_for, TokenType::keyword_while,
-        TokenType::keyword_try, TokenType::keyword_switch}
+      std::array<TokenType, 2> possible_types{
+        {TokenType::keyword_if, TokenType::keyword_for}
       };
       iterator.advance_to_one(possible_types.data(), possible_types.size());
 
@@ -472,12 +471,21 @@ Result<ParseError, BoxedExpr> AstGenerator::grouping_expr(const Token& source_to
     if (next.type == TokenType::comma) {
       iterator.advance();
 
-    } else if (next.type == TokenType::semicolon) {
-      delim = TokenType::semicolon;
+    } else if (next.type == TokenType::semicolon || next.type == TokenType::new_line) {
       iterator.advance();
 
+      if (source_token.type == TokenType::left_parens) {
+        //  (1; 2)  is illegal.
+        auto err = make_error_semicolon_delimiter_in_parens_grouping_expr(next);
+        return make_error<ParseError, BoxedExpr>(std::move(err));
+      } else {
+        delim = TokenType::semicolon;
+      }
+
     } else if (next.type != terminator) {
-      std::array<TokenType, 3> possible_types{{TokenType::comma, TokenType::semicolon, terminator}};
+      std::array<TokenType, 4> possible_types{
+        {TokenType::comma, TokenType::semicolon, TokenType::new_line, terminator}
+      };
       auto err = make_error_expected_token_type(next, possible_types.data(), possible_types.size());
       return make_error<ParseError, BoxedExpr>(std::move(err));
     }
@@ -940,6 +948,11 @@ ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& a
 
 ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) {
   return ParseError(text, at_token, "Expected an expression on the left hand side.");
+}
+
+ParseError AstGenerator::make_error_semicolon_delimiter_in_parens_grouping_expr(const mt::Token& at_token) {
+  return ParseError(text, at_token,
+    "`()` grouping expressions cannot contain semicolons or span multiple lines.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

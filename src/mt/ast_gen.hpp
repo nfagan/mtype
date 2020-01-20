@@ -75,6 +75,7 @@ private:
   ParseError make_error_incomplete_expr(const Token& at_token);
   ParseError make_error_invalid_assignment_target(const Token& at_token);
   ParseError make_error_expected_lhs(const Token& at_token);
+  ParseError make_error_semicolon_delimiter_in_parens_grouping_expr(const Token& at_token);
 
   Optional<ParseError> consume(TokenType type);
 
