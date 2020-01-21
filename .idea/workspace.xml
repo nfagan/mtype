@@ -15,7 +15,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="241591a5-e02d-4c02-9757-d0d54435ab69" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/string.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/string.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -98,7 +99,7 @@
       <option name="presentableId" value="Default" />
       <updated>1579281035713</updated>
       <workItem from="1579281037080" duration="102913000" />
-      <workItem from="1579527630322" duration="34273000" />
+      <workItem from="1579527630322" duration="34415000" />
     </task>
     <servers />
   </component>
@@ -162,10 +163,10 @@
       <screen x="0" y="23" width="1440" height="873" />
     </state>
     <state x="385" y="210" key="run.anything.popup/0.23.1440.873@0.23.1440.873" timestamp="1579478942491" />
-    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup" timestamp="1579618512421">
+    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup" timestamp="1579624203962">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup/0.23.1440.873@0.23.1440.873" timestamp="1579618512421" />
+    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup/0.23.1440.873@0.23.1440.873" timestamp="1579624203962" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

@@ -1,6 +1,6 @@
 #include "string.hpp"
 #include "character.hpp"
-#include <cmath>
+#include <algorithm>
 #include <limits>
 
 namespace mt {
