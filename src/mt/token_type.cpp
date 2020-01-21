@@ -75,7 +75,7 @@ TokenType from_symbol(std::string_view s) {
     {"let", TokenType::keyword_let},
     {"namespace", TokenType::keyword_namespace},
     {"struct", TokenType::keyword_struct},
-    {"@t", TokenType::type_annotation}
+    {"@t", TokenType::type_annotation_macro}
   };
 
   const auto it = symbol_map.find(std::string(s));
@@ -248,7 +248,7 @@ const char* to_symbol(TokenType type) {
       return "function";
     case TokenType::keyword_end_type:
       return "end";
-    case TokenType::type_annotation:
+    case TokenType::type_annotation_macro:
       return "@t";
     case TokenType::null:
       return "<null>";
@@ -416,7 +416,7 @@ const char* to_string(TokenType type) {
       return "keyword_function_type";
     case TokenType::keyword_end_type:
       return "keyword_end_type";
-    case TokenType::type_annotation:
+    case TokenType::type_annotation_macro:
       return "type_annotation";
     case TokenType::null:
       return "null";

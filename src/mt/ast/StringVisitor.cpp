@@ -1,5 +1,5 @@
 #include "StringVisitor.hpp"
-#include <cmath>
+#include <algorithm>
 
 namespace mt {
 
@@ -212,7 +212,13 @@ std::string StringVisitor::grouping_expr_component(const GroupingExprComponent& 
 }
 
 std::string StringVisitor::grouping_expr(const GroupingExpr& expr) const {
-  const auto sub_strs = visit_array(expr.components, " ");
+  std::vector<std::string> component_strs;
+  std::transform(expr.components.cbegin(),
+    expr.components.cend(), std::back_inserter(component_strs), [this](const auto& arg) {
+    return grouping_expr_component(arg);
+  });
+
+  const auto sub_strs = join(component_strs, " ");
   const auto term = grouping_terminator_for(expr.source_token.type);
 
   const auto init_sym = to_symbol(expr.source_token.type);
@@ -249,6 +255,56 @@ std::string StringVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) 
 
 std::string StringVisitor::end_operator_expr(const EndOperatorExpr&) const {
   return "end";
+}
+
+std::string StringVisitor::scalar_type(const ScalarType& type) const {
+  auto str = std::string(type.identifier);
+  if (!type.arguments.empty()) {
+    str += ("<" + visit_array(type.arguments, ", ") + ">");
+  }
+  return str;
+}
+
+std::string StringVisitor::function_type(const FunctionType& type) const {
+  auto outputs = "[" + visit_array(type.outputs, ", ") + "]";
+  auto inputs = "(" + visit_array(type.inputs, ", ") + ")";
+  return outputs + " = " + inputs;
+}
+
+std::string StringVisitor::inline_type(const InlineType& type) const {
+  return type.type->accept(*this);
+}
+
+std::string StringVisitor::type_given(const TypeGiven& given) const {
+  return "given <" + join(given.identifiers, ", ") + "> " + given.declaration->accept(*this);
+}
+
+std::string StringVisitor::type_let(const TypeLet& let) const {
+  return "let " + std::string(let.identifier) + " = " + let.equal_to_type->accept(*this);
+}
+
+std::string StringVisitor::type_begin(const TypeBegin& begin) const {
+  std::string base_str = "begin";
+  if (begin.is_exported) {
+    base_str += " export";
+  }
+  base_str += "\n";
+  enter_block();
+
+  std::vector<std::string> lines;
+  std::transform(begin.contents.cbegin(), begin.contents.cend(),
+    std::back_inserter(lines), [this](const auto& annot) {
+    return tab_str() + annot->accept(*this);
+  });
+
+  exit_block();
+  auto contents_str = join(lines, "\n");
+  auto end_str = "\n" + tab_str() + "end";
+  return base_str + contents_str + end_str;
+}
+
+std::string StringVisitor::type_annot_macro(const TypeAnnotMacro& type) const {
+  return tab_str() + "@t " + type.annotation->accept(*this);
 }
 
 }

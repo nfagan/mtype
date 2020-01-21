@@ -143,14 +143,13 @@ struct IdentifierReferenceExpr : public Expr {
   std::vector<std::unique_ptr<SubscriptExpr>> subscripts;
 };
 
-struct GroupingExprComponent : public Expr {
+struct GroupingExprComponent {
   GroupingExprComponent(BoxedExpr expr, TokenType delimiter) :
   expr(std::move(expr)), delimiter(delimiter) {
     //
   }
-
-  ~GroupingExprComponent() override = default;
-  std::string accept(const StringVisitor& vis) const override;
+  GroupingExprComponent(GroupingExprComponent&& other) noexcept = default;
+  ~GroupingExprComponent() = default;
 
   BoxedExpr expr;
   TokenType delimiter;
@@ -158,7 +157,7 @@ struct GroupingExprComponent : public Expr {
 
 struct GroupingExpr : public Expr {
   GroupingExpr(const Token& source_token, GroupingMethod method,
-               std::vector<std::unique_ptr<GroupingExprComponent>>&& exprs):
+               std::vector<GroupingExprComponent>&& exprs):
   source_token(source_token), method(method), components(std::move(exprs)) {
     //
   }
@@ -169,14 +168,14 @@ struct GroupingExpr : public Expr {
     }
 
     return std::all_of(components.cbegin(), components.cend(), [](const auto& arg) {
-      return arg->delimiter == TokenType::comma;
+      return arg.delimiter == TokenType::comma;
     });
   }
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
   GroupingMethod method;
-  std::vector<std::unique_ptr<GroupingExprComponent>> components;
+  std::vector<GroupingExprComponent> components;
 };
 
 struct EndOperatorExpr : public Expr {

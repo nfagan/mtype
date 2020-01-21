@@ -47,10 +47,6 @@ std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.identifier_reference_expr(*this);
 }
 
-std::string GroupingExprComponent::accept(const StringVisitor& vis) const {
-  return vis.grouping_expr_component(*this);
-}
-
 std::string GroupingExpr::accept(const StringVisitor& vis) const {
   return vis.grouping_expr(*this);
 }

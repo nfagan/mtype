@@ -4,6 +4,7 @@
 #include "def.hpp"
 #include "stmt.hpp"
 #include "expr.hpp"
+#include "type_annot.hpp"
 #include "../string.hpp"
 
 namespace mt {
@@ -49,6 +50,14 @@ public:
   std::string unary_operator_expr(const UnaryOperatorExpr& expr) const;
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;
   std::string end_operator_expr(const EndOperatorExpr& expr) const;
+
+  std::string scalar_type(const ScalarType& type) const;
+  std::string function_type(const FunctionType& type) const;
+  std::string type_begin(const TypeBegin& begin) const;
+  std::string type_given(const TypeGiven& given) const;
+  std::string type_let(const TypeLet& let) const;
+  std::string inline_type(const InlineType& type) const;
+  std::string type_annot_macro(const TypeAnnotMacro& type) const;
 
 private:
   void maybe_parenthesize(std::string& str) const;

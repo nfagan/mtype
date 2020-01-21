@@ -5,11 +5,40 @@
 #include <iostream>
 #include <cassert>
 
+namespace {
+struct Inputs {
+  bool show_parse_errors = true;
+  bool show_ast = false;
+  bool show_tokens = false;
+};
+
+Inputs parse_inputs(int nrhs, const mxArray *prhs[]) {
+  Inputs inputs;
+  
+  if (nrhs > 1) {
+    inputs.show_parse_errors = mt::bool_or_default(prhs[1], true);
+  }
+  
+  if (nrhs > 2) {
+    inputs.show_ast = mt::bool_or_default(prhs[2], true);
+  }
+  
+  if (nrhs > 3) {
+    inputs.show_tokens = mt::bool_or_default(prhs[3], false);
+  }
+  
+  return inputs;
+}
+
+}
+
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nrhs == 0) {
     std::cout << "Not enough input arguments." << std::endl;
     return;
   }
+  
+  const auto inputs = parse_inputs(nrhs, prhs);
   
   //  Initialize to error state.
   plhs[0] = mxCreateLogicalScalar(false);
@@ -18,7 +47,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   const bool is_valid_unicode = mt::utf8::is_valid(str.c_str(), str.length());
   
   if (!is_valid_unicode) {
-    std::cout << "Input is not valid unicode." << std::endl;
+    if (inputs.show_parse_errors) {
+      std::cout << "Input is not valid unicode." << std::endl;
+    }
     return;
   }
 
@@ -28,26 +59,38 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto scan_res = scanner.scan(str);
 
   if (!scan_res) {
-    for (const auto& err : scan_res.error.errors) {
-      std::cout << err.message << std::endl;
+    if (inputs.show_parse_errors) {
+      for (const auto& err : scan_res.error.errors) {
+        std::cout << err.message << std::endl;
+      }
     }
     return;
-  } 
+  }
   
   auto& scan_info = scan_res.value;
   auto insert_res = insert_implicit_expr_delimiters_in_groupings(scan_info.tokens, str);
   
   if (insert_res) {
-    insert_res.value().show();
+    if (inputs.show_parse_errors) {
+      insert_res.value().show();
+    }
     return;
+  }
+  
+  if (inputs.show_tokens) {
+    for (const auto& tok : scan_info.tokens) {
+      std::cout << tok << std::endl;
+    }
   }
 
   const bool end_terminated = scan_info.functions_are_end_terminated;
   auto parse_res = ast_generator.parse(scan_info.tokens, str, end_terminated);
 
   if (!parse_res) {
-    for (const auto& err : parse_res.error) {
-      err.show();
+    if (inputs.show_parse_errors) {
+      for (const auto& err : parse_res.error) {
+        err.show();
+      }
     }
     return;
   }
@@ -55,8 +98,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   //  Success.
   *mxGetLogicals(plhs[0]) = true;
 
-  mt::StringVisitor visitor;
-  visitor.parenthesize_exprs = true;
-
-  std::cout << parse_res.value->accept(visitor) << std::endl;
+  if (inputs.show_ast) {
+    mt::StringVisitor visitor;
+    visitor.parenthesize_exprs = true;
+    std::cout << parse_res.value->accept(visitor) << std::endl;
+  }
 }

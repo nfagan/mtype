@@ -8,3 +8,4 @@
 #include "ast/def.hpp"
 #include "ast/expr.hpp"
 #include "ast/stmt.hpp"
+#include "ast/type_annot.hpp"

@@ -1,5 +1,14 @@
 #include "util.hpp"
 
+bool mt::bool_or_default(const mxArray* in_array, bool default_value) {
+  if (mxGetClassID(in_array) != mxLOGICAL_CLASS || 
+      mxGetNumberOfElements(in_array) != 1) {
+    return default_value;
+  } else {
+    return mxIsLogicalScalarTrue(in_array);
+  }
+}
+
 std::string mt::get_string_with_trap(const mxArray* in_str, const char* id) {
   if (mxGetClassID(in_str) != mxCHAR_CLASS) {
     mexErrMsgIdAndTxt(id, "Input must be char.");

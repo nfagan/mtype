@@ -62,12 +62,13 @@ else
   compile_options.compiler_spec = '';
   compile_options.addtl_c_flags = '';
 %   compile_options.addtl_cxx_flags = 'CXXFLAGS="-std=c++latest"';
-  compile_options.addtl_cxx_flags = '';
   
   if ( ispc() )
+    compile_options.addtl_cxx_flags = '';
     compile_options.addtl_comp_flags = '/std:c++17';
   else
-    compile_options.addtl_comp_flags = '-std=c++17';
+    compile_options.addtl_cxx_flags = 'CXXFLAGS="-std=c++14"';
+    compile_options.addtl_comp_flags = '';
   end
 end
 

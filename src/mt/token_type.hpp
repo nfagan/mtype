@@ -94,7 +94,7 @@ enum class TokenType : unsigned int {
   keyword_function_type,
   keyword_end_type,
   //  Typing meta
-  type_annotation,
+  type_annotation_macro,
   //  Meta
   null
 };

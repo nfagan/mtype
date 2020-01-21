@@ -78,6 +78,19 @@ private:
   Optional<IfBranch> if_branch(const Token& source_token);
   Optional<SwitchCase> switch_case(const Token& source_token);
 
+  Optional<BoxedTypeAnnot> type_annotation_macro(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_annotation(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_begin(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_given(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_let(const Token& source_token);
+  Optional<BoxedTypeAnnot> inline_type_annotation(const Token& source_token);
+
+  Optional<BoxedType> type(const Token& source_token);
+  Optional<BoxedType> function_type(const Token& source_token);
+  Optional<BoxedType> scalar_type(const Token& source_token);
+  Optional<std::vector<BoxedType>> type_sequence(TokenType terminator);
+  Optional<std::vector<std::string_view>> type_variable_identifiers(const Token& source_token);
+
   ParseError make_error_expected_token_type(const Token& at_token, const TokenType* types, int64_t num_types);
   ParseError make_error_reference_after_parens_reference_expr(const Token& at_token);
   ParseError make_error_invalid_expr_token(const Token& at_token);
@@ -90,6 +103,9 @@ private:
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
   void add_error(ParseError&& err);
+
+  static std::array<TokenType, 3> type_annotation_block_possible_types();
+  static std::array<TokenType, 5> sub_block_possible_types();
 
 private:
   TokenIterator iterator;

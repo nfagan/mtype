@@ -6,6 +6,15 @@
 
 namespace mt {
 
+template <typename T, typename U>
+inline Optional<U> transform_optional(Optional<T>&& source) {
+  if (source) {
+    return NullOpt{};
+  } else {
+    return Optional<U>(std::move(source.rvalue()));
+  }
+}
+
 Result<ParseErrors, std::unique_ptr<Block>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
                     bool functions_are_end_terminated) {
@@ -188,6 +197,16 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
       case TokenType::keyword_end:
         should_proceed = false;
         break;
+      case TokenType::type_annotation_macro: {
+        auto type_res = type_annotation_macro(tok);
+        if (type_res) {
+          node = type_res.rvalue();
+        } else {
+          success = false;
+        }
+        break;
+      }
+
       case TokenType::keyword_function: {
         auto def_res = function_def();
         if (def_res) {
@@ -250,6 +269,16 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
       case TokenType::keyword_otherwise:
         should_proceed = false;
         break;
+      case TokenType::type_annotation_macro: {
+        auto type_res = type_annotation_macro(tok);
+        if (type_res) {
+          node = type_res.rvalue();
+        } else {
+          success = false;
+        }
+        break;
+      }
+
       case TokenType::keyword_function: {
         if (is_end_terminated_function) {
           auto def_res = function_def();
@@ -275,9 +304,7 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
 
     if (!success) {
       any_error = true;
-      std::array<TokenType, 2> possible_types{
-        {TokenType::keyword_if, TokenType::keyword_for}
-      };
+      const auto possible_types = sub_block_possible_types();
       iterator.advance_to_one(possible_types.data(), possible_types.size());
 
     } else if (node) {
@@ -478,7 +505,7 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
 
   const bool allow_empty = source_token.type == TokenType::left_bracket ||
     source_token.type == TokenType::left_brace;
-  std::vector<std::unique_ptr<GroupingExprComponent>> exprs;
+  std::vector<GroupingExprComponent> exprs;
 
   while (iterator.has_next() && iterator.peek().type != terminator) {
     auto expr_res = expr(allow_empty);
@@ -514,8 +541,8 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
 
     if (expr_res.value()) {
       //  If non-empty.
-      auto component_expr = std::make_unique<GroupingExprComponent>(expr_res.rvalue(), delim);
-      exprs.emplace_back(std::move(component_expr));
+      GroupingExprComponent grouping_component(expr_res.rvalue(), delim);
+      exprs.emplace_back(std::move(grouping_component));
     }
   }
 
@@ -1174,6 +1201,302 @@ Optional<BoxedStmt> AstGenerator::stmt() {
       }
     }
   }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_annotation_macro(const Token& source_token) {
+  iterator.advance();
+  const auto& dispatch_token = iterator.peek();
+  Optional<BoxedTypeAnnot> annot_res;
+
+  switch (dispatch_token.type) {
+    case TokenType::left_bracket:
+    case TokenType::identifier:
+      annot_res = inline_type_annotation(dispatch_token);
+      break;
+    default:
+      annot_res = type_annotation(dispatch_token);
+  }
+
+  if (!annot_res) {
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<TypeAnnotMacro>(source_token, annot_res.rvalue());
+  return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::inline_type_annotation(const mt::Token& source_token) {
+  auto type_res = type(source_token);
+  if (!type_res) {
+    return NullOpt{};
+  }
+
+  auto err = consume(TokenType::keyword_end_type);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<InlineType>(type_res.rvalue());
+  return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_token) {
+  switch (source_token.type) {
+    case TokenType::keyword_begin:
+      return type_begin(source_token);
+
+    case TokenType::keyword_given:
+      return type_given(source_token);
+
+    case TokenType::keyword_let:
+      return type_let(source_token);
+
+    default:
+      auto possible_types = type_annotation_block_possible_types();
+      auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
+      add_error(std::move(err));
+      return NullOpt{};
+  }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto ident_res = char_identifier();
+  if (!ident_res) {
+    return NullOpt{};
+  }
+
+  auto equal_err = consume(TokenType::equal);
+  if (equal_err) {
+    add_error(equal_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto equal_to_type_res = type(iterator.peek());
+  if (!equal_to_type_res) {
+    return NullOpt{};
+  }
+
+  auto let_node = std::make_unique<TypeLet>(source_token, ident_res.rvalue(), equal_to_type_res.rvalue());
+  return Optional<BoxedTypeAnnot>(std::move(let_node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto identifier_res = type_variable_identifiers(iterator.peek());
+  if (!identifier_res) {
+    return NullOpt{};
+  }
+
+  const auto& decl_token = iterator.peek();
+  Optional<BoxedTypeAnnot> decl_res;
+
+  switch (decl_token.type) {
+    case TokenType::keyword_let:
+      decl_res = type_let(decl_token);
+      break;
+    default: {
+      std::array<TokenType, 1> possible_types{{TokenType::keyword_let}};
+      auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
+      add_error(std::move(err));
+      return NullOpt{};
+    }
+  }
+
+  if (!decl_res) {
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<TypeGiven>(source_token, identifier_res.rvalue(), decl_res.rvalue());
+  return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<std::vector<std::string_view>> AstGenerator::type_variable_identifiers(const mt::Token& source_token) {
+  std::vector<std::string_view> type_variable_identifiers;
+
+  if (source_token.type == TokenType::less) {
+    iterator.advance();
+    auto type_variable_res = char_identifier_sequence(TokenType::greater);
+    if (!type_variable_res) {
+      return NullOpt{};
+    }
+    type_variable_identifiers = type_variable_res.rvalue();
+
+  } else if (source_token.type == TokenType::identifier) {
+    iterator.advance();
+    type_variable_identifiers.emplace_back(source_token.lexeme);
+
+  } else {
+    std::array<TokenType, 2> possible_types{{TokenType::less, TokenType::identifier}};
+    auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
+    add_error(std::move(err));
+    return NullOpt{};
+  }
+
+  return Optional<std::vector<std::string_view>>(std::move(type_variable_identifiers));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token) {
+  iterator.advance();
+
+  const bool is_exported = iterator.peek().type == TokenType::keyword_export;
+  if (is_exported) {
+    iterator.advance();
+  }
+
+  std::vector<BoxedTypeAnnot> contents;
+  bool had_error = false;
+
+  while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end_type) {
+    const auto& token = iterator.peek();
+
+    switch (token.type) {
+      case TokenType::new_line:
+      case TokenType::null:
+        iterator.advance();
+        break;
+      default: {
+        auto annot_res = type_annotation(token);
+        if (annot_res) {
+          contents.emplace_back(annot_res.rvalue());
+        } else {
+          had_error = true;
+          const auto possible_types = type_annotation_block_possible_types();
+          iterator.advance_to_one(possible_types.data(), possible_types.size());
+        }
+      }
+    }
+  }
+
+  if (had_error) {
+    return NullOpt{};
+  }
+
+  auto err = consume(TokenType::keyword_end_type);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<TypeBegin>(source_token, is_exported, std::move(contents));
+  return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedType> AstGenerator::type(const mt::Token& source_token) {
+  switch (source_token.type) {
+    case TokenType::left_bracket:
+      return function_type(source_token);
+
+    case TokenType::identifier:
+      return scalar_type(source_token);
+
+    default: {
+      std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
+      auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
+      add_error(std::move(err));
+      return NullOpt{};
+    }
+  }
+}
+
+Optional<std::vector<BoxedType>> AstGenerator::type_sequence(TokenType terminator) {
+  std::vector<BoxedType> types;
+
+  while (iterator.has_next() && iterator.peek().type != terminator) {
+    const auto& source_token = iterator.peek();
+
+    auto type_res = type(source_token);
+    if (!type_res) {
+      return NullOpt{};
+    }
+
+    types.emplace_back(type_res.rvalue());
+
+    const auto next_type = iterator.peek().type;
+    if (next_type == TokenType::comma) {
+      iterator.advance();
+
+    } else if (next_type != terminator) {
+      std::array<TokenType, 2> possible_types{{TokenType::comma, terminator}};
+      auto err = make_error_expected_token_type(iterator.peek(), possible_types.data(), possible_types.size());
+      add_error(std::move(err));
+      return NullOpt{};
+    }
+  }
+
+  auto err = consume(terminator);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  return Optional<std::vector<BoxedType>>(std::move(types));
+}
+
+Optional<BoxedType> AstGenerator::function_type(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto output_res = type_sequence(TokenType::right_bracket);
+  if (!output_res) {
+    return NullOpt{};
+  }
+
+  auto equal_err = consume(TokenType::equal);
+  if (equal_err) {
+    add_error(equal_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto parens_err = consume(TokenType::left_parens);
+  if (parens_err) {
+    add_error(parens_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto input_res = type_sequence(TokenType::right_parens);
+  if (!input_res) {
+    return NullOpt{};
+  }
+
+  auto type_node = std::make_unique<FunctionType>(source_token,
+    output_res.rvalue(), input_res.rvalue());
+  return Optional<BoxedType>(std::move(type_node));
+}
+
+Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
+  iterator.advance(); //  consume lexeme
+
+  std::vector<BoxedType> arguments;
+
+  if (iterator.peek().type == TokenType::less) {
+    iterator.advance();
+
+    auto argument_res = type_sequence(TokenType::greater);
+    if (!argument_res) {
+      return NullOpt{};
+    } else {
+      arguments = argument_res.rvalue();
+    }
+  }
+
+  auto node = std::make_unique<ScalarType>(source_token, source_token.lexeme, std::move(arguments));
+  return Optional<BoxedType>(std::move(node));
+}
+
+std::array<TokenType, 3> AstGenerator::type_annotation_block_possible_types() {
+  return std::array<TokenType, 3>{
+    {TokenType::keyword_begin, TokenType::keyword_given, TokenType::keyword_let
+  }};
+}
+
+std::array<TokenType, 5> AstGenerator::sub_block_possible_types() {
+  return {
+    {TokenType::keyword_if, TokenType::keyword_for, TokenType::keyword_while,
+    TokenType::keyword_try, TokenType::keyword_switch}
+  };
 }
 
 bool AstGenerator::is_unary_prefix_expr(const mt::Token& curr_token) const {

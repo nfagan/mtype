@@ -44,10 +44,26 @@ struct Def : public AstNode {
   std::string accept(const StringVisitor& vis) const override = 0;
 };
 
+struct TypeAnnot : public AstNode {
+  TypeAnnot() = default;
+  ~TypeAnnot() override = default;
+
+  std::string accept(const StringVisitor& vis) const override = 0;
+};
+
+struct Type : public TypeAnnot {
+  Type() = default;
+  ~Type() override = default;
+
+  std::string accept(const StringVisitor& vis) const override = 0;
+};
+
 using BoxedAstNode = std::unique_ptr<AstNode>;
 using BoxedExpr = std::unique_ptr<Expr>;
 using BoxedStmt = std::unique_ptr<Stmt>;
 using BoxedDef = std::unique_ptr<Def>;
+using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;
+using BoxedType = std::unique_ptr<Type>;
 
 struct Block : public AstNode {
   Block() = default;

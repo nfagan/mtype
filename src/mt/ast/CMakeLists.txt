@@ -9,6 +9,8 @@ function(configure_ast)
             expr.cpp
             stmt.hpp
             stmt.cpp
+            type_annot.hpp
+            type_annot.cpp
             StringVisitor.hpp
             StringVisitor.cpp
     )

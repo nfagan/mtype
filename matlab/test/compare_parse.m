@@ -22,8 +22,9 @@ ref_state = false( size(state) );
 tic;
 for i = 1:numel(ms)
   f = fileread( ms{i} );
-  state(i) = mt.entry( f );
-%   ref_state(i) = ~any( strcmp(kinds(mtree(f)), 'ERR') );
+  state(i) = mt.entry( f, false, false );
+%   s = mtree( f );
+%   ref_state(i) = ~any( strcmp(kinds(s), 'ERR') );
 end
 toc;
 
@@ -31,7 +32,7 @@ failed = ms(~state);
 
 %%
 
-f = fileread( failed{1} );
+f = fileread( failed{4} );
 mt.entry( f );
 
 % if(isoctavemesh) randseed=randseed+3; end

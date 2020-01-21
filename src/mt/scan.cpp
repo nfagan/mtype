@@ -406,7 +406,7 @@ Optional<ScanError> Scanner::handle_comment(std::vector<Token>& tokens) {
 }
 
 Optional<ScanError> Scanner::handle_type_annotation_initializer(std::vector<Token>& tokens, bool is_block_comment) {
-  tokens.push_back({TokenType::type_annotation, make_lexeme(iterator.next_index(), 2)});
+  tokens.push_back({TokenType::type_annotation_macro, make_lexeme(iterator.next_index(), 2)});
   iterator.advance(2);
   new_line_is_type_annotation_terminator = true;
 
