@@ -2,7 +2,6 @@ function(configure_ast)
 
     set(sources
             ast.hpp
-            ast.cpp
             def.hpp
             def.cpp
             expr.hpp
