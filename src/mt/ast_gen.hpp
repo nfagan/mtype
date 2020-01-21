@@ -27,7 +27,7 @@ private:
   Optional<std::unique_ptr<FunctionDef>> function_def();
   Optional<FunctionHeader> function_header();
   Optional<std::vector<std::string_view>> function_inputs();
-  Optional<std::vector<std::string_view>> function_outputs();
+  Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
   Optional<std::string_view> char_identifier();
   Optional<std::vector<std::string_view>> char_identifier_sequence(TokenType terminator);
 

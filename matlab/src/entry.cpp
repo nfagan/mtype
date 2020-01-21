@@ -55,8 +55,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   //  Success.
   *mxGetLogicals(plhs[0]) = true;
 
-//   mt::StringVisitor visitor;
-//   visitor.parenthesize_exprs = false;
-// 
-//   std::cout << parse_res.value->accept(visitor) << std::endl;
+  mt::StringVisitor visitor;
+  visitor.parenthesize_exprs = true;
+
+  std::cout << parse_res.value->accept(visitor) << std::endl;
 }

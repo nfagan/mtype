@@ -5,6 +5,21 @@ namespace mt {
 
 int precedence(BinaryOperator op) {
   switch (op) {
+    case BinaryOperator::or_or:
+      return 0;
+    case BinaryOperator::and_and:
+      return 1;
+    case BinaryOperator::op_or:
+      return 2;
+    case BinaryOperator::op_and:
+      return 3;
+    case BinaryOperator::less:
+    case BinaryOperator::less_equal:
+    case BinaryOperator::greater:
+    case BinaryOperator::greater_equal:
+    case BinaryOperator::equal_equal:
+    case BinaryOperator::not_equal:
+      return 4;
     case BinaryOperator::colon:
       return 5;
     case BinaryOperator::plus:
@@ -17,6 +32,9 @@ int precedence(BinaryOperator op) {
     case BinaryOperator::right_divide:
     case BinaryOperator::matrix_right_divide:
       return 7;
+    case BinaryOperator::power:
+    case BinaryOperator::matrix_power:
+      return 8;
     default:
       return -1;
   }

@@ -75,12 +75,13 @@ Optional<std::vector<std::string_view>> AstGenerator::char_identifier_sequence(T
 }
 
 Optional<FunctionHeader> AstGenerator::function_header() {
-  auto output_res = function_outputs();
+  bool provided_outputs;
+  auto output_res = function_outputs(&provided_outputs);
   if (!output_res) {
     return NullOpt{};
   }
 
-  if (!output_res.value().empty()) {
+  if (provided_outputs) {
     auto err = consume(TokenType::equal);
     if (err) {
       add_error(err.rvalue());
@@ -112,12 +113,14 @@ Optional<std::vector<std::string_view>> AstGenerator::function_inputs() {
   }
 }
 
-Optional<std::vector<std::string_view>> AstGenerator::function_outputs() {
+Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* provided_outputs) {
   const auto& tok = iterator.peek();
   std::vector<std::string_view> outputs;
+  *provided_outputs = false;
 
   if (tok.type == TokenType::left_bracket) {
     iterator.advance();
+    *provided_outputs = true;
     return char_identifier_sequence(TokenType::right_bracket);
 
   } else if (tok.type == TokenType::identifier) {
@@ -125,6 +128,7 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs() {
     const bool is_single_output = next_tok.type == TokenType::equal;
 
     if (is_single_output) {
+      *provided_outputs = true;
       outputs.push_back(tok.lexeme);
       iterator.advance();
     }
