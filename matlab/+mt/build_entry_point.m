@@ -11,6 +11,7 @@ opts = platform_compile_options();
 compiler_spec = opts.compiler_spec;
 addtl_c_flags = opts.addtl_c_flags;
 addtl_cxx_flags = opts.addtl_cxx_flags;
+addtl_comp_flags = opts.addtl_comp_flags;
 
 this_file = which( 'mt.build_entry_point' );
 
@@ -30,8 +31,10 @@ mex_func_path = strjoin( mex_func_paths, ' ' );
 optim_level = params.optim_level;
 additional_defines = '-DNDEBUG';
 
-build_cmd = sprintf( '-v %s%s%s COPTIMFLAGS="-O%d -fwrapv %s" CXXOPTIMFLAGS="-O%d -fwrapv %s" %s -I%s -L%s -l%s -outdir %s' ...
-  , compiler_spec, addtl_c_flags, addtl_cxx_flags, optim_level, additional_defines ...
+build_cmd = sprintf( '-v %s%s%s COMPFLAGS="$COMPFLAGS %s" COPTIMFLAGS="-O%d -fwrapv %s" CXXOPTIMFLAGS="-O%d -fwrapv %s" %s -I%s -L%s -l%s -outdir %s' ...
+  , compiler_spec, addtl_c_flags, addtl_cxx_flags ...
+  , addtl_comp_flags ...
+  , optim_level, additional_defines ...
   , optim_level, additional_defines ...
   , mex_func_path, include_dir ...
   , lib_dir, lib_name, mt_dir ...
@@ -54,10 +57,18 @@ if ( isunix() && ~ismac() )
   compile_options.compiler_spec = 'GCC=''/usr/bin/gcc-4.9'' G++=''/usr/bin/g++-4.9'' ';
   compile_options.addtl_c_flags = '';
   compile_options.addtl_cxx_flags = 'CXXFLAGS="-std=c++1y -fPIC"';
+  compile_options.addtl_comp_flags = '';
 else
   compile_options.compiler_spec = '';
   compile_options.addtl_c_flags = '';
-  compile_options.addtl_cxx_flags = 'CXXFLAGS="-std=c++14"';
+%   compile_options.addtl_cxx_flags = 'CXXFLAGS="-std=c++latest"';
+  compile_options.addtl_cxx_flags = '';
+  
+  if ( ispc() )
+    compile_options.addtl_comp_flags = '/std:c++17';
+  else
+    compile_options.addtl_comp_flags = '-std=c++17';
+  end
 end
 
 end
