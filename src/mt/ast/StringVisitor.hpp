@@ -28,6 +28,7 @@ public:
   std::string switch_stmt(const SwitchStmt& stmt) const;
   std::string try_stmt(const TryStmt& stmt) const;
   std::string command_stmt(const CommandStmt& stmt) const;
+  std::string variable_declaration_stmt(const VariableDeclarationStmt& stmt) const;
 
   std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
   std::string else_branch(const ElseBranch& branch) const;
@@ -38,7 +39,7 @@ public:
   std::string char_literal_expr(const CharLiteralExpr& expr) const;
   std::string string_literal_expr(const StringLiteralExpr& expr) const;
   std::string number_literal_expr(const NumberLiteralExpr& expr) const;
-  std::string ignore_function_output_argument_expr(const IgnoreFunctionOutputArgumentExpr& expr) const;
+  std::string ignore_function_argument_expr(const IgnoreFunctionArgumentExpr& expr) const;
   std::string dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) const;
   std::string literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) const;
   std::string subscript_expr(const SubscriptExpr& expr) const;

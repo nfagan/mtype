@@ -9,6 +9,23 @@ namespace mt {
 
 struct CharLiteralExpr;
 
+struct VariableDeclarationStmt : public Stmt {
+  VariableDeclarationStmt(const Token& source_token,
+                          VariableDeclarationQualifier qualifier,
+                          std::vector<std::string_view>&& identifiers) :
+                          source_token(source_token),
+                          qualifier(qualifier),
+                          identifiers(std::move(identifiers)) {
+    //
+  }
+  ~VariableDeclarationStmt() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  VariableDeclarationQualifier qualifier;
+  std::vector<std::string_view> identifiers;
+};
+
 struct CommandStmt : public Stmt {
   CommandStmt(const Token& identifier_token,
               std::vector<CharLiteralExpr>&& arguments);

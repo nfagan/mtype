@@ -18,7 +18,7 @@ public:
   ~AstGenerator() = default;
 
   Result<ParseErrors, std::unique_ptr<Block>>
-  parse(const std::vector<Token>& tokens, std::string_view text);
+  parse(const std::vector<Token>& tokens, std::string_view text, bool functions_are_end_terminated);
 
 private:
 
@@ -58,7 +58,7 @@ private:
                            std::vector<BoxedBinaryOperatorExpr>& pending_binaries);
 
   bool is_unary_prefix_expr(const Token& curr_token) const;
-  bool is_ignore_output_expr(const Token& curr_token) const;
+  bool is_ignore_argument_expr(const Token& curr_token) const;
   bool is_colon_subscript_expr(const Token& curr_token) const;
 
   bool is_command_stmt(const Token& curr_token) const;
@@ -72,6 +72,7 @@ private:
   Optional<BoxedStmt> switch_stmt(const Token& source_token);
   Optional<BoxedStmt> control_stmt(const Token& source_token);
   Optional<BoxedStmt> try_stmt(const Token& source_token);
+  Optional<BoxedStmt> variable_declaration_stmt(const Token& source_token);
   Optional<BoxedStmt> stmt();
 
   Optional<IfBranch> if_branch(const Token& source_token);

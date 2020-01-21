@@ -473,7 +473,7 @@ bool can_precede_prefix_unary_operator(TokenType type) {
     case TokenType::op_end:
       return false;
     default:
-      return !represents_grouping_terminator(type);
+      return !represents_grouping_terminator(type) && !represents_postfix_unary_operator(type);
   }
 }
 

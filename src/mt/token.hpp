@@ -34,6 +34,7 @@ public:
   const Token& peek_next() const;
 
   void advance();
+  void advance(int64_t num);
   void advance_to_one(const TokenType* types, int64_t num_types);
 
 private:

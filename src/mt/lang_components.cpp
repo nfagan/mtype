@@ -40,6 +40,18 @@ OperatorFixity fixity(BinaryOperator) {
   return OperatorFixity::in;
 }
 
+VariableDeclarationQualifier variable_declaration_qualifier_from_token_type(TokenType type) {
+  switch (type) {
+    case TokenType::keyword_persistent:
+      return VariableDeclarationQualifier::persistent;
+    case TokenType::keyword_global:
+      return VariableDeclarationQualifier::global;
+    default:
+      assert(false && "No such variable declaration qualifier for type.");
+      return VariableDeclarationQualifier::unknown;
+  }
+}
+
 ControlFlowManipulator control_flow_manipulator_from_token_type(TokenType type) {
   switch (type) {
     case TokenType::keyword_return:

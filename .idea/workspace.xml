@@ -17,6 +17,7 @@
     <list default="true" id="241591a5-e02d-4c02-9757-d0d54435ab69" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/matlab/+mt/entry.mexmaci64" beforeDir="false" afterPath="$PROJECT_DIR$/matlab/+mt/entry.mexmaci64" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/matlab/src/entry.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/matlab/src/entry.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/ast/StringVisitor.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/StringVisitor.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/ast/StringVisitor.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/StringVisitor.hpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/ast/expr.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/expr.cpp" afterDir="false" />
@@ -25,14 +26,18 @@
       <change beforePath="$PROJECT_DIR$/src/mt/ast/stmt.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast/stmt.hpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/ast_gen.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast_gen.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/ast_gen.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/ast_gen.hpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mt/character.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/character.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mt/error.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/error.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/keyword.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/keyword.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/keyword.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/keyword.hpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/lang_components.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/lang_components.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/lang_components.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/lang_components.hpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/scan.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/scan.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/scan.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/scan.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/token.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/token.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/token_manipulation.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token_manipulation.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mt/token_manipulation.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token_manipulation.hpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mt/token_type.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token_type.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mt/token_type.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/mt/token_type.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/parse/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/parse/main.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -115,7 +120,7 @@
       <option name="presentableId" value="Default" />
       <updated>1579281035713</updated>
       <workItem from="1579281037080" duration="102913000" />
-      <workItem from="1579527630322" duration="18125000" />
+      <workItem from="1579527630322" duration="32107000" />
     </task>
     <servers />
   </component>
@@ -127,38 +132,38 @@
       <screen x="0" y="23" width="1440" height="873" />
     </state>
     <state x="429" y="188" key="#mt/0.23.1440.873@0.23.1440.873" timestamp="1579299468037" />
-    <state width="1398" height="284" key="GridCell.Tab.0.bottom" timestamp="1579534304858">
+    <state width="1398" height="284" key="GridCell.Tab.0.bottom" timestamp="1579564172962">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.0.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579534304858" />
-    <state width="1398" height="284" key="GridCell.Tab.0.center" timestamp="1579534304858">
+    <state width="1398" height="284" key="GridCell.Tab.0.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579564172962" />
+    <state width="1398" height="284" key="GridCell.Tab.0.center" timestamp="1579564172961">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.0.center/0.23.1440.873@0.23.1440.873" timestamp="1579534304858" />
-    <state width="1398" height="284" key="GridCell.Tab.0.left" timestamp="1579534304857">
+    <state width="1398" height="284" key="GridCell.Tab.0.center/0.23.1440.873@0.23.1440.873" timestamp="1579564172961" />
+    <state width="1398" height="284" key="GridCell.Tab.0.left" timestamp="1579564172961">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.0.left/0.23.1440.873@0.23.1440.873" timestamp="1579534304857" />
-    <state width="1398" height="284" key="GridCell.Tab.0.right" timestamp="1579534304858">
+    <state width="1398" height="284" key="GridCell.Tab.0.left/0.23.1440.873@0.23.1440.873" timestamp="1579564172961" />
+    <state width="1398" height="284" key="GridCell.Tab.0.right" timestamp="1579564172962">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.0.right/0.23.1440.873@0.23.1440.873" timestamp="1579534304858" />
-    <state width="1398" height="284" key="GridCell.Tab.1.bottom" timestamp="1579534304859">
+    <state width="1398" height="284" key="GridCell.Tab.0.right/0.23.1440.873@0.23.1440.873" timestamp="1579564172962" />
+    <state width="1398" height="284" key="GridCell.Tab.1.bottom" timestamp="1579564172963">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.1.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579534304859" />
-    <state width="1398" height="284" key="GridCell.Tab.1.center" timestamp="1579534304859">
+    <state width="1398" height="284" key="GridCell.Tab.1.bottom/0.23.1440.873@0.23.1440.873" timestamp="1579564172963" />
+    <state width="1398" height="284" key="GridCell.Tab.1.center" timestamp="1579564172963">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.1.center/0.23.1440.873@0.23.1440.873" timestamp="1579534304859" />
-    <state width="1398" height="284" key="GridCell.Tab.1.left" timestamp="1579534304859">
+    <state width="1398" height="284" key="GridCell.Tab.1.center/0.23.1440.873@0.23.1440.873" timestamp="1579564172963" />
+    <state width="1398" height="284" key="GridCell.Tab.1.left" timestamp="1579564172962">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.1.left/0.23.1440.873@0.23.1440.873" timestamp="1579534304859" />
-    <state width="1398" height="284" key="GridCell.Tab.1.right" timestamp="1579534304859">
+    <state width="1398" height="284" key="GridCell.Tab.1.left/0.23.1440.873@0.23.1440.873" timestamp="1579564172962" />
+    <state width="1398" height="284" key="GridCell.Tab.1.right" timestamp="1579564172963">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state width="1398" height="284" key="GridCell.Tab.1.right/0.23.1440.873@0.23.1440.873" timestamp="1579534304859" />
+    <state width="1398" height="284" key="GridCell.Tab.1.right/0.23.1440.873@0.23.1440.873" timestamp="1579564172963" />
     <state x="98" y="125" key="SettingsEditor" timestamp="1579451588244">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
@@ -175,9 +180,35 @@
       <screen x="0" y="23" width="1440" height="873" />
     </state>
     <state x="385" y="210" key="run.anything.popup/0.23.1440.873@0.23.1440.873" timestamp="1579478942491" />
-    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup" timestamp="1579548444680">
+    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup" timestamp="1579571717579">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
-    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup/0.23.1440.873@0.23.1440.873" timestamp="1579548444680" />
+    <state x="385" y="212" width="670" height="676" key="search.everywhere.popup/0.23.1440.873@0.23.1440.873" timestamp="1579571717579" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/mt/ast_gen.cpp</url>
+          <line>479</line>
+          <option name="timeStamp" value="14" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/mt/ast_gen.cpp</url>
+          <line>391</line>
+          <option name="timeStamp" value="17" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/mt/ast_gen.cpp</url>
+          <line>410</line>
+          <option name="timeStamp" value="18" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/mt/ast_gen.cpp</url>
+          <line>417</line>
+          <option name="timeStamp" value="19" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

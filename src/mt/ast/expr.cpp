@@ -27,8 +27,8 @@ std::string NumberLiteralExpr::accept(const StringVisitor& vis) const {
   return vis.number_literal_expr(*this);
 }
 
-std::string IgnoreFunctionOutputArgumentExpr::accept(const StringVisitor& vis) const {
-  return vis.ignore_function_output_argument_expr(*this);
+std::string IgnoreFunctionArgumentExpr::accept(const StringVisitor& vis) const {
+  return vis.ignore_function_argument_expr(*this);
 }
 
 std::string DynamicFieldReferenceExpr::accept(const StringVisitor& vis) const {

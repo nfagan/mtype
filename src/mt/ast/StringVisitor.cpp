@@ -123,6 +123,11 @@ std::string StringVisitor::command_stmt(const CommandStmt& stmt) const {
   return str;
 }
 
+std::string StringVisitor::variable_declaration_stmt(const VariableDeclarationStmt& stmt) const {
+  //  @TODO: Derive declaration qualifier.
+  return tab_str() + std::string(stmt.source_token.lexeme) + " " + join(stmt.identifiers, " ");
+}
+
 std::string StringVisitor::control_stmt(const ControlStmt& stmt) const {
   return tab_str() + std::string(stmt.source_token.lexeme);
 }
@@ -168,7 +173,7 @@ std::string StringVisitor::number_literal_expr(const NumberLiteralExpr& expr) co
   return std::to_string(expr.value);
 }
 
-std::string StringVisitor::ignore_function_output_argument_expr(const IgnoreFunctionOutputArgumentExpr&) const {
+std::string StringVisitor::ignore_function_argument_expr(const IgnoreFunctionArgumentExpr&) const {
   return "~";
 }
 

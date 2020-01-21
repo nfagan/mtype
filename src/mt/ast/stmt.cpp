@@ -4,6 +4,10 @@
 
 namespace mt {
 
+std::string VariableDeclarationStmt::accept(const StringVisitor& vis) const {
+  return vis.variable_declaration_stmt(*this);
+}
+
 CommandStmt::CommandStmt(const Token& identifier_token,
                          std::vector<CharLiteralExpr>&& arguments) :
                          identifier_token(identifier_token),

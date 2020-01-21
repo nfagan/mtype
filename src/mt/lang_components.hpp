@@ -4,6 +4,12 @@
 
 namespace mt {
 
+enum class VariableDeclarationQualifier : uint8_t {
+  global,
+  persistent,
+  unknown
+};
+
 enum class ControlFlowManipulator : uint8_t {
   keyword_break,
   keyword_continue,
@@ -69,6 +75,7 @@ UnaryOperator unary_operator_from_token_type(TokenType type);
 GroupingMethod grouping_method_from_token_type(TokenType type);
 SubscriptMethod subscript_method_from_token_type(TokenType type);
 ControlFlowManipulator control_flow_manipulator_from_token_type(TokenType type);
+VariableDeclarationQualifier variable_declaration_qualifier_from_token_type(TokenType type);
 
 OperatorFixity fixity(UnaryOperator op);
 OperatorFixity fixity(BinaryOperator op);

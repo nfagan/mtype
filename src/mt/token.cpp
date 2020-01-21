@@ -33,6 +33,12 @@ void TokenIterator::advance() {
   current_index++;
 }
 
+void TokenIterator::advance(int64_t num) {
+  for (int64_t i = 0; i < num; i++) {
+    advance();
+  }
+}
+
 void TokenIterator::advance_to_one(const TokenType* types, int64_t num_types) {
   bool found_type = false;
 

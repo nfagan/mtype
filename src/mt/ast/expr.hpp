@@ -80,12 +80,12 @@ struct NumberLiteralExpr : public Expr {
   double value;
 };
 
-struct IgnoreFunctionOutputArgumentExpr : public Expr {
-  explicit IgnoreFunctionOutputArgumentExpr(const Token& source_token) :
+struct IgnoreFunctionArgumentExpr : public Expr {
+  explicit IgnoreFunctionArgumentExpr(const Token& source_token) :
   source_token(source_token) {
     //
   }
-  ~IgnoreFunctionOutputArgumentExpr() override = default;
+  ~IgnoreFunctionArgumentExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;

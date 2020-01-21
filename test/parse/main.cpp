@@ -4,6 +4,14 @@
 
 #include "mt/mt.hpp"
 
+namespace {
+  void show_tokens(const std::vector<mt::Token>& tokens) {
+    for (const auto& tok : tokens) {
+      std::cout << tok << std::endl;
+    }
+  }
+}
+
 int main(int argc, char** argv) {
   std::string file_path;
 
@@ -37,15 +45,18 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  auto tokens = std::move(scan_result.value);
-  auto insert_res = insert_implicit_expression_delimiters(tokens, contents);
+  auto scan_info = std::move(scan_result.value);
+  std::cout << "Funcs are end terminated ? " << scan_info.functions_are_end_terminated << std::endl;
+//  show_tokens(scan_info.tokens);
+
+  auto insert_res = insert_implicit_expr_delimiters_in_groupings(scan_info.tokens, contents);
   if (insert_res) {
     insert_res.value().show();
     return 0;
   }
 
   mt::AstGenerator ast_gen;
-  auto parse_result = ast_gen.parse(tokens, contents);
+  auto parse_result = ast_gen.parse(scan_info.tokens, contents, scan_info.functions_are_end_terminated);
 
   if (!parse_result) {
     for (const auto& err : parse_result.error) {

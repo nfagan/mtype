@@ -5,6 +5,69 @@
 
 namespace mt {
 
+bool EndTerminatedKeywordCounts::parent_is_classdef() const {
+  return !keyword_types.empty() && keyword_types.back() == TokenType::keyword_classdef;
+}
+
+bool EndTerminatedKeywordCounts::is_non_end_terminated_function_file() const {
+  if (keyword_counts.count(TokenType::keyword_function) == 0) {
+    //  No functions in this file.
+    return false;
+  }
+
+  if (keyword_types.empty()) {
+    //  All keywords were terminated, leaving an empty stack.
+    return false;
+  }
+
+  auto it = keyword_counts.cbegin();
+  while (it != keyword_counts.cend()) {
+    if (it->first != TokenType::keyword_function && it->second > 0) {
+      //  A non-function-keyword block was left unterminated.
+      return false;
+    }
+
+    it++;
+  }
+
+  //  Only function blocks were unterminated.
+  return true;
+}
+
+Optional<ScanError> EndTerminatedKeywordCounts::register_keyword(TokenType keyword_type,
+                                                                 bool requires_end,
+                                                                 const CharacterIterator& iterator,
+                                                                 int64_t start) {
+  if (keyword_type == TokenType::keyword_end) {
+    return pop_keyword(iterator, start);
+
+  } else if (requires_end) {
+    const auto it = keyword_counts.find(keyword_type);
+    const int64_t count = it == keyword_counts.end() ? 0 : it->second;
+    keyword_counts[keyword_type] = count + 1;
+    keyword_types.push_back(keyword_type);
+    return NullOpt{};
+
+  } else {
+    return NullOpt{};
+  }
+}
+
+Optional<ScanError> EndTerminatedKeywordCounts::pop_keyword(const CharacterIterator& iterator, int64_t start) {
+  if (keyword_types.empty()) {
+    std::string_view text(iterator.data(), iterator.size());
+    const char* message = "Missing `end` terminator.";
+    auto err = mark_text_with_message_and_context(text, start, start, 100, message);
+    return Optional<ScanError>(err);
+  }
+
+  const auto last_type = keyword_types.back();
+  keyword_types.pop_back();
+  keyword_counts[last_type] = keyword_counts[last_type] - 1;
+
+  return NullOpt{};
+}
+
 TokenType type_from_period(CharacterIterator& iter) {
   auto next = iter.peek();
 
@@ -29,16 +92,27 @@ ScanResult Scanner::scan(const std::string& str) {
   return scan(str.c_str(), str.size());
 }
 
+ScanInfo Scanner::finalize_scan(std::vector<Token>& tokens) const {
+  ScanInfo info(std::move(tokens));
+  info.functions_are_end_terminated = !keyword_counts.is_non_end_terminated_function_file();
+
+  return info;
+}
+
 void Scanner::begin_scan(const char* text, int64_t len) {
   iterator = CharacterIterator(text, len);
+  source_text = std::string_view(text, len);
 
   new_line_is_type_annotation_terminator = false;
   block_comment_depth = 0;
   type_annotation_block_depth = 0;
+  marked_unbalanced_grouping_character_error = false;
 
   parens_depth = 0;
   brace_depth = 0;
   bracket_depth = 0;
+
+  keyword_counts = EndTerminatedKeywordCounts();
 }
 
 ScanResult Scanner::scan(const char* text, int64_t len) {
@@ -88,9 +162,10 @@ ScanResult Scanner::scan(const char* text, int64_t len) {
   tokens.push_back({TokenType::null, std::string_view()});
 
   if (errors.errors.empty()) {
-    return make_success<ScanErrors, std::vector<Token>>(std::move(tokens));
+    return make_success<ScanErrors, ScanInfo>(finalize_scan(tokens));
+
   } else {
-    return make_error<ScanErrors, std::vector<Token>>(std::move(errors));
+    return make_error<ScanErrors, ScanInfo>(std::move(errors));
   }
 }
 
@@ -127,6 +202,28 @@ void Scanner::check_add_token(mt::Result<mt::ScanError, mt::Token>& res,
 
 bool Scanner::is_within_type_annotation() const {
   return new_line_is_type_annotation_terminator || type_annotation_block_depth > 0;
+}
+
+bool Scanner::is_scientific_notation_number_literal(int* num_to_advance) const {
+  bool is_maybe_sci_not = iterator.peek() == 'e';
+  const auto next = iterator.peek_next();
+  const bool next_is_sign = next == '+' || next == '-';
+
+  if (!is_maybe_sci_not) {
+    return false;
+  }
+
+  if (next_is_sign) {
+    //  1e-3 or 1e+3
+    is_maybe_sci_not = is_digit(iterator.peek_nth(2));
+    *num_to_advance = 2;
+  } else  {
+    //  1e3
+    is_maybe_sci_not = is_digit(next);
+    *num_to_advance = 1;
+  }
+
+  return true;
 }
 
 Optional<ScanError> Scanner::handle_punctuation(std::vector<Token>& tokens) {
@@ -221,11 +318,12 @@ Optional<ScanError> Scanner::update_grouping_character_depth(const Character& c,
     is_grouping_char = false;
   }
 
-  if (!is_grouping_char) {
+  if (!is_grouping_char || marked_unbalanced_grouping_character_error) {
     return NullOpt{};
   }
 
   if (parens_depth < 0 || brace_depth < 0 || bracket_depth < 0) {
+    marked_unbalanced_grouping_character_error = true;
     return Optional<ScanError>(make_error_unbalanced_grouping_character(start));
   } else {
     return NullOpt{};
@@ -302,10 +400,6 @@ Optional<ScanError> Scanner::handle_comment(std::vector<Token>& tokens) {
     //  @TODO: Only allow the insertion of a newline token if the comment was the first
     //  non-whitespace character on that line.
     consume_to_new_line();
-
-//    if (iterator.peek() == '\n') {
-//      iterator.advance();
-//    }
   }
 
   return NullOpt{};
@@ -377,37 +471,58 @@ Result<ScanError, Token> Scanner::identifier_or_keyword_token() {
   const auto lexeme = make_lexeme(start, iterator.next_index() - start);
   auto type = TokenType::identifier;
 
-  if (!prev_was_period) {
-    const bool is_matlab_keyword = matlab::is_keyword(lexeme);
-    const bool is_keyword = is_within_type_annotation() ? is_matlab_keyword || typing::is_keyword(lexeme) : is_matlab_keyword;
+  if (prev_was_period) {
+    //  Always treated as an identifier.
+    return make_success<ScanError, Token>(Token{type, lexeme});
+  }
 
-    if (is_keyword) {
-      type = from_symbol(lexeme);
+  const bool is_matlab_keyword = matlab::is_keyword(lexeme);
+  bool is_keyword = is_matlab_keyword;
 
-      if (is_within_type_annotation()) {
-        if (lexeme == "end") {
-          type_annotation_block_depth--;
+  if (is_within_type_annotation()) {
+    is_keyword = is_keyword || typing::is_keyword(lexeme);
 
-          if (type_annotation_block_depth < 0) {
-            auto err = make_error_at_start(start, "Unbalanced type annotation end.");
-            return make_error<ScanError, Token>(err);
-          }
+  } else if (keyword_counts.parent_is_classdef()) {
+    is_keyword = is_keyword || matlab::is_classdef_keyword(lexeme);
+  }
 
-          type = TokenType::keyword_end_type;
-        } else if (mt::is_end_terminated(lexeme)) {
-          if (new_line_is_type_annotation_terminator) {
-            auto err = make_error_at_start(start, "Cannot introduce an end-terminated annotation here.");
-            return make_error<ScanError, Token>(err);
-          } else {
-            type_annotation_block_depth++;
-          }
-        }
+  if (!is_keyword) {
+    return make_success<ScanError, Token>(Token{type, lexeme});
+  }
+
+  //  This is a keyword.
+  type = from_symbol(lexeme);
+
+  if (is_within_type_annotation()) {
+    if (lexeme == "end") {
+      type_annotation_block_depth--;
+
+      if (type_annotation_block_depth < 0) {
+        auto err = make_error_at_start(start, "Unbalanced type annotation end.");
+        return make_error<ScanError, Token>(err);
       }
 
-      if (type == TokenType::keyword_end && (brace_depth > 0 || parens_depth > 0)) {
-        //  Recode (end) to op_end
-        type = TokenType::op_end;
+      type = TokenType::keyword_end_type;
+    } else if (mt::is_end_terminated(lexeme)) {
+      if (new_line_is_type_annotation_terminator) {
+        auto err = make_error_at_start(start, "Cannot introduce an end-terminated annotation here.");
+        return make_error<ScanError, Token>(err);
+      } else {
+        type_annotation_block_depth++;
       }
+    }
+  }
+
+  if (type == TokenType::keyword_end && (brace_depth > 0 || parens_depth > 0)) {
+    //  Recode (end) to op_end
+    type = TokenType::op_end;
+  }
+
+  if (!is_within_type_annotation()) {
+    bool requires_end = matlab::is_end_terminated(lexeme);
+    auto maybe_err = keyword_counts.register_keyword(type, requires_end, iterator, start);
+    if (maybe_err) {
+      return make_error<ScanError, Token>(maybe_err.rvalue());
     }
   }
 
@@ -431,12 +546,19 @@ Token Scanner::number_literal_token() {
     iterator.advance();
   }
 
-  if (iterator.peek() == 'e' && is_digit(iterator.peek_next())) {
-    iterator.advance();
+  int num_to_advance = 0;
+
+  if (is_scientific_notation_number_literal(&num_to_advance)) {
+    iterator.advance(num_to_advance);
 
     while (iterator.has_next() && is_digit(iterator.peek())) {
       iterator.advance();
     }
+  }
+
+  if (iterator.peek() == 'i' || iterator.peek() == 'j') {
+    //  @Note: Complex numbers are not handled here.
+    iterator.advance();
   }
 
   return {TokenType::number_literal, make_lexeme(start, iterator.next_index() - start)};

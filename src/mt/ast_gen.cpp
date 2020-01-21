@@ -7,10 +7,12 @@
 namespace mt {
 
 Result<ParseErrors, std::unique_ptr<Block>>
-AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt) {
+AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
+                    bool functions_are_end_terminated) {
+
   iterator = TokenIterator(&tokens);
   text = txt;
-  is_end_terminated_function = true;
+  is_end_terminated_function = functions_are_end_terminated;
   parse_errors.clear();
 
   auto result = block();
@@ -144,7 +146,7 @@ Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
-  auto body_res = block();
+  auto body_res = sub_block();
   if (!body_res) {
     return NullOpt{};
   }
@@ -244,6 +246,19 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
       case TokenType::keyword_otherwise:
         should_proceed = false;
         break;
+      case TokenType::keyword_function: {
+        if (is_end_terminated_function) {
+          auto def_res = function_def();
+          if (def_res) {
+            node = def_res.rvalue();
+          } else {
+            success = false;
+          }
+        } else {
+          should_proceed = false;
+        }
+        break;
+      }
       default: {
         auto stmt_res = stmt();
         if (stmt_res) {
@@ -542,7 +557,7 @@ Optional<BoxedExpr> AstGenerator::literal_expr(const Token& source_token) {
 Optional<BoxedExpr> AstGenerator::ignore_output_expr(const Token& source_token) {
   iterator.advance();
 
-  auto source_node = std::make_unique<IgnoreFunctionOutputArgumentExpr>(source_token);
+  auto source_node = std::make_unique<IgnoreFunctionArgumentExpr>(source_token);
   return Optional<BoxedExpr>(std::move(source_node));
 }
 
@@ -660,7 +675,7 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
     if (tok.type == TokenType::identifier) {
       node_res = identifier_reference_expr(tok);
 
-    } else if (is_ignore_output_expr(tok)) {
+    } else if (is_ignore_argument_expr(tok)) {
       node_res = ignore_output_expr(tok);
 
     } else if (represents_grouping_initiator(tok.type)) {
@@ -858,7 +873,14 @@ Optional<BoxedStmt> AstGenerator::while_stmt(const Token& source_token) {
 }
 
 Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
+  //  @TODO: Handle optional parenthetical initializer: for (i = 1:10) ** but not for ((i = 1:10))
   iterator.advance();
+
+  //  for (i = 1:10)
+  const bool is_wrapped_by_parens = iterator.peek().type == TokenType::left_parens;
+  if (is_wrapped_by_parens) {
+    iterator.advance();
+  }
 
   auto loop_var_res = char_identifier();
   if (!loop_var_res) {
@@ -874,6 +896,13 @@ Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
   auto initializer_res = expr();
   if (!initializer_res) {
     return NullOpt{};
+  }
+
+  if (is_wrapped_by_parens) {
+    auto parens_err = consume(TokenType::right_parens);
+    if (parens_err) {
+      return NullOpt{};
+    }
   }
 
   auto block_res = sub_block();
@@ -937,6 +966,7 @@ Optional<BoxedStmt> AstGenerator::if_stmt(const Token& source_token) {
 }
 
 Optional<IfBranch> AstGenerator::if_branch(const Token& source_token) {
+  //  @TODO: Handle one line branch if (condition) d = 10; end
   iterator.advance(); //  consume if
 
   auto condition_res = expr();
@@ -968,6 +998,41 @@ Optional<BoxedStmt> AstGenerator::assignment_stmt(BoxedExpr lhs, const Token& in
 
   auto assign_stmt = std::make_unique<AssignmentStmt>(std::move(lhs), rhs_res.rvalue());
   return Optional<BoxedStmt>(std::move(assign_stmt));
+}
+
+Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_token) {
+  iterator.advance();
+
+  bool should_proceed = true;
+  std::vector<std::string_view> identifiers;
+
+  while (iterator.has_next() && should_proceed) {
+    const auto& tok = iterator.peek();
+
+    switch (tok.type) {
+      case TokenType::null:
+      case TokenType::new_line:
+      case TokenType::semicolon:
+      case TokenType::comma:
+        should_proceed = false;
+        break;
+      case TokenType::identifier:
+        iterator.advance();
+        identifiers.push_back(tok.lexeme);
+        break;
+      default:
+        //  e.g. global 1
+        iterator.advance();
+        const auto expected_type = TokenType::identifier;
+        add_error(make_error_expected_token_type(tok, &expected_type, 1));
+        return NullOpt{};
+    }
+  }
+
+  const auto var_qualifier = variable_declaration_qualifier_from_token_type(source_token.type);
+  auto node = std::make_unique<VariableDeclarationStmt>(source_token,
+    var_qualifier, std::move(identifiers));
+  return Optional<BoxedStmt>(std::move(node));
 }
 
 Optional<BoxedStmt> AstGenerator::command_stmt(const Token& source_token) {
@@ -1093,6 +1158,10 @@ Optional<BoxedStmt> AstGenerator::stmt() {
     case TokenType::keyword_try:
       return try_stmt(token);
 
+    case TokenType::keyword_persistent:
+    case TokenType::keyword_global:
+      return variable_declaration_stmt(token);
+
     default: {
       if (is_command_stmt(token)) {
         return command_stmt(token);
@@ -1118,7 +1187,7 @@ bool AstGenerator::is_colon_subscript_expr(const mt::Token& curr_token) const {
   return represents_grouping_terminator(next_type) || next_type == TokenType::comma;
 }
 
-bool AstGenerator::is_ignore_output_expr(const mt::Token& curr_token) const {
+bool AstGenerator::is_ignore_argument_expr(const mt::Token& curr_token) const {
   //  [~] = func() | [~, a] = func()
   if (curr_token.type != TokenType::tilde) {
     return false;
