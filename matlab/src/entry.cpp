@@ -16,15 +16,15 @@ Inputs parse_inputs(int nrhs, const mxArray *prhs[]) {
   Inputs inputs;
   
   if (nrhs > 1) {
-    inputs.show_parse_errors = mt::bool_or_default(prhs[1], true);
+    inputs.show_parse_errors = mt::bool_or_default(prhs[1], inputs.show_parse_errors);
   }
   
   if (nrhs > 2) {
-    inputs.show_ast = mt::bool_or_default(prhs[2], true);
+    inputs.show_ast = mt::bool_or_default(prhs[2], inputs.show_ast);
   }
   
   if (nrhs > 3) {
-    inputs.show_tokens = mt::bool_or_default(prhs[3], false);
+    inputs.show_tokens = mt::bool_or_default(prhs[3], inputs.show_tokens);
   }
   
   return inputs;
