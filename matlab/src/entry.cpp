@@ -16,15 +16,15 @@ Inputs parse_inputs(int nrhs, const mxArray *prhs[]) {
   Inputs inputs;
   
   if (nrhs > 1) {
-    inputs.show_parse_errors = mt::bool_or_default(prhs[1], inputs.show_parse_errors);
+    inputs.show_parse_errors = mt::bool_convertible_or_default(prhs[1], inputs.show_parse_errors);
   }
   
   if (nrhs > 2) {
-    inputs.show_ast = mt::bool_or_default(prhs[2], inputs.show_ast);
+    inputs.show_ast = mt::bool_convertible_or_default(prhs[2], inputs.show_ast);
   }
   
   if (nrhs > 3) {
-    inputs.show_tokens = mt::bool_or_default(prhs[3], inputs.show_tokens);
+    inputs.show_tokens = mt::bool_convertible_or_default(prhs[3], inputs.show_tokens);
   }
   
   return inputs;
@@ -34,7 +34,7 @@ Inputs parse_inputs(int nrhs, const mxArray *prhs[]) {
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nrhs == 0) {
-    std::cout << "Not enough input arguments." << std::endl;
+    mexErrMsgIdAndTxt("entry:get_string", "Not enough input arguments.");
     return;
   }
   

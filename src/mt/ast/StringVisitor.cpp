@@ -187,13 +187,16 @@ std::string StringVisitor::literal_field_reference_expr(const LiteralFieldRefere
 }
 
 std::string StringVisitor::identifier_reference_expr(const IdentifierReferenceExpr& expr) const {
-  const auto sub_str = visit_array(expr.subscripts, "");
+  std::string sub_str;
+  for (const auto& sub : expr.subscripts) {
+    sub_str += subscript_expr(sub);
+  }
   std::string str = std::string(expr.identifier_token.lexeme) + sub_str;
   maybe_parenthesize(str);
   return str;
 }
 
-std::string StringVisitor::subscript_expr(const SubscriptExpr& expr) const {
+std::string StringVisitor::subscript_expr(const Subscript& expr) const {
   auto str = visit_array(expr.arguments, ", ");
 
   if (expr.method == SubscriptMethod::parens) {
@@ -207,16 +210,20 @@ std::string StringVisitor::subscript_expr(const SubscriptExpr& expr) const {
   return str;
 }
 
-std::string StringVisitor::grouping_expr_component(const GroupingExprComponent& expr) const {
-  return expr.expr->accept(*this) + to_symbol(expr.delimiter);
+std::string StringVisitor::grouping_expr_component(const GroupingExprComponent& expr, bool include_delimiter) const {
+  auto str = expr.expr->accept(*this);
+  if (include_delimiter) {
+    str += to_symbol(expr.delimiter);
+  }
+  return str;
 }
 
 std::string StringVisitor::grouping_expr(const GroupingExpr& expr) const {
   std::vector<std::string> component_strs;
-  std::transform(expr.components.cbegin(),
-    expr.components.cend(), std::back_inserter(component_strs), [this](const auto& arg) {
-    return grouping_expr_component(arg);
-  });
+  for (int64_t i = 0; i < int64_t(expr.components.size()); i++) {
+    const bool include_delim = i < int64_t(expr.components.size()) - 1;
+    component_strs.emplace_back(grouping_expr_component(expr.components[i], include_delim));
+  }
 
   const auto sub_strs = join(component_strs, " ");
   const auto term = grouping_terminator_for(expr.source_token.type);
@@ -292,10 +299,9 @@ std::string StringVisitor::type_begin(const TypeBegin& begin) const {
   enter_block();
 
   std::vector<std::string> lines;
-  std::transform(begin.contents.cbegin(), begin.contents.cend(),
-    std::back_inserter(lines), [this](const auto& annot) {
-    return tab_str() + annot->accept(*this);
-  });
+  for (const auto& annot : begin.contents) {
+    lines.emplace_back(tab_str() + annot->accept(*this));
+  }
 
   exit_block();
   auto contents_str = join(lines, "\n");
@@ -304,7 +310,7 @@ std::string StringVisitor::type_begin(const TypeBegin& begin) const {
 }
 
 std::string StringVisitor::type_annot_macro(const TypeAnnotMacro& type) const {
-  return tab_str() + "@t " + type.annotation->accept(*this);
+  return tab_str() + std::string(type.source_token.lexeme) + " " + type.annotation->accept(*this);
 }
 
 }

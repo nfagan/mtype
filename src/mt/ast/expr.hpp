@@ -87,6 +87,9 @@ struct IgnoreFunctionArgumentExpr : public Expr {
   }
   ~IgnoreFunctionArgumentExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  bool is_valid_assignment_target() const override {
+    return true;
+  }
 
   Token source_token;
 };
@@ -113,13 +116,15 @@ struct LiteralFieldReferenceExpr : public Expr {
   Token identifier_token;
 };
 
-struct SubscriptExpr : public Expr {
-  SubscriptExpr(const Token& source_token, SubscriptMethod method, std::vector<BoxedExpr>&& args) :
+struct Subscript {
+  Subscript() = default;
+  Subscript(const Token& source_token, SubscriptMethod method, std::vector<BoxedExpr>&& args) :
   source_token(source_token), method(method), arguments(std::move(args)) {
     //
   }
-  ~SubscriptExpr() override = default;
-  std::string accept(const StringVisitor& vis) const override;
+  Subscript(Subscript&& other) noexcept = default;
+  Subscript& operator=(Subscript&& other) noexcept = default;
+  ~Subscript() = default;
 
   Token source_token;
   SubscriptMethod method;
@@ -128,7 +133,7 @@ struct SubscriptExpr : public Expr {
 
 struct IdentifierReferenceExpr : public Expr {
   IdentifierReferenceExpr(const Token& identifier,
-                          std::vector<std::unique_ptr<SubscriptExpr>>&& subscripts) :
+                          std::vector<Subscript>&& subscripts) :
   identifier_token(identifier), subscripts(std::move(subscripts)) {
     //
   }
@@ -140,7 +145,7 @@ struct IdentifierReferenceExpr : public Expr {
   std::string accept(const StringVisitor& vis) const override;
 
   Token identifier_token;
-  std::vector<std::unique_ptr<SubscriptExpr>> subscripts;
+  std::vector<Subscript> subscripts;
 };
 
 struct GroupingExprComponent {
@@ -168,7 +173,7 @@ struct GroupingExpr : public Expr {
     }
 
     return std::all_of(components.cbegin(), components.cend(), [](const auto& arg) {
-      return arg.delimiter == TokenType::comma;
+      return arg.delimiter == TokenType::comma && arg.expr->is_valid_assignment_target();
     });
   }
   std::string accept(const StringVisitor& vis) const override;

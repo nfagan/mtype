@@ -31,7 +31,7 @@ mex_func_path = strjoin( mex_func_paths, ' ' );
 optim_level = params.optim_level;
 additional_defines = '-DNDEBUG';
 
-build_cmd = sprintf( '-v %s%s%s COMPFLAGS="$COMPFLAGS %s" COPTIMFLAGS="-O%d -fwrapv %s" CXXOPTIMFLAGS="-O%d -fwrapv %s" %s -I%s -L%s -l%s -outdir %s' ...
+build_cmd = sprintf( build_command_template_str() ...
   , compiler_spec, addtl_c_flags, addtl_cxx_flags ...
   , addtl_comp_flags ...
   , optim_level, additional_defines ...
@@ -46,7 +46,14 @@ end
 
 function files = source_files()
 
-files = { 'entry.cpp', 'util.cpp' };
+files = { 'entry.cpp', 'util.cpp', 'types.cpp' };
+
+end
+
+function s = build_command_template_str()
+
+s = ['-v %s%s%s COMPFLAGS="$COMPFLAGS %s" COPTIMFLAGS="-O%d -fwrapv %s"' ...
+  , ' CXXOPTIMFLAGS="-O%d -fwrapv %s" %s -I%s -L%s -l%s -outdir %s'];
 
 end
 
@@ -61,7 +68,6 @@ if ( isunix() && ~ismac() )
 else
   compile_options.compiler_spec = '';
   compile_options.addtl_c_flags = '';
-%   compile_options.addtl_cxx_flags = 'CXXFLAGS="-std=c++latest"';
   
   if ( ispc() )
     compile_options.addtl_cxx_flags = '';

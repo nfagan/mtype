@@ -385,7 +385,7 @@ Optional<ScanError> Scanner::handle_comment(std::vector<Token>& tokens) {
   const auto next = iterator.peek_next();
   const auto next_next = iterator.peek_nth(2);
 
-  const bool is_type_annotation = curr == '@' && next == 't' && is_whitespace(next_next);
+  const bool is_type_annotation = curr == '@' && next == 'T' && is_whitespace(next_next);
 
   if (is_type_annotation && is_within_type_annotation()) {
     auto err = make_error_at_start(iterator.next_index(),

@@ -31,14 +31,13 @@ private:
   Optional<std::string_view> char_identifier();
   Optional<std::vector<std::string_view>> char_identifier_sequence(TokenType terminator);
 
+  Optional<Subscript> period_subscript(const Token& source_token);
+  Optional<Subscript> non_period_subscript(const Token& source_token, SubscriptMethod method, TokenType term);
+
   Optional<BoxedExpr> expr(bool allow_empty = false);
   Optional<BoxedExpr> anonymous_function_expr(const Token& source_token);
   Optional<BoxedExpr> grouping_expr(const Token& source_token);
   Optional<BoxedExpr> identifier_reference_expr(const Token& source_token);
-  Optional<std::unique_ptr<SubscriptExpr>> period_subscript_expr(const Token& source_token);
-  Optional<std::unique_ptr<SubscriptExpr>> non_period_subscript_expr(const Token& source_token,
-                                                                     SubscriptMethod method,
-                                                                     TokenType term);
   Optional<BoxedExpr> literal_field_reference_expr(const Token& source_token);
   Optional<BoxedExpr> dynamic_field_reference_expr(const Token& source_token);
   Optional<BoxedExpr> ignore_output_expr(const Token& source_token);
@@ -48,11 +47,9 @@ private:
   Optional<ParseError> pending_binary_expr(const Token& source_token,
                                            std::vector<BoxedExpr>& completed,
                                            std::vector<BoxedBinaryOperatorExpr>& binaries);
-  Optional<ParseError> postfix_unary_expr(const Token& source_token,
-                                          std::vector<BoxedExpr>& completed);
+  Optional<ParseError> postfix_unary_expr(const Token& source_token, std::vector<BoxedExpr>& completed);
   Optional<ParseError> handle_postfix_unary_exprs(std::vector<BoxedExpr>& completed);
-  void handle_prefix_unary_exprs(std::vector<BoxedExpr>& completed,
-                                 std::vector<BoxedUnaryOperatorExpr>& unaries);
+  void handle_prefix_unary_exprs(std::vector<BoxedExpr>& completed, std::vector<BoxedUnaryOperatorExpr>& unaries);
   void handle_binary_exprs(std::vector<BoxedExpr>& completed,
                            std::vector<BoxedBinaryOperatorExpr>& binaries,
                            std::vector<BoxedBinaryOperatorExpr>& pending_binaries);
@@ -91,14 +88,15 @@ private:
   Optional<std::vector<BoxedType>> type_sequence(TokenType terminator);
   Optional<std::vector<std::string_view>> type_variable_identifiers(const Token& source_token);
 
-  ParseError make_error_expected_token_type(const Token& at_token, const TokenType* types, int64_t num_types);
-  ParseError make_error_reference_after_parens_reference_expr(const Token& at_token);
-  ParseError make_error_invalid_expr_token(const Token& at_token);
-  ParseError make_error_incomplete_expr(const Token& at_token);
-  ParseError make_error_invalid_assignment_target(const Token& at_token);
-  ParseError make_error_expected_lhs(const Token& at_token);
-  ParseError make_error_semicolon_delimiter_in_parens_grouping_expr(const Token& at_token);
-  ParseError make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token);
+  ParseError make_error_expected_token_type(const Token& at_token, const TokenType* types, int64_t num_types) const;
+  ParseError make_error_reference_after_parens_reference_expr(const Token& at_token) const;
+  ParseError make_error_invalid_expr_token(const Token& at_token) const;
+  ParseError make_error_incomplete_expr(const Token& at_token) const;
+  ParseError make_error_invalid_assignment_target(const Token& at_token) const;
+  ParseError make_error_expected_lhs(const Token& at_token) const;
+  ParseError make_error_multiple_exprs_in_parens_grouping_expr(const Token& at_token) const;
+  ParseError make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const;
+  ParseError make_error_expected_non_empty_type_variable_identifiers(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);

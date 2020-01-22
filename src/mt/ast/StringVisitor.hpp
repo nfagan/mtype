@@ -11,7 +11,7 @@ namespace mt {
 
 class StringVisitor {
 public:
-  StringVisitor() : parenthesize_exprs(true), tab_depth(0) {
+  StringVisitor() : parenthesize_exprs(true), tab_depth(-1) {
     //
   }
   ~StringVisitor() = default;
@@ -43,9 +43,9 @@ public:
   std::string ignore_function_argument_expr(const IgnoreFunctionArgumentExpr& expr) const;
   std::string dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) const;
   std::string literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) const;
-  std::string subscript_expr(const SubscriptExpr& expr) const;
+  std::string subscript_expr(const Subscript& expr) const;
   std::string identifier_reference_expr(const IdentifierReferenceExpr& expr) const;
-  std::string grouping_expr_component(const GroupingExprComponent& expr) const;
+  std::string grouping_expr_component(const GroupingExprComponent& expr, bool include_delimiter) const;
   std::string grouping_expr(const GroupingExpr& expr) const;
   std::string unary_operator_expr(const UnaryOperatorExpr& expr) const;
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;

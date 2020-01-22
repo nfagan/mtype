@@ -39,10 +39,6 @@ std::string LiteralFieldReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.literal_field_reference_expr(*this);
 }
 
-std::string SubscriptExpr::accept(const StringVisitor& vis) const {
-  return vis.subscript_expr(*this);
-}
-
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.identifier_reference_expr(*this);
 }

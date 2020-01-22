@@ -1,19 +1,9 @@
 #include "ast_gen.hpp"
 #include "string.hpp"
-#include "character.hpp"
 #include <array>
 #include <cassert>
 
 namespace mt {
-
-template <typename T, typename U>
-inline Optional<U> transform_optional(Optional<T>&& source) {
-  if (source) {
-    return NullOpt{};
-  } else {
-    return Optional<U>(std::move(source.rvalue()));
-  }
-}
 
 Result<ParseErrors, std::unique_ptr<Block>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
@@ -347,10 +337,9 @@ Optional<BoxedExpr> AstGenerator::dynamic_field_reference_expr(const Token& sour
   return Optional<BoxedExpr>(std::move(expr));
 }
 
-Optional<std::unique_ptr<SubscriptExpr>>
-AstGenerator::non_period_subscript_expr(const Token& source_token,
-                                        mt::SubscriptMethod method,
-                                        mt::TokenType term) {
+Optional<Subscript> AstGenerator::non_period_subscript(const Token& source_token,
+                                                       mt::SubscriptMethod method,
+                                                       mt::TokenType term) {
   //  @TODO: Recode `end` to `end subscript reference`.
   iterator.advance(); //  consume '(' or '{'
   std::vector<BoxedExpr> args;
@@ -376,11 +365,11 @@ AstGenerator::non_period_subscript_expr(const Token& source_token,
     return NullOpt{};
   }
 
-  auto sub = std::make_unique<SubscriptExpr>(source_token, method, std::move(args));
-  return Optional<std::unique_ptr<SubscriptExpr>>(std::move(sub));
+  Subscript subscript_expr(source_token, method, std::move(args));
+  return Optional<Subscript>(std::move(subscript_expr));
 }
 
-Optional<std::unique_ptr<SubscriptExpr>> AstGenerator::period_subscript_expr(const Token& source_token) {
+Optional<Subscript> AstGenerator::period_subscript(const Token& source_token) {
   iterator.advance(); //  consume '.'
 
   const auto& tok = iterator.peek();
@@ -406,9 +395,9 @@ Optional<std::unique_ptr<SubscriptExpr>> AstGenerator::period_subscript_expr(con
 
   std::vector<BoxedExpr> args;
   args.emplace_back(expr_res.rvalue());
-  auto subscript_expr = std::make_unique<SubscriptExpr>(source_token, SubscriptMethod::period, std::move(args));
 
-  return Optional<std::unique_ptr<SubscriptExpr>>(std::move(subscript_expr));
+  Subscript subscript_expr(source_token, SubscriptMethod::period, std::move(args));
+  return Optional<Subscript>(std::move(subscript_expr));
 }
 
 Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_token) {
@@ -417,42 +406,41 @@ Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_
     return NullOpt{};
   }
 
-  std::vector<std::unique_ptr<SubscriptExpr>> subscripts;
+  std::vector<Subscript> subscripts;
   SubscriptMethod prev_method = SubscriptMethod::unknown;
 
   while (iterator.has_next()) {
     const auto& tok = iterator.peek();
-    //  @Note: Fill with nullptr so that sub_result != NullOpt{}
-    Optional<std::unique_ptr<SubscriptExpr>> sub_result(nullptr);
+
+    Optional<Subscript> sub_result = NullOpt{};
     bool has_subscript = true;
 
     if (tok.type == TokenType::period) {
-      sub_result = period_subscript_expr(tok);
+      sub_result = period_subscript(tok);
 
     } else if (tok.type == TokenType::left_parens) {
-      sub_result = non_period_subscript_expr(tok, SubscriptMethod::parens, TokenType::right_parens);
+      sub_result = non_period_subscript(tok, SubscriptMethod::parens, TokenType::right_parens);
 
     } else if (tok.type == TokenType::left_brace) {
-      sub_result = non_period_subscript_expr(tok, SubscriptMethod::brace, TokenType::right_brace);
+      sub_result = non_period_subscript(tok, SubscriptMethod::brace, TokenType::right_brace);
 
     } else {
       has_subscript = false;
     }
 
-    if (!sub_result) {
-      return NullOpt{};
-
-    } else if (!has_subscript) {
+    if (!has_subscript) {
       break;
+    } else if (!sub_result) {
+      return NullOpt{};
     }
 
     auto sub_expr = sub_result.rvalue();
 
-    if (prev_method == SubscriptMethod::parens && sub_expr->method != SubscriptMethod::period) {
+    if (prev_method == SubscriptMethod::parens && sub_expr.method != SubscriptMethod::period) {
       add_error(make_error_reference_after_parens_reference_expr(tok));
       return NullOpt{};
     } else {
-      prev_method = sub_expr->method;
+      prev_method = sub_expr.method;
       subscripts.emplace_back(std::move(sub_expr));
     }
   }
@@ -521,14 +509,7 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
 
     } else if (next.type == TokenType::semicolon || next.type == TokenType::new_line) {
       iterator.advance();
-
-      if (source_token.type == TokenType::left_parens) {
-        //  (1; 2)  is illegal.
-        add_error(make_error_semicolon_delimiter_in_parens_grouping_expr(next));
-        return NullOpt{};
-      } else {
-        delim = TokenType::semicolon;
-      }
+      delim = TokenType::semicolon;
 
     } else if (next.type != terminator) {
       std::array<TokenType, 4> possible_types{
@@ -536,6 +517,12 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
       };
       auto err = make_error_expected_token_type(next, possible_types.data(), possible_types.size());
       add_error(std::move(err));
+      return NullOpt{};
+    }
+
+    if (source_token.type == TokenType::left_parens && next.type != terminator) {
+      //  (1, 2) or (1; 3) is not a valid expression.
+      add_error(make_error_multiple_exprs_in_parens_grouping_expr(next));
       return NullOpt{};
     }
 
@@ -1286,8 +1273,14 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
 Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token) {
   iterator.advance();
 
-  auto identifier_res = type_variable_identifiers(iterator.peek());
+  const auto& ident_token = iterator.peek();
+  auto identifier_res = type_variable_identifiers(ident_token);
   if (!identifier_res) {
+    return NullOpt{};
+  }
+
+  if (identifier_res.value().empty()) {
+    add_error(make_error_expected_non_empty_type_variable_identifiers(ident_token));
     return NullOpt{};
   }
 
@@ -1559,40 +1552,44 @@ void AstGenerator::add_error(mt::ParseError&& err) {
   parse_errors.emplace_back(std::move(err));
 }
 
-ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const mt::Token& at_token) {
+ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const mt::Token& at_token) const {
   const char* msg = "`()` indexing must appear last in an index expression.";
   return ParseError(text, at_token, msg);
 }
 
-ParseError AstGenerator::make_error_invalid_expr_token(const mt::Token& at_token) {
+ParseError AstGenerator::make_error_invalid_expr_token(const mt::Token& at_token) const {
   const auto type_name = "`" + std::string(to_string(at_token.type)) + "`";
   const auto message = std::string("Token ") + type_name + " is not valid in expressions.";
   return ParseError(text, at_token, message);
 }
 
-ParseError AstGenerator::make_error_incomplete_expr(const mt::Token& at_token) {
+ParseError AstGenerator::make_error_incomplete_expr(const mt::Token& at_token) const {
   return ParseError(text, at_token, "Expression is incomplete.");
 }
 
-ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& at_token) {
+ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& at_token) const {
   return ParseError(text, at_token, "The expression on the left is not a valid target for assignment.");
 }
 
-ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) {
+ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) const {
   return ParseError(text, at_token, "Expected an expression on the left hand side.");
 }
 
-ParseError AstGenerator::make_error_semicolon_delimiter_in_parens_grouping_expr(const mt::Token& at_token) {
+ParseError AstGenerator::make_error_multiple_exprs_in_parens_grouping_expr(const mt::Token& at_token) const {
   return ParseError(text, at_token,
-    "`()` grouping expressions cannot contain semicolons or span multiple lines.");
+    "`()` grouping expressions cannot contain multiple sub-expressions or span multiple lines.");
 }
 
-ParseError AstGenerator::make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) {
+ParseError AstGenerator::make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const {
   return ParseError(text, at_token, "Duplicate `otherwise` in `switch` statement.");
 }
 
+ParseError AstGenerator::make_error_expected_non_empty_type_variable_identifiers(const mt::Token& at_token) const {
+  return ParseError(text, at_token, "Expected a non-empty list of identifiers.");
+}
+
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,
-                                                        int64_t num_types) {
+                                                        int64_t num_types) const {
   std::vector<std::string> type_strs;
 
   for (int64_t i = 0; i < num_types; i++) {
