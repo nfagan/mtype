@@ -442,6 +442,7 @@ Result<ScanError, Token> Scanner::string_literal_token(mt::TokenType type, const
 
     if (c == terminator) {
       if (iterator.peek_next() == terminator) {
+        //  'a''' -> a'
         iterator.advance();
       } else {
         break;
@@ -472,7 +473,7 @@ Result<ScanError, Token> Scanner::identifier_or_keyword_token() {
   auto type = TokenType::identifier;
 
   if (prev_was_period) {
-    //  Always treated as an identifier.
+    //  Always treat as an identifier.
     return make_success<ScanError, Token>(Token{type, lexeme});
   }
 

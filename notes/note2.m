@@ -1,8 +1,11 @@
 %{
 
 0 Validate identifier usage
-    * Consider a function `f`. Establish the names of sibling and children
-      functions of `f`. Identifiers in 
+    * Variables must be explicitly initialized.
+    * Variables not explicitly initialized are assumed to be functions.
+      o This implies that e.g. x{end}, x(:), x(:, end) expressions are
+        assumed to be function calls, unless x has been previously defined
+        with an initializer.
 1 Disambiguate variable references from function call expressions.
     * An identifier that is brace-referenced (`a{}`) cannot be a function.
     * An identifier reference expression with no subscripts whose main
@@ -20,6 +23,5 @@
   obtain its type signature.
     * Obtaining the type signature will require parsing the associated
     file.
-3  
 
 %}

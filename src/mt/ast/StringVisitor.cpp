@@ -1,5 +1,6 @@
 #include "StringVisitor.hpp"
 #include <algorithm>
+#include <cassert>
 
 namespace mt {
 
@@ -199,15 +200,17 @@ std::string StringVisitor::identifier_reference_expr(const IdentifierReferenceEx
 std::string StringVisitor::subscript_expr(const Subscript& expr) const {
   auto str = visit_array(expr.arguments, ", ");
 
-  if (expr.method == SubscriptMethod::parens) {
-    str = "(" + str + ")";
-  } else if (expr.method == SubscriptMethod::brace) {
-    str = "{" + str + "}";
-  } else if (expr.method == SubscriptMethod::period) {
-    str = "." + str;
+  switch (expr.method) {
+    case SubscriptMethod::parens:
+      return "(" + str + ")";
+    case SubscriptMethod::brace:
+      return "{" + str + "}";
+    case SubscriptMethod::period:
+      return "." + str;
+    default:
+      assert(false && "Unhandled subscript method.");
+      return str;
   }
-
-  return str;
 }
 
 std::string StringVisitor::grouping_expr_component(const GroupingExprComponent& expr, bool include_delimiter) const {
@@ -220,6 +223,7 @@ std::string StringVisitor::grouping_expr_component(const GroupingExprComponent& 
 
 std::string StringVisitor::grouping_expr(const GroupingExpr& expr) const {
   std::vector<std::string> component_strs;
+
   for (int64_t i = 0; i < int64_t(expr.components.size()); i++) {
     const bool include_delim = i < int64_t(expr.components.size()) - 1;
     component_strs.emplace_back(grouping_expr_component(expr.components[i], include_delim));
@@ -253,10 +257,8 @@ std::string StringVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) 
   auto right = expr.right->accept(*this);
   auto op = to_symbol(expr.source_token.type);
 
-  std::string space = " ";
-  auto str = left + space + op + space + right;
+  auto str = left + " " + op + " " + right;
   maybe_parenthesize(str);
-
   return str;
 }
 

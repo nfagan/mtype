@@ -19,7 +19,7 @@ end
   given `X` let Y = X
   let X = double
   let Y = single
-  let Another = fields S
+  let Another = field_of S
   let Y = vi<{any}>
   
   given <T, X, Y, Z> function my_sum
