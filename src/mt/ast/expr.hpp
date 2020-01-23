@@ -3,13 +3,16 @@
 #include "ast.hpp"
 #include "../lang_components.hpp"
 #include "../token.hpp"
+#include "../Optional.hpp"
 #include <algorithm>
 
 namespace mt {
 
+//  @TODO: Make input_identifiers a vector of optional int64_t, where NullOpt{} entries correspond
+//  to ~
 struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
-                        std::vector<std::string_view>&& input_identifiers,
+                        std::vector<Optional<int64_t>>&& input_identifiers,
                         BoxedExpr expr) :
   source_token(source_token),
   input_identifiers(std::move(input_identifiers)),
@@ -20,20 +23,20 @@ struct AnonymousFunctionExpr : public Expr {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  std::vector<std::string_view> input_identifiers;
+  std::vector<Optional<int64_t>> input_identifiers;
   BoxedExpr expr;
 };
 
 struct FunctionReferenceExpr : public Expr {
-  FunctionReferenceExpr(const Token& source_token, BoxedExpr expr) :
-  source_token(source_token), expr(std::move(expr)) {
+  FunctionReferenceExpr(const Token& source_token, std::vector<int64_t>&& identifier_components) :
+  source_token(source_token), identifier_components(std::move(identifier_components)) {
     //
   }
   ~FunctionReferenceExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  BoxedExpr expr;
+  std::vector<int64_t> identifier_components;
 };
 
 struct ColonSubscriptExpr : public Expr {
@@ -107,13 +110,15 @@ struct DynamicFieldReferenceExpr : public Expr {
 };
 
 struct LiteralFieldReferenceExpr : public Expr {
-  explicit LiteralFieldReferenceExpr(const Token& identifier) : identifier_token(identifier) {
+  explicit LiteralFieldReferenceExpr(const Token& source_token, int64_t field_identifier) :
+  source_token(source_token), field_identifier(field_identifier) {
     //
   }
   ~LiteralFieldReferenceExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
 
-  Token identifier_token;
+  Token source_token;
+  int64_t field_identifier;
 };
 
 struct Subscript {
@@ -132,9 +137,12 @@ struct Subscript {
 };
 
 struct IdentifierReferenceExpr : public Expr {
-  IdentifierReferenceExpr(const Token& identifier,
+  IdentifierReferenceExpr(const Token& source_token,
+                          int64_t primary_identifier,
                           std::vector<Subscript>&& subscripts) :
-  identifier_token(identifier), subscripts(std::move(subscripts)) {
+  source_token(source_token),
+  primary_identifier(primary_identifier),
+  subscripts(std::move(subscripts)) {
     //
   }
   ~IdentifierReferenceExpr() override = default;
@@ -144,7 +152,8 @@ struct IdentifierReferenceExpr : public Expr {
   }
   std::string accept(const StringVisitor& vis) const override;
 
-  Token identifier_token;
+  Token source_token;
+  int64_t primary_identifier;
   std::vector<Subscript> subscripts;
 };
 

@@ -9,16 +9,19 @@
 
 namespace mt {
 
+class StringRegistry;
+
 class AstGenerator {
 public:
-  AstGenerator() : is_end_terminated_function(true) {
+  AstGenerator() : string_registry(nullptr), is_end_terminated_function(true) {
     //
   }
 
   ~AstGenerator() = default;
 
-  Result<ParseErrors, std::unique_ptr<Block>>
-  parse(const std::vector<Token>& tokens, std::string_view text, bool functions_are_end_terminated);
+  Result<ParseErrors, std::unique_ptr<Block>> parse(const std::vector<Token>& tokens,
+                                                    std::string_view text, StringRegistry& registry,
+                                                    bool functions_are_end_terminated);
 
 private:
 
@@ -28,14 +31,18 @@ private:
   Optional<FunctionHeader> function_header();
   Optional<std::vector<std::string_view>> function_inputs();
   Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
-  Optional<std::string_view> char_identifier();
-  Optional<std::vector<std::string_view>> char_identifier_sequence(TokenType terminator);
+  Optional<std::string_view> one_identifier();
+  Optional<std::vector<std::string_view>> identifier_sequence(TokenType terminator);
+  Optional<std::vector<std::string_view>> function_identifier_components();
+  Optional<std::vector<Optional<int64_t>>> anonymous_function_input_parameters();
 
   Optional<Subscript> period_subscript(const Token& source_token);
   Optional<Subscript> non_period_subscript(const Token& source_token, SubscriptMethod method, TokenType term);
 
   Optional<BoxedExpr> expr(bool allow_empty = false);
+  Optional<BoxedExpr> function_expr(const Token& source_token);
   Optional<BoxedExpr> anonymous_function_expr(const Token& source_token);
+  Optional<BoxedExpr> function_reference_expr(const Token& source_token);
   Optional<BoxedExpr> grouping_expr(const Token& source_token);
   Optional<BoxedExpr> identifier_reference_expr(const Token& source_token);
   Optional<BoxedExpr> literal_field_reference_expr(const Token& source_token);
@@ -102,9 +109,13 @@ private:
   ParseError make_error_multiple_exprs_in_parens_grouping_expr(const Token& at_token) const;
   ParseError make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const;
   ParseError make_error_expected_non_empty_type_variable_identifiers(const Token& at_token) const;
+  ParseError make_error_duplicate_input_parameter_in_expr(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
+  Optional<ParseError> check_anonymous_function_input_parameters_are_unique(const Token& source_token,
+                                                                            const std::vector<Optional<int64_t>>& inputs) const;
+
   void add_error(ParseError&& err);
 
   static std::array<TokenType, 3> type_annotation_block_possible_types();
@@ -113,6 +124,8 @@ private:
 private:
   TokenIterator iterator;
   std::string_view text;
+  StringRegistry* string_registry;
+
   bool is_end_terminated_function;
 
   ParseErrors parse_errors;

@@ -56,7 +56,8 @@ int main(int argc, char** argv) {
   }
 
   mt::AstGenerator ast_gen;
-  auto parse_result = ast_gen.parse(scan_info.tokens, contents, scan_info.functions_are_end_terminated);
+  mt::StringRegistry string_registry;
+  auto parse_result = ast_gen.parse(scan_info.tokens, contents, string_registry, scan_info.functions_are_end_terminated);
 
   if (!parse_result) {
     for (const auto& err : parse_result.error) {
@@ -66,10 +67,11 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  mt::StringVisitor visitor;
+  mt::StringVisitor visitor(&string_registry);
   visitor.parenthesize_exprs = true;
 
   std::cout << parse_result.value->accept(visitor) << std::endl;
+  std::cout << "Num strings: " << string_registry.size() << std::endl;
 
   return 0;
 }

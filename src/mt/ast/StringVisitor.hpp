@@ -11,7 +11,8 @@ namespace mt {
 
 class StringVisitor {
 public:
-  StringVisitor() : parenthesize_exprs(true), tab_depth(-1) {
+  explicit StringVisitor(const StringRegistry* string_registry) :
+  parenthesize_exprs(true), tab_depth(-1), string_registry(string_registry) {
     //
   }
   ~StringVisitor() = default;
@@ -74,6 +75,7 @@ public:
 
 private:
   mutable int tab_depth;
+  const StringRegistry* string_registry;
 };
 
 }

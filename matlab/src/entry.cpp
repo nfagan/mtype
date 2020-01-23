@@ -82,9 +82,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       std::cout << tok << std::endl;
     }
   }
+  
+  mt::StringRegistry string_registry;
 
   const bool end_terminated = scan_info.functions_are_end_terminated;
-  auto parse_res = ast_generator.parse(scan_info.tokens, str, end_terminated);
+  auto parse_res = ast_generator.parse(scan_info.tokens, str, string_registry, end_terminated);
 
   if (!parse_res) {
     if (inputs.show_parse_errors) {
@@ -99,8 +101,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   *mxGetLogicals(plhs[0]) = true;
 
   if (inputs.show_ast) {
-    mt::StringVisitor visitor;
+    mt::StringVisitor visitor(&string_registry);
     visitor.parenthesize_exprs = true;
     std::cout << parse_res.value->accept(visitor) << std::endl;
+    std::cout << "Num strings: " << string_registry.size() << std::endl;
   }
 }

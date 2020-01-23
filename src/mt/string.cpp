@@ -2,8 +2,51 @@
 #include "character.hpp"
 #include <algorithm>
 #include <limits>
+#include <cassert>
 
 namespace mt {
+
+int64_t StringRegistry::size() const {
+  return strings.size();
+}
+
+std::string_view StringRegistry::at(int64_t index) const {
+  assert(index >= 0 && index < int64_t(strings.size()) && "Out of bounds array access.");
+  return strings[index];
+}
+
+std::vector<std::string_view> StringRegistry::collect(const std::vector<int64_t>& indices) const {
+  std::vector<std::string_view> result;
+  for (const auto& index : indices) {
+    result.push_back(at(index));
+  }
+  return result;
+}
+
+int64_t StringRegistry::register_string(std::string_view str) {
+  auto it = string_registry.find(str);
+  if (it == string_registry.end()) {
+    //  String not yet registered.
+    int64_t next_index = strings.size();
+    string_registry[str] = next_index;
+    strings.push_back(str);
+    return next_index;
+  } else {
+    return it->second;
+  }
+}
+
+void StringRegistry::register_strings(const std::vector<std::string_view>& strs, std::vector<int64_t>& out) {
+  for (const auto& str : strs) {
+    out.push_back(register_string(str));
+  }
+}
+
+std::vector<int64_t> StringRegistry::register_strings(const std::vector<std::string_view>& strs) {
+  std::vector<int64_t> res;
+  register_strings(strs, res);
+  return res;
+}
 
 std::vector<std::string_view> split(std::string_view view, const Character& delim) {
   return split(view.data(), view.size(), delim);

@@ -29,7 +29,7 @@ struct InlineType : public TypeAnnot {
 
 struct TypeLet : public TypeAnnot {
   TypeLet(const Token& source_token,
-          std::string_view identifier,
+          int64_t identifier,
           BoxedType equal_to_type) :
           source_token(source_token),
           identifier(identifier),
@@ -40,13 +40,13 @@ struct TypeLet : public TypeAnnot {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  std::string_view identifier;
+  int64_t identifier;
   BoxedType equal_to_type;
 };
 
 struct TypeGiven : public TypeAnnot {
   TypeGiven(const Token& source_token,
-            std::vector<std::string_view>&& identifiers,
+            std::vector<int64_t>&& identifiers,
             BoxedTypeAnnot declaration) :
             source_token(source_token),
             identifiers(std::move(identifiers)),
@@ -57,7 +57,7 @@ struct TypeGiven : public TypeAnnot {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  std::vector<std::string_view> identifiers;
+  std::vector<int64_t> identifiers;
   BoxedTypeAnnot declaration;
 };
 
@@ -76,7 +76,7 @@ struct TypeBegin : public TypeAnnot {
 
 struct ScalarType : public Type {
   ScalarType(const Token& source_token,
-             std::string_view identifier,
+             int64_t identifier,
              std::vector<BoxedType>&& arguments) :
              source_token(source_token),
              identifier(identifier),
@@ -87,7 +87,7 @@ struct ScalarType : public Type {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  std::string_view identifier;
+  int64_t identifier;
   std::vector<BoxedType> arguments;
 };
 

@@ -47,17 +47,6 @@ template<>
 struct is_numeric_t<int64_t> : public std::true_type {};
 template<>
 struct is_numeric_t<uint64_t> : public std::true_type {};
-  
-// template <typename T>
-// struct UnderlyingDataAccessor {
-//   static typename std::enable_if<std::is_same<T, bool>::value, bool*> access(const mxArray* data) {
-//     return (bool*) mxGetLogicals(data);
-//   }
-//   template <typename U = typename std::enable_if<std::is_same<U, int>::value, int> = 0>
-//   static T* access(const mxArray* data) {
-//     return (T*) mxGetData(data);
-//   }
-// };
 
 }
 }

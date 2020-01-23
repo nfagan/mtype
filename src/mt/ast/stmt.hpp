@@ -12,7 +12,7 @@ struct CharLiteralExpr;
 struct VariableDeclarationStmt : public Stmt {
   VariableDeclarationStmt(const Token& source_token,
                           VariableDeclarationQualifier qualifier,
-                          std::vector<std::string_view>&& identifiers) :
+                          std::vector<int64_t>&& identifiers) :
                           source_token(source_token),
                           qualifier(qualifier),
                           identifiers(std::move(identifiers)) {
@@ -23,16 +23,19 @@ struct VariableDeclarationStmt : public Stmt {
 
   Token source_token;
   VariableDeclarationQualifier qualifier;
-  std::vector<std::string_view> identifiers;
+  std::vector<int64_t> identifiers;
 };
 
 struct CommandStmt : public Stmt {
-  CommandStmt(const Token& identifier_token,
+  //  Constructor defined in source file because CharLiteralExpr is defined in expr.hpp
+  CommandStmt(const Token& source_token,
+              int64_t identifier,
               std::vector<CharLiteralExpr>&& arguments);
   ~CommandStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
 
-  Token identifier_token;
+  Token source_token;
+  int64_t command_identifier;
   std::vector<CharLiteralExpr> arguments;
 };
 
@@ -133,7 +136,7 @@ struct ControlStmt : public Stmt {
 
 struct ForStmt : public Stmt {
   ForStmt(const Token& source_token,
-          std::string_view loop_variable_identifier,
+          int64_t loop_variable_identifier,
           BoxedExpr loop_variable_expr,
           BoxedBlock body) :
   source_token(source_token),
@@ -146,7 +149,7 @@ struct ForStmt : public Stmt {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  std::string_view loop_variable_identifier;
+  int64_t loop_variable_identifier;
   BoxedExpr loop_variable_expr;
   BoxedBlock body;
 };

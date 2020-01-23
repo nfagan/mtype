@@ -3,9 +3,30 @@
 #include <vector>
 #include <string_view>
 #include <string>
+#include <unordered_map>
+#include <cstdint>
 
 namespace mt {
 class Character;
+
+class StringRegistry {
+public:
+  StringRegistry() = default;
+  ~StringRegistry() = default;
+
+  int64_t register_string(std::string_view str);
+  void register_strings(const std::vector<std::string_view>& strs, std::vector<int64_t>& out);
+  std::vector<int64_t> register_strings(const std::vector<std::string_view>& strs);
+
+  std::string_view at(int64_t index) const;
+  std::vector<std::string_view> collect(const std::vector<int64_t>& indices) const;
+
+  int64_t size() const;
+
+private:
+  std::unordered_map<std::string_view, int64_t> string_registry;
+  std::vector<std::string_view> strings;
+};
 
 std::vector<std::string_view> split(const char* str, int64_t len, const Character& delim);
 std::vector<std::string_view> split(const std::string& str, const Character& delim);
@@ -31,4 +52,5 @@ std::string mark_text_with_message_and_context(std::string_view text, int64_t st
                                                int64_t context_amount, const std::string& message);
 
 std::vector<int64_t> find_character(const char* str, int64_t len, const Character& delim);
+
 }

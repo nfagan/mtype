@@ -56,7 +56,7 @@ Optional<ScanError> EndTerminatedKeywordCounts::register_keyword(TokenType keywo
 Optional<ScanError> EndTerminatedKeywordCounts::pop_keyword(const CharacterIterator& iterator, int64_t start) {
   if (keyword_types.empty()) {
     std::string_view text(iterator.data(), iterator.size());
-    const char* message = "Missing `end` terminator.";
+    const char* message = "Extraneous `end` terminator.";
     auto err = mark_text_with_message_and_context(text, start, start, 100, message);
     return Optional<ScanError>(err);
   }

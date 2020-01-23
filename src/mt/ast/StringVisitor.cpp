@@ -34,9 +34,9 @@ std::string StringVisitor::block(const Block& block) const {
 }
 
 std::string StringVisitor::function_header(const FunctionHeader& header) const {
-  auto outputs = join(header.outputs, ", ");
-  auto inputs = join(header.inputs, ", ");
-  std::string name(header.name);
+  auto outputs = join(string_registry->collect(header.outputs), ", ");
+  auto inputs = join(string_registry->collect(header.inputs), ", ");
+  auto name = std::string(string_registry->at(header.name));
   return "function [" + outputs + "]" + " = " + name + "(" + inputs + ")";
 }
 
@@ -58,7 +58,8 @@ std::string StringVisitor::assignment_stmt(const AssignmentStmt& stmt) const {
 }
 
 std::string StringVisitor::for_stmt(const ForStmt& stmt) const {
-  std::string str = tab_str() + "for " + std::string(stmt.loop_variable_identifier) + " = ";
+  std::string loop_var_str = std::string(string_registry->at(stmt.loop_variable_identifier));
+  std::string str = tab_str() + "for " + loop_var_str + " = ";
   str += stmt.loop_variable_expr->accept(*this) + "\n";
   str += (stmt.body->accept(*this) + "\n" + tab_str() + "end");
   return str;
@@ -116,7 +117,7 @@ std::string StringVisitor::try_stmt(const TryStmt& stmt) const {
 }
 
 std::string StringVisitor::command_stmt(const CommandStmt& stmt) const {
-  auto str = tab_str() + std::string(stmt.identifier_token.lexeme);
+  auto str = tab_str() + std::string(string_registry->at(stmt.command_identifier));
   for (const auto& arg : stmt.arguments) {
     str += (" " + std::string(arg.source_token.lexeme));
   }
@@ -126,7 +127,8 @@ std::string StringVisitor::command_stmt(const CommandStmt& stmt) const {
 
 std::string StringVisitor::variable_declaration_stmt(const VariableDeclarationStmt& stmt) const {
   //  @TODO: Derive declaration qualifier.
-  return tab_str() + std::string(stmt.source_token.lexeme) + " " + join(stmt.identifiers, " ");
+  auto identifier_strs = string_registry->collect(stmt.identifiers);
+  return tab_str() + std::string(stmt.source_token.lexeme) + " " + join(identifier_strs, " ");
 }
 
 std::string StringVisitor::control_stmt(const ControlStmt& stmt) const {
@@ -144,13 +146,21 @@ std::string StringVisitor::else_branch(const ElseBranch& branch) const {
 }
 
 std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& expr) const {
-  auto str = "@" + expr.expr->accept(*this);
+  auto str = "@" + join(string_registry->collect(expr.identifier_components), ".");
   maybe_parenthesize(str);
   return str;
 }
 
 std::string StringVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) const {
-  auto header = std::string("@(") + join(expr.input_identifiers, ", ") + ") ";
+  std::vector<std::string> identifier_strs;
+  for (const auto& identifier : expr.input_identifiers) {
+    if (identifier) {
+      identifier_strs.emplace_back(string_registry->at(identifier.value()));
+    } else {
+      identifier_strs.emplace_back("~");
+    }
+  }
+  auto header = std::string("@(") + join(identifier_strs, ", ") + ") ";
   auto body = expr.expr->accept(*this);
   auto str = header + body;
   maybe_parenthesize(str);
@@ -184,7 +194,7 @@ std::string StringVisitor::dynamic_field_reference_expr(const DynamicFieldRefere
 }
 
 std::string StringVisitor::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) const {
-  return std::string(expr.identifier_token.lexeme);
+  return std::string(string_registry->at(expr.field_identifier));
 }
 
 std::string StringVisitor::identifier_reference_expr(const IdentifierReferenceExpr& expr) const {
@@ -192,7 +202,7 @@ std::string StringVisitor::identifier_reference_expr(const IdentifierReferenceEx
   for (const auto& sub : expr.subscripts) {
     sub_str += subscript_expr(sub);
   }
-  std::string str = std::string(expr.identifier_token.lexeme) + sub_str;
+  std::string str = std::string(string_registry->at(expr.primary_identifier)) + sub_str;
   maybe_parenthesize(str);
   return str;
 }
@@ -267,7 +277,7 @@ std::string StringVisitor::end_operator_expr(const EndOperatorExpr&) const {
 }
 
 std::string StringVisitor::scalar_type(const ScalarType& type) const {
-  auto str = std::string(type.identifier);
+  auto str = std::string(string_registry->at(type.identifier));
   if (!type.arguments.empty()) {
     str += ("<" + visit_array(type.arguments, ", ") + ">");
   }
@@ -285,11 +295,13 @@ std::string StringVisitor::inline_type(const InlineType& type) const {
 }
 
 std::string StringVisitor::type_given(const TypeGiven& given) const {
-  return "given <" + join(given.identifiers, ", ") + "> " + given.declaration->accept(*this);
+  auto identifier_strs = string_registry->collect(given.identifiers);
+  return "given <" + join(identifier_strs, ", ") + "> " + given.declaration->accept(*this);
 }
 
 std::string StringVisitor::type_let(const TypeLet& let) const {
-  return "let " + std::string(let.identifier) + " = " + let.equal_to_type->accept(*this);
+  auto identifier_str = std::string(string_registry->at(let.identifier));
+  return "let " + identifier_str + " = " + let.equal_to_type->accept(*this);
 }
 
 std::string StringVisitor::type_begin(const TypeBegin& begin) const {

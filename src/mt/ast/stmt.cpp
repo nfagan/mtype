@@ -8,9 +8,11 @@ std::string VariableDeclarationStmt::accept(const StringVisitor& vis) const {
   return vis.variable_declaration_stmt(*this);
 }
 
-CommandStmt::CommandStmt(const Token& identifier_token,
+CommandStmt::CommandStmt(const Token& source_token,
+                         int64_t identifier,
                          std::vector<CharLiteralExpr>&& arguments) :
-                         identifier_token(identifier_token),
+                         source_token(source_token),
+                         command_identifier(identifier),
                          arguments(std::move(arguments)) {
   //
 }

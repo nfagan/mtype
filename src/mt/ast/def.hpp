@@ -6,10 +6,25 @@
 namespace mt {
 
 struct FunctionHeader {
+  FunctionHeader() = default;
+  FunctionHeader(const Token& name_token,
+                 int64_t name,
+                 std::vector<int64_t>&& outputs,
+                 std::vector<int64_t>&& inputs) :
+                 name_token(name_token),
+                 name(name),
+                 outputs(std::move(outputs)),
+                 inputs(std::move(inputs)) {
+    //
+  }
+  FunctionHeader(FunctionHeader&& other) noexcept = default;
+  FunctionHeader& operator=(FunctionHeader&& other) noexcept = default;
+  ~FunctionHeader() = default;
+
   Token name_token;
-  std::string_view name;
-  std::vector<std::string_view> outputs;
-  std::vector<std::string_view> inputs;
+  int64_t name;
+  std::vector<int64_t> outputs;
+  std::vector<int64_t> inputs;
 };
 
 struct FunctionDef : public Def {

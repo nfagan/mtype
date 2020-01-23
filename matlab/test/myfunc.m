@@ -1,4 +1,5 @@
 function myfunc
+
 % local is an undefined variable
 local(1); % Errors
 local = 2; 

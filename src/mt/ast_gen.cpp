@@ -2,17 +2,20 @@
 #include "string.hpp"
 #include <array>
 #include <cassert>
+#include <functional>
+#include <set>
 
 namespace mt {
 
 Result<ParseErrors, std::unique_ptr<Block>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
-                    bool functions_are_end_terminated) {
+                    StringRegistry& registry, bool functions_are_end_terminated) {
 
   iterator = TokenIterator(&tokens);
   text = txt;
   is_end_terminated_function = functions_are_end_terminated;
   parse_errors.clear();
+  string_registry = &registry;
 
   auto result = block();
   if (result) {
@@ -22,7 +25,7 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
   }
 }
 
-Optional<std::string_view> AstGenerator::char_identifier() {
+Optional<std::string_view> AstGenerator::one_identifier() {
   auto tok = iterator.peek();
   auto err = consume(TokenType::identifier);
 
@@ -34,32 +37,95 @@ Optional<std::string_view> AstGenerator::char_identifier() {
   }
 }
 
-Optional<std::vector<std::string_view>> AstGenerator::char_identifier_sequence(TokenType terminator) {
+Optional<std::vector<Optional<int64_t>>> AstGenerator::anonymous_function_input_parameters() {
+  std::vector<Optional<int64_t>> input_parameters;
+  bool expect_parameter = true;
+
+  while (iterator.has_next() && iterator.peek().type != TokenType::right_parens) {
+    const auto& tok = iterator.peek();
+    Optional<ParseError> err;
+
+    if (expect_parameter) {
+      std::array<TokenType, 2> possible_types{{TokenType::identifier, TokenType::tilde}};
+      err = consume_one_of(possible_types.data(), possible_types.size());
+    } else {
+      err = consume(TokenType::comma);
+    }
+
+    if (err) {
+      add_error(err.rvalue());
+      return NullOpt{};
+    }
+
+    if (tok.type == TokenType::identifier) {
+      input_parameters.emplace_back(string_registry->register_string(tok.lexeme));
+
+    } else if (tok.type == TokenType::tilde) {
+      input_parameters.emplace_back(NullOpt{});
+    }
+
+    expect_parameter = !expect_parameter;
+  }
+
+  auto err = consume(TokenType::right_parens);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  return Optional<std::vector<Optional<int64_t>>>(std::move(input_parameters));
+}
+
+Optional<std::vector<std::string_view>> AstGenerator::function_identifier_components() {
+  //  @Note: We can't just use the identical identifier sequence logic from below, because
+  //  there's no one expected terminator here.
+  std::vector<std::string_view> identifiers;
+  bool expect_identifier = true;
+
+  while (iterator.has_next()) {
+    const auto& tok = iterator.peek();
+
+    const auto expected_type = expect_identifier ? TokenType::identifier : TokenType::period;
+    if (tok.type != expected_type) {
+      if (expect_identifier) {
+        add_error(make_error_expected_token_type(tok, &expected_type, 1));
+        return NullOpt{};
+      } else {
+        break;
+      }
+    }
+
+    iterator.advance();
+
+    if (tok.type == TokenType::identifier) {
+      identifiers.emplace_back(tok.lexeme);
+    }
+
+    expect_identifier = !expect_identifier;
+  }
+
+  return Optional<std::vector<std::string_view>>(std::move(identifiers));
+}
+
+Optional<std::vector<std::string_view>> AstGenerator::identifier_sequence(TokenType terminator) {
   std::vector<std::string_view> identifiers;
   bool expect_identifier = true;
 
   while (iterator.has_next() && iterator.peek().type != terminator) {
     const auto& tok = iterator.peek();
 
-    if (expect_identifier && tok.type != TokenType::identifier) {
-      std::array<TokenType, 2> possible_types{{TokenType::identifier, terminator}};
-      add_error(make_error_expected_token_type(tok, possible_types));
-      return NullOpt{};
-
-    } else if (expect_identifier && tok.type == TokenType::identifier) {
-      identifiers.push_back(tok.lexeme);
-      expect_identifier = false;
-
-    } else if (!expect_identifier && tok.type == TokenType::comma) {
-      expect_identifier = true;
-
-    } else {
-      std::array<TokenType, 2> possible_types{{TokenType::comma, terminator}};
-      add_error(make_error_expected_token_type(tok, possible_types));
+    const auto expected_type = expect_identifier ? TokenType::identifier : TokenType::comma;
+    auto err = consume(expected_type);
+    if (err) {
+      add_error(err.rvalue());
       return NullOpt{};
     }
 
-    iterator.advance();
+    if (expect_identifier) {
+      identifiers.push_back(tok.lexeme);
+    }
+
+    expect_identifier = !expect_identifier;
   }
 
   auto term_err = consume(terminator);
@@ -87,7 +153,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
   }
 
   const auto& name_token = iterator.peek();
-  auto name_res = char_identifier();
+  auto name_res = one_identifier();
   if (!name_res) {
     return NullOpt{};
   }
@@ -97,14 +163,19 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     return NullOpt{};
   }
 
-  FunctionHeader header{name_token, name_res.rvalue(), output_res.rvalue(), input_res.rvalue()};
+  //  Register function definition strings.
+  int64_t name = string_registry->register_string(name_res.value());
+  auto outputs = string_registry->register_strings(output_res.value());
+  auto inputs = string_registry->register_strings(input_res.value());
+
+  FunctionHeader header(name_token, name, std::move(outputs), std::move(inputs));
   return Optional<FunctionHeader>(std::move(header));
 }
 
 Optional<std::vector<std::string_view>> AstGenerator::function_inputs() {
   if (iterator.peek().type == TokenType::left_parens) {
     iterator.advance();
-    return char_identifier_sequence(TokenType::right_parens);
+    return identifier_sequence(TokenType::right_parens);
   } else {
     //  Function declarations without parentheses are valid and indicate 0 inputs.
     return Optional<std::vector<std::string_view>>(std::vector<std::string_view>());
@@ -120,7 +191,7 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
     //  function [a, b, c] = example()
     iterator.advance();
     *provided_outputs = true;
-    return char_identifier_sequence(TokenType::right_bracket);
+    return identifier_sequence(TokenType::right_bracket);
 
   } else if (tok.type == TokenType::identifier) {
     //  Either: function a = example() or function example(). I.e., the next identifier is either
@@ -315,12 +386,13 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
 
 Optional<BoxedExpr> AstGenerator::literal_field_reference_expr(const Token& source_token) {
   //  Of the form a.b, where `b` is the identifier representing a presumed field of `a`.
-  auto ident_res = char_identifier();
+  auto ident_res = one_identifier();
   if (!ident_res) {
     return NullOpt{};
   }
 
-  auto expr = std::make_unique<LiteralFieldReferenceExpr>(source_token);
+  int64_t field_identifier = string_registry->register_string(ident_res.value());
+  auto expr = std::make_unique<LiteralFieldReferenceExpr>(source_token, field_identifier);
   return Optional<BoxedExpr>(std::move(expr));
 }
 
@@ -405,7 +477,7 @@ Optional<Subscript> AstGenerator::period_subscript(const Token& source_token) {
 }
 
 Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_token) {
-  auto main_ident_res = char_identifier();
+  auto main_ident_res = one_identifier();
   if (!main_ident_res) {
     return NullOpt{};
   }
@@ -451,34 +523,39 @@ Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_
     }
   }
 
-  auto node = std::make_unique<IdentifierReferenceExpr>(source_token, std::move(subscripts));
+  //  Register main identifier.
+  int64_t primary_identifier = string_registry->register_string(main_ident_res.value());
+
+  auto node = std::make_unique<IdentifierReferenceExpr>(source_token, primary_identifier, std::move(subscripts));
+  return Optional<BoxedExpr>(std::move(node));
+}
+
+Optional<BoxedExpr> AstGenerator::function_reference_expr(const Token& source_token) {
+  //  @main
+  iterator.advance(); //  consume '@'
+
+  auto component_res = function_identifier_components();
+  if (!component_res) {
+    return NullOpt{};
+  }
+
+  auto component_identifiers = string_registry->register_strings(component_res.value());
+
+  auto node = std::make_unique<FunctionReferenceExpr>(source_token, std::move(component_identifiers));
   return Optional<BoxedExpr>(std::move(node));
 }
 
 Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& source_token) {
   iterator.advance(); //  consume '@'
-  const auto& next_token = iterator.peek();
-
-  if (next_token.type == TokenType::identifier) {
-    //  @TODO: Restrict identifier subscripts to period and literal field references.
-    //  @main
-    auto res = identifier_reference_expr(next_token);
-    if (!res) {
-      return NullOpt{};
-    }
-
-    auto node = std::make_unique<FunctionReferenceExpr>(source_token, res.rvalue());
-    return Optional<BoxedExpr>(std::move(node));
-  }
 
   //  Expect @(x, y, z) expr
-  auto err = consume(TokenType::left_parens);
-  if (err) {
-    add_error(err.rvalue());
+  auto parens_err = consume(TokenType::left_parens);
+  if (parens_err) {
+    add_error(parens_err.rvalue());
     return NullOpt{};
   }
 
-  auto input_res = char_identifier_sequence(TokenType::right_parens);
+  auto input_res = anonymous_function_input_parameters();
   if (!input_res) {
     return NullOpt{};
   }
@@ -488,9 +565,15 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
     return NullOpt{};
   }
 
-  auto node = std::make_unique<AnonymousFunctionExpr>(source_token,
-    input_res.rvalue(), body_res.rvalue());
+  auto input_identifiers = std::move(input_res.rvalue());
 
+  auto params_err = check_anonymous_function_input_parameters_are_unique(source_token, input_identifiers);
+  if (params_err) {
+    add_error(params_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<AnonymousFunctionExpr>(source_token, std::move(input_identifiers), body_res.rvalue());
   return Optional<BoxedExpr>(std::move(node));
 }
 
@@ -687,6 +770,14 @@ Optional<ParseError> AstGenerator::pending_binary_expr(const mt::Token& source_t
   return NullOpt{};
 }
 
+Optional<BoxedExpr> AstGenerator::function_expr(const Token& source_token) {
+  if (iterator.peek_next().type == TokenType::identifier) {
+    return function_reference_expr(source_token);
+  } else {
+    return anonymous_function_expr(source_token);
+  }
+}
+
 Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
   std::vector<BoxedBinaryOperatorExpr> pending_binaries;
   std::vector<BoxedBinaryOperatorExpr> binaries;
@@ -728,7 +819,7 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
       }
 
     } else if (tok.type == TokenType::at) {
-      node_res = anonymous_function_expr(tok);
+      node_res = function_expr(tok);
 
     } else if (represents_expr_terminator(tok.type)) {
       break;
@@ -904,7 +995,7 @@ Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
     iterator.advance();
   }
 
-  auto loop_var_res = char_identifier();
+  auto loop_var_res = one_identifier();
   if (!loop_var_res) {
     return NullOpt{};
   }
@@ -938,7 +1029,9 @@ Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
     return NullOpt{};
   }
 
-  auto node = std::make_unique<ForStmt>(source_token, loop_var_res.rvalue(),
+  int64_t loop_variable_identifier = string_registry->register_string(loop_var_res.value());
+
+  auto node = std::make_unique<ForStmt>(source_token, loop_variable_identifier,
     initializer_res.rvalue(), block_res.rvalue());
 
   return Optional<BoxedStmt>(std::move(node));
@@ -1026,7 +1119,7 @@ Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_
   iterator.advance();
 
   bool should_proceed = true;
-  std::vector<std::string_view> identifiers;
+  std::vector<std::int64_t> identifiers;
 
   while (iterator.has_next() && should_proceed) {
     const auto& tok = iterator.peek();
@@ -1040,7 +1133,7 @@ Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_
         break;
       case TokenType::identifier:
         iterator.advance();
-        identifiers.push_back(tok.lexeme);
+        identifiers.push_back(string_registry->register_string(tok.lexeme));
         break;
       default:
         //  e.g. global 1
@@ -1052,13 +1145,12 @@ Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_
   }
 
   const auto var_qualifier = variable_declaration_qualifier_from_token_type(source_token.type);
-  auto node = std::make_unique<VariableDeclarationStmt>(source_token,
-    var_qualifier, std::move(identifiers));
+  auto node = std::make_unique<VariableDeclarationStmt>(source_token, var_qualifier, std::move(identifiers));
   return Optional<BoxedStmt>(std::move(node));
 }
 
 Optional<BoxedStmt> AstGenerator::command_stmt(const Token& source_token) {
-  auto ident_res = char_identifier();
+  auto ident_res = one_identifier();
   if (!ident_res) {
     return NullOpt{};
   }
@@ -1093,7 +1185,9 @@ Optional<BoxedStmt> AstGenerator::command_stmt(const Token& source_token) {
     return NullOpt{};
   }
 
-  auto node = std::make_unique<CommandStmt>(source_token, std::move(arguments));
+  int64_t command_identifier = string_registry->register_string(ident_res.value());
+
+  auto node = std::make_unique<CommandStmt>(source_token, command_identifier, std::move(arguments));
   return Optional<BoxedStmt>(std::move(node));
 }
 
@@ -1253,7 +1347,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
 Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
   iterator.advance();
 
-  auto ident_res = char_identifier();
+  auto ident_res = one_identifier();
   if (!ident_res) {
     return NullOpt{};
   }
@@ -1269,7 +1363,9 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
     return NullOpt{};
   }
 
-  auto let_node = std::make_unique<TypeLet>(source_token, ident_res.rvalue(), equal_to_type_res.rvalue());
+  int64_t identifier = string_registry->register_string(ident_res.value());
+
+  auto let_node = std::make_unique<TypeLet>(source_token, identifier, equal_to_type_res.rvalue());
   return Optional<BoxedTypeAnnot>(std::move(let_node));
 }
 
@@ -1305,7 +1401,9 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
     return NullOpt{};
   }
 
-  auto node = std::make_unique<TypeGiven>(source_token, identifier_res.rvalue(), decl_res.rvalue());
+  auto identifiers = string_registry->register_strings(identifier_res.value());
+
+  auto node = std::make_unique<TypeGiven>(source_token, std::move(identifiers), decl_res.rvalue());
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
@@ -1314,7 +1412,7 @@ Optional<std::vector<std::string_view>> AstGenerator::type_variable_identifiers(
 
   if (source_token.type == TokenType::less) {
     iterator.advance();
-    auto type_variable_res = char_identifier_sequence(TokenType::greater);
+    auto type_variable_res = identifier_sequence(TokenType::greater);
     if (!type_variable_res) {
       return NullOpt{};
     }
@@ -1474,7 +1572,9 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
     }
   }
 
-  auto node = std::make_unique<ScalarType>(source_token, source_token.lexeme, std::move(arguments));
+  int64_t identifier = string_registry->register_string(source_token.lexeme);
+
+  auto node = std::make_unique<ScalarType>(source_token, identifier, std::move(arguments));
   return Optional<BoxedType>(std::move(node));
 }
 
@@ -1547,6 +1647,27 @@ Optional<ParseError> AstGenerator::consume_one_of(const mt::TokenType* types, in
   return Optional<ParseError>(make_error_expected_token_type(tok, types, num_types));
 }
 
+Optional<ParseError>
+AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& source_token,
+                                                                   const std::vector<Optional<int64_t>>& inputs) const {
+  std::set<int64_t> uniques;
+  for (const auto& input : inputs) {
+    if (!input) {
+      //  Input argument is ignored (~)
+      continue;
+    }
+
+    auto orig_size = uniques.size();
+    uniques.insert(input.value());
+
+    if (orig_size == uniques.size()) {
+      //  This value is not new.
+      return Optional<ParseError>(make_error_duplicate_input_parameter_in_expr(source_token));
+    }
+  }
+  return NullOpt{};
+}
+
 void AstGenerator::add_error(mt::ParseError&& err) {
   parse_errors.emplace_back(std::move(err));
 }
@@ -1558,7 +1679,7 @@ ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const 
 
 ParseError AstGenerator::make_error_invalid_expr_token(const mt::Token& at_token) const {
   const auto type_name = "`" + std::string(to_string(at_token.type)) + "`";
-  const auto message = std::string("Token ") + type_name + " is not valid in expressions.";
+  const auto message = std::string("Token ") + type_name + " is not permitted in expressions.";
   return ParseError(text, at_token, message);
 }
 
@@ -1585,6 +1706,10 @@ ParseError AstGenerator::make_error_duplicate_otherwise_in_switch_stmt(const Tok
 
 ParseError AstGenerator::make_error_expected_non_empty_type_variable_identifiers(const mt::Token& at_token) const {
   return ParseError(text, at_token, "Expected a non-empty list of identifiers.");
+}
+
+ParseError AstGenerator::make_error_duplicate_input_parameter_in_expr(const mt::Token& at_token) const {
+  return ParseError(text, at_token, "Anonymous function contains a duplicate input parameter identifier.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,
