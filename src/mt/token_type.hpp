@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include <array>
+#include <iostream>
 
 namespace mt {
 
@@ -115,8 +116,12 @@ bool represents_literal(TokenType type);
 bool can_precede_prefix_unary_operator(TokenType type);
 bool can_precede_postfix_unary_operator(TokenType type);
 
-
 TokenType grouping_terminator_for(TokenType initiator);
 std::array<TokenType, 3> grouping_terminators();
 
+}
+
+inline std::ostream& operator<<(std::ostream& stream, mt::TokenType type) {
+  stream << mt::to_string(type);
+  return stream;
 }

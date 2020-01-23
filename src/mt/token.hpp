@@ -48,6 +48,6 @@ private:
 }
 
 inline std::ostream& operator<<(std::ostream& stream, const mt::Token& tok) {
-  stream << to_string(tok.type) << ": " << tok.pretty_lexeme();
+  stream << tok.type << ": " << tok.pretty_lexeme();
   return stream;
 }

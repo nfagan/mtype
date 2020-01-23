@@ -96,7 +96,7 @@ std::string mark_text_with_message_and_context(std::string_view text, int64_t st
   lines.erase(lines.begin() + interval_ind + 1, lines.end());
   lines.push_back(result);
 
-  return join(lines, Character('\n'));
+  return join(lines, "\n");
 }
 
 }

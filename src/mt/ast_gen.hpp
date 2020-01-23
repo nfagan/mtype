@@ -40,7 +40,7 @@ private:
   Optional<BoxedExpr> identifier_reference_expr(const Token& source_token);
   Optional<BoxedExpr> literal_field_reference_expr(const Token& source_token);
   Optional<BoxedExpr> dynamic_field_reference_expr(const Token& source_token);
-  Optional<BoxedExpr> ignore_output_expr(const Token& source_token);
+  Optional<BoxedExpr> ignore_argument_expr(const Token& source_token);
   Optional<BoxedExpr> literal_expr(const Token& source_token);
   Optional<BoxedExpr> colon_subscript_expr(const Token& source_token);
   std::unique_ptr<UnaryOperatorExpr> pending_unary_prefix_expr(const Token& source_token);
@@ -87,6 +87,11 @@ private:
   Optional<BoxedType> scalar_type(const Token& source_token);
   Optional<std::vector<BoxedType>> type_sequence(TokenType terminator);
   Optional<std::vector<std::string_view>> type_variable_identifiers(const Token& source_token);
+
+  template <size_t N>
+  ParseError make_error_expected_token_type(const Token& at_token, const std::array<TokenType, N>& types) const {
+    return make_error_expected_token_type(at_token, types.data(), types.size());
+  }
 
   ParseError make_error_expected_token_type(const Token& at_token, const TokenType* types, int64_t num_types) const;
   ParseError make_error_reference_after_parens_reference_expr(const Token& at_token) const;

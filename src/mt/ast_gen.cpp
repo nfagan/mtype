@@ -43,8 +43,7 @@ Optional<std::vector<std::string_view>> AstGenerator::char_identifier_sequence(T
 
     if (expect_identifier && tok.type != TokenType::identifier) {
       std::array<TokenType, 2> possible_types{{TokenType::identifier, terminator}};
-      auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(tok, possible_types));
       return NullOpt{};
 
     } else if (expect_identifier && tok.type == TokenType::identifier) {
@@ -56,8 +55,7 @@ Optional<std::vector<std::string_view>> AstGenerator::char_identifier_sequence(T
 
     } else {
       std::array<TokenType, 2> possible_types{{TokenType::comma, terminator}};
-      auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(tok, possible_types));
       return NullOpt{};
     }
 
@@ -108,6 +106,7 @@ Optional<std::vector<std::string_view>> AstGenerator::function_inputs() {
     iterator.advance();
     return char_identifier_sequence(TokenType::right_parens);
   } else {
+    //  Function declarations without parentheses are valid and indicate 0 inputs.
     return Optional<std::vector<std::string_view>>(std::vector<std::string_view>());
   }
 }
@@ -118,11 +117,14 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
   *provided_outputs = false;
 
   if (tok.type == TokenType::left_bracket) {
+    //  function [a, b, c] = example()
     iterator.advance();
     *provided_outputs = true;
     return char_identifier_sequence(TokenType::right_bracket);
 
   } else if (tok.type == TokenType::identifier) {
+    //  Either: function a = example() or function example(). I.e., the next identifier is either
+    //  the single output parameter of the function or the name of the function.
     const auto& next_tok = iterator.peek_nth(1);
     const bool is_single_output = next_tok.type == TokenType::equal;
 
@@ -133,10 +135,10 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
     }
 
     return Optional<std::vector<std::string_view>>(std::move(outputs));
+
   } else {
     std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
-    auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-    add_error(std::move(err));
+    add_error(make_error_expected_token_type(tok, possible_types));
     return NullOpt{};
   }
 }
@@ -278,6 +280,8 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
             success = false;
           }
         } else {
+          //  In a non-end terminated function, a function keyword here is actually the start of a
+          //  new function at sibling-scope.
           should_proceed = false;
         }
         break;
@@ -310,6 +314,7 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
 }
 
 Optional<BoxedExpr> AstGenerator::literal_field_reference_expr(const Token& source_token) {
+  //  Of the form a.b, where `b` is the identifier representing a presumed field of `a`.
   auto ident_res = char_identifier();
   if (!ident_res) {
     return NullOpt{};
@@ -320,6 +325,7 @@ Optional<BoxedExpr> AstGenerator::literal_field_reference_expr(const Token& sour
 }
 
 Optional<BoxedExpr> AstGenerator::dynamic_field_reference_expr(const Token& source_token) {
+  //  Of the form a.(`expr`), where `expr` is assumed to evaluate to a field of `a`.
   iterator.advance(); //  consume (
 
   auto expr_res = expr();
@@ -340,7 +346,6 @@ Optional<BoxedExpr> AstGenerator::dynamic_field_reference_expr(const Token& sour
 Optional<Subscript> AstGenerator::non_period_subscript(const Token& source_token,
                                                        mt::SubscriptMethod method,
                                                        mt::TokenType term) {
-  //  @TODO: Recode `end` to `end subscript reference`.
   iterator.advance(); //  consume '(' or '{'
   std::vector<BoxedExpr> args;
 
@@ -384,8 +389,7 @@ Optional<Subscript> AstGenerator::period_subscript(const Token& source_token) {
       break;
     default:
       std::array<TokenType, 2> possible_types{{TokenType::identifier, TokenType::left_parens}};
-      auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(tok, possible_types));
       return NullOpt{};
   }
 
@@ -429,6 +433,7 @@ Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_
     }
 
     if (!has_subscript) {
+      //  This is a simple variable reference or function call with no subscripts, e.g. `a;`
       break;
     } else if (!sub_result) {
       return NullOpt{};
@@ -437,6 +442,7 @@ Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_
     auto sub_expr = sub_result.rvalue();
 
     if (prev_method == SubscriptMethod::parens && sub_expr.method != SubscriptMethod::period) {
+      //  a(1, 1)(1) is an error, but a.('x')(1) is allowed.
       add_error(make_error_reference_after_parens_reference_expr(tok));
       return NullOpt{};
     } else {
@@ -454,6 +460,7 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
   const auto& next_token = iterator.peek();
 
   if (next_token.type == TokenType::identifier) {
+    //  @TODO: Restrict identifier subscripts to period and literal field references.
     //  @main
     auto res = identifier_reference_expr(next_token);
     if (!res) {
@@ -491,6 +498,8 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
   const TokenType terminator = grouping_terminator_for(source_token.type);
   iterator.advance();
 
+  //  Concatenation constructions with brackets and braces can have empty expressions, e.g.
+  //  [,,,,,,,,,;;;] and {,,,,,;;;;;} are valid and equivalent to [] and {}.
   const bool allow_empty = source_token.type == TokenType::left_bracket ||
     source_token.type == TokenType::left_brace;
   std::vector<GroupingExprComponent> exprs;
@@ -515,8 +524,7 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
       std::array<TokenType, 4> possible_types{
         {TokenType::comma, TokenType::semicolon, TokenType::new_line, terminator}
       };
-      auto err = make_error_expected_token_type(next, possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(next, possible_types));
       return NullOpt{};
     }
 
@@ -572,7 +580,8 @@ Optional<BoxedExpr> AstGenerator::literal_expr(const Token& source_token) {
   return Optional<BoxedExpr>(std::move(expr_node));
 }
 
-Optional<BoxedExpr> AstGenerator::ignore_output_expr(const Token& source_token) {
+Optional<BoxedExpr> AstGenerator::ignore_argument_expr(const Token& source_token) {
+  //  [~, a] = b(), or @(x, ~, z) y();
   iterator.advance();
 
   auto source_node = std::make_unique<IgnoreFunctionArgumentExpr>(source_token);
@@ -582,7 +591,7 @@ Optional<BoxedExpr> AstGenerator::ignore_output_expr(const Token& source_token) 
 std::unique_ptr<UnaryOperatorExpr> AstGenerator::pending_unary_prefix_expr(const mt::Token& source_token) {
   iterator.advance();
   const auto op = unary_operator_from_token_type(source_token.type);
-  //  Awaiting
+  //  Awaiting expr.
   return std::make_unique<UnaryOperatorExpr>(source_token, op, nullptr);
 }
 
@@ -601,14 +610,12 @@ Optional<ParseError> AstGenerator::postfix_unary_expr(const mt::Token& source_to
   return NullOpt{};
 }
 
-Optional<ParseError>
-AstGenerator::handle_postfix_unary_exprs(std::vector<BoxedExpr>& completed) {
+Optional<ParseError> AstGenerator::handle_postfix_unary_exprs(std::vector<BoxedExpr>& completed) {
   while (iterator.has_next()) {
     const auto& curr = iterator.peek();
     const auto& prev = iterator.peek_prev();
 
-    if (represents_postfix_unary_operator(curr.type) &&
-        can_precede_postfix_unary_operator(prev.type)) {
+    if (represents_postfix_unary_operator(curr.type) && can_precede_postfix_unary_operator(prev.type)) {
       auto err = postfix_unary_expr(curr, completed);
       if (err) {
         return err;
@@ -694,7 +701,7 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
       node_res = identifier_reference_expr(tok);
 
     } else if (is_ignore_argument_expr(tok)) {
-      node_res = ignore_output_expr(tok);
+      node_res = ignore_argument_expr(tok);
 
     } else if (represents_grouping_initiator(tok.type)) {
       node_res = grouping_expr(tok);
@@ -843,11 +850,8 @@ Optional<BoxedStmt> AstGenerator::switch_stmt(const mt::Token& source_token) {
         break;
       }
       default: {
-        std::array<TokenType, 2> possible_types{
-          {TokenType::keyword_case, TokenType::keyword_otherwise}
-        };
-        auto err = make_error_expected_token_type(tok, possible_types.data(), possible_types.size());
-        add_error(std::move(err));
+        std::array<TokenType, 2> possible_types{{TokenType::keyword_case, TokenType::keyword_otherwise}};
+        add_error(make_error_expected_token_type(tok, possible_types));
         return NullOpt{};
       }
     }
@@ -1241,8 +1245,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
 
     default:
       auto possible_types = type_annotation_block_possible_types();
-      auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(source_token, possible_types));
       return NullOpt{};
   }
 }
@@ -1293,8 +1296,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
       break;
     default: {
       std::array<TokenType, 1> possible_types{{TokenType::keyword_let}};
-      auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(source_token, possible_types));
       return NullOpt{};
     }
   }
@@ -1324,8 +1326,7 @@ Optional<std::vector<std::string_view>> AstGenerator::type_variable_identifiers(
 
   } else {
     std::array<TokenType, 2> possible_types{{TokenType::less, TokenType::identifier}};
-    auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
-    add_error(std::move(err));
+    add_error(make_error_expected_token_type(source_token, possible_types));
     return NullOpt{};
   }
 
@@ -1388,8 +1389,7 @@ Optional<BoxedType> AstGenerator::type(const mt::Token& source_token) {
 
     default: {
       std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
-      auto err = make_error_expected_token_type(source_token, possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(source_token, possible_types));
       return NullOpt{};
     }
   }
@@ -1414,8 +1414,7 @@ Optional<std::vector<BoxedType>> AstGenerator::type_sequence(TokenType terminato
 
     } else if (next_type != terminator) {
       std::array<TokenType, 2> possible_types{{TokenType::comma, terminator}};
-      auto err = make_error_expected_token_type(iterator.peek(), possible_types.data(), possible_types.size());
-      add_error(std::move(err));
+      add_error(make_error_expected_token_type(iterator.peek(), possible_types));
       return NullOpt{};
     }
   }
