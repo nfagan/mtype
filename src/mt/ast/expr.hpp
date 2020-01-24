@@ -8,8 +8,6 @@
 
 namespace mt {
 
-//  @TODO: Make input_identifiers a vector of optional int64_t, where NullOpt{} entries correspond
-//  to ~
 struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
                         std::vector<Optional<int64_t>>&& input_identifiers,

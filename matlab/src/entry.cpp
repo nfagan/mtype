@@ -1,7 +1,5 @@
 #include "util.hpp"
-
 #include "mt/mt.hpp"
-
 #include <iostream>
 #include <cassert>
 
@@ -16,11 +14,11 @@ Inputs parse_inputs(int nrhs, const mxArray *prhs[]) {
   Inputs inputs;
   
   if (nrhs > 1) {
-    inputs.show_parse_errors = mt::bool_convertible_or_default(prhs[1], inputs.show_parse_errors);
+    inputs.show_ast = mt::bool_convertible_or_default(prhs[1], inputs.show_ast);
   }
   
   if (nrhs > 2) {
-    inputs.show_ast = mt::bool_convertible_or_default(prhs[2], inputs.show_ast);
+    inputs.show_parse_errors = mt::bool_convertible_or_default(prhs[2], inputs.show_parse_errors);
   }
   
   if (nrhs > 3) {

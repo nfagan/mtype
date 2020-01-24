@@ -32,6 +32,10 @@ bool can_insert_comma_between(const Token& curr, const Token& next) {
 
 Optional<ParseError> insert_implicit_expr_delimiters_in_groupings(std::vector<Token>& tokens,
                                                                   std::string_view text) {
+  //  @TODO: Handle prefix unary + and - operators.
+  //  In a matrix or cell construction expression, the treatment of these operators depends on the
+  //  spacing between them and the next expression component. [1-1 1] should be parsed as
+  //  [(1-1), (1)], whereas [1 -1 1] should be parsed as [(1), (-1), (1)].
   TokenIterator it(&tokens);
   bool next_r_parens_is_anon_func_input_term = false;
 

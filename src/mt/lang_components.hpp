@@ -77,6 +77,8 @@ SubscriptMethod subscript_method_from_token_type(TokenType type);
 ControlFlowManipulator control_flow_manipulator_from_token_type(TokenType type);
 VariableDeclarationQualifier variable_declaration_qualifier_from_token_type(TokenType type);
 
+bool is_loop_control_flow_manipulator(ControlFlowManipulator manip);
+
 OperatorFixity fixity(UnaryOperator op);
 OperatorFixity fixity(BinaryOperator op);
 

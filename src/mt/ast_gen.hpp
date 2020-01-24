@@ -11,6 +11,22 @@ namespace mt {
 
 class StringRegistry;
 
+struct BlockDepths {
+  BlockDepths() :
+  function_def(0), for_stmt(0), parfor_stmt(0), if_stmt(0), while_stmt(0), try_stmt(0), switch_stmt(0) {
+    //
+  }
+  ~BlockDepths() = default;
+
+  int function_def;
+  int for_stmt;
+  int parfor_stmt;
+  int if_stmt;
+  int while_stmt;
+  int try_stmt;
+  int switch_stmt;
+};
+
 class AstGenerator {
 public:
   AstGenerator() : string_registry(nullptr), is_end_terminated_function(true) {
@@ -110,11 +126,17 @@ private:
   ParseError make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const;
   ParseError make_error_expected_non_empty_type_variable_identifiers(const Token& at_token) const;
   ParseError make_error_duplicate_input_parameter_in_expr(const Token& at_token) const;
+  ParseError make_error_loop_control_flow_manipulator_outside_loop(const Token& at_token) const;
+  ParseError make_error_invalid_function_def_location(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
   Optional<ParseError> check_anonymous_function_input_parameters_are_unique(const Token& source_token,
                                                                             const std::vector<Optional<int64_t>>& inputs) const;
+
+  bool is_within_loop() const;
+  bool is_within_end_terminated_stmt_block() const;
+  bool is_within_function() const;
 
   void add_error(ParseError&& err);
 
@@ -125,6 +147,7 @@ private:
   TokenIterator iterator;
   std::string_view text;
   StringRegistry* string_registry;
+  BlockDepths block_depths;
 
   bool is_end_terminated_function;
 

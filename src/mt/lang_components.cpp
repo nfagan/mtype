@@ -3,6 +3,10 @@
 
 namespace mt {
 
+bool is_loop_control_flow_manipulator(ControlFlowManipulator manip) {
+  return manip == ControlFlowManipulator::keyword_break || manip == ControlFlowManipulator::keyword_continue;
+}
+
 int precedence(BinaryOperator op) {
   switch (op) {
     case BinaryOperator::or_or:

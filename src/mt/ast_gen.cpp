@@ -7,6 +7,17 @@
 
 namespace mt {
 
+struct BlockStmtScopeHelper {
+  BlockStmtScopeHelper(int* scope) : scope(scope) {
+    (*scope)++;
+  }
+  ~BlockStmtScopeHelper() {
+    (*scope)--;
+  };
+
+  int* scope;
+};
+
 Result<ParseErrors, std::unique_ptr<Block>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
                     StringRegistry& registry, bool functions_are_end_terminated) {
@@ -16,6 +27,7 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
   is_end_terminated_function = functions_are_end_terminated;
   parse_errors.clear();
   string_registry = &registry;
+  block_depths = BlockDepths();
 
   auto result = block();
   if (result) {
@@ -215,7 +227,15 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
 }
 
 Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
+  const auto& source_token = iterator.peek();
   iterator.advance();
+
+  if (is_within_end_terminated_stmt_block()) {
+    //  It's illegal to define a function within an if statement, etc.
+    add_error(make_error_invalid_function_def_location(source_token));
+    return NullOpt{};
+  }
+
   auto header_result = function_header();
 
   if (!header_result) {
@@ -874,6 +894,11 @@ Optional<BoxedStmt> AstGenerator::control_stmt(const Token& source_token) {
   iterator.advance();
 
   const auto kind = control_flow_manipulator_from_token_type(source_token.type);
+  if (is_loop_control_flow_manipulator(kind) && !is_within_loop()) {
+    add_error(make_error_loop_control_flow_manipulator_outside_loop(source_token));
+    return NullOpt{};
+  }
+
   auto node = std::make_unique<ControlStmt>(source_token, kind);
 
   return Optional<BoxedStmt>(std::move(node));
@@ -898,6 +923,9 @@ Optional<SwitchCase> AstGenerator::switch_case(const mt::Token& source_token) {
 
 Optional<BoxedStmt> AstGenerator::switch_stmt(const mt::Token& source_token) {
   iterator.advance();
+
+  //  Register an increase in the switch statement scope depth.
+  BlockStmtScopeHelper scope_helper(&block_depths.switch_stmt);
 
   auto condition_expr_res = expr();
   if (!condition_expr_res) {
@@ -964,6 +992,9 @@ Optional<BoxedStmt> AstGenerator::switch_stmt(const mt::Token& source_token) {
 Optional<BoxedStmt> AstGenerator::while_stmt(const Token& source_token) {
   iterator.advance();
 
+  //  Register an increase in the while statement scope depth.
+  BlockStmtScopeHelper scope_helper(&block_depths.while_stmt);
+
   auto loop_condition_expr_res = expr();
   if (!loop_condition_expr_res) {
     return NullOpt{};
@@ -989,6 +1020,9 @@ Optional<BoxedStmt> AstGenerator::while_stmt(const Token& source_token) {
 Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
   //  @TODO: Handle optional parenthetical initializer: for (i = 1:10) ** but not for ((i = 1:10))
   iterator.advance();
+
+  //  Register an increase in the for statement scope depth.
+  BlockStmtScopeHelper scope_helper(&block_depths.for_stmt);
 
   //  for (i = 1:10)
   const bool is_wrapped_by_parens = iterator.peek().type == TokenType::left_parens;
@@ -1039,6 +1073,9 @@ Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
 }
 
 Optional<BoxedStmt> AstGenerator::if_stmt(const Token& source_token) {
+  //  Register an increase in the if statement scope depth.
+  BlockStmtScopeHelper scope_helper(&block_depths.if_stmt);
+
   auto main_branch_res = if_branch(source_token);
   if (!main_branch_res) {
     return NullOpt{};
@@ -1211,6 +1248,9 @@ Optional<BoxedStmt> AstGenerator::expr_stmt(const Token& source_token) {
 
 Optional<BoxedStmt> AstGenerator::try_stmt(const mt::Token& source_token) {
   iterator.advance();
+
+  //  Register an increase in the try statement scope depth.
+  BlockStmtScopeHelper scope_helper(&block_depths.try_stmt);
 
   auto try_block_res = sub_block();
   if (!try_block_res) {
@@ -1624,6 +1664,19 @@ bool AstGenerator::is_command_stmt(const mt::Token& curr_token) const {
     (represents_literal(next_t) || next_t == TokenType::identifier);
 }
 
+bool AstGenerator::is_within_end_terminated_stmt_block() const {
+  return block_depths.try_stmt > 0 || block_depths.switch_stmt > 0 || block_depths.if_stmt > 0 ||
+    is_within_loop();
+}
+
+bool AstGenerator::is_within_function() const {
+  return block_depths.function_def > 0;
+}
+
+bool AstGenerator::is_within_loop() const {
+  return block_depths.for_stmt > 0 || block_depths.parfor_stmt > 0 || block_depths.while_stmt > 0;
+}
+
 Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
   const auto& tok = iterator.peek();
 
@@ -1711,6 +1764,14 @@ ParseError AstGenerator::make_error_expected_non_empty_type_variable_identifiers
 
 ParseError AstGenerator::make_error_duplicate_input_parameter_in_expr(const mt::Token& at_token) const {
   return ParseError(text, at_token, "Anonymous function contains a duplicate input parameter identifier.");
+}
+
+ParseError AstGenerator::make_error_loop_control_flow_manipulator_outside_loop(const mt::Token& at_token) const {
+  return ParseError(text, at_token, "A `break` or `continue` statement cannot appear outside a loop statement.");
+}
+
+ParseError AstGenerator::make_error_invalid_function_def_location(const mt::Token& at_token) const {
+  return ParseError(text, at_token, "A `function` definition cannot appear here.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

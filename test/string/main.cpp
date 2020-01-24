@@ -26,7 +26,7 @@ void test_string(const std::string& str, const mt::Character& delim, int expect_
     }
   }
 
-  auto joined = mt::join(res, delim);
+  auto joined = mt::join(res, std::string(delim));
 
   if (joined != str) {
     std::cout << "Expected joined string to equal split string." << std::endl;
