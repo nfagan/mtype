@@ -583,8 +583,9 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
 
   //  Concatenation constructions with brackets and braces can have empty expressions, e.g.
   //  [,,,,,,,,,;;;] and {,,,,,;;;;;} are valid and equivalent to [] and {}.
-  const bool allow_empty = source_token.type == TokenType::left_bracket ||
-    source_token.type == TokenType::left_brace;
+  const auto source_type = source_token.type;
+  const bool allow_empty = source_type == TokenType::left_bracket || source_type == TokenType::left_brace;
+
   std::vector<GroupingExprComponent> exprs;
 
   while (iterator.has_next() && iterator.peek().type != terminator) {
@@ -1723,9 +1724,7 @@ ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_toke
 
   const auto expected_str = join(type_strs, ", ");
   std::string message = "Expected to receive one of these types: \n\n" + expected_str;
-  message += "\n\nInstead, received: `";
-  message += to_string(at_token.type);
-  message += "`.";
+  message += (std::string("\n\nInstead, received: `") + to_string(at_token.type) + "`.");
 
   return ParseError(text, at_token, std::move(message));
 }
