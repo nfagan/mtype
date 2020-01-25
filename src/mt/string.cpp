@@ -34,11 +34,12 @@ std::vector<std::string_view> StringRegistry::collect_n(const std::vector<int64_
 }
 
 int64_t StringRegistry::register_string(std::string_view str) {
-  auto it = string_registry.find(str);
+  auto search = std::string(str);
+  auto it = string_registry.find(search);
   if (it == string_registry.end()) {
     //  String not yet registered.
     int64_t next_index = strings.size();
-    string_registry[str] = next_index;
+    string_registry[search] = next_index;
     strings.push_back(str);
     return next_index;
   } else {

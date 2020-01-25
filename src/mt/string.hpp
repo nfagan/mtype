@@ -27,7 +27,7 @@ public:
   int64_t size() const;
 
 private:
-  std::unordered_map<std::string_view, int64_t> string_registry;
+  std::unordered_map<std::string, int64_t> string_registry;
   std::vector<std::string_view> strings;
 };
 

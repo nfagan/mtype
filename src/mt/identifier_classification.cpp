@@ -218,6 +218,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
     identifier = string_registry->make_registered_compound_identifier(prefix_components, prefix_components.size());
   }
 
+#if 1
   auto ref_result = current_scope()->register_identifier_reference(identifier);
   auto ident_str = string_registry->at(expr.primary_identifier);
 
@@ -227,6 +228,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
     std::cout << "Successfully registered reference for: " << ident_str;
     std::cout << ", with type: " << to_string(ref_result.classified_type) << std::endl;
   }
+#endif
 
   return &expr;
 }
