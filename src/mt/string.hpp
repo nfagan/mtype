@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <cstdint>
 
+#define MT_COPY_STRING_TO_REGISTRY (1)
+
 namespace mt {
 class Character;
 
@@ -27,7 +29,11 @@ public:
   int64_t size() const;
 
 private:
+#if MT_COPY_STRING_TO_REGISTRY
   std::unordered_map<std::string, int64_t> string_registry;
+#else
+  std::unordered_map<std::string_view, int64_t> string_registry;
+#endif
   std::vector<std::string_view> strings;
 };
 
