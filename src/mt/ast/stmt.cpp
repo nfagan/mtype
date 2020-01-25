@@ -1,5 +1,6 @@
 #include "stmt.hpp"
 #include "StringVisitor.hpp"
+#include "../identifier_classification.hpp"
 #include "expr.hpp"
 
 namespace mt {
@@ -45,12 +46,24 @@ std::string IfStmt::accept(const StringVisitor& vis) const {
   return vis.if_stmt(*this);
 }
 
+IfStmt* IfStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.if_stmt(*this);
+}
+
 std::string AssignmentStmt::accept(const StringVisitor& vis) const {
   return vis.assignment_stmt(*this);
 }
 
+AssignmentStmt* AssignmentStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.assignment_stmt(*this);
+}
+
 std::string ExprStmt::accept(const StringVisitor& vis) const {
   return vis.expr_stmt(*this);
+}
+
+ExprStmt* ExprStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.expr_stmt(*this);
 }
 
 }

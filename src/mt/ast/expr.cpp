@@ -1,5 +1,6 @@
 #include "expr.hpp"
 #include "StringVisitor.hpp"
+#include "../identifier_classification.hpp"
 
 namespace mt {
 
@@ -41,6 +42,10 @@ std::string LiteralFieldReferenceExpr::accept(const StringVisitor& vis) const {
 
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.identifier_reference_expr(*this);
+}
+
+Expr* IdentifierReferenceExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.identifier_reference_expr(*this);
 }
 
 std::string GroupingExpr::accept(const StringVisitor& vis) const {

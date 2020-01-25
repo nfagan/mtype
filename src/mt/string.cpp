@@ -17,8 +17,18 @@ std::string_view StringRegistry::at(int64_t index) const {
 
 std::vector<std::string_view> StringRegistry::collect(const std::vector<int64_t>& indices) const {
   std::vector<std::string_view> result;
+  result.reserve(indices.size());
   for (const auto& index : indices) {
     result.push_back(at(index));
+  }
+  return result;
+}
+
+std::vector<std::string_view> StringRegistry::collect_n(const std::vector<int64_t>& indices, int64_t num) const {
+  std::vector<std::string_view> result;
+  result.reserve(num);
+  for (int64_t i = 0; i < num; i++) {
+    result.push_back(at(indices[i]));
   }
   return result;
 }
@@ -34,6 +44,10 @@ int64_t StringRegistry::register_string(std::string_view str) {
   } else {
     return it->second;
   }
+}
+
+int64_t StringRegistry::make_registered_compound_identifier(const std::vector<int64_t>& components, int64_t num) {
+  return register_string(join(collect_n(components, num), "."));
 }
 
 void StringRegistry::register_strings(const std::vector<std::string_view>& strs, std::vector<int64_t>& out) {

@@ -18,6 +18,16 @@ struct BlockStmtScopeHelper {
   int* scope;
 };
 
+struct ParseScopeHelper {
+  ParseScopeHelper(AstGenerator& gen) : gen(gen) {
+    gen.push_scope();
+  }
+  ~ParseScopeHelper() {
+    gen.pop_scope();
+  }
+  AstGenerator& gen;
+};
+
 Result<ParseErrors, std::unique_ptr<Block>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
                     StringRegistry& registry, bool functions_are_end_terminated) {
@@ -27,7 +37,10 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
   is_end_terminated_function = functions_are_end_terminated;
   parse_errors.clear();
   string_registry = &registry;
+
   block_depths = BlockDepths();
+  scopes.clear();
+  push_scope();
 
   auto result = block();
   if (result) {
@@ -242,21 +255,33 @@ Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
-  auto body_res = sub_block();
-  if (!body_res) {
-    return NullOpt{};
-  }
+  Optional<std::unique_ptr<Block>> body_res;
 
-  if (is_end_terminated_function) {
-    auto err = consume(TokenType::keyword_end);
-    if (err) {
-      add_error(err.rvalue());
+  {
+    //  Increment scope, and decrement upon block exit.
+    ParseScopeHelper scope_helper(*this);
+
+    body_res = sub_block();
+    if (!body_res) {
       return NullOpt{};
+    }
+
+    if (is_end_terminated_function) {
+      auto err = consume(TokenType::keyword_end);
+      if (err) {
+        add_error(err.rvalue());
+        return NullOpt{};
+      }
     }
   }
 
-  auto success = std::make_unique<FunctionDef>(header_result.rvalue(), body_res.rvalue());
-  return Optional<std::unique_ptr<FunctionDef>>(std::move(success));
+  auto def_node = std::make_unique<FunctionDef>(header_result.rvalue(), body_res.rvalue(), nullptr);
+
+  auto scope = current_scope();
+  scope->register_function(def_node->header.name, def_node.get());
+  def_node->scope = std::move(scope);
+
+  return Optional<std::unique_ptr<FunctionDef>>(std::move(def_node));
 }
 
 Optional<std::unique_ptr<Block>> AstGenerator::block() {
@@ -1675,6 +1700,19 @@ bool AstGenerator::is_within_function() const {
 
 bool AstGenerator::is_within_loop() const {
   return block_depths.for_stmt > 0 || block_depths.parfor_stmt > 0 || block_depths.while_stmt > 0;
+}
+
+void AstGenerator::push_scope() {
+  scopes.emplace_back(std::make_shared<ParseScope>(current_scope()));
+}
+
+void AstGenerator::pop_scope() {
+  assert(scopes.size() > 0 && "No scope to pop.");
+  scopes.pop_back();
+}
+
+std::shared_ptr<ParseScope> AstGenerator::current_scope() const {
+  return scopes.empty() ? nullptr : scopes.back();
 }
 
 Optional<ParseError> AstGenerator::consume(mt::TokenType type) {

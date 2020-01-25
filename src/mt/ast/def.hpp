@@ -5,6 +5,8 @@
 
 namespace mt {
 
+struct ParseScope;
+
 struct FunctionHeader {
   FunctionHeader() = default;
   FunctionHeader(const Token& name_token,
@@ -28,16 +30,20 @@ struct FunctionHeader {
 };
 
 struct FunctionDef : public Def {
-  FunctionDef(FunctionHeader&& header, std::unique_ptr<Block> body) :
-    header(std::move(header)), body(std::move(body)) {
+  FunctionDef(FunctionHeader&& header,
+              std::unique_ptr<Block> body,
+              std::shared_ptr<ParseScope> scope) :
+    header(std::move(header)), body(std::move(body)), scope(std::move(scope)) {
     //
   }
 
   ~FunctionDef() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  Def* accept(IdentifierClassifier& classifier) override;
 
   FunctionHeader header;
   std::unique_ptr<Block> body;
+  std::shared_ptr<ParseScope> scope;
 };
 
 }

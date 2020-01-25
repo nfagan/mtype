@@ -94,6 +94,10 @@ public:
     return val;
   }
 
+  T& value() {
+    return val;
+  }
+
   T&& rvalue() {
     return std::move(val);
   }

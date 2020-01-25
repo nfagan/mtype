@@ -1,6 +1,10 @@
-function test_call_script()
-% @T script test_script
-test_script;
+function test_call_script(a)
+
+if ( a )
+  % @T include
+  test_script;
+end
+
 disp( x );
 
 a();

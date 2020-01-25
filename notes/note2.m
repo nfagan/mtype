@@ -69,14 +69,14 @@ be considered in sequence.
     respectively, with an optional subscript expression. At this point, if 
     an `end` or `:` subscript appears in the parentheses of a presumed 
     function reference, it is an error.
-  * Once split, an identifier must resolve to a function or script
-    reference. An interface representing the system path must be used to
-    locate the file.
+  * Once split, an identifier must represent a function or script
+    reference. 
       o A script cannot return outputs or accept inputs, so if a primary
-        identifier appears as part of an expression, it cannot refer to a
-        script.
-      o Issue: functions are dispatched by their arguments. We can't just 
-        look up a function by name.
+        identifier appears as part of an expression, or has non-empty
+        parenthetical subscripts, it cannot refer to a script. In this
+        case, we can defer searching the filesystem for the identifier.
+      o Otherwise, 
+
   * The resolved file must be parsed, at least as much as is required to 
     determine what kind of file (i.e., class, function, or script) it 
     represents.
@@ -84,5 +84,43 @@ be considered in sequence.
 If an identifier is used incorrectly, we must classify it as something like
 IncorrectVariable. Or else introduce "expected usage" and "actual usage"
 fields.
+
+Identifiers need to be classified consistently. Even though statement
+blocks do not introduce a new scope, identifier references must be coherent
+across blocks. This implies we must initiate a separate identifier
+environment for each block. Consider:
+
+if a
+  if b
+    x = 10;
+  end
+
+  y = x;
+end
+
+in a's context, the variable `x` should represent a function reference,
+inconsistent with its usage in b's context as a variable. In each context,
+look up the identifier by walking through
+
+
+
+Regarding imports:
+  * `import` must be a function. The current import list can be queried
+    with a call to import(), or it can be updated with the command
+    statement form of `import`, but it cannot be passed arguments in the
+    functional form.
+  * An import command at any point in the current scope influences the
+    resolution of identifiers throughout the entire scope.
+  * A fully-qualified import cannot share the name of a direct child 
+    function in the current scope.
+  * Child
+  
+Impl.
+
+FunctionDef needs to have an import list and a pointer to the parent
+FunctionDef. 
+
+In an assignment, the longest compound identifier prefix cannot be a
+function. E.g., a.b.c(1, 2) = 3;, `a.b.c` is a variable. a.('b').three.
 
 %}

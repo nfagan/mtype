@@ -54,7 +54,7 @@ std::string StringVisitor::expr_stmt(const ExprStmt& stmt) const {
 std::string StringVisitor::assignment_stmt(const AssignmentStmt& stmt) const {
   auto of = stmt.of_expr->accept(*this);
   auto to = stmt.to_expr->accept(*this);
-  return tab_str() + of + " = " + to + ";";
+  return tab_str() + to + " = " + of + ";";
 }
 
 std::string StringVisitor::for_stmt(const ForStmt& stmt) const {

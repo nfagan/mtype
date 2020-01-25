@@ -114,6 +114,10 @@ struct LiteralFieldReferenceExpr : public Expr {
   }
   ~LiteralFieldReferenceExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  bool build_prefix(std::vector<int64_t>& prefix) const override {
+    prefix.push_back(field_identifier);
+    return true;
+  }
 
   Token source_token;
   int64_t field_identifier;
@@ -149,6 +153,7 @@ struct IdentifierReferenceExpr : public Expr {
     return true;
   }
   std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   int64_t primary_identifier;

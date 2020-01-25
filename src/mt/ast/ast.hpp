@@ -7,12 +7,14 @@
 namespace mt {
 
 class StringVisitor;
+class IdentifierClassifier;
 
 struct AstNode {
   AstNode() = default;
   virtual ~AstNode() = default;
 
   virtual std::string accept(const StringVisitor& vis) const = 0;
+  virtual AstNode* accept(IdentifierClassifier& classifier) = 0;
 };
 
 template <typename T>
@@ -25,7 +27,15 @@ struct Expr : public AstNode {
   ~Expr() override = default;
 
   std::string accept(const StringVisitor& vis) const override = 0;
+  Expr* accept(IdentifierClassifier&) override {
+    return this;
+  }
+
   virtual bool is_valid_assignment_target() const {
+    return false;
+  }
+
+  virtual bool build_prefix(std::vector<int64_t>&) const {
     return false;
   }
 };
@@ -35,6 +45,9 @@ struct Stmt : public AstNode {
   ~Stmt() override = default;
 
   std::string accept(const StringVisitor& vis) const override = 0;
+  Stmt* accept(IdentifierClassifier&) override {
+    return this;
+  }
 };
 
 struct Def : public AstNode {
@@ -42,6 +55,7 @@ struct Def : public AstNode {
   ~Def() override = default;
 
   std::string accept(const StringVisitor& vis) const override = 0;
+  Def* accept(IdentifierClassifier&) override = 0;
 };
 
 struct TypeAnnot : public AstNode {
@@ -49,6 +63,9 @@ struct TypeAnnot : public AstNode {
   ~TypeAnnot() override = default;
 
   std::string accept(const StringVisitor& vis) const override = 0;
+  TypeAnnot* accept(IdentifierClassifier&) override {
+    return this;
+  }
 };
 
 struct Type : public TypeAnnot {
@@ -73,6 +90,7 @@ struct Block : public AstNode {
     nodes.emplace_back(std::move(other));
   }
   std::string accept(const StringVisitor& vis) const override;
+  Block* accept(IdentifierClassifier& classifier) override;
 
   std::vector<BoxedAstNode> nodes;
 };

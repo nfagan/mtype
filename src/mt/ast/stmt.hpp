@@ -194,6 +194,7 @@ struct IfStmt : public Stmt {
   }
   ~IfStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  IfStmt* accept(IdentifierClassifier& classifier) override;
 
   IfBranch if_branch;
   std::vector<IfBranch> elseif_branches;
@@ -201,13 +202,14 @@ struct IfStmt : public Stmt {
 };
 
 struct AssignmentStmt : public Stmt {
-  AssignmentStmt(BoxedExpr of_expr, BoxedExpr to_expr) :
+  AssignmentStmt(BoxedExpr to_expr, BoxedExpr of_expr) :
   of_expr(std::move(of_expr)), to_expr(std::move(to_expr)) {
     //
   }
 
   ~AssignmentStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  AssignmentStmt* accept(IdentifierClassifier& classifier) override;
 
   BoxedExpr of_expr;
   BoxedExpr to_expr;
@@ -220,6 +222,7 @@ struct ExprStmt : public Stmt {
 
   ~ExprStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  ExprStmt* accept(IdentifierClassifier& classifier) override;
 
   BoxedExpr expr;
 };

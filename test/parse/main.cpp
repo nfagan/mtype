@@ -16,7 +16,8 @@ int main(int argc, char** argv) {
   std::string file_path;
 
   if (argc < 2) {
-    file_path = "/Users/Nick/Documents/MATLAB/repositories/mt/test/parse7.m";
+//    file_path = "/Users/Nick/Documents/MATLAB/repositories/mt/test/parse7.m";
+    file_path = "/Users/Nick/repositories/cpp/mt/matlab/test/test_classification.m";
   } else {
     file_path = argv[1];
   }
@@ -67,10 +68,19 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  mt::IdentifierClassifier classifier(&string_registry, contents);
+  auto* block = parse_result.value->accept(classifier);
+
+  const auto& classifier_errs = classifier.get_errors();
+  for (const auto& err : classifier_errs) {
+    err.show();
+  }
+
   mt::StringVisitor visitor(&string_registry);
   visitor.parenthesize_exprs = true;
 
-  std::cout << parse_result.value->accept(visitor) << std::endl;
+//  std::cout << parse_result.value->accept(visitor) << std::endl;
+//  std::cout << block->accept(visitor) << std::endl;
   std::cout << "Num strings: " << string_registry.size() << std::endl;
 
   return 0;

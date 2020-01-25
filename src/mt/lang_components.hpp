@@ -4,6 +4,15 @@
 
 namespace mt {
 
+enum class IdentifierType : uint8_t {
+  variable_reference,
+  variable_assignment_or_initialization,
+  resolved_local_function,
+  unresolved_external_function,
+  resolved_external_function,
+  unknown
+};
+
 enum class VariableDeclarationQualifier : uint8_t {
   global,
   persistent,
@@ -78,10 +87,13 @@ ControlFlowManipulator control_flow_manipulator_from_token_type(TokenType type);
 VariableDeclarationQualifier variable_declaration_qualifier_from_token_type(TokenType type);
 
 bool is_loop_control_flow_manipulator(ControlFlowManipulator manip);
+bool is_variable(IdentifierType type);
 
 OperatorFixity fixity(UnaryOperator op);
 OperatorFixity fixity(BinaryOperator op);
 
 int precedence(BinaryOperator op);
+
+const char* to_string(IdentifierType type);
 
 }

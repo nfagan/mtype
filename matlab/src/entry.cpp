@@ -95,13 +95,21 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     return;
   }
   
+  mt::IdentifierClassifier classifier(&string_registry, str);
+  auto* block = parse_res.value->accept(classifier);
+  
+  const auto& classifier_errs = classifier.get_errors();
+  for (const auto& err : classifier_errs) {
+    err.show();
+  }
+  
   //  Success.
   *mxGetLogicals(plhs[0]) = true;
 
   if (inputs.show_ast) {
     mt::StringVisitor visitor(&string_registry);
     visitor.parenthesize_exprs = true;
-    std::cout << parse_res.value->accept(visitor) << std::endl;
+    std::cout << block->accept(visitor) << std::endl;
     std::cout << "Num strings: " << string_registry.size() << std::endl;
   }
 }

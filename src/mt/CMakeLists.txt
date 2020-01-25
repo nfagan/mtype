@@ -11,6 +11,8 @@ set(sources
         character_traits.hpp
         error.hpp
         error.cpp
+        identifier_classification.hpp
+        identifier_classification.cpp
         lang_components.hpp
         lang_components.cpp
         keyword.hpp

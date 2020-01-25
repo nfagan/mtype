@@ -3,6 +3,28 @@
 
 namespace mt {
 
+const char* to_string(IdentifierType type) {
+  switch (type) {
+    case IdentifierType::variable_assignment_or_initialization:
+      return "variable_assignment_or_initialization";
+    case IdentifierType::variable_reference:
+      return "variable_reference";
+    case IdentifierType::resolved_local_function:
+      return "resolved_local_function";
+    case IdentifierType::unresolved_external_function:
+      return "unresolved_external_function";
+    case IdentifierType::resolved_external_function:
+      return "resolved_external_function";
+    case IdentifierType::unknown:
+      return "unknown";
+  }
+}
+
+bool is_variable(IdentifierType type) {
+  return type == IdentifierType::variable_assignment_or_initialization ||
+    type == IdentifierType::variable_reference;
+}
+
 bool is_loop_control_flow_manipulator(ControlFlowManipulator manip) {
   return manip == ControlFlowManipulator::keyword_break || manip == ControlFlowManipulator::keyword_continue;
 }

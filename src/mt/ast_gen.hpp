@@ -6,6 +6,8 @@
 #include "Optional.hpp"
 #include "error.hpp"
 #include <vector>
+#include <set>
+#include <unordered_map>
 
 namespace mt {
 
@@ -27,7 +29,23 @@ struct BlockDepths {
   int switch_stmt;
 };
 
+struct ParseScope {
+  explicit ParseScope(std::shared_ptr<ParseScope> parent) : parent(std::move(parent)) {
+    //
+  }
+  ~ParseScope() = default;
+
+  void register_function(int64_t name, FunctionDef* def) {
+    functions[name] = def;
+  }
+
+  std::shared_ptr<ParseScope> parent;
+  std::unordered_map<int64_t, FunctionDef*> functions;
+  std::set<int64_t> imports;
+};
+
 class AstGenerator {
+  friend struct ParseScopeHelper;
 public:
   AstGenerator() : string_registry(nullptr), is_end_terminated_function(true) {
     //
@@ -38,9 +56,7 @@ public:
   Result<ParseErrors, std::unique_ptr<Block>> parse(const std::vector<Token>& tokens,
                                                     std::string_view text, StringRegistry& registry,
                                                     bool functions_are_end_terminated);
-
 private:
-
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
   Optional<std::unique_ptr<FunctionDef>> function_def();
@@ -138,6 +154,10 @@ private:
   bool is_within_end_terminated_stmt_block() const;
   bool is_within_function() const;
 
+  void push_scope();
+  void pop_scope();
+  std::shared_ptr<ParseScope> current_scope() const;
+
   void add_error(ParseError&& err);
 
   static std::array<TokenType, 3> type_annotation_block_possible_types();
@@ -148,6 +168,7 @@ private:
   std::string_view text;
   StringRegistry* string_registry;
   BlockDepths block_depths;
+  std::vector<std::shared_ptr<ParseScope>> scopes;
 
   bool is_end_terminated_function;
 
