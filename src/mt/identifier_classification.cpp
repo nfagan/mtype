@@ -5,8 +5,76 @@
 
 namespace mt {
 
+void VariableAssignmentContext::register_assignment(int64_t id, int64_t context_uuid) {
+  if (context_uuids_by_identifier.count(id) == 0) {
+    register_initialization(id, context_uuid);
+  } else {
+    context_uuids_by_identifier.at(id).insert(context_uuid);
+  }
+}
+
+void VariableAssignmentContext::register_initialization(int64_t id, int64_t context_uuid) {
+  assert(context_uuids_by_identifier.count(id) == 0 && "Identifier was already initialized.");
+  std::set<int64_t> context_uuids;
+  context_uuids.insert(context_uuid);
+  context_uuids_by_identifier[id] = std::move(context_uuids);
+}
+
+void VariableAssignmentContext::register_child_context(int64_t context_uuid) {
+  child_context_uuids.push_back(context_uuid);
+}
+
+void IdentifierScope::push_variable_assignment_context() {
+  variable_assignment_contexts.emplace_back(int(variable_assignment_contexts.size())-1);
+}
+
+void IdentifierScope::pop_variable_assignment_context() {
+  assert(!variable_assignment_contexts.empty() && "No variable assignment context to pop.");
+  assert(!contexts.empty() && "No contexts exist.");
+
+  auto curr_context = current_context();
+  const auto& assign_context = variable_assignment_contexts.back();
+  const auto& child_context_ids = assign_context.child_context_uuids;
+
+  for (const auto& identifiers : assign_context.context_uuids_by_identifier) {
+    const int64_t identifier = identifiers.first;
+    const auto& present_in_contexts = identifiers.second;
+    bool all_assigned = true;
+
+    for (const auto& id : child_context_ids) {
+      if (present_in_contexts.count(id) == 0) {
+        all_assigned = false;
+        break;
+      }
+    }
+
+    if (!all_assigned) {
+      continue;
+    }
+
+    assert(classified_identifiers.count(identifier) > 0 && "No identifier registered ??");
+    auto var_parent_index = assign_context.parent_index;
+
+    if (var_parent_index >= 0) {
+      auto& var_parent_context = variable_assignment_contexts[var_parent_index];
+      var_parent_context.register_assignment(identifier, curr_context.uuid);
+    }
+
+    auto& info = classified_identifiers.at(identifier);
+    info.context = curr_context;
+  }
+
+  variable_assignment_contexts.pop_back();
+}
+
 void IdentifierScope::push_context() {
-  contexts.emplace_back(IdentifierContext(current_context_depth()+1, context_uuid++));
+  int64_t new_context_uuid = context_uuid++;
+
+  if (!variable_assignment_contexts.empty()) {
+    variable_assignment_contexts.back().register_child_context(new_context_uuid);
+  }
+
+  contexts.emplace_back(IdentifierContext(current_context_depth()+1, new_context_uuid));
 }
 
 int IdentifierScope::current_context_depth() const {
@@ -22,12 +90,12 @@ const IdentifierScope::IdentifierContext* IdentifierScope::context_at_depth(int 
 }
 
 IdentifierScope::IdentifierContext IdentifierScope::current_context() const {
-  assert(contexts.size() > 0 && "No current context exists.");
+  assert(!contexts.empty() && "No current context exists.");
   return contexts.back();
 }
 
 void IdentifierScope::pop_context() {
-  assert(contexts.size() > 0 && "No context to pop.");
+  assert(!contexts.empty() && "No context to pop.");
   contexts.pop_back();
 }
 
@@ -58,11 +126,12 @@ IdentifierScope::register_variable_assignment(int64_t id, bool force_shadow_pare
       IdentifierInfo new_info(type, current_context(), variable_def);
       classified_identifiers[id] = new_info;
 
-      //
-//      variable_assignments_by_depth[current_context_depth()].emplace(id, current_context().uuid);
-
       AssignmentResult success_result(variable_def);
       success_result.was_initialization = true;
+
+      if (!variable_assignment_contexts.empty()) {
+        variable_assignment_contexts.back().register_assignment(id, current_context().uuid);
+      }
 
       return success_result;
     }
@@ -79,6 +148,10 @@ IdentifierScope::register_variable_assignment(int64_t id, bool force_shadow_pare
     //  The variable has now been assigned in a lower context depth or later context at the same
     //  depth, so it is safe to reference from higher context depths from now on.
     info->context = current_context();
+  }
+
+  if (!variable_assignment_contexts.empty()) {
+    variable_assignment_contexts.back().register_assignment(id, current_context().uuid);
   }
 
   return AssignmentResult(info->variable_def);
@@ -156,7 +229,7 @@ FunctionDef* IdentifierScope::lookup_function(int64_t name, const std::shared_pt
 }
 
 FunctionDef* IdentifierScope::lookup_function(int64_t name) const {
-  return lookup_function(name, parse_scope);
+  return lookup_function(name, matlab_scope);
 }
 
 IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(int64_t id, bool traverse_parent) {
@@ -195,6 +268,11 @@ string_registry(string_registry), text(text), scope_depth(-1) {
   push_rhs();
   //  New scope with no parent.
   push_scope(nullptr);
+}
+
+void IdentifierClassifier::register_new_context() {
+  push_context();
+  pop_context();
 }
 
 void IdentifierClassifier::push_context() {
@@ -269,7 +347,7 @@ void IdentifierClassifier::register_function_parameters(const Token& source_toke
 
     } else if (assign_res.was_initialization) {
       std::unique_ptr<VariableDef> variable_def(assign_res.variable_def);
-      current_scope()->parse_scope->register_local_variable(id, std::move(variable_def));
+      current_scope()->matlab_scope->register_local_variable(id, std::move(variable_def));
     }
   }
 }
@@ -343,7 +421,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
     std::unique_ptr<VariableDef> variable_def(primary_result.variable_def);
     assert(variable_def.get() && "Expected newly allocated VariableDef object.");
 
-    auto& parse_scope = current_scope()->parse_scope;
+    auto& parse_scope = current_scope()->matlab_scope;
     assert(parse_scope && "No parse scope.");
     parse_scope->register_local_variable(primary_identifier, std::move(variable_def));
   }
@@ -461,13 +539,20 @@ void IdentifierClassifier::if_branch(IfBranch& branch) {
 }
 
 IfStmt* IdentifierClassifier::if_stmt(IfStmt& stmt) {
+  current_scope()->push_variable_assignment_context();
+
   if_branch(stmt.if_branch);
   for (auto& branch : stmt.elseif_branches) {
     if_branch(branch);
   }
   if (stmt.else_branch) {
     block_new_context(stmt.else_branch.value().block);
+  } else {
+    register_new_context();
   }
+
+  current_scope()->pop_variable_assignment_context();
+
   return &stmt;
 }
 
@@ -488,7 +573,7 @@ Def* IdentifierClassifier::function_def(FunctionDef& def) {
   push_scope(def.scope);
   auto* scope = current_scope();
 
-  for (const auto& it : scope->parse_scope->local_functions) {
+  for (const auto& it : scope->matlab_scope->local_functions) {
     //  Local functions take precedence over variables.
     auto res = scope->register_identifier_reference(it.second->header.name);
     if (!res.success) {

@@ -1,16 +1,17 @@
-function zz = test_classification()
+function test_classification()
 
-% zz = 2;
-
-if 1
+if ( 0 )
+  zz = 4;
+elseif 1
   zz = 3;
+elseif 2
+  zz = 4;
 else
   zz = 5;
 end
 
-y = zz;
-
+if 1
+  y = zz;
 end
 
-function s = one()
 end

@@ -14,6 +14,27 @@ struct MatlabScope;
 class StringRegistry;
 
 /*
+ * VariableAssignmentContext
+ */
+class VariableAssignmentContext {
+public:
+  VariableAssignmentContext(int64_t parent_index) : parent_index(parent_index) {
+    //
+  }
+  ~VariableAssignmentContext() = default;
+  void register_assignment(int64_t id, int64_t context_uuid);
+  void register_child_context(int64_t context_uuid);
+
+private:
+  void register_initialization(int64_t id, int64_t context_uuid);
+
+public:
+  int64_t parent_index;
+  std::unordered_map<int64_t, std::set<int64_t>> context_uuids_by_identifier;
+  std::vector<int64_t> child_context_uuids;
+};
+
+/*
  * IdentifierScope
  */
 class IdentifierScope {
@@ -99,10 +120,10 @@ class IdentifierScope {
 
 public:
   IdentifierScope(IdentifierClassifier* classifier, std::shared_ptr<MatlabScope> parse_scope, int parent_index) :
-  classifier(classifier),
-  parse_scope(std::move(parse_scope)),
-  parent_index(parent_index),
-  context_uuid(0) {
+    classifier(classifier),
+    matlab_scope(std::move(parse_scope)),
+    parent_index(parent_index),
+    context_uuid(0) {
     push_context();
   }
   IdentifierScope(IdentifierScope&& other) noexcept = default;
@@ -125,6 +146,9 @@ private:
 
   void push_context();
   void pop_context();
+  void push_variable_assignment_context();
+  void pop_variable_assignment_context();
+
   int current_context_depth() const;
   IdentifierContext current_context() const;
   const IdentifierContext* context_at_depth(int depth) const;
@@ -133,12 +157,14 @@ private:
 
 private:
   IdentifierClassifier* classifier;
-  std::shared_ptr<MatlabScope> parse_scope;
+  std::shared_ptr<MatlabScope> matlab_scope;
   int parent_index;
 
   std::vector<IdentifierContext> contexts;
   int64_t context_uuid;
   std::unordered_map<int64_t, IdentifierInfo> classified_identifiers;
+
+  std::vector<VariableAssignmentContext> variable_assignment_contexts;
 };
 
 /*
@@ -180,6 +206,7 @@ private:
 
   void push_context();
   void pop_context();
+  void register_new_context();
 
   void push_lhs();
   void push_rhs();
