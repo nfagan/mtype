@@ -256,10 +256,12 @@ Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
   }
 
   Optional<std::unique_ptr<Block>> body_res;
+  std::shared_ptr<MatlabScope> child_scope;
 
   {
     //  Increment scope, and decrement upon block exit.
     ParseScopeHelper scope_helper(*this);
+    child_scope = current_scope();
 
     body_res = sub_block();
     if (!body_res) {
@@ -277,9 +279,14 @@ Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
 
   auto def_node = std::make_unique<FunctionDef>(header_result.rvalue(), body_res.rvalue(), nullptr);
 
-  auto scope = current_scope();
-  scope->register_function(def_node->header.name, def_node.get());
-  def_node->scope = std::move(scope);
+  auto parent_scope = current_scope();
+  bool register_success = parent_scope->register_local_function(def_node->header.name, def_node.get());
+  def_node->scope = std::move(child_scope);
+
+  if (!register_success) {
+    add_error(make_error_duplicate_local_function(source_token));
+    return NullOpt{};
+  }
 
   return Optional<std::unique_ptr<FunctionDef>>(std::move(def_node));
 }
@@ -1703,7 +1710,7 @@ bool AstGenerator::is_within_loop() const {
 }
 
 void AstGenerator::push_scope() {
-  scopes.emplace_back(std::make_shared<ParseScope>(current_scope()));
+  scopes.emplace_back(std::make_shared<MatlabScope>(current_scope()));
 }
 
 void AstGenerator::pop_scope() {
@@ -1711,7 +1718,7 @@ void AstGenerator::pop_scope() {
   scopes.pop_back();
 }
 
-std::shared_ptr<ParseScope> AstGenerator::current_scope() const {
+std::shared_ptr<MatlabScope> AstGenerator::current_scope() const {
   return scopes.empty() ? nullptr : scopes.back();
 }
 
@@ -1810,6 +1817,10 @@ ParseError AstGenerator::make_error_loop_control_flow_manipulator_outside_loop(c
 
 ParseError AstGenerator::make_error_invalid_function_def_location(const mt::Token& at_token) const {
   return ParseError(text, at_token, "A `function` definition cannot appear here.");
+}
+
+ParseError AstGenerator::make_error_duplicate_local_function(const mt::Token& at_token) const {
+  return ParseError(text, at_token, "Duplicate local function.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

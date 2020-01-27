@@ -21,4 +21,8 @@ Def* FunctionDef::accept(IdentifierClassifier& classifier) {
   return classifier.function_def(*this);
 }
 
+std::string VariableDef::accept(const mt::StringVisitor& vis) const {
+  return vis.variable_def(*this);
+}
+
 }

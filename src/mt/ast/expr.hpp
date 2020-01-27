@@ -8,6 +8,8 @@
 
 namespace mt {
 
+struct FunctionDef;
+
 struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
                         std::vector<Optional<int64_t>>&& input_identifiers,
@@ -101,7 +103,9 @@ struct DynamicFieldReferenceExpr : public Expr {
     //
   }
   ~DynamicFieldReferenceExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   BoxedExpr expr;
@@ -114,7 +118,7 @@ struct LiteralFieldReferenceExpr : public Expr {
   }
   ~LiteralFieldReferenceExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
-  bool build_prefix(std::vector<int64_t>& prefix) const override {
+  bool append_to_compound_identifier(std::vector<int64_t>& prefix) const override {
     prefix.push_back(field_identifier);
     return true;
   }
@@ -136,6 +140,29 @@ struct Subscript {
   Token source_token;
   SubscriptMethod method;
   std::vector<BoxedExpr> arguments;
+};
+
+struct FunctionCallExpr : public Expr {
+  FunctionCallExpr(const Token& source_token,
+                   FunctionDef* function_def,
+                   int64_t name,
+                   std::vector<BoxedExpr>&& arguments,
+                   std::vector<Subscript>&& subscripts) :
+    source_token(source_token),
+    function_def(function_def),
+    name(name),
+    arguments(std::move(arguments)),
+    subscripts(std::move(subscripts)) {
+    //
+  }
+  ~FunctionCallExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  FunctionDef* function_def;
+  int64_t name;
+  std::vector<BoxedExpr> arguments;
+  std::vector<Subscript> subscripts;
 };
 
 struct IdentifierReferenceExpr : public Expr {
@@ -189,6 +216,7 @@ struct GroupingExpr : public Expr {
     });
   }
   std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   GroupingMethod method;

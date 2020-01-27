@@ -1,4 +1,5 @@
 #include "expr.hpp"
+#include "def.hpp"
 #include "StringVisitor.hpp"
 #include "../identifier_classification.hpp"
 
@@ -36,8 +37,16 @@ std::string DynamicFieldReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.dynamic_field_reference_expr(*this);
 }
 
+Expr* DynamicFieldReferenceExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.dynamic_field_reference_expr(*this);
+}
+
 std::string LiteralFieldReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.literal_field_reference_expr(*this);
+}
+
+std::string FunctionCallExpr::accept(const StringVisitor& vis) const {
+  return vis.function_call_expr(*this);
 }
 
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {
@@ -50,6 +59,10 @@ Expr* IdentifierReferenceExpr::accept(IdentifierClassifier& classifier) {
 
 std::string GroupingExpr::accept(const StringVisitor& vis) const {
   return vis.grouping_expr(*this);
+}
+
+Expr* GroupingExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.grouping_expr(*this);
 }
 
 std::string EndOperatorExpr::accept(const StringVisitor& vis) const {

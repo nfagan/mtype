@@ -41,10 +41,19 @@ std::string StringVisitor::function_header(const FunctionHeader& header) const {
 }
 
 std::string StringVisitor::function_def(const FunctionDef& def) const {
-  const auto header = tab_str() + function_header(def.header);
+  std::string ptr_str;
+  if (include_function_def_ptrs) {
+    ptr_str = "<" + ptr_to_hex_string(&def) + "> ";
+  }
+
+  const auto header = tab_str() + ptr_str + function_header(def.header);
   auto body = def.body->accept(*this);
   auto end = tab_str() + "end";
   return header + "\n" + body + "\n" + end;
+}
+
+std::string StringVisitor::variable_def(const VariableDef& def) const {
+  return tab_str() + std::string(string_registry->at(def.name));
 }
 
 std::string StringVisitor::expr_stmt(const ExprStmt& stmt) const {
@@ -149,6 +158,31 @@ std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& 
   auto str = "@" + join(string_registry->collect(expr.identifier_components), ".");
   maybe_parenthesize(str);
   return str;
+}
+
+std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
+  auto name = std::string(string_registry->at(expr.name));
+  const auto arg_str = visit_array(expr.arguments, ", ");
+  std::string sub_str;
+
+  for (const auto& sub : expr.subscripts) {
+    sub_str += subscript_expr(sub);
+  }
+
+  const std::string call_expr_str = "(" + arg_str + ")" + sub_str;
+
+  if (include_identifier_classification) {
+    const std::string resolved_str = expr.function_def == nullptr ? "unresolved" : "resolved";
+    std::string ptr_str;
+
+    if (include_function_def_ptrs && expr.function_def != nullptr) {
+      ptr_str = ptr_to_hex_string(expr.function_def) + " ";
+    }
+
+    return "<" + resolved_str + " fn " + ptr_str + name + ">" + call_expr_str;
+  } else {
+    return name + call_expr_str;
+  }
 }
 
 std::string StringVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) const {

@@ -5,7 +5,7 @@
 
 namespace mt {
 
-struct ParseScope;
+struct MatlabScope;
 
 struct FunctionHeader {
   FunctionHeader() = default;
@@ -32,7 +32,7 @@ struct FunctionHeader {
 struct FunctionDef : public Def {
   FunctionDef(FunctionHeader&& header,
               std::unique_ptr<Block> body,
-              std::shared_ptr<ParseScope> scope) :
+              std::shared_ptr<MatlabScope> scope) :
     header(std::move(header)), body(std::move(body)), scope(std::move(scope)) {
     //
   }
@@ -42,8 +42,18 @@ struct FunctionDef : public Def {
   Def* accept(IdentifierClassifier& classifier) override;
 
   FunctionHeader header;
-  std::unique_ptr<Block> body;
-  std::shared_ptr<ParseScope> scope;
+  BoxedBlock body;
+  std::shared_ptr<MatlabScope> scope;
+};
+
+struct VariableDef : public Def {
+  explicit VariableDef(int64_t name) : name(name) {
+    //
+  }
+  ~VariableDef() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  int64_t name;
 };
 
 }

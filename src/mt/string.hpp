@@ -21,6 +21,7 @@ public:
   std::vector<int64_t> register_strings(const std::vector<std::string_view>& strs);
 
   int64_t make_registered_compound_identifier(const std::vector<int64_t>& components, int64_t num);
+  int64_t make_registered_compound_identifier(const std::vector<int64_t>& components);
 
   std::string_view at(int64_t index) const;
   std::vector<std::string_view> collect(const std::vector<int64_t>& indices) const;
@@ -31,15 +32,18 @@ public:
 private:
 #if MT_COPY_STRING_TO_REGISTRY
   std::unordered_map<std::string, int64_t> string_registry;
+  std::vector<std::string> strings;
 #else
   std::unordered_map<std::string_view, int64_t> string_registry;
-#endif
   std::vector<std::string_view> strings;
+#endif
 };
 
 std::vector<std::string_view> split(const char* str, int64_t len, const Character& delim);
 std::vector<std::string_view> split(const std::string& str, const Character& delim);
 std::vector<std::string_view> split(std::string_view view, const Character& delim);
+
+std::string ptr_to_hex_string(const void* ptr);
 
 template <typename T>
 std::string join(const std::vector<T>& strs, const std::string& by) {

@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
   visitor.parenthesize_exprs = true;
 
 //  std::cout << parse_result.value->accept(visitor) << std::endl;
-//  std::cout << block->accept(visitor) << std::endl;
+  std::cout << block->accept(visitor) << std::endl;
   std::cout << "Num strings: " << string_registry.size() << std::endl;
 
   return 0;

@@ -21,8 +21,23 @@ const char* to_string(IdentifierType type) {
 }
 
 bool is_variable(IdentifierType type) {
-  return type == IdentifierType::variable_assignment_or_initialization ||
-    type == IdentifierType::variable_reference;
+  switch (type) {
+    case IdentifierType::variable_assignment_or_initialization:
+    case IdentifierType::variable_reference:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool is_function(IdentifierType type) {
+  switch (type) {
+    case IdentifierType::unresolved_external_function:
+    case IdentifierType::resolved_local_function:
+      return true;
+    default:
+      return false;
+  }
 }
 
 bool is_loop_control_flow_manipulator(ControlFlowManipulator manip) {

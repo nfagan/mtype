@@ -10,33 +10,18 @@
 
 namespace mt {
 
-struct ParseScope;
+struct MatlabScope;
 class StringRegistry;
 
+/*
+ * IdentifierScope
+ */
 class IdentifierScope {
   friend class IdentifierClassifier;
 
-  struct AssignmentResult {
-    AssignmentResult() : success(true) {
-
-    }
-    AssignmentResult(bool success, IdentifierType type) : success(success), error_already_had_type(type) {
-      //
-    }
-
-    bool success;
-    IdentifierType error_already_had_type;
-  };
-
-  struct ReferenceResult {
-    ReferenceResult(bool success, IdentifierType classified_type) :
-    success(success), classified_type(classified_type) {
-      //
-    }
-    bool success;
-    IdentifierType classified_type;
-  };
-
+  /*
+   * IdentifierContext
+   */
   struct IdentifierContext {
     IdentifierContext() : depth(0), uuid(0) {
       //
@@ -49,26 +34,70 @@ class IdentifierScope {
     int64_t uuid;
   };
 
+  /*
+   * IdentifierInfo
+   */
   struct IdentifierInfo {
-    IdentifierInfo() = default;
+    IdentifierInfo() : type(IdentifierType::unknown), function_def(nullptr) {
+      //
+    }
 
     IdentifierInfo(IdentifierType type, IdentifierContext context) :
-    IdentifierInfo(type, context, nullptr) {
+      IdentifierInfo(type, context, static_cast<FunctionDef*>(nullptr)) {
       //
     }
 
     IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionDef* definition) :
-      type(type), context(context), definition(definition) {
+      type(type), context(context), function_def(definition) {
+      //
+    }
+
+    IdentifierInfo(IdentifierType type, IdentifierContext context, VariableDef* definition) :
+      type(type), context(context), variable_def(definition) {
       //
     }
 
     IdentifierType type;
     IdentifierContext context;
-    FunctionDef* definition;
+
+    union {
+      FunctionDef* function_def;
+      VariableDef* variable_def;
+    };
+  };
+
+  /*
+   * AssignmentResult
+   */
+  struct AssignmentResult {
+    AssignmentResult() : success(true), was_initialization(false) {
+
+    }
+    AssignmentResult(bool success, IdentifierType type) :
+    success(success), was_initialization(false), error_already_had_type(type) {
+      //
+    }
+
+    bool success;
+    bool was_initialization;
+    std::unique_ptr<VariableDef> variable_def;
+    IdentifierType error_already_had_type;
+  };
+
+  /*
+   * ReferenceResult
+   */
+  struct ReferenceResult {
+    ReferenceResult(bool success, IdentifierInfo info) :
+    success(success), info(info) {
+      //
+    }
+    bool success;
+    IdentifierInfo info;
   };
 
 public:
-  IdentifierScope(IdentifierClassifier* classifier, std::shared_ptr<ParseScope> parse_scope, int parent_index) :
+  IdentifierScope(IdentifierClassifier* classifier, std::shared_ptr<MatlabScope> parse_scope, int parent_index) :
   classifier(classifier),
   parse_scope(std::move(parse_scope)),
   parent_index(parent_index),
@@ -83,10 +112,12 @@ private:
   bool has_parent() const;
   AssignmentResult register_variable_assignment(int64_t id);
   ReferenceResult register_identifier_reference(int64_t id);
+
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
   FunctionDef* lookup_function(int64_t name) const;
+  static FunctionDef* lookup_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope);
 
-  static FunctionDef* lookup_function(int64_t name, const std::shared_ptr<ParseScope>& lookup_scope);
+  bool has_variable(int64_t id, bool traverse_parent);
 
   const IdentifierScope* parent() const;
   IdentifierScope* parent();
@@ -99,35 +130,38 @@ private:
 
 private:
   IdentifierClassifier* classifier;
-  std::shared_ptr<ParseScope> parse_scope;
+  std::shared_ptr<MatlabScope> parse_scope;
   int parent_index;
-  std::set<int64_t> sibling_functions;
-  std::set<int64_t> child_functions;
 
   std::vector<IdentifierContext> contexts;
   int64_t context_uuid;
   std::unordered_map<int64_t, IdentifierInfo> classified_identifiers;
 };
 
+/*
+ * IdentifierClassifier
+ */
+
 class IdentifierClassifier {
   friend class IdentifierScope;
 
 public:
-  IdentifierClassifier(StringRegistry* string_registry, std::string_view text) :
-  string_registry(string_registry), text(text), scope_depth(-1), is_lhs(false) {
-    push_scope(nullptr);
-  }
+  IdentifierClassifier(StringRegistry* string_registry, std::string_view text);
   ~IdentifierClassifier() = default;
 
   Block* block(Block& block);
   Def* function_def(FunctionDef& def);
   Expr* identifier_reference_expr(IdentifierReferenceExpr& expr);
+  Expr* dynamic_field_reference_expr(DynamicFieldReferenceExpr& expr);
+  Expr* grouping_expr(GroupingExpr& expr);
 
   IfStmt* if_stmt(IfStmt& stmt);
   ExprStmt* expr_stmt(ExprStmt& stmt);
   AssignmentStmt* assignment_stmt(AssignmentStmt& stmt);
 
   void if_branch(IfBranch& branch);
+  void subscripts(std::vector<Subscript>& subscripts, int64_t begin);
+  void subscript(Subscript& sub);
 
   const ParseErrors& get_errors() const {
     return errors;
@@ -137,28 +171,58 @@ private:
   template <typename T>
   static void conditional_reset(std::unique_ptr<T>& source, T* maybe_new_ptr);
 
-  void push_scope(const std::shared_ptr<ParseScope>& parse_scope);
+  void push_scope(const std::shared_ptr<MatlabScope>& parse_scope);
   void pop_scope();
+
+  void push_context();
+  void pop_context();
+
+  void push_lhs();
+  void push_rhs();
+  void pop_expr_side();
+
+  bool is_lhs() const;
 
   IdentifierScope* scope_at(int index);
   const IdentifierScope* scope_at(int index) const;
   IdentifierScope* current_scope();
   const IdentifierScope* current_scope() const;
 
+  void register_variable_assignments(const Token& source_token, std::vector<int64_t>& identifiers);
+
   Expr* identifier_reference_expr_lhs(IdentifierReferenceExpr& expr);
   Expr* identifier_reference_expr_rhs(IdentifierReferenceExpr& expr);
 
+  FunctionCallExpr* make_function_call_expr(IdentifierReferenceExpr& from_expr,
+                                            int64_t subscript_end,
+                                            int64_t name,
+                                            FunctionDef* function_def);
+
+  void block_preserve_context(BoxedBlock& block);
+  void block_new_context(BoxedBlock& block);
+
+  void mark_error_identifier(int64_t identifier);
+  bool added_error_for_identifier(int64_t identifier) const;
   void add_error(ParseError&& error);
+  void add_error_if_new_identifier(ParseError&& err, int64_t identifier);
+
+  Optional<ParseError> check_function_reference_subscript(const IdentifierReferenceExpr& expr, int64_t subscript_end);
 
   ParseError make_error_assignment_to_non_variable(const Token& at_token, int64_t identifier, IdentifierType present_type);
+  ParseError make_error_variable_referenced_before_assignment(const Token& at_token, int64_t identifier);
+  ParseError make_error_implicit_variable_initialization(const Token& at_token);
+  ParseError make_error_invalid_function_call_expr(const Token& at_token);
+  ParseError make_error_invalid_function_index_expr(const Token& at_token);
 
 private:
   StringRegistry* string_registry;
   std::string_view text;
 
   std::vector<IdentifierScope> scopes;
+  std::vector<std::set<int64_t>> error_identifiers_by_scope;
   int scope_depth;
-  bool is_lhs;
+
+  std::vector<bool> expr_sides;
 
   ParseErrors errors;
 };

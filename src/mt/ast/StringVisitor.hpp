@@ -12,11 +12,15 @@ namespace mt {
 class StringVisitor {
 public:
   explicit StringVisitor(const StringRegistry* string_registry) :
-  parenthesize_exprs(true), tab_depth(-1), string_registry(string_registry) {
+  parenthesize_exprs(true),
+  include_identifier_classification(true),
+  include_function_def_ptrs(true),
+  tab_depth(-1), string_registry(string_registry) {
     //
   }
   ~StringVisitor() = default;
 
+  std::string variable_def(const VariableDef& def) const;
   std::string function_def(const FunctionDef& def) const;
   std::string function_header(const FunctionHeader& header) const;
   std::string block(const Block& block) const;
@@ -35,7 +39,8 @@ public:
   std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
   std::string else_branch(const ElseBranch& branch) const;
 
-  std::string function_reference_expr(const FunctionReferenceExpr &expr) const;
+  std::string function_call_expr(const FunctionCallExpr& expr) const;
+  std::string function_reference_expr(const FunctionReferenceExpr& expr) const;
   std::string anonymous_function_expr(const AnonymousFunctionExpr& expr) const;
   std::string colon_subscript_expr(const ColonSubscriptExpr& expr) const;
   std::string char_literal_expr(const CharLiteralExpr& expr) const;
@@ -72,6 +77,8 @@ private:
 
 public:
   bool parenthesize_exprs;
+  bool include_identifier_classification;
+  bool include_function_def_ptrs;
 
 private:
   mutable int tab_depth;

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <limits>
 #include <cassert>
+#include <iomanip>
+#include <sstream>
 
 namespace mt {
 
@@ -44,11 +46,12 @@ int64_t StringRegistry::register_string(std::string_view str) {
     //  String not yet registered.
     int64_t next_index = strings.size();
 #if MT_COPY_STRING_TO_REGISTRY
+    strings.push_back(search);
     string_registry[search] = next_index;
 #else
     string_registry[str] = next_index;
-#endif
     strings.push_back(str);
+#endif
     return next_index;
   } else {
     return it->second;
@@ -57,6 +60,10 @@ int64_t StringRegistry::register_string(std::string_view str) {
 
 int64_t StringRegistry::make_registered_compound_identifier(const std::vector<int64_t>& components, int64_t num) {
   return register_string(join(collect_n(components, num), "."));
+}
+
+int64_t StringRegistry::make_registered_compound_identifier(const std::vector<int64_t>& components) {
+  return make_registered_compound_identifier(components, components.size());
 }
 
 void StringRegistry::register_strings(const std::vector<std::string_view>& strs, std::vector<int64_t>& out) {
@@ -119,6 +126,12 @@ std::vector<int64_t> find_character(const char* str, int64_t len, const Characte
   }
 
   return result;
+}
+
+std::string ptr_to_hex_string(const void* ptr) {
+  std::stringstream stream;
+  stream << std::hex << uint64_t(ptr);
+  return stream.str();
 }
 
 std::string mark_text_with_message_and_context(std::string_view text, int64_t start, int64_t stop,

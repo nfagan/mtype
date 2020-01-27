@@ -35,7 +35,7 @@ struct Expr : public AstNode {
     return false;
   }
 
-  virtual bool build_prefix(std::vector<int64_t>&) const {
+  virtual bool append_to_compound_identifier(std::vector<int64_t>&) const {
     return false;
   }
 };
@@ -55,7 +55,9 @@ struct Def : public AstNode {
   ~Def() override = default;
 
   std::string accept(const StringVisitor& vis) const override = 0;
-  Def* accept(IdentifierClassifier&) override = 0;
+  Def* accept(IdentifierClassifier&) override {
+    return this;
+  }
 };
 
 struct TypeAnnot : public AstNode {

@@ -13,6 +13,10 @@ namespace mt {
 
 class StringRegistry;
 
+/*
+ * BlockDepths
+ */
+
 struct BlockDepths {
   BlockDepths() :
   function_def(0), for_stmt(0), parfor_stmt(0), if_stmt(0), while_stmt(0), try_stmt(0), switch_stmt(0) {
@@ -29,20 +33,38 @@ struct BlockDepths {
   int switch_stmt;
 };
 
-struct ParseScope {
-  explicit ParseScope(std::shared_ptr<ParseScope> parent) : parent(std::move(parent)) {
+/*
+ * MatlabScope
+ */
+
+struct MatlabScope {
+  explicit MatlabScope(std::shared_ptr<MatlabScope> parent) : parent(std::move(parent)) {
     //
   }
-  ~ParseScope() = default;
+  ~MatlabScope() = default;
 
-  void register_function(int64_t name, FunctionDef* def) {
-    functions[name] = def;
+  bool register_local_function(int64_t name, FunctionDef* def) {
+    if (local_functions.count(name) > 0) {
+      return false;
+    } else {
+      local_functions[name] = def;
+      return true;
+    }
   }
 
-  std::shared_ptr<ParseScope> parent;
-  std::unordered_map<int64_t, FunctionDef*> functions;
+  void register_local_variable(int64_t name, std::unique_ptr<VariableDef> def) {
+    local_variables[name] = std::move(def);
+  }
+
+  std::shared_ptr<MatlabScope> parent;
+  std::unordered_map<int64_t, FunctionDef*> local_functions;
+  std::unordered_map<int64_t, std::unique_ptr<VariableDef>> local_variables;
   std::set<int64_t> imports;
 };
+
+/*
+ * AstGenerator
+ */
 
 class AstGenerator {
   friend struct ParseScopeHelper;
@@ -144,6 +166,7 @@ private:
   ParseError make_error_duplicate_input_parameter_in_expr(const Token& at_token) const;
   ParseError make_error_loop_control_flow_manipulator_outside_loop(const Token& at_token) const;
   ParseError make_error_invalid_function_def_location(const Token& at_token) const;
+  ParseError make_error_duplicate_local_function(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
@@ -156,7 +179,7 @@ private:
 
   void push_scope();
   void pop_scope();
-  std::shared_ptr<ParseScope> current_scope() const;
+  std::shared_ptr<MatlabScope> current_scope() const;
 
   void add_error(ParseError&& err);
 
@@ -168,7 +191,7 @@ private:
   std::string_view text;
   StringRegistry* string_registry;
   BlockDepths block_depths;
-  std::vector<std::shared_ptr<ParseScope>> scopes;
+  std::vector<std::shared_ptr<MatlabScope>> scopes;
 
   bool is_end_terminated_function;
 
