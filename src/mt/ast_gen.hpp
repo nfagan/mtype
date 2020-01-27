@@ -75,9 +75,10 @@ public:
 
   ~AstGenerator() = default;
 
-  Result<ParseErrors, std::unique_ptr<Block>> parse(const std::vector<Token>& tokens,
-                                                    std::string_view text, StringRegistry& registry,
-                                                    bool functions_are_end_terminated);
+  Result<ParseErrors, std::unique_ptr<RootBlock>> parse(const std::vector<Token>& tokens,
+                                                        std::string_view text,
+                                                        StringRegistry& registry,
+                                                        bool functions_are_end_terminated);
 private:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();

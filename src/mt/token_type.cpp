@@ -423,6 +423,12 @@ const char* to_string(TokenType type) {
   }
 }
 
+bool unsafe_represents_keyword(TokenType type) {
+  //  @TODO: Implement this more carefully.
+  //  std::strlen("keyword")
+  return std::strncmp("keyword", to_string(type), 7) == 0;
+}
+
 bool represents_literal(TokenType type) {
   return type == TokenType::string_literal || type == TokenType::char_literal ||
     type == TokenType::number_literal;

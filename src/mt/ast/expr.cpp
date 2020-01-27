@@ -45,6 +45,10 @@ std::string LiteralFieldReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.literal_field_reference_expr(*this);
 }
 
+std::string VariableReferenceExpr::accept(const StringVisitor& vis) const {
+  return vis.variable_reference_expr(*this);
+}
+
 std::string FunctionCallExpr::accept(const StringVisitor& vis) const {
   return vis.function_call_expr(*this);
 }

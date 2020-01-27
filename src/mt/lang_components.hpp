@@ -7,7 +7,7 @@ namespace mt {
 enum class IdentifierType : uint8_t {
   variable_reference,
   variable_assignment_or_initialization,
-  resolved_local_function,
+  local_function,
   unresolved_external_function,
   resolved_external_function,
   unknown

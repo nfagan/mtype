@@ -70,17 +70,18 @@ class IdentifierScope {
    * AssignmentResult
    */
   struct AssignmentResult {
-    AssignmentResult() : success(true), was_initialization(false) {
+    AssignmentResult(VariableDef* resolved_def) :
+    success(true), was_initialization(false), variable_def(resolved_def) {
 
     }
-    AssignmentResult(bool success, IdentifierType type) :
-    success(success), was_initialization(false), error_already_had_type(type) {
+    AssignmentResult(bool success, IdentifierType type, VariableDef* new_def) :
+    success(success), was_initialization(false), variable_def(new_def), error_already_had_type(type) {
       //
     }
 
     bool success;
     bool was_initialization;
-    std::unique_ptr<VariableDef> variable_def;
+    VariableDef* variable_def;
     IdentifierType error_already_had_type;
   };
 
@@ -110,7 +111,7 @@ public:
 
 private:
   bool has_parent() const;
-  AssignmentResult register_variable_assignment(int64_t id);
+  AssignmentResult register_variable_assignment(int64_t id, bool force_shadow_parent_assignment = false);
   ReferenceResult register_identifier_reference(int64_t id);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
@@ -127,6 +128,8 @@ private:
   int current_context_depth() const;
   IdentifierContext current_context() const;
   const IdentifierContext* context_at_depth(int depth) const;
+
+  IdentifierInfo make_function_reference_identifier_info(FunctionDef* def);
 
 private:
   IdentifierClassifier* classifier;
@@ -149,6 +152,7 @@ public:
   IdentifierClassifier(StringRegistry* string_registry, std::string_view text);
   ~IdentifierClassifier() = default;
 
+  RootBlock* root_block(RootBlock& block);
   Block* block(Block& block);
   Def* function_def(FunctionDef& def);
   Expr* identifier_reference_expr(IdentifierReferenceExpr& expr);
@@ -188,7 +192,7 @@ private:
   IdentifierScope* current_scope();
   const IdentifierScope* current_scope() const;
 
-  void register_variable_assignments(const Token& source_token, std::vector<int64_t>& identifiers);
+  void register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers);
 
   Expr* identifier_reference_expr_lhs(IdentifierReferenceExpr& expr);
   Expr* identifier_reference_expr_rhs(IdentifierReferenceExpr& expr);

@@ -8,6 +8,8 @@ namespace mt {
 
 class StringVisitor;
 class IdentifierClassifier;
+struct MatlabScope;
+struct Block;
 
 struct AstNode {
   AstNode() = default;
@@ -83,6 +85,7 @@ using BoxedStmt = std::unique_ptr<Stmt>;
 using BoxedDef = std::unique_ptr<Def>;
 using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;
 using BoxedType = std::unique_ptr<Type>;
+using BoxedBlock = std::unique_ptr<Block>;
 
 struct Block : public AstNode {
   Block() = default;
@@ -97,6 +100,17 @@ struct Block : public AstNode {
   std::vector<BoxedAstNode> nodes;
 };
 
-using BoxedBlock = std::unique_ptr<Block>;
+struct RootBlock : public AstNode {
+  RootBlock(BoxedBlock block, std::shared_ptr<MatlabScope> scope) :
+  block(std::move(block)), scope(std::move(scope)) {
+    //
+  }
+  ~RootBlock() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  RootBlock* accept(IdentifierClassifier& classifier) override;
+
+  BoxedBlock block;
+  std::shared_ptr<MatlabScope> scope;
+};
 
 }

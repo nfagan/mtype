@@ -18,13 +18,14 @@ int main(int argc, char** argv) {
   if (argc < 2) {
 //    file_path = "/Users/Nick/Documents/MATLAB/repositories/mt/test/parse7.m";
     file_path = "/Users/Nick/repositories/cpp/mt/matlab/test/test_classification.m";
+//    file_path = "/Applications/Psychtoolbox/PsychCal/CalibrateManualDrvr.m";
   } else {
     file_path = argv[1];
   }
 
   std::ifstream ifs(file_path);
   if (!ifs) {
-    std::cout << "Failed to open file" << std::endl;
+    std::cout << "Failed to open file: " << file_path << std::endl;
     return 0;
   }
 
@@ -47,7 +48,6 @@ int main(int argc, char** argv) {
   }
 
   auto scan_info = std::move(scan_result.value);
-  std::cout << "Funcs are end terminated ? " << scan_info.functions_are_end_terminated << std::endl;
 //  show_tokens(scan_info.tokens);
 
   auto insert_res = insert_implicit_expr_delimiters_in_groupings(scan_info.tokens, contents);

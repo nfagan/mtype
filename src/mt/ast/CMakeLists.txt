@@ -1,6 +1,7 @@
 function(configure_ast)
 
     set(sources
+            ast.cpp
             ast.hpp
             def.hpp
             def.cpp

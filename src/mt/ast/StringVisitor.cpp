@@ -4,6 +4,15 @@
 
 namespace mt {
 
+namespace terminal_colors {
+  const char* const red = "\x1B[31m";
+  const char* const green = "\x1B[32m";
+  const char* const yellow = "\x1B[33m";
+  const char* const blue = "\x1B[34m";
+  const char* const dflt = "\x1B[0m";
+  std::array<const char*, 5> all = {{red, green, yellow, blue, dflt}};
+}
+
 void StringVisitor::enter_block() const {
   tab_depth++;
 }
@@ -18,12 +27,60 @@ void StringVisitor::maybe_parenthesize(std::string& str) const {
   }
 }
 
+void StringVisitor::maybe_colorize(std::string& str, TokenType type) const {
+  using namespace terminal_colors;
+  if (!colorize) {
+    return;
+  }
+
+  const char* color = dflt;
+
+  if (unsafe_represents_keyword(type)) {
+    color = yellow;
+  }
+
+  str = color + str + dflt;
+}
+
+void StringVisitor::maybe_colorize(std::string& str, int color_code_index) const {
+  using namespace terminal_colors;
+  const char* color_code = dflt;
+  if (color_code_index >= 0 && color_code_index < int(all.size())) {
+    color_code = all[color_code_index];
+  }
+  maybe_colorize(str, color_code);
+}
+
+void StringVisitor::maybe_colorize(std::string& str, const char* color_code) const {
+  if (colorize) {
+    str = color_code + str + terminal_colors::dflt;
+  }
+}
+
 std::string StringVisitor::tab_str() const {
   std::string res;
   for (int i = 0; i < tab_depth; i++) {
     res += "  ";
   }
   return res;
+}
+
+std::string StringVisitor::end_str() const {
+  auto str = std::string("end");
+  maybe_colorize(str, TokenType::keyword_end);
+  return str;
+}
+
+std::string StringVisitor::subscripts(const std::vector<Subscript>& subs) const {
+  std::string sub_str;
+  for (const auto& sub : subs) {
+    sub_str += subscript_expr(sub);
+  }
+  return sub_str;
+}
+
+std::string StringVisitor::root_block(const RootBlock& block) const {
+  return block.block->accept(*this);
 }
 
 std::string StringVisitor::block(const Block& block) const {
@@ -37,18 +94,20 @@ std::string StringVisitor::function_header(const FunctionHeader& header) const {
   auto outputs = join(string_registry->collect(header.outputs), ", ");
   auto inputs = join(string_registry->collect(header.inputs), ", ");
   auto name = std::string(string_registry->at(header.name));
-  return "function [" + outputs + "]" + " = " + name + "(" + inputs + ")";
+  auto func = std::string("function");
+  maybe_colorize(func, TokenType::keyword_function);
+  return func + " [" + outputs + "]" + " = " + name + "(" + inputs + ")";
 }
 
 std::string StringVisitor::function_def(const FunctionDef& def) const {
   std::string ptr_str;
-  if (include_function_def_ptrs) {
+  if (include_def_ptrs) {
     ptr_str = "<" + ptr_to_hex_string(&def) + "> ";
   }
 
   const auto header = tab_str() + ptr_str + function_header(def.header);
   auto body = def.body->accept(*this);
-  auto end = tab_str() + "end";
+  auto end = tab_str() + end_str();
   return header + "\n" + body + "\n" + end;
 }
 
@@ -67,61 +126,75 @@ std::string StringVisitor::assignment_stmt(const AssignmentStmt& stmt) const {
 }
 
 std::string StringVisitor::for_stmt(const ForStmt& stmt) const {
+  std::string for_str = "for";
+  maybe_colorize(for_str, stmt.source_token.type);
   std::string loop_var_str = std::string(string_registry->at(stmt.loop_variable_identifier));
-  std::string str = tab_str() + "for " + loop_var_str + " = ";
+  std::string str = tab_str() + for_str + " " + loop_var_str + " = ";
   str += stmt.loop_variable_expr->accept(*this) + "\n";
-  str += (stmt.body->accept(*this) + "\n" + tab_str() + "end");
+  str += (stmt.body->accept(*this) + "\n" + tab_str() + end_str());
   return str;
 }
 
 std::string StringVisitor::if_stmt(const IfStmt& stmt) const {
   auto str = if_branch(stmt.if_branch, "if");
   for (const auto& elseif_branch : stmt.elseif_branches) {
-    //  @Note -- Directly pass branch to function here.
     str += ("\n" + if_branch(elseif_branch, "elseif"));
   }
   if (stmt.else_branch) {
     str += ("\n" + else_branch(stmt.else_branch.value()));
   }
-  str += ("\n" + tab_str() + "end");
+  str += ("\n" + tab_str() + end_str());
   return str;
 }
 
 std::string StringVisitor::while_stmt(const WhileStmt& stmt) const {
-  auto str = tab_str() + "while " + stmt.condition_expr->accept(*this) + "\n";
+  std::string while_str = "while ";
+  maybe_colorize(while_str, stmt.source_token.type);
+  auto str = tab_str() + while_str + stmt.condition_expr->accept(*this) + "\n";
   str += stmt.body->accept(*this);
-  str += ("\n" + tab_str() + "end");
+  str += ("\n" + tab_str() + end_str());
   return str;
 }
 
 std::string StringVisitor::switch_stmt(const SwitchStmt& stmt) const {
-  auto str = tab_str() + "switch " + stmt.condition_expr->accept(*this) + "\n";
+  std::string switch_str = "switch ";
+  maybe_colorize(switch_str, stmt.source_token.type);
+  auto str = tab_str() + switch_str + stmt.condition_expr->accept(*this) + "\n";
   enter_block();
   for (const auto& case_block : stmt.cases) {
-    str += (tab_str() + "case " + case_block.expr->accept(*this) + "\n");
+    std::string case_str = "case ";
+    maybe_colorize(case_str, case_block.source_token.type);
+    str += (tab_str() + case_str + case_block.expr->accept(*this) + "\n");
     str += (case_block.block->accept(*this) + "\n");
   }
   if (stmt.otherwise) {
-    str += (tab_str() + "otherwise " + "\n" + stmt.otherwise->accept(*this) + "\n");
+    std::string otherwise_str = "otherwise ";
+    maybe_colorize(otherwise_str, TokenType::keyword_otherwise);
+    str += (tab_str() + otherwise_str + "\n" + stmt.otherwise->accept(*this) + "\n");
   }
   exit_block();
-  str += (tab_str() + "end");
+  str += (tab_str() + end_str());
   return str;
 }
 
 std::string StringVisitor::try_stmt(const TryStmt& stmt) const {
-  auto str = tab_str() + "try\n";
+  std::string try_str = "try";
+  maybe_colorize(try_str, stmt.source_token.type);
+
+  auto str = tab_str() + try_str + "\n";
   str += (stmt.try_block->accept(*this) + "\n");
 
   if (stmt.catch_block) {
-    str += (tab_str() + "catch ");
+    std::string catch_str = "catch ";
+    maybe_colorize(catch_str, stmt.catch_block.value().source_token.type);
+    str += (tab_str() + catch_str);
     if (stmt.catch_block.value().expr) {
       str += stmt.catch_block.value().expr->accept(*this);
     }
     str += ("\n" + stmt.catch_block.value().block->accept(*this) + "\n");
   }
 
-  str += (tab_str() + "end");
+  str += (tab_str() + end_str());
   return str;
 }
 
@@ -145,13 +218,17 @@ std::string StringVisitor::control_stmt(const ControlStmt& stmt) const {
 }
 
 std::string StringVisitor::if_branch(const IfBranch& branch, const char* branch_prefix) const {
-  auto str = tab_str() + branch_prefix + " " + branch.condition_expr->accept(*this) + "\n";
+  std::string branch_str(branch_prefix);
+  maybe_colorize(branch_str, branch.source_token.type);
+  auto str = tab_str() + branch_str + " " + branch.condition_expr->accept(*this) + "\n";
   str += branch.block->accept(*this);
   return str;
 }
 
 std::string StringVisitor::else_branch(const ElseBranch& branch) const {
-  return tab_str() + "else\n" + branch.block->accept(*this);
+  std::string else_str = "else";
+  maybe_colorize(else_str, branch.source_token.type);
+  return tab_str() + else_str + "\n" + branch.block->accept(*this);
 }
 
 std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& expr) const {
@@ -160,26 +237,40 @@ std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& 
   return str;
 }
 
+std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& expr) const {
+  std::string str = std::string(string_registry->at(expr.name));
+  std::string sub_str = subscripts(expr.subscripts);
+
+  if (expr.is_initializer) {
+    maybe_colorize(str, 3);
+  }
+
+  if (include_def_ptrs) {
+    str = "<" + ptr_to_hex_string(expr.variable_def) + " " + str + ">";
+  }
+
+  str += sub_str;
+  maybe_parenthesize(str);
+  return str;
+}
+
 std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
   auto name = std::string(string_registry->at(expr.name));
   const auto arg_str = visit_array(expr.arguments, ", ");
-  std::string sub_str;
-
-  for (const auto& sub : expr.subscripts) {
-    sub_str += subscript_expr(sub);
-  }
+  auto sub_str = subscripts(expr.subscripts);
 
   const std::string call_expr_str = "(" + arg_str + ")" + sub_str;
 
   if (include_identifier_classification) {
-    const std::string resolved_str = expr.function_def == nullptr ? "unresolved" : "resolved";
-    std::string ptr_str;
+    int color_code = expr.function_def ? 1 : 0;
+    maybe_colorize(name, color_code);
 
-    if (include_function_def_ptrs && expr.function_def != nullptr) {
-      ptr_str = ptr_to_hex_string(expr.function_def) + " ";
+    if (include_def_ptrs && expr.function_def != nullptr) {
+      auto ptr_str = ptr_to_hex_string(expr.function_def) + " ";
+      return "<" + ptr_str + name + ">" + call_expr_str;
+    } else {
+      return name + call_expr_str;
     }
-
-    return "<" + resolved_str + " fn " + ptr_str + name + ">" + call_expr_str;
   } else {
     return name + call_expr_str;
   }
@@ -232,10 +323,7 @@ std::string StringVisitor::literal_field_reference_expr(const LiteralFieldRefere
 }
 
 std::string StringVisitor::identifier_reference_expr(const IdentifierReferenceExpr& expr) const {
-  std::string sub_str;
-  for (const auto& sub : expr.subscripts) {
-    sub_str += subscript_expr(sub);
-  }
+  std::string sub_str = subscripts(expr.subscripts);
   std::string str = std::string(string_registry->at(expr.primary_identifier)) + sub_str;
   maybe_parenthesize(str);
   return str;

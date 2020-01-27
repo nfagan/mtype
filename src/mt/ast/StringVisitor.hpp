@@ -12,10 +12,11 @@ namespace mt {
 class StringVisitor {
 public:
   explicit StringVisitor(const StringRegistry* string_registry) :
-  parenthesize_exprs(true),
-  include_identifier_classification(true),
-  include_function_def_ptrs(true),
-  tab_depth(-1), string_registry(string_registry) {
+    parenthesize_exprs(true),
+    include_identifier_classification(true),
+    include_def_ptrs(true),
+    colorize(true),
+    tab_depth(-1), string_registry(string_registry) {
     //
   }
   ~StringVisitor() = default;
@@ -24,6 +25,7 @@ public:
   std::string function_def(const FunctionDef& def) const;
   std::string function_header(const FunctionHeader& header) const;
   std::string block(const Block& block) const;
+  std::string root_block(const RootBlock& block) const;
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
@@ -39,6 +41,7 @@ public:
   std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
   std::string else_branch(const ElseBranch& branch) const;
 
+  std::string variable_reference_expr(const VariableReferenceExpr& expr) const;
   std::string function_call_expr(const FunctionCallExpr& expr) const;
   std::string function_reference_expr(const FunctionReferenceExpr& expr) const;
   std::string anonymous_function_expr(const AnonymousFunctionExpr& expr) const;
@@ -67,7 +70,14 @@ public:
 
 private:
   void maybe_parenthesize(std::string& str) const;
+  void maybe_colorize(std::string& str, TokenType type) const;
+  void maybe_colorize(std::string& str, int color_code_index) const;
+  void maybe_colorize(std::string& str, const char* color_code) const;
+
   std::string tab_str() const;
+  std::string end_str() const;
+
+  std::string subscripts(const std::vector<Subscript>& subs) const;
 
   template <typename T>
   std::string visit_array(const std::vector<T>& visitables, const std::string& delim) const;
@@ -78,7 +88,8 @@ private:
 public:
   bool parenthesize_exprs;
   bool include_identifier_classification;
-  bool include_function_def_ptrs;
+  bool include_def_ptrs;
+  bool colorize;
 
 private:
   mutable int tab_depth;

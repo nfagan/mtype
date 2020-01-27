@@ -5,6 +5,14 @@
 
 namespace mt {
 
+RootBlock* RootBlock::accept(IdentifierClassifier& classifier) {
+  return classifier.root_block(*this);
+}
+
+std::string RootBlock::accept(const StringVisitor& vis) const {
+  return vis.root_block(*this);
+}
+
 std::string Block::accept(const StringVisitor& vis) const {
   return vis.block(*this);
 }

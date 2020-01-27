@@ -104,6 +104,7 @@ const char* to_string(TokenType type);
 const char* to_symbol(TokenType type);
 TokenType from_symbol(std::string_view s);
 
+bool unsafe_represents_keyword(TokenType type);
 bool represents_binary_operator(TokenType type);
 bool represents_unary_operator(TokenType type);
 bool represents_prefix_unary_operator(TokenType type);

@@ -28,7 +28,7 @@ struct ParseScopeHelper {
   AstGenerator& gen;
 };
 
-Result<ParseErrors, std::unique_ptr<Block>>
+Result<ParseErrors, std::unique_ptr<RootBlock>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
                     StringRegistry& registry, bool functions_are_end_terminated) {
 
@@ -40,13 +40,18 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
 
   block_depths = BlockDepths();
   scopes.clear();
-  push_scope();
+  ParseScopeHelper scope_helper(*this);
 
   auto result = block();
+
   if (result) {
-    return make_success<ParseErrors, std::unique_ptr<Block>>(result.rvalue());
+    auto block_node = std::move(result.rvalue());
+    auto scope = current_scope();
+
+    auto root_node = std::make_unique<RootBlock>(std::move(block_node), std::move(scope));
+    return make_success<ParseErrors, std::unique_ptr<RootBlock>>(std::move(root_node));
   } else {
-    return make_error<ParseErrors, std::unique_ptr<Block>>(std::move(parse_errors));
+    return make_error<ParseErrors, std::unique_ptr<RootBlock>>(std::move(parse_errors));
   }
 }
 

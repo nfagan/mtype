@@ -111,6 +111,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (inputs.show_ast) {
     mt::StringVisitor visitor(&string_registry);
     visitor.parenthesize_exprs = true;
+    visitor.colorize = false;
     std::cout << block->accept(visitor) << std::endl;
     std::cout << "Num strings: " << string_registry.size() << std::endl;
   }

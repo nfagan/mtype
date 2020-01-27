@@ -31,50 +31,63 @@ void IdentifierScope::pop_context() {
   contexts.pop_back();
 }
 
-IdentifierScope::AssignmentResult IdentifierScope::register_variable_assignment(int64_t id) {
+IdentifierScope::AssignmentResult
+IdentifierScope::register_variable_assignment(int64_t id, bool force_shadow_parent_assignment) {
   auto* info = lookup_variable(id, false);
 
   //  This identifier has not been classified. Register it as a variable assignment.
   if (!info) {
     auto* parent_info = lookup_variable(id, true);
+    const bool is_parent_assignment = parent_info &&
+      parent_info->type == IdentifierType::variable_assignment_or_initialization;
 
-    if (parent_info && parent_info->type == IdentifierType::variable_assignment_or_initialization) {
+    if (is_parent_assignment && !force_shadow_parent_assignment) {
       //  Variable is shared from parent scope.
       IdentifierInfo new_info = *parent_info;
       new_info.context = current_context();
       classified_identifiers[id] = new_info;
 
-      return AssignmentResult();
+      return AssignmentResult(new_info.variable_def);
 
     } else {
-      //  New variable assignment shadows parent declaration.
-      auto variable_def = std::make_unique<VariableDef>(id);
+      //  New variable assignment shadows parent declaration. Caller needs to check for
+      //  was_initialization to take ownership of variable_def.
+      auto* variable_def = new VariableDef(id);
       const auto type = IdentifierType::variable_assignment_or_initialization;
 
-      IdentifierInfo new_info(type, current_context(), variable_def.get());
+      IdentifierInfo new_info(type, current_context(), variable_def);
       classified_identifiers[id] = new_info;
 
-      AssignmentResult result;
-      result.was_initialization = true;
-      result.variable_def = std::move(variable_def);
+      //
+//      variable_assignments_by_depth[current_context_depth()].emplace(id, current_context().uuid);
 
-      return result;
+      AssignmentResult success_result(variable_def);
+      success_result.was_initialization = true;
+
+      return success_result;
     }
   }
 
   //  Otherwise, we must confirm that the previous usage of the identifier was a variable.
   if (!is_variable(info->type)) {
     //  This identifier was previously used as a different type of symbol.
-    return AssignmentResult(false, info->type);
+    return AssignmentResult(false, info->type, nullptr);
   }
 
+  // Now we've successfully resolved the variable assignment.
   if (current_context_depth() <= info->context.depth) {
-    //  The variable has now been assigned in a lower context depth, so is safe to reference from
-    //  higher context depths from now on.
+    //  The variable has now been assigned in a lower context depth or later context at the same
+    //  depth, so it is safe to reference from higher context depths from now on.
     info->context = current_context();
   }
 
-  return AssignmentResult();
+  return AssignmentResult(info->variable_def);
+}
+
+namespace {
+inline IdentifierType identifier_type_from_function_def(FunctionDef* def) {
+  return def ? IdentifierType::local_function : IdentifierType::unresolved_external_function;
+}
 }
 
 IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(int64_t id) {
@@ -88,15 +101,22 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  This identifier has not been classified, and has not been assigned or initialized, so it is
     //  either an external function reference or a reference to a function in the current or
     //  a parent's scope.
-    FunctionDef* maybe_function_def = lookup_function(id);
-    auto type = maybe_function_def ? IdentifierType::resolved_local_function : IdentifierType::unresolved_external_function;
-    IdentifierInfo new_info(type, current_context(), maybe_function_def);
+    auto new_info = make_function_reference_identifier_info(lookup_function(id));
     classified_identifiers[id] = new_info;
     return ReferenceResult(true, new_info);
 
   } else if (!local_info) {
-    //  This is an identifier in a parent scope, and inherits its usage info.
-    classified_identifiers[id] = *info;
+    //  This is an identifier in a parent scope, but we need to check to see if any local functions
+    //  take precedence over the parent's usage of the identifier.
+    FunctionDef* maybe_function_def = lookup_function(id);
+    if (!maybe_function_def) {
+      //  No local function in the current scope, so it inherits the usage from the parent.
+      classified_identifiers[id] = *info;
+    } else {
+      auto new_info = make_function_reference_identifier_info(maybe_function_def);
+      classified_identifiers[id] = new_info;
+      return ReferenceResult(true, new_info);
+    }
   }
 
   //  Otherwise, this identifier exists either in the current or a parent's scope.
@@ -115,6 +135,11 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
   } else {
     return ReferenceResult(true, *info);
   }
+}
+
+IdentifierScope::IdentifierInfo IdentifierScope::make_function_reference_identifier_info(FunctionDef* def) {
+  auto type = identifier_type_from_function_def(def);
+  return IdentifierInfo(type, current_context(), def);
 }
 
 FunctionDef* IdentifierScope::lookup_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope) {
@@ -232,12 +257,19 @@ IdentifierScope* IdentifierClassifier::current_scope() {
   return scope_at(scope_depth);
 }
 
-void IdentifierClassifier::register_variable_assignments(const Token& source_token, std::vector<int64_t>& identifiers) {
+void IdentifierClassifier::register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers) {
   for (const auto& id : identifiers) {
-    auto assign_res = current_scope()->register_variable_assignment(id);
+    //  Input and output parameters always introduce new local variables.
+    const bool force_shadow_parent_assignment = true;
+    auto assign_res = current_scope()->register_variable_assignment(id, force_shadow_parent_assignment);
+
     if (!assign_res.success) {
       auto err = make_error_assignment_to_non_variable(source_token, id, assign_res.error_already_had_type);
       add_error_if_new_identifier(std::move(err), id);
+
+    } else if (assign_res.was_initialization) {
+      std::unique_ptr<VariableDef> variable_def(assign_res.variable_def);
+      current_scope()->parse_scope->register_local_variable(id, std::move(variable_def));
     }
   }
 }
@@ -299,17 +331,21 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
     add_error_if_new_identifier(std::move(err), primary_identifier);
   }
 
-  if (primary_result.was_initialization && !expr.subscripts.empty()) {
-    //  Implicit variable initialization of the form a.b = 3;
-    auto err = make_error_implicit_variable_initialization(expr.source_token);
-    add_error_if_new_identifier(std::move(err), primary_identifier);
-  }
-
   if (primary_result.was_initialization) {
-    //  Register the definition of this variable.
-    assert(primary_result.variable_def.get() && "Expected allocated VariableDef object.");
+    if (!expr.subscripts.empty()) {
+      //  Implicit variable initialization of the form e.g. `a.b = 3;` Mark this as an error,
+      //  but still proceed to take ownership of the local variable.
+      auto err = make_error_implicit_variable_initialization(expr.source_token);
+      add_error_if_new_identifier(std::move(err), primary_identifier);
+    }
+
+    //  Register the definition of this variable, and take ownership of the definition.
+    std::unique_ptr<VariableDef> variable_def(primary_result.variable_def);
+    assert(variable_def.get() && "Expected newly allocated VariableDef object.");
+
     auto& parse_scope = current_scope()->parse_scope;
-    parse_scope->register_local_variable(primary_identifier, std::move(primary_result.variable_def));
+    assert(parse_scope && "No parse scope.");
+    parse_scope->register_local_variable(primary_identifier, std::move(variable_def));
   }
 
   int64_t subscript_end;
@@ -320,7 +356,10 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
   subscripts(expr.subscripts, subscript_end);
   pop_expr_side();
 
-  return &expr;
+  auto* node = new VariableReferenceExpr(expr.source_token, primary_result.variable_def,
+    primary_identifier, std::move(expr.subscripts), primary_result.was_initialization);
+
+  return node;
 }
 
 Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenceExpr& expr) {
@@ -336,7 +375,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
     add_error_if_new_identifier(std::move(err), primary_identifier);
   }
 
-  const bool is_compound_function_identifier = !is_variable && subscript_end > 1;
+  const bool is_compound_function_identifier = !is_variable && subscript_end > 0;
   int64_t function_name = primary_identifier;
   FunctionDef* function_def = nullptr;
 
@@ -370,7 +409,10 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   //  Proceed beginning from the first non literal field reference subscript.
   subscripts(expr.subscripts, subscript_end);
 
-  return &expr;
+  auto* node = new VariableReferenceExpr(expr.source_token, primary_result.info.variable_def,
+    primary_identifier, std::move(expr.subscripts), false);
+
+  return node;
 }
 
 FunctionCallExpr* IdentifierClassifier::make_function_call_expr(IdentifierReferenceExpr& from_expr,
@@ -449,15 +491,24 @@ Def* IdentifierClassifier::function_def(FunctionDef& def) {
   for (const auto& it : scope->parse_scope->local_functions) {
     //  Local functions take precedence over variables.
     auto res = scope->register_identifier_reference(it.second->header.name);
-    assert(res.success && "Failed to register local function.");
+    if (!res.success) {
+      assert(res.success && "Failed to register local function.");
+    }
   }
 
-  register_variable_assignments(def.header.name_token, def.header.inputs);
-  register_variable_assignments(def.header.name_token, def.header.outputs);
+  register_function_parameters(def.header.name_token, def.header.inputs);
+  register_function_parameters(def.header.name_token, def.header.outputs);
 
   block_new_context(def.body);
   pop_scope();
   return &def;
+}
+
+RootBlock* IdentifierClassifier::root_block(RootBlock& block) {
+  push_scope(block.scope);
+  conditional_reset(block.block, block.block->accept(*this));
+  pop_scope();
+  return &block;
 }
 
 Block* IdentifierClassifier::block(Block& block) {

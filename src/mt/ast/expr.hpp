@@ -9,6 +9,7 @@
 namespace mt {
 
 struct FunctionDef;
+struct VariableDef;
 
 struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
@@ -163,6 +164,29 @@ struct FunctionCallExpr : public Expr {
   int64_t name;
   std::vector<BoxedExpr> arguments;
   std::vector<Subscript> subscripts;
+};
+
+struct VariableReferenceExpr : public Expr {
+  VariableReferenceExpr(const Token& source_token,
+                        VariableDef* variable_def,
+                        int64_t name,
+                        std::vector<Subscript>&& subscripts,
+                        bool is_initializer) :
+  source_token(source_token),
+  variable_def(variable_def),
+  name(name),
+  subscripts(std::move(subscripts)),
+  is_initializer(is_initializer) {
+    //
+  }
+  ~VariableReferenceExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  VariableDef* variable_def;
+  int64_t name;
+  std::vector<Subscript> subscripts;
+  bool is_initializer;
 };
 
 struct IdentifierReferenceExpr : public Expr {
