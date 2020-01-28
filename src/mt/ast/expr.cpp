@@ -77,8 +77,16 @@ std::string UnaryOperatorExpr::accept(const StringVisitor& vis) const {
   return vis.unary_operator_expr(*this);
 }
 
+Expr* UnaryOperatorExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.unary_operator_expr(*this);
+}
+
 std::string BinaryOperatorExpr::accept(const StringVisitor& vis) const {
   return vis.binary_operator_expr(*this);
+}
+
+Expr* BinaryOperatorExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.binary_operator_expr(*this);
 }
 
 }

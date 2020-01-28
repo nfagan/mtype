@@ -145,13 +145,11 @@ struct Subscript {
 
 struct FunctionCallExpr : public Expr {
   FunctionCallExpr(const Token& source_token,
-                   FunctionDef* function_def,
-                   int64_t name,
+                   FunctionReference* function_reference,
                    std::vector<BoxedExpr>&& arguments,
                    std::vector<Subscript>&& subscripts) :
     source_token(source_token),
-    function_def(function_def),
-    name(name),
+    function_reference(function_reference),
     arguments(std::move(arguments)),
     subscripts(std::move(subscripts)) {
     //
@@ -160,8 +158,7 @@ struct FunctionCallExpr : public Expr {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  FunctionDef* function_def;
-  int64_t name;
+  FunctionReference* function_reference;
   std::vector<BoxedExpr> arguments;
   std::vector<Subscript> subscripts;
 };
@@ -264,6 +261,7 @@ struct UnaryOperatorExpr : public Expr {
   }
   ~UnaryOperatorExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   UnaryOperator op;
@@ -277,6 +275,7 @@ struct BinaryOperatorExpr : public Expr {
   }
   ~BinaryOperatorExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   BinaryOperator op;

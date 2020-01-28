@@ -435,8 +435,14 @@ bool represents_literal(TokenType type) {
 }
 
 bool represents_expr_terminator(TokenType type) {
+  return represents_stmt_terminator(type) || represents_grouping_terminator(type) || type == TokenType::equal;
+//  return type == TokenType::semicolon || type == TokenType::comma || type == TokenType::new_line ||
+//    type == TokenType::null || type == TokenType::equal || represents_grouping_terminator(type);
+}
+
+bool represents_stmt_terminator(TokenType type) {
   return type == TokenType::semicolon || type == TokenType::comma || type == TokenType::new_line ||
-    type == TokenType::null || type == TokenType::equal || represents_grouping_terminator(type);
+    type == TokenType::null;
 }
 
 bool represents_grouping_component(TokenType type) {

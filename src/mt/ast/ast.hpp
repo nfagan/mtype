@@ -12,6 +12,7 @@ class StringVisitor;
 class IdentifierClassifier;
 struct Block;
 struct FunctionDef;
+struct FunctionReference;
 struct VariableDef;
 struct MatlabScope;
 struct Import;
@@ -118,6 +119,20 @@ struct RootBlock : public AstNode {
   std::shared_ptr<MatlabScope> scope;
 };
 
+struct FunctionReference : public AstNode {
+  FunctionReference(int64_t name, FunctionDef* def, std::shared_ptr<MatlabScope> scope) :
+    name(name), def(def), scope(std::move(scope)) {
+    //
+  }
+  ~FunctionReference() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  FunctionReference* accept(IdentifierClassifier& classifier) override;
+
+  int64_t name;
+  FunctionDef* def;
+  std::shared_ptr<MatlabScope> scope;
+};
+
 /*
  * MatlabScope
  */
@@ -128,28 +143,14 @@ struct MatlabScope {
   }
   ~MatlabScope() = default;
 
-  bool register_local_function(int64_t name, FunctionDef* def);
+  bool register_local_function(int64_t name, FunctionReference* ref);
   void register_local_variable(int64_t name, std::unique_ptr<VariableDef> def);
+  void register_import(Import&& import);
 
   std::shared_ptr<MatlabScope> parent;
-  std::unordered_map<int64_t, FunctionDef*> local_functions;
+  std::unordered_map<int64_t, FunctionReference*> local_functions;
   std::unordered_map<int64_t, std::unique_ptr<VariableDef>> local_variables;
-  std::set<Import> imports;
-};
-
-struct FunctionReference {
-  FunctionReference() : name(0), def(nullptr) {
-    //
-  }
-  FunctionReference(int64_t name, FunctionDef* def, std::shared_ptr<MatlabScope> scope) :
-  name(name), def(def), scope(std::move(scope)) {
-    //
-  }
-  ~FunctionReference() = default;
-
-  int64_t name;
-  FunctionDef* def;
-  std::shared_ptr<MatlabScope> scope;
+  std::vector<Import> imports;
 };
 
 }

@@ -47,19 +47,16 @@ struct FunctionHeader {
 
 struct FunctionDef : public Def {
   FunctionDef(FunctionHeader&& header,
-              std::unique_ptr<Block> body,
-              std::shared_ptr<MatlabScope> scope) :
-    header(std::move(header)), body(std::move(body)), scope(std::move(scope)) {
+              std::unique_ptr<Block> body) :
+    header(std::move(header)), body(std::move(body)) {
     //
   }
 
   ~FunctionDef() override = default;
   std::string accept(const StringVisitor& vis) const override;
-  Def* accept(IdentifierClassifier& classifier) override;
 
   FunctionHeader header;
   BoxedBlock body;
-  std::shared_ptr<MatlabScope> scope;
 };
 
 struct VariableDef : public Def {

@@ -11,8 +11,8 @@ set(sources
         character_traits.hpp
         error.hpp
         error.cpp
-        ExternalFunctionRegistry.hpp
-        ExternalFunctionRegistry.cpp
+        FunctionRegistry.hpp
+        FunctionRegistry.cpp
         identifier_classification.hpp
         identifier_classification.cpp
         lang_components.hpp

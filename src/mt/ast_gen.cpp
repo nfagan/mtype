@@ -30,13 +30,14 @@ struct ParseScopeHelper {
 
 Result<ParseErrors, std::unique_ptr<RootBlock>>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
-                    StringRegistry& registry, bool functions_are_end_terminated) {
+                    StringRegistry* registry, FunctionRegistry* func_registry, bool functions_are_end_terminated) {
 
   iterator = TokenIterator(&tokens);
   text = txt;
   is_end_terminated_function = functions_are_end_terminated;
   parse_errors.clear();
-  string_registry = &registry;
+  string_registry = registry;
+  function_registry = func_registry;
 
   block_depths = BlockDepths();
   scopes.clear();
@@ -244,7 +245,7 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
   }
 }
 
-Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
+Optional<std::unique_ptr<FunctionReference>> AstGenerator::function_reference() {
   const auto& source_token = iterator.peek();
   iterator.advance();
 
@@ -282,18 +283,25 @@ Optional<std::unique_ptr<FunctionDef>> AstGenerator::function_def() {
     }
   }
 
-  auto def_node = std::make_unique<FunctionDef>(header_result.rvalue(), body_res.rvalue(), nullptr);
-
   auto parent_scope = current_scope();
-  bool register_success = parent_scope->register_local_function(def_node->header.name, def_node.get());
-  def_node->scope = std::move(child_scope);
+
+  auto function_def = std::make_unique<FunctionDef>(header_result.rvalue(), body_res.rvalue());
+  const auto name = function_def->header.name;
+  auto* def = function_def.get();
+
+  //  Function registry owns the local function definition.
+  function_registry->emplace_local_definition(std::move(function_def));
+
+  auto ref_node = std::make_unique<FunctionReference>(name, def, std::move(child_scope));
+  //  Parent scope holds a pointer to the function reference stored in the AST.
+  bool register_success = parent_scope->register_local_function(name, ref_node.get());
 
   if (!register_success) {
     add_error(make_error_duplicate_local_function(source_token));
     return NullOpt{};
   }
 
-  return Optional<std::unique_ptr<FunctionDef>>(std::move(def_node));
+  return Optional<std::unique_ptr<FunctionReference>>(std::move(ref_node));
 }
 
 Optional<std::unique_ptr<Block>> AstGenerator::block() {
@@ -328,7 +336,7 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
       }
 
       case TokenType::keyword_function: {
-        auto def_res = function_def();
+        auto def_res = function_reference();
         if (def_res) {
           node = def_res.rvalue();
         } else {
@@ -401,7 +409,7 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
 
       case TokenType::keyword_function: {
         if (is_end_terminated_function) {
-          auto def_res = function_def();
+          auto def_res = function_reference();
           if (def_res) {
             node = def_res.rvalue();
           } else {
@@ -1224,6 +1232,71 @@ Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_
   return Optional<BoxedStmt>(std::move(node));
 }
 
+Optional<BoxedStmt> AstGenerator::import_stmt(const mt::Token&) {
+  iterator.advance();
+
+  while (iterator.has_next()) {
+    auto import_res = one_import(iterator.peek());
+    if (!import_res) {
+      return NullOpt{};
+    }
+
+    register_import(import_res.rvalue());
+
+    if (represents_stmt_terminator(iterator.peek().type)) {
+      break;
+    }
+  }
+
+  return Optional<BoxedStmt>(BoxedStmt(nullptr));
+}
+
+Optional<Import> AstGenerator::one_import(const mt::Token& source_token) {
+  std::vector<int64_t> identifier_components;
+  bool expect_identifier = true;
+  ImportType import_type = ImportType::fully_qualified;
+
+  while (iterator.has_next() && !represents_stmt_terminator(iterator.peek().type)) {
+    const auto& tok = iterator.peek();
+    const auto expect_type = expect_identifier ? TokenType::identifier : TokenType::period;
+
+    if (tok.type != expect_type) {
+      if (tok.type == TokenType::identifier) {
+        //  Start of a new import. e.g. import a.b.c b.c.d
+        break;
+      } else if (tok.type == TokenType::dot_asterisk) {
+        //  Wildcard import a.b.c*
+        iterator.advance();
+        import_type = ImportType::wildcard;
+        break;
+      } else {
+        std::array<TokenType, 2> possible_types{{TokenType::identifier, TokenType::period}};
+        add_error(make_error_expected_token_type(tok, possible_types));
+        return NullOpt{};
+      }
+    }
+
+    if (tok.type == TokenType::identifier) {
+      identifier_components.push_back(string_registry->register_string(tok.lexeme));
+    }
+
+    iterator.advance();
+    expect_identifier = !expect_identifier;
+  }
+
+  const auto minimum_size = import_type == ImportType::wildcard ? 1 : 2;
+  const int64_t num_components = identifier_components.size();
+
+  if (num_components < minimum_size) {
+    //  import; or import a;
+    add_error(make_error_incomplete_import_stmt(source_token));
+    return NullOpt{};
+  }
+
+  Import import(source_token, import_type, std::move(identifier_components));
+  return Optional<Import>(std::move(import));
+}
+
 Optional<BoxedStmt> AstGenerator::command_stmt(const Token& source_token) {
   auto ident_res = one_identifier();
   if (!ident_res) {
@@ -1355,6 +1428,9 @@ Optional<BoxedStmt> AstGenerator::stmt() {
     case TokenType::keyword_persistent:
     case TokenType::keyword_global:
       return variable_declaration_stmt(token);
+
+    case TokenType::keyword_import:
+      return import_stmt(token);
 
     default: {
       if (is_command_stmt(token)) {
@@ -1727,6 +1803,10 @@ std::shared_ptr<MatlabScope> AstGenerator::current_scope() const {
   return scopes.empty() ? nullptr : scopes.back();
 }
 
+void AstGenerator::register_import(mt::Import&& import) {
+  current_scope()->register_import(std::move(import));
+}
+
 Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
   const auto& tok = iterator.peek();
 
@@ -1826,6 +1906,10 @@ ParseError AstGenerator::make_error_invalid_function_def_location(const mt::Toke
 
 ParseError AstGenerator::make_error_duplicate_local_function(const mt::Token& at_token) const {
   return ParseError(text, at_token, "Duplicate local function.");
+}
+
+ParseError AstGenerator::make_error_incomplete_import_stmt(const mt::Token& at_token) const {
+  return ParseError(text, at_token, "An `import` statement must include a compound identifier.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

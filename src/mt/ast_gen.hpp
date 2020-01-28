@@ -5,6 +5,7 @@
 #include "Result.hpp"
 #include "Optional.hpp"
 #include "error.hpp"
+#include "FunctionRegistry.hpp"
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -48,12 +49,13 @@ public:
 
   Result<ParseErrors, std::unique_ptr<RootBlock>> parse(const std::vector<Token>& tokens,
                                                         std::string_view text,
-                                                        StringRegistry& registry,
+                                                        StringRegistry* registry,
+                                                        FunctionRegistry* function_registry,
                                                         bool functions_are_end_terminated);
 private:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
-  Optional<std::unique_ptr<FunctionDef>> function_def();
+  Optional<std::unique_ptr<FunctionReference>> function_reference();
   Optional<FunctionHeader> function_header();
   Optional<std::vector<std::string_view>> function_inputs();
   Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
@@ -96,6 +98,7 @@ private:
   Optional<BoxedStmt> assignment_stmt(BoxedExpr lhs, const Token& initial_token);
   Optional<BoxedStmt> expr_stmt(const Token& source_token);
   Optional<BoxedStmt> command_stmt(const Token& source_token);
+  Optional<BoxedStmt> import_stmt(const Token& source_token);
   Optional<BoxedStmt> if_stmt(const Token& source_token);
   Optional<BoxedStmt> for_stmt(const Token& source_token);
   Optional<BoxedStmt> while_stmt(const Token& source_token);
@@ -107,6 +110,7 @@ private:
 
   Optional<IfBranch> if_branch(const Token& source_token);
   Optional<SwitchCase> switch_case(const Token& source_token);
+  Optional<Import> one_import(const Token& source_token);
 
   Optional<BoxedTypeAnnot> type_annotation_macro(const Token& source_token);
   Optional<BoxedTypeAnnot> type_annotation(const Token& source_token);
@@ -139,6 +143,7 @@ private:
   ParseError make_error_loop_control_flow_manipulator_outside_loop(const Token& at_token) const;
   ParseError make_error_invalid_function_def_location(const Token& at_token) const;
   ParseError make_error_duplicate_local_function(const Token& at_token) const;
+  ParseError make_error_incomplete_import_stmt(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
@@ -153,6 +158,8 @@ private:
   void pop_scope();
   std::shared_ptr<MatlabScope> current_scope() const;
 
+  void register_import(Import&& import);
+
   void add_error(ParseError&& err);
 
   static std::array<TokenType, 3> type_annotation_block_possible_types();
@@ -162,6 +169,7 @@ private:
   TokenIterator iterator;
   std::string_view text;
   StringRegistry* string_registry;
+  FunctionRegistry* function_registry;
   BlockDepths block_depths;
   std::vector<std::shared_ptr<MatlabScope>> scopes;
 

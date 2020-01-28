@@ -99,13 +99,16 @@ std::string StringVisitor::function_header(const FunctionHeader& header) const {
   return func + " [" + outputs + "]" + " = " + name + "(" + inputs + ")";
 }
 
-std::string StringVisitor::function_def(const FunctionDef& def) const {
+std::string StringVisitor::function_reference(const FunctionReference& reference) const {
   std::string ptr_str;
   if (include_def_ptrs) {
-    ptr_str = "<" + ptr_to_hex_string(&def) + "> ";
+    ptr_str = "<" + ptr_to_hex_string(&reference) + "> ";
   }
+  return tab_str() + ptr_str + function_def(*reference.def);
+}
 
-  const auto header = tab_str() + ptr_str + function_header(def.header);
+std::string StringVisitor::function_def(const FunctionDef& def) const {
+  const auto header = function_header(def.header);
   auto body = def.body->accept(*this);
   auto end = tab_str() + end_str();
   return header + "\n" + body + "\n" + end;
@@ -255,18 +258,19 @@ std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& 
 }
 
 std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
-  auto name = std::string(string_registry->at(expr.name));
+  auto name = std::string(string_registry->at(expr.function_reference->name));
   const auto arg_str = visit_array(expr.arguments, ", ");
   auto sub_str = subscripts(expr.subscripts);
 
   const std::string call_expr_str = "(" + arg_str + ")" + sub_str;
 
   if (include_identifier_classification) {
-    int color_code = expr.function_def ? 1 : 0;
+    auto* function_def = expr.function_reference->def;
+    int color_code = function_def ? 1 : 0;
     maybe_colorize(name, color_code);
 
-    if (include_def_ptrs && expr.function_def != nullptr) {
-      auto ptr_str = ptr_to_hex_string(expr.function_def) + " ";
+    if (include_def_ptrs) {
+      auto ptr_str = ptr_to_hex_string(expr.function_reference) + " ";
       return "<" + ptr_str + name + ">" + call_expr_str;
     } else {
       return name + call_expr_str;

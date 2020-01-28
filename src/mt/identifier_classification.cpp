@@ -162,16 +162,7 @@ inline IdentifierType identifier_type_from_function_def(FunctionDef* def) {
 }
 }
 
-IdentifierScope::ReferenceResult IdentifierScope::register_external_function_reference(int64_t id) {
-  auto res = register_identifier_reference(id);
-  res.success = res.success && res.info.type == IdentifierType::unresolved_external_function;
-  return res;
-}
-
 IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(int64_t id) {
-  //  @TODO: If an identifier used as a variable assignment has either a) been assigned at the
-  //   current context or been assigned in all preceding child contexts, then it is ok to reference.
-
   const auto* info = lookup_variable(id, true);
   const auto* local_info = lookup_variable(id, false);
 
@@ -179,19 +170,19 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  This identifier has not been classified, and has not been assigned or initialized, so it is
     //  either an external function reference or a reference to a function in the current or
     //  a parent's scope.
-    auto new_info = make_function_reference_identifier_info(lookup_local_function(id));
+    auto new_info = make_function_reference_identifier_info(id, lookup_local_function(id));
     classified_identifiers[id] = new_info;
     return ReferenceResult(true, new_info);
 
   } else if (!local_info) {
     //  This is an identifier in a parent scope, but we need to check to see if any local functions
     //  take precedence over the parent's usage of the identifier.
-    FunctionDef* maybe_function_def = lookup_local_function(id);
-    if (!maybe_function_def) {
+    FunctionReference* maybe_function_ref = lookup_local_function(id);
+    if (!maybe_function_ref) {
       //  No local function in the current scope, so it inherits the usage from the parent.
       classified_identifiers[id] = *info;
     } else {
-      auto new_info = make_function_reference_identifier_info(maybe_function_def);
+      auto new_info = make_local_function_reference_identifier_info(maybe_function_ref);
       classified_identifiers[id] = new_info;
       return ReferenceResult(true, new_info);
     }
@@ -216,12 +207,55 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
   }
 }
 
-IdentifierScope::IdentifierInfo IdentifierScope::make_function_reference_identifier_info(FunctionDef* def) {
-  auto type = identifier_type_from_function_def(def);
-  return IdentifierInfo(type, current_context(), def);
+IdentifierScope::ReferenceResult IdentifierScope::register_external_function_reference(int64_t id) {
+  auto res = register_identifier_reference(id);
+  res.success = res.success && res.info.type == IdentifierType::unresolved_external_function;
+  return res;
 }
 
-FunctionDef* IdentifierScope::lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope) {
+IdentifierScope::ReferenceResult
+IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, int64_t last_identifier_component) {
+  auto* local_last_info = lookup_variable(last_identifier_component, false);
+  if (local_last_info) {
+    //  Imported identifier component should not already have been registered.
+    return ReferenceResult(false, *local_last_info);
+  }
+
+  //  @TODO: If a parent scope has already created an unresolved external function reference to
+  //  the `complete_identifier`, then it's safe to re-use that reference for
+  //  `last_identifier_component`
+
+  //  Register the reference as `last_identifier_component`, but create the function reference
+  //  to `complete_identifier`.
+  auto new_info = make_external_function_reference_identifier_info(complete_identifier);
+  classified_identifiers[last_identifier_component] = new_info;
+
+  return ReferenceResult(true, new_info);
+}
+
+IdentifierScope::IdentifierInfo
+IdentifierScope::make_external_function_reference_identifier_info(int64_t identifier) {
+  auto ref = classifier->function_registry->make_external_reference(identifier, matlab_scope);
+  return IdentifierInfo(IdentifierType::unresolved_external_function, current_context(), ref);
+}
+
+IdentifierScope::IdentifierInfo
+IdentifierScope::make_local_function_reference_identifier_info(FunctionReference* ref) {
+  auto type = identifier_type_from_function_def(ref->def);
+  return IdentifierInfo(type, current_context(), ref);
+}
+
+IdentifierScope::IdentifierInfo
+IdentifierScope::make_function_reference_identifier_info(int64_t identifier, FunctionReference* maybe_local_ref) {
+  if (maybe_local_ref) {
+    return make_local_function_reference_identifier_info(maybe_local_ref);
+  } else {
+    return make_external_function_reference_identifier_info(identifier);
+  }
+}
+
+FunctionReference*
+IdentifierScope::lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope) {
   if (lookup_scope == nullptr) {
     return nullptr;
   }
@@ -234,7 +268,7 @@ FunctionDef* IdentifierScope::lookup_local_function(int64_t name, const std::sha
   }
 }
 
-FunctionDef* IdentifierScope::lookup_local_function(int64_t name) const {
+FunctionReference* IdentifierScope::lookup_local_function(int64_t name) const {
   return lookup_local_function(name, matlab_scope);
 }
 
@@ -268,8 +302,9 @@ IdentifierScope* IdentifierScope::parent() {
   return parent_index < 0 ? nullptr : classifier->scope_at(parent_index);
 }
 
-IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry, std::string_view text) :
-string_registry(string_registry), text(text), scope_depth(-1) {
+IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
+                                           FunctionRegistry* function_registry, std::string_view text) :
+string_registry(string_registry), function_registry(function_registry), text(text), scope_depth(-1) {
   //  Begin on rhs.
   push_rhs();
   //  New scope with no parent.
@@ -341,6 +376,41 @@ IdentifierScope* IdentifierClassifier::current_scope() {
   return scope_at(scope_depth);
 }
 
+IdentifierScope::AssignmentResult
+IdentifierClassifier::register_variable_assignment(const Token& source_token, int64_t primary_identifier) {
+  auto primary_result = current_scope()->register_variable_assignment(primary_identifier);
+  if (!primary_result.success) {
+    const auto err_type = primary_result.error_already_had_type;
+    auto err = make_error_assignment_to_non_variable(source_token, primary_identifier, err_type);
+    add_error_if_new_identifier(std::move(err), primary_identifier);
+
+  } else if (primary_result.was_initialization) {
+    //  Register the definition of this variable, and take ownership of the definition.
+    std::unique_ptr<VariableDef> variable_def(primary_result.variable_def);
+    assert(variable_def.get() && "Expected newly allocated VariableDef object.");
+
+    auto& parse_scope = current_scope()->matlab_scope;
+    assert(parse_scope && "No parse scope.");
+    parse_scope->register_local_variable(primary_identifier, std::move(variable_def));
+  }
+
+  return primary_result;
+}
+
+void IdentifierClassifier::register_imports(IdentifierScope* scope) {
+  for (const auto& import : scope->matlab_scope->imports) {
+    //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
+    if (import.type == ImportType::fully_qualified) {
+      auto complete_identifier = string_registry->make_registered_compound_identifier(import.identifier_components);
+      auto res = scope->register_fully_qualified_import(complete_identifier, import.identifier_components.back());
+
+      if (!res.success) {
+        add_error(make_error_shadowed_import(import.source_token, res.info.type));
+      }
+    }
+  }
+}
+
 void IdentifierClassifier::register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers) {
   for (const auto& id : identifiers) {
     //  Input and output parameters always introduce new local variables.
@@ -389,6 +459,17 @@ Expr* IdentifierClassifier::grouping_expr(GroupingExpr& expr) {
   return &expr;
 }
 
+Expr* IdentifierClassifier::unary_operator_expr(UnaryOperatorExpr& expr) {
+  conditional_reset(expr.expr, expr.expr->accept(*this));
+  return &expr;
+}
+
+Expr* IdentifierClassifier::binary_operator_expr(BinaryOperatorExpr& expr) {
+  conditional_reset(expr.left, expr.left->accept(*this));
+  conditional_reset(expr.right, expr.right->accept(*this));
+  return &expr;
+}
+
 Expr* IdentifierClassifier::dynamic_field_reference_expr(DynamicFieldReferenceExpr& expr) {
   conditional_reset(expr.expr, expr.expr->accept(*this));
   return &expr;
@@ -406,30 +487,11 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
   //  In an assignment, the primary identifier reserves that identifier as a variable, and any
   //  compound identifiers deriving from it are thus also variables. E.g., if `a = struct()`, then
   //  `a.b.c` is also a variable.
-  int64_t primary_identifier = expr.primary_identifier;
-
-  auto primary_result = current_scope()->register_variable_assignment(primary_identifier);
-  if (!primary_result.success) {
-    auto err = make_error_assignment_to_non_variable(expr.source_token,
-      primary_identifier, primary_result.error_already_had_type);
-    add_error_if_new_identifier(std::move(err), primary_identifier);
-  }
-
-  if (primary_result.was_initialization) {
-    if (!expr.subscripts.empty()) {
-      //  Implicit variable initialization of the form e.g. `a.b = 3;` Mark this as an error,
-      //  but still proceed to take ownership of the local variable.
-      auto err = make_error_implicit_variable_initialization(expr.source_token);
-      add_error_if_new_identifier(std::move(err), primary_identifier);
-    }
-
-    //  Register the definition of this variable, and take ownership of the definition.
-    std::unique_ptr<VariableDef> variable_def(primary_result.variable_def);
-    assert(variable_def.get() && "Expected newly allocated VariableDef object.");
-
-    auto& parse_scope = current_scope()->matlab_scope;
-    assert(parse_scope && "No parse scope.");
-    parse_scope->register_local_variable(primary_identifier, std::move(variable_def));
+  auto primary_result = register_variable_assignment(expr.source_token, expr.primary_identifier);
+  if (primary_result.was_initialization && !expr.subscripts.empty()) {
+    //  Implicit variable initialization of the form e.g. `a.b = 3;`
+    auto err = make_error_implicit_variable_initialization(expr.source_token);
+    add_error_if_new_identifier(std::move(err), expr.primary_identifier);
   }
 
   int64_t subscript_end;
@@ -441,7 +503,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
   pop_expr_side();
 
   auto* node = new VariableReferenceExpr(expr.source_token, primary_result.variable_def,
-    primary_identifier, std::move(expr.subscripts), primary_result.was_initialization);
+    expr.primary_identifier, std::move(expr.subscripts), primary_result.was_initialization);
 
   return node;
 }
@@ -460,8 +522,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   }
 
   const bool is_compound_function_identifier = !is_variable && subscript_end > 0;
-  int64_t function_name = primary_identifier;
-  FunctionDef* function_def = nullptr;
+  FunctionReference* function_reference = nullptr;
 
   if (is_compound_function_identifier) {
     //  Presumed function reference with more than 1 identifier component, e.g. `a.b()`. Register
@@ -473,24 +534,18 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
       add_error_if_new_identifier(std::move(err), compound_identifier);
     }
 
-    function_name = compound_identifier;
-    function_def = compound_ref_result.info.function_def;
-
+    function_reference = compound_ref_result.info.function_reference;
   } else if (!is_variable) {
-    function_def = primary_result.info.function_def;
+    function_reference = primary_result.info.function_reference;
   }
 
   if (!is_variable) {
-    if (identifier_type_from_function_def(function_def) == IdentifierType::unresolved_external_function) {
-//      add_unresolved_external_function(function_name, function_def);
-    }
-
     auto ref_err = check_function_reference_subscript(expr, subscript_end);
     if (ref_err) {
       add_error(ref_err.rvalue());
     } else {
       //  Convert the identifier reference expression into a function call expression.
-      return make_function_call_expr(expr, subscript_end, function_name, function_def);
+      return make_function_call_expr(expr, subscript_end, function_reference);
     }
   }
 
@@ -505,30 +560,31 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
 
 FunctionCallExpr* IdentifierClassifier::make_function_call_expr(IdentifierReferenceExpr& from_expr,
                                                                 int64_t subscript_end,
-                                                                int64_t name,
-                                                                FunctionDef* function_def) {
+                                                                FunctionReference* function_reference) {
   const int64_t num_subs = from_expr.subscripts.size();
   std::vector<BoxedExpr> arguments;
   std::vector<Subscript> remaining_subscripts;
 
   if (subscript_end < num_subs) {
+    //  In an expression a.b.c(1, 2, 3), `argument_subscript` is (1, 2, 3)
     auto& argument_subscript = from_expr.subscripts[subscript_end];
     assert(argument_subscript.method == SubscriptMethod::parens && "Expected parentheses subscript.");
     subscript(argument_subscript);
 
+    //  The "subscript arguments" are actually just the function arguments.
     arguments = std::move(argument_subscript.arguments);
   }
 
+  //  In a continued reference expression of the form e.g. `a.b.c(1, 2, 3).('a').b`, the subscripts
+  //  `.('a')` and `.b` must be traversed.
   for (int64_t i = subscript_end+1; i < num_subs; i++) {
     remaining_subscripts.emplace_back(std::move(from_expr.subscripts[i]));
   }
 
   subscripts(remaining_subscripts, 0);
 
-  auto* node = new FunctionCallExpr(from_expr.source_token, function_def, name,
+  return new FunctionCallExpr(from_expr.source_token, function_reference,
     std::move(arguments), std::move(remaining_subscripts));
-
-  return node;
 }
 
 void IdentifierClassifier::subscripts(std::vector<Subscript>& subscripts, int64_t begin) {
@@ -580,36 +636,27 @@ ExprStmt* IdentifierClassifier::expr_stmt(ExprStmt& stmt) {
   return &stmt;
 }
 
-Def* IdentifierClassifier::function_def(FunctionDef& def) {
-  push_scope(def.scope);
+FunctionReference* IdentifierClassifier::function_reference(FunctionReference& ref) {
+  push_scope(ref.scope);
+  auto* def = ref.def;
   auto* scope = current_scope();
 
   for (const auto& it : scope->matlab_scope->local_functions) {
     //  Local functions take precedence over variables.
-    auto res = scope->register_identifier_reference(it.second->header.name);
-    if (!res.success) {
+    auto res = scope->register_identifier_reference(it.second->def->header.name);
+    if (!res.success || res.info.type != IdentifierType::local_function) {
       assert(res.success && "Failed to register local function.");
     }
   }
 
-  for (const auto& import : scope->matlab_scope->imports) {
-    //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
-    if (import.type == ImportType::fully_qualified) {
-      auto res = scope->register_external_function_reference(import.identifier_components.back());
-      if (!res.success) {
-        add_error(make_error_shadowed_import(import.source_token, res.info.type));
-      } else {
-        //
-      }
-    }
-  }
+  register_imports(scope);
 
-  register_function_parameters(def.header.name_token, def.header.inputs);
-  register_function_parameters(def.header.name_token, def.header.outputs);
+  register_function_parameters(def->header.name_token, def->header.inputs);
+  register_function_parameters(def->header.name_token, def->header.outputs);
 
-  block_new_context(def.body);
+  block_new_context(def->body);
   pop_scope();
-  return &def;
+  return &ref;
 }
 
 RootBlock* IdentifierClassifier::root_block(RootBlock& block) {

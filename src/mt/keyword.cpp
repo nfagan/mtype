@@ -46,7 +46,8 @@ const char** matlab::keywords(int* count) {
   //  help iskeyword
   static const char* keywords[] = {
     "break", "case", "catch", "classdef", "continue", "else", "elseif", "end", "for", "function",
-    "global", "if", "otherwise", "parfor", "persistent", "return", "spmd", "switch", "try", "while"
+    "global", "if", "otherwise", "parfor", "persistent", "return", "spmd", "switch", "try", "while",
+    "import"
   };
 
   *count = sizeof(keywords) / sizeof(keywords[0]);

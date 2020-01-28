@@ -58,7 +58,10 @@ int main(int argc, char** argv) {
 
   mt::AstGenerator ast_gen;
   mt::StringRegistry string_registry;
-  auto parse_result = ast_gen.parse(scan_info.tokens, contents, string_registry, scan_info.functions_are_end_terminated);
+  mt::FunctionRegistry function_registry;
+
+  auto parse_result = ast_gen.parse(scan_info.tokens, contents, &string_registry, &function_registry,
+    scan_info.functions_are_end_terminated);
 
   if (!parse_result) {
     for (const auto& err : parse_result.error) {
@@ -68,13 +71,17 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  mt::IdentifierClassifier classifier(&string_registry, contents);
-  auto* block = parse_result.value->accept(classifier);
+#if 1
+  mt::IdentifierClassifier classifier(&string_registry, &function_registry, contents);
+  auto block = parse_result.value->accept(classifier);
 
   const auto& classifier_errs = classifier.get_errors();
   for (const auto& err : classifier_errs) {
     err.show();
   }
+#else
+  auto& block = parse_result.value;
+#endif
 
   mt::StringVisitor visitor(&string_registry);
   visitor.parenthesize_exprs = true;

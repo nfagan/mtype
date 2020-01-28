@@ -113,6 +113,7 @@ bool represents_grouping_component(TokenType type);
 bool represents_grouping_initiator(TokenType type);
 bool represents_grouping_terminator(TokenType type);
 bool represents_expr_terminator(TokenType type);
+bool represents_stmt_terminator(TokenType type);
 bool represents_literal(TokenType type);
 bool can_precede_prefix_unary_operator(TokenType type);
 bool can_precede_postfix_unary_operator(TokenType type);

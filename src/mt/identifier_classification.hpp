@@ -3,6 +3,7 @@
 #include "error.hpp"
 #include "ast.hpp"
 #include "lang_components.hpp"
+#include "FunctionRegistry.hpp"
 #include "Optional.hpp"
 #include <unordered_map>
 #include <set>
@@ -17,7 +18,7 @@ class StringRegistry;
  */
 class VariableAssignmentContext {
 public:
-  VariableAssignmentContext(int64_t parent_index) : parent_index(parent_index) {
+  explicit VariableAssignmentContext(int64_t parent_index) : parent_index(parent_index) {
     //
   }
   ~VariableAssignmentContext() = default;
@@ -58,17 +59,17 @@ class IdentifierScope {
    * IdentifierInfo
    */
   struct IdentifierInfo {
-    IdentifierInfo() : type(IdentifierType::unknown), function_def(nullptr) {
+    IdentifierInfo() : type(IdentifierType::unknown), function_reference(nullptr) {
       //
     }
 
     IdentifierInfo(IdentifierType type, IdentifierContext context) :
-      IdentifierInfo(type, context, static_cast<FunctionDef*>(nullptr)) {
+      IdentifierInfo(type, context, static_cast<FunctionReference*>(nullptr)) {
       //
     }
 
-    IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionDef* definition) :
-      type(type), context(context), function_def(definition) {
+    IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionReference* reference) :
+      type(type), context(context), function_reference(reference) {
       //
     }
 
@@ -81,7 +82,7 @@ class IdentifierScope {
     IdentifierContext context;
 
     union {
-      FunctionDef* function_def;
+      FunctionReference* function_reference;
       VariableDef* variable_def;
     };
   };
@@ -134,10 +135,11 @@ private:
   AssignmentResult register_variable_assignment(int64_t id, bool force_shadow_parent_assignment = false);
   ReferenceResult register_identifier_reference(int64_t id);
   ReferenceResult register_external_function_reference(int64_t id);
+  ReferenceResult register_fully_qualified_import(int64_t complete_identifier, int64_t last_identifier_component);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
-  FunctionDef* lookup_local_function(int64_t name) const;
-  static FunctionDef* lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope);
+  FunctionReference* lookup_local_function(int64_t name) const;
+  static FunctionReference* lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope);
 
   bool has_variable(int64_t id, bool traverse_parent);
 
@@ -153,7 +155,9 @@ private:
   IdentifierContext current_context() const;
   const IdentifierContext* context_at_depth(int depth) const;
 
-  IdentifierInfo make_function_reference_identifier_info(FunctionDef* def);
+  IdentifierInfo make_local_function_reference_identifier_info(FunctionReference* ref);
+  IdentifierInfo make_external_function_reference_identifier_info(int64_t identifier);
+  IdentifierInfo make_function_reference_identifier_info(int64_t identifier, FunctionReference* maybe_local_ref);
 
 private:
   IdentifierClassifier* classifier;
@@ -175,15 +179,18 @@ class IdentifierClassifier {
   friend class IdentifierScope;
 
 public:
-  IdentifierClassifier(StringRegistry* string_registry, std::string_view text);
+  IdentifierClassifier(StringRegistry* string_registry,
+                       FunctionRegistry* function_registry, std::string_view text);
   ~IdentifierClassifier() = default;
 
   RootBlock* root_block(RootBlock& block);
   Block* block(Block& block);
-  Def* function_def(FunctionDef& def);
+  FunctionReference* function_reference(FunctionReference& ref);
   Expr* identifier_reference_expr(IdentifierReferenceExpr& expr);
   Expr* dynamic_field_reference_expr(DynamicFieldReferenceExpr& expr);
   Expr* grouping_expr(GroupingExpr& expr);
+  Expr* binary_operator_expr(BinaryOperatorExpr& expr);
+  Expr* unary_operator_expr(UnaryOperatorExpr& expr);
 
   IfStmt* if_stmt(IfStmt& stmt);
   ExprStmt* expr_stmt(ExprStmt& stmt);
@@ -220,14 +227,15 @@ private:
   const IdentifierScope* current_scope() const;
 
   void register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers);
+  IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token, int64_t primary_identifier);
+  void register_imports(IdentifierScope* in_scope);
 
   Expr* identifier_reference_expr_lhs(IdentifierReferenceExpr& expr);
   Expr* identifier_reference_expr_rhs(IdentifierReferenceExpr& expr);
 
   FunctionCallExpr* make_function_call_expr(IdentifierReferenceExpr& from_expr,
                                             int64_t subscript_end,
-                                            int64_t name,
-                                            FunctionDef* function_def);
+                                            FunctionReference* function_reference);
 
   void block_preserve_context(BoxedBlock& block);
   void block_new_context(BoxedBlock& block);
@@ -248,6 +256,7 @@ private:
 
 private:
   StringRegistry* string_registry;
+  FunctionRegistry* function_registry;
   std::string_view text;
 
   std::vector<IdentifierScope> scopes;

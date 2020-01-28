@@ -26,6 +26,7 @@ public:
   std::string function_header(const FunctionHeader& header) const;
   std::string block(const Block& block) const;
   std::string root_block(const RootBlock& block) const;
+  std::string function_reference(const FunctionReference& reference) const;
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
