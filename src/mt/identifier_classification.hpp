@@ -126,8 +126,11 @@ public:
     context_uuid(0) {
     push_context();
   }
+
+#ifndef _MSC_VER
   IdentifierScope(IdentifierScope&& other) noexcept = default;
   IdentifierScope& operator=(IdentifierScope&& other) noexcept = default;
+#endif
   ~IdentifierScope() = default;
 
 private:

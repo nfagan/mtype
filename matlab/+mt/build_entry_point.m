@@ -4,6 +4,7 @@ defaults = struct();
 defaults.optim_level = 3;
 defaults.lib_subdir = 'cmake-build-release';
 defaults.lib_name = 'mt';
+defaults.use_platform_lib_subdir = true;
 
 params = mt.parse_struct( defaults, varargin );
 
@@ -19,7 +20,8 @@ mt_dir = fileparts( this_file );
 matlab_dir = fileparts( mt_dir );
 project_dir = fileparts( matlab_dir );
 
-lib_dir = fullfile( project_dir, params.lib_subdir );
+lib_subdir = get_lib_subdir( params );
+lib_dir = fullfile( project_dir, lib_subdir );
 lib_name = params.lib_name;
 
 include_dir = fullfile( project_dir, 'src' );
@@ -75,6 +77,20 @@ else
   else
     compile_options.addtl_cxx_flags = 'CXXFLAGS="-std=c++14"';
     compile_options.addtl_comp_flags = '';
+  end
+end
+
+end
+
+function lib_subdir = get_lib_subdir(params)
+
+if ( ~params.use_platform_lib_subdir )
+  lib_subdir = params.lib_subdir;
+else
+  if ( ispc() )
+    lib_subdir = 'build/Release';
+  else
+    lib_subdir = 'cmake-build-release';
   end
 end
 
