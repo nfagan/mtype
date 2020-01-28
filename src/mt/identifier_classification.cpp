@@ -1,5 +1,4 @@
 #include "identifier_classification.hpp"
-#include "ast_gen.hpp"
 #include "string.hpp"
 #include <cassert>
 
@@ -163,6 +162,12 @@ inline IdentifierType identifier_type_from_function_def(FunctionDef* def) {
 }
 }
 
+IdentifierScope::ReferenceResult IdentifierScope::register_external_function_reference(int64_t id) {
+  auto res = register_identifier_reference(id);
+  res.success = res.success && res.info.type == IdentifierType::unresolved_external_function;
+  return res;
+}
+
 IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(int64_t id) {
   //  @TODO: If an identifier used as a variable assignment has either a) been assigned at the
   //   current context or been assigned in all preceding child contexts, then it is ok to reference.
@@ -174,14 +179,14 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  This identifier has not been classified, and has not been assigned or initialized, so it is
     //  either an external function reference or a reference to a function in the current or
     //  a parent's scope.
-    auto new_info = make_function_reference_identifier_info(lookup_function(id));
+    auto new_info = make_function_reference_identifier_info(lookup_local_function(id));
     classified_identifiers[id] = new_info;
     return ReferenceResult(true, new_info);
 
   } else if (!local_info) {
     //  This is an identifier in a parent scope, but we need to check to see if any local functions
     //  take precedence over the parent's usage of the identifier.
-    FunctionDef* maybe_function_def = lookup_function(id);
+    FunctionDef* maybe_function_def = lookup_local_function(id);
     if (!maybe_function_def) {
       //  No local function in the current scope, so it inherits the usage from the parent.
       classified_identifiers[id] = *info;
@@ -216,21 +221,21 @@ IdentifierScope::IdentifierInfo IdentifierScope::make_function_reference_identif
   return IdentifierInfo(type, current_context(), def);
 }
 
-FunctionDef* IdentifierScope::lookup_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope) {
+FunctionDef* IdentifierScope::lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope) {
   if (lookup_scope == nullptr) {
     return nullptr;
   }
 
   auto it = lookup_scope->local_functions.find(name);
   if (it == lookup_scope->local_functions.end()) {
-    return lookup_function(name, lookup_scope->parent);
+    return lookup_local_function(name, lookup_scope->parent);
   } else {
     return it->second;
   }
 }
 
-FunctionDef* IdentifierScope::lookup_function(int64_t name) const {
-  return lookup_function(name, matlab_scope);
+FunctionDef* IdentifierScope::lookup_local_function(int64_t name) const {
+  return lookup_local_function(name, matlab_scope);
 }
 
 IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(int64_t id, bool traverse_parent) {
@@ -476,6 +481,10 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   }
 
   if (!is_variable) {
+    if (identifier_type_from_function_def(function_def) == IdentifierType::unresolved_external_function) {
+//      add_unresolved_external_function(function_name, function_def);
+    }
+
     auto ref_err = check_function_reference_subscript(expr, subscript_end);
     if (ref_err) {
       add_error(ref_err.rvalue());
@@ -583,6 +592,18 @@ Def* IdentifierClassifier::function_def(FunctionDef& def) {
     }
   }
 
+  for (const auto& import : scope->matlab_scope->imports) {
+    //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
+    if (import.type == ImportType::fully_qualified) {
+      auto res = scope->register_external_function_reference(import.identifier_components.back());
+      if (!res.success) {
+        add_error(make_error_shadowed_import(import.source_token, res.info.type));
+      } else {
+        //
+      }
+    }
+  }
+
   register_function_parameters(def.header.name_token, def.header.inputs);
   register_function_parameters(def.header.name_token, def.header.outputs);
 
@@ -680,6 +701,12 @@ ParseError IdentifierClassifier::make_error_invalid_function_call_expr(const Tok
 
 ParseError IdentifierClassifier::make_error_invalid_function_index_expr(const Token& at_token) {
   return ParseError(text, at_token, "Function outputs cannot be `()` or `{}` referenced.");
+}
+
+ParseError IdentifierClassifier::make_error_shadowed_import(const Token& at_token, IdentifierType present_type) {
+  auto type_str = std::string(to_string(present_type));
+  std::string msg = "Import is shadowed by identifier of type `" + type_str + "`.";
+  return ParseError(text, at_token, msg);
 }
 
 }

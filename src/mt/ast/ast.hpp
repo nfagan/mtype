@@ -3,13 +3,18 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
+#include <unordered_map>
 
 namespace mt {
 
 class StringVisitor;
 class IdentifierClassifier;
-struct MatlabScope;
 struct Block;
+struct FunctionDef;
+struct VariableDef;
+struct MatlabScope;
+struct Import;
 
 struct AstNode {
   AstNode() = default;
@@ -110,6 +115,40 @@ struct RootBlock : public AstNode {
   RootBlock* accept(IdentifierClassifier& classifier) override;
 
   BoxedBlock block;
+  std::shared_ptr<MatlabScope> scope;
+};
+
+/*
+ * MatlabScope
+ */
+
+struct MatlabScope {
+  explicit MatlabScope(std::shared_ptr<MatlabScope> parent) : parent(std::move(parent)) {
+    //
+  }
+  ~MatlabScope() = default;
+
+  bool register_local_function(int64_t name, FunctionDef* def);
+  void register_local_variable(int64_t name, std::unique_ptr<VariableDef> def);
+
+  std::shared_ptr<MatlabScope> parent;
+  std::unordered_map<int64_t, FunctionDef*> local_functions;
+  std::unordered_map<int64_t, std::unique_ptr<VariableDef>> local_variables;
+  std::set<Import> imports;
+};
+
+struct FunctionReference {
+  FunctionReference() : name(0), def(nullptr) {
+    //
+  }
+  FunctionReference(int64_t name, FunctionDef* def, std::shared_ptr<MatlabScope> scope) :
+  name(name), def(def), scope(std::move(scope)) {
+    //
+  }
+  ~FunctionReference() = default;
+
+  int64_t name;
+  FunctionDef* def;
   std::shared_ptr<MatlabScope> scope;
 };
 

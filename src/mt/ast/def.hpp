@@ -2,10 +2,26 @@
 
 #include "ast.hpp"
 #include "../token.hpp"
+#include "../lang_components.hpp"
 
 namespace mt {
 
 struct MatlabScope;
+
+struct Import {
+  Import() : type(ImportType::fully_qualified) {
+    //
+  }
+  Import(const Token& source_token, ImportType type, std::vector<int64_t>&& identifier_components) :
+  source_token(source_token), type(type), identifier_components(std::move(identifier_components)) {
+    //
+  }
+  ~Import() = default;
+
+  Token source_token;
+  ImportType type;
+  std::vector<int64_t> identifier_components;
+};
 
 struct FunctionHeader {
   FunctionHeader() = default;

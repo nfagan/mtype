@@ -102,8 +102,6 @@ in a's context, the variable `x` should represent a function reference,
 inconsistent with its usage in b's context as a variable. In each context,
 look up the identifier by walking through
 
-
-
 Regarding imports:
   * `import` must be a function. The current import list can be queried
     with a call to import(), or it can be updated with the command
@@ -113,7 +111,6 @@ Regarding imports:
     resolution of identifiers throughout the entire scope.
   * A fully-qualified import cannot share the name of a direct child 
     function in the current scope.
-  * Child
   
 Impl.
 
@@ -122,5 +119,9 @@ FunctionDef.
 
 In an assignment, the longest compound identifier prefix cannot be a
 function. E.g., a.b.c(1, 2) = 3;, `a.b.c` is a variable. a.('b').three.
+
+
+//  External resolution
+If a function has no imports, then any non-local function references 
 
 %}

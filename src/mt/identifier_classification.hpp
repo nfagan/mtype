@@ -10,7 +10,6 @@
 
 namespace mt {
 
-struct MatlabScope;
 class StringRegistry;
 
 /*
@@ -134,10 +133,11 @@ private:
   bool has_parent() const;
   AssignmentResult register_variable_assignment(int64_t id, bool force_shadow_parent_assignment = false);
   ReferenceResult register_identifier_reference(int64_t id);
+  ReferenceResult register_external_function_reference(int64_t id);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
-  FunctionDef* lookup_function(int64_t name) const;
-  static FunctionDef* lookup_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope);
+  FunctionDef* lookup_local_function(int64_t name) const;
+  static FunctionDef* lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope);
 
   bool has_variable(int64_t id, bool traverse_parent);
 
@@ -244,6 +244,7 @@ private:
   ParseError make_error_implicit_variable_initialization(const Token& at_token);
   ParseError make_error_invalid_function_call_expr(const Token& at_token);
   ParseError make_error_invalid_function_index_expr(const Token& at_token);
+  ParseError make_error_shadowed_import(const Token& at_token, IdentifierType present_type);
 
 private:
   StringRegistry* string_registry;

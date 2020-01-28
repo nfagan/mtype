@@ -34,35 +34,6 @@ struct BlockDepths {
 };
 
 /*
- * MatlabScope
- */
-
-struct MatlabScope {
-  explicit MatlabScope(std::shared_ptr<MatlabScope> parent) : parent(std::move(parent)) {
-    //
-  }
-  ~MatlabScope() = default;
-
-  bool register_local_function(int64_t name, FunctionDef* def) {
-    if (local_functions.count(name) > 0) {
-      return false;
-    } else {
-      local_functions[name] = def;
-      return true;
-    }
-  }
-
-  void register_local_variable(int64_t name, std::unique_ptr<VariableDef> def) {
-    local_variables[name] = std::move(def);
-  }
-
-  std::shared_ptr<MatlabScope> parent;
-  std::unordered_map<int64_t, FunctionDef*> local_functions;
-  std::unordered_map<int64_t, std::unique_ptr<VariableDef>> local_variables;
-  std::set<int64_t> imports;
-};
-
-/*
  * AstGenerator
  */
 

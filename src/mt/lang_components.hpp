@@ -4,6 +4,11 @@
 
 namespace mt {
 
+enum class ImportType : uint8_t {
+  fully_qualified,
+  wildcard
+};
+
 enum class IdentifierType : uint8_t {
   variable_reference,
   variable_assignment_or_initialization,
