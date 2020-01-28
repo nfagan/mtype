@@ -1,17 +1,26 @@
-function test_classification()
+z = 2;
 
-if ( 0 )
-  zz = 4;
-elseif 1
-  zz = 3;
-elseif 2
-  zz = 4;
-else
-  zz = 5;
-end
+function test_classifications()
+  nest(1);
 
-if 1
-  y = zz;
-end
+  if 1
+    z = 1;
+    zz = 2;
+  else
+    x = [];
+  end
 
+%   function nest(z)
+    y = z;
+    if 1
+      x = 3;
+    else
+      x = 2;
+    end
+    a = x;
+%   end
+
+%   a = x;
+%   nest(1);
+%   disp(x);
 end

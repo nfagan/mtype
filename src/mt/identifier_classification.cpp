@@ -197,6 +197,7 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  The identifier was previously classified as a variable, so a valid reference requires that
     //  it was assigned / initialized in a context at least as low as the current one, and whose
     //  parent context is the same as the parent of the current context.
+    //  @TODO: Should be also valid if the reference is to the parent scope.
     const auto* current_context_at_info_depth = context_at_depth(info->context.depth);
     bool success = false;
 
@@ -557,10 +558,11 @@ IfStmt* IdentifierClassifier::if_stmt(IfStmt& stmt) {
 }
 
 AssignmentStmt* IdentifierClassifier::assignment_stmt(AssignmentStmt& stmt) {
+  conditional_reset(stmt.of_expr, stmt.of_expr->accept(*this));
   push_lhs();
   conditional_reset(stmt.to_expr, stmt.to_expr->accept(*this));
   pop_expr_side();
-  conditional_reset(stmt.of_expr, stmt.of_expr->accept(*this));
+
   return &stmt;
 }
 
@@ -663,7 +665,7 @@ ParseError IdentifierClassifier::make_error_variable_referenced_before_assignmen
   auto identifier_str = std::string(string_registry->at(identifier));
 
   std::string msg = "The identifier `" + identifier_str + "`, apparently a variable, might be ";
-  msg += "used before it is explicitly assigned a value.";
+  msg += "referenced before it is explicitly assigned a value.";
 
   return ParseError(text, at_token, msg);
 }
