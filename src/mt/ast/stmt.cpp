@@ -30,8 +30,16 @@ std::string SwitchStmt::accept(const StringVisitor& vis) const {
   return vis.switch_stmt(*this);
 }
 
+SwitchStmt* SwitchStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.switch_stmt(*this);
+}
+
 std::string WhileStmt::accept(const StringVisitor& vis) const {
   return vis.while_stmt(*this);
+}
+
+WhileStmt* WhileStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.while_stmt(*this);
 }
 
 std::string ControlStmt::accept(const StringVisitor& vis) const {
@@ -40,6 +48,10 @@ std::string ControlStmt::accept(const StringVisitor& vis) const {
 
 std::string ForStmt::accept(const StringVisitor& vis) const {
   return vis.for_stmt(*this);
+}
+
+ForStmt* ForStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.for_stmt(*this);
 }
 
 std::string IfStmt::accept(const StringVisitor& vis) const {

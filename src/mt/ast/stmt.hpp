@@ -100,6 +100,7 @@ struct SwitchStmt : public Stmt {
   }
   ~SwitchStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  SwitchStmt* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   BoxedExpr condition_expr;
@@ -116,6 +117,7 @@ struct WhileStmt : public Stmt {
   }
   ~WhileStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  WhileStmt* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   BoxedExpr condition_expr;
@@ -147,6 +149,7 @@ struct ForStmt : public Stmt {
   }
   ~ForStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  ForStmt* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   int64_t loop_variable_identifier;

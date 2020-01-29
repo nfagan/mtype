@@ -14,18 +14,22 @@ struct VariableDef;
 struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
                         std::vector<Optional<int64_t>>&& input_identifiers,
-                        BoxedExpr expr) :
+                        BoxedExpr expr,
+                        std::shared_ptr<MatlabScope> scope) :
   source_token(source_token),
   input_identifiers(std::move(input_identifiers)),
-  expr(std::move(expr)) {
+  expr(std::move(expr)),
+  scope(std::move(scope)) {
     //
   }
   ~AnonymousFunctionExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   std::vector<Optional<int64_t>> input_identifiers;
   BoxedExpr expr;
+  std::shared_ptr<MatlabScope> scope;
 };
 
 struct FunctionReferenceExpr : public Expr {

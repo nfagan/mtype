@@ -413,18 +413,22 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
 
 void IdentifierClassifier::register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers) {
   for (const auto& id : identifiers) {
-    //  Input and output parameters always introduce new local variables.
-    const bool force_shadow_parent_assignment = true;
-    auto assign_res = current_scope()->register_variable_assignment(id, force_shadow_parent_assignment);
+    register_function_parameter(source_token, id);
+  }
+}
 
-    if (!assign_res.success) {
-      auto err = make_error_assignment_to_non_variable(source_token, id, assign_res.error_already_had_type);
-      add_error_if_new_identifier(std::move(err), id);
+void IdentifierClassifier::register_function_parameter(const Token& source_token, int64_t id) {
+  //  Input and output parameters always introduce new local variables.
+  const bool force_shadow_parent_assignment = true;
+  auto assign_res = current_scope()->register_variable_assignment(id, force_shadow_parent_assignment);
 
-    } else if (assign_res.was_initialization) {
-      std::unique_ptr<VariableDef> variable_def(assign_res.variable_def);
-      current_scope()->matlab_scope->register_local_variable(id, std::move(variable_def));
-    }
+  if (!assign_res.success) {
+    auto err = make_error_assignment_to_non_variable(source_token, id, assign_res.error_already_had_type);
+    add_error_if_new_identifier(std::move(err), id);
+
+  } else if (assign_res.was_initialization) {
+    std::unique_ptr<VariableDef> variable_def(assign_res.variable_def);
+    current_scope()->matlab_scope->register_local_variable(id, std::move(variable_def));
   }
 }
 
@@ -472,6 +476,21 @@ Expr* IdentifierClassifier::binary_operator_expr(BinaryOperatorExpr& expr) {
 
 Expr* IdentifierClassifier::dynamic_field_reference_expr(DynamicFieldReferenceExpr& expr) {
   conditional_reset(expr.expr, expr.expr->accept(*this));
+  return &expr;
+}
+
+Expr* IdentifierClassifier::anonymous_function_expr(AnonymousFunctionExpr& expr) {
+  push_scope(expr.scope);
+
+  for (const auto& maybe_id : expr.input_identifiers) {
+    if (maybe_id) {
+      register_function_parameter(expr.source_token, maybe_id.value());
+    }
+  }
+
+  conditional_reset(expr.expr, expr.expr->accept(*this));
+
+  pop_scope();
   return &expr;
 }
 
@@ -618,7 +637,6 @@ IfStmt* IdentifierClassifier::if_stmt(IfStmt& stmt) {
   }
 
   current_scope()->pop_variable_assignment_context();
-
   return &stmt;
 }
 
@@ -633,6 +651,37 @@ AssignmentStmt* IdentifierClassifier::assignment_stmt(AssignmentStmt& stmt) {
 
 ExprStmt* IdentifierClassifier::expr_stmt(ExprStmt& stmt) {
   conditional_reset(stmt.expr, stmt.expr->accept(*this));
+  return &stmt;
+}
+
+ForStmt* IdentifierClassifier::for_stmt(ForStmt& stmt) {
+  register_variable_assignment(stmt.source_token, stmt.loop_variable_identifier);
+  conditional_reset(stmt.loop_variable_expr, stmt.loop_variable_expr->accept(*this));
+  block_new_context(stmt.body);
+  return &stmt;
+}
+
+WhileStmt* IdentifierClassifier::while_stmt(WhileStmt& stmt) {
+  conditional_reset(stmt.condition_expr, stmt.condition_expr->accept(*this));
+  block_new_context(stmt.body);
+  return &stmt;
+}
+
+SwitchStmt* IdentifierClassifier::switch_stmt(SwitchStmt& stmt) {
+  current_scope()->push_variable_assignment_context();
+
+  conditional_reset(stmt.condition_expr, stmt.condition_expr->accept(*this));
+  for (auto& case_block : stmt.cases) {
+    conditional_reset(case_block.expr, case_block.expr->accept(*this));
+    block_new_context(case_block.block);
+  }
+  if (stmt.otherwise) {
+    block_new_context(stmt.otherwise);
+  } else {
+    register_new_context();
+  }
+
+  current_scope()->pop_variable_assignment_context();
   return &stmt;
 }
 

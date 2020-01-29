@@ -9,6 +9,10 @@ std::string AnonymousFunctionExpr::accept(const StringVisitor& vis) const {
   return vis.anonymous_function_expr(*this);
 }
 
+Expr* AnonymousFunctionExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.anonymous_function_expr(*this);
+}
+
 std::string FunctionReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.function_reference_expr(*this);
 }

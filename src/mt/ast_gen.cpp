@@ -620,6 +620,9 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
     return NullOpt{};
   }
 
+  ParseScopeHelper scope_helper(*this);
+  auto scope = current_scope();
+
   auto input_res = anonymous_function_input_parameters();
   if (!input_res) {
     return NullOpt{};
@@ -638,7 +641,8 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
     return NullOpt{};
   }
 
-  auto node = std::make_unique<AnonymousFunctionExpr>(source_token, std::move(input_identifiers), body_res.rvalue());
+  auto node = std::make_unique<AnonymousFunctionExpr>(source_token, std::move(input_identifiers),
+    body_res.rvalue(), std::move(scope));
   return Optional<BoxedExpr>(std::move(node));
 }
 

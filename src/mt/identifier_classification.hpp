@@ -194,10 +194,14 @@ public:
   Expr* grouping_expr(GroupingExpr& expr);
   Expr* binary_operator_expr(BinaryOperatorExpr& expr);
   Expr* unary_operator_expr(UnaryOperatorExpr& expr);
+  Expr* anonymous_function_expr(AnonymousFunctionExpr& expr);
 
   IfStmt* if_stmt(IfStmt& stmt);
   ExprStmt* expr_stmt(ExprStmt& stmt);
   AssignmentStmt* assignment_stmt(AssignmentStmt& stmt);
+  ForStmt* for_stmt(ForStmt& stmt);
+  WhileStmt* while_stmt(WhileStmt& stmt);
+  SwitchStmt* switch_stmt(SwitchStmt& stmt);
 
   void if_branch(IfBranch& branch);
   void subscripts(std::vector<Subscript>& subscripts, int64_t begin);
@@ -229,6 +233,7 @@ private:
   IdentifierScope* current_scope();
   const IdentifierScope* current_scope() const;
 
+  void register_function_parameter(const Token& source_token, int64_t identifier);
   void register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers);
   IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token, int64_t primary_identifier);
   void register_imports(IdentifierScope* in_scope);
