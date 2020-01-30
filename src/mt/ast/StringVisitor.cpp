@@ -422,12 +422,16 @@ std::string StringVisitor::inline_type(const InlineType& type) const {
 
 std::string StringVisitor::type_given(const TypeGiven& given) const {
   auto identifier_strs = string_registry->collect(given.identifiers);
-  return "given <" + join(identifier_strs, ", ") + "> " + given.declaration->accept(*this);
+  std::string given_str("given ");
+  maybe_colorize(given_str, given.source_token.type);
+  return given_str + "<" + join(identifier_strs, ", ") + "> " + given.declaration->accept(*this);
 }
 
 std::string StringVisitor::type_let(const TypeLet& let) const {
   auto identifier_str = std::string(string_registry->at(let.identifier));
-  return "let " + identifier_str + " = " + let.equal_to_type->accept(*this);
+  std::string let_str("let ");
+  maybe_colorize(let_str, let.source_token.type);
+  return let_str + identifier_str + " = " + let.equal_to_type->accept(*this);
 }
 
 std::string StringVisitor::type_begin(const TypeBegin& begin) const {
@@ -435,6 +439,8 @@ std::string StringVisitor::type_begin(const TypeBegin& begin) const {
   if (begin.is_exported) {
     base_str += " export";
   }
+
+  maybe_colorize(base_str, begin.source_token.type);
   base_str += "\n";
   enter_block();
 
@@ -445,8 +451,8 @@ std::string StringVisitor::type_begin(const TypeBegin& begin) const {
 
   exit_block();
   auto contents_str = join(lines, "\n");
-  auto end_str = "\n" + tab_str() + "end";
-  return base_str + contents_str + end_str;
+  auto end = "\n" + tab_str() + end_str();
+  return base_str + contents_str + end;
 }
 
 std::string StringVisitor::type_annot_macro(const TypeAnnotMacro& type) const {

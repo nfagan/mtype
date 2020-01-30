@@ -59,7 +59,7 @@ class IdentifierScope {
    * IdentifierInfo
    */
   struct IdentifierInfo {
-    IdentifierInfo() : type(IdentifierType::unknown), function_reference(nullptr) {
+    IdentifierInfo() : type(IdentifierType::unknown), function_reference(nullptr), is_import(false) {
       //
     }
 
@@ -69,12 +69,12 @@ class IdentifierScope {
     }
 
     IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionReference* reference) :
-      type(type), context(context), function_reference(reference) {
+      type(type), context(context), function_reference(reference), is_import(false) {
       //
     }
 
     IdentifierInfo(IdentifierType type, IdentifierContext context, VariableDef* definition) :
-      type(type), context(context), variable_def(definition) {
+      type(type), context(context), variable_def(definition), is_import(false) {
       //
     }
 
@@ -85,6 +85,8 @@ class IdentifierScope {
       FunctionReference* function_reference;
       VariableDef* variable_def;
     };
+
+    bool is_import;
   };
 
   /*
@@ -137,7 +139,6 @@ private:
   bool has_parent() const;
   AssignmentResult register_variable_assignment(int64_t id, bool force_shadow_parent_assignment = false);
   ReferenceResult register_identifier_reference(int64_t id);
-  ReferenceResult register_external_function_reference(int64_t id);
   ReferenceResult register_fully_qualified_import(int64_t complete_identifier, int64_t last_identifier_component);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);

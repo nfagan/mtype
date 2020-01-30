@@ -92,6 +92,7 @@ using BoxedDef = std::unique_ptr<Def>;
 using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;
 using BoxedType = std::unique_ptr<Type>;
 using BoxedBlock = std::unique_ptr<Block>;
+using BoxedMatlabScope = std::shared_ptr<MatlabScope>;
 
 struct Block : public AstNode {
   Block() = default;
@@ -150,7 +151,8 @@ struct MatlabScope {
   std::shared_ptr<MatlabScope> parent;
   std::unordered_map<int64_t, FunctionReference*> local_functions;
   std::unordered_map<int64_t, std::unique_ptr<VariableDef>> local_variables;
-  std::vector<Import> imports;
+  std::vector<Import> fully_qualified_imports;
+  std::vector<Import> wildcard_imports;
 };
 
 }

@@ -58,6 +58,10 @@ int64_t StringRegistry::register_string(std::string_view str) {
   }
 }
 
+std::string StringRegistry::make_compound_identifier(const std::vector<int64_t>& components) const {
+  return join(collect(components), ".");
+}
+
 int64_t StringRegistry::make_registered_compound_identifier(const std::vector<int64_t>& components, int64_t num) {
   return register_string(join(collect_n(components, num), "."));
 }

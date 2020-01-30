@@ -11,6 +11,8 @@ set(sources
         character_traits.hpp
         error.hpp
         error.cpp
+        file_resolution.hpp
+        file_resolution.cpp
         FunctionRegistry.hpp
         FunctionRegistry.cpp
         identifier_classification.hpp

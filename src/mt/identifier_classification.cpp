@@ -202,15 +202,17 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     }
 
     return ReferenceResult(success, *info);
+
+  } else if (info->type == IdentifierType::unresolved_external_function && !info->is_import) {
+    //  Because functions can be overloaded and are dispatched depending on their argument types,
+    //  we can't assume that `id` corresponds to an existing function -- we must make a new
+    //  reference. The exception to this rule is that, if the function is explicitly imported, then
+    //  `id` always refers to the explicit import.
+    return ReferenceResult(true, make_external_function_reference_identifier_info(id));
+
   } else {
     return ReferenceResult(true, *info);
   }
-}
-
-IdentifierScope::ReferenceResult IdentifierScope::register_external_function_reference(int64_t id) {
-  auto res = register_identifier_reference(id);
-  res.success = res.success && res.info.type == IdentifierType::unresolved_external_function;
-  return res;
 }
 
 IdentifierScope::ReferenceResult
@@ -228,6 +230,7 @@ IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, in
   //  Register the reference as `last_identifier_component`, but create the function reference
   //  to `complete_identifier`.
   auto new_info = make_external_function_reference_identifier_info(complete_identifier);
+  new_info.is_import = true;
   classified_identifiers[last_identifier_component] = new_info;
 
   return ReferenceResult(true, new_info);
@@ -398,15 +401,13 @@ IdentifierClassifier::register_variable_assignment(const Token& source_token, in
 }
 
 void IdentifierClassifier::register_imports(IdentifierScope* scope) {
-  for (const auto& import : scope->matlab_scope->imports) {
+  for (const auto& import : scope->matlab_scope->fully_qualified_imports) {
     //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
-    if (import.type == ImportType::fully_qualified) {
-      auto complete_identifier = string_registry->make_registered_compound_identifier(import.identifier_components);
-      auto res = scope->register_fully_qualified_import(complete_identifier, import.identifier_components.back());
+    auto complete_identifier = string_registry->make_registered_compound_identifier(import.identifier_components);
+    auto res = scope->register_fully_qualified_import(complete_identifier, import.identifier_components.back());
 
-      if (!res.success) {
-        add_error(make_error_shadowed_import(import.source_token, res.info.type));
-      }
+    if (!res.success) {
+      add_error(make_error_shadowed_import(import.source_token, res.info.type));
     }
   }
 }
@@ -521,10 +522,8 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
   subscripts(expr.subscripts, subscript_end);
   pop_expr_side();
 
-  auto* node = new VariableReferenceExpr(expr.source_token, primary_result.variable_def,
+  return new VariableReferenceExpr(expr.source_token, primary_result.variable_def,
     expr.primary_identifier, std::move(expr.subscripts), primary_result.was_initialization);
-
-  return node;
 }
 
 Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenceExpr& expr) {
@@ -571,10 +570,8 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   //  Proceed beginning from the first non literal field reference subscript.
   subscripts(expr.subscripts, subscript_end);
 
-  auto* node = new VariableReferenceExpr(expr.source_token, primary_result.info.variable_def,
+  return new VariableReferenceExpr(expr.source_token, primary_result.info.variable_def,
     primary_identifier, std::move(expr.subscripts), false);
-
-  return node;
 }
 
 FunctionCallExpr* IdentifierClassifier::make_function_call_expr(IdentifierReferenceExpr& from_expr,

@@ -6,7 +6,11 @@
 namespace mt {
 
 void MatlabScope::register_import(Import&& import) {
-  imports.emplace_back(std::move(import));
+  if (import.type == ImportType::wildcard) {
+    wildcard_imports.emplace_back(import);
+  } else {
+    fully_qualified_imports.emplace_back(import);
+  }
 }
 
 bool MatlabScope::register_local_function(int64_t name, FunctionReference* ref) {

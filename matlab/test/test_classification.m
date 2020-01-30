@@ -1,35 +1,63 @@
-function y = test_classification(l)
+function y = test_classification(y)
 
-import shared_utils.general.parsestruct;
+% import y.keep;
 
-x = 1;
-y = 1;
-z = 1;
+y = test_classification;
+y = z();
 
-y = @(x, y, z) x + y + z;
+a = keep( y );
+x = keep( keep() );
 
-  function parsestructs
-%     import x.y.z;
-    x = y;
-    x = z.z;
+x = disp( 1 );
+y = disp( 2 );
+
+  function nest
+    import y.keep;
+    x = keep();
+    y = keep();
+    z = keep();
     
-    a = 2;
-    zzzz =a;
-    
-    function y
-      function child
-%         import z.z x.y.a;
-        y = z;
-      end
+    function two
+      y = keep;
     end
-    
-    x = z.z;
   end
 
 end
 
-function c = another(c)
+% @T [] = ()
+function [] = another()
 
-% import d.c;
+%{
+begin export
+
+import file2
+
+% This should be ok -- type parameters live in separate namespace
+given Z let Z = Z<Z>
+let Z = y
+% See below
+let X = S
+
+struct S
+  f: X
+  y: Z
+end
 
 end
+%}
+
+x = y;
+
+end
+
+%{
+
+begin export
+  import file1
+
+  % Should it be an error to refer to X in a self assignment, or should
+  % this X refer to file1's X?
+  let X = X
+end
+
+%}

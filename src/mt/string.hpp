@@ -22,6 +22,7 @@ public:
 
   int64_t make_registered_compound_identifier(const std::vector<int64_t>& components, int64_t num);
   int64_t make_registered_compound_identifier(const std::vector<int64_t>& components);
+  std::string make_compound_identifier(const std::vector<int64_t>& components) const;
 
   std::string_view at(int64_t index) const;
   std::vector<std::string_view> collect(const std::vector<int64_t>& indices) const;

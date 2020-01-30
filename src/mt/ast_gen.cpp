@@ -881,6 +881,8 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
       if (is_colon_subscript_expr(tok)) {
         node_res = colon_subscript_expr(tok);
       } else {
+        //  @TODO: Tertiary colon operator is not parsed correctly. E.g., 1:2:3:4:5:6 should parse
+        //  as (((1:2:3):4:5):6)
         auto bin_res = pending_binary_expr(tok, completed, binaries);
         if (bin_res) {
           add_error(bin_res.rvalue());
