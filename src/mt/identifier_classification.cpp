@@ -162,7 +162,15 @@ inline IdentifierType identifier_type_from_function_def(FunctionDef* def) {
 }
 }
 
-IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(int64_t id) {
+IdentifierScope::ReferenceResult IdentifierScope::register_compound_identifier_reference(int64_t id) {
+  return register_identifier_reference(id, true);
+}
+
+IdentifierScope::ReferenceResult IdentifierScope::register_scalar_identifier_reference(int64_t id) {
+  return register_identifier_reference(id, false);
+}
+
+IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(int64_t id, bool is_compound) {
   const auto* info = lookup_variable(id, true);
   const auto* local_info = lookup_variable(id, false);
 
@@ -170,7 +178,7 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  This identifier has not been classified, and has not been assigned or initialized, so it is
     //  either an external function reference or a reference to a function in the current or
     //  a parent's scope.
-    auto new_info = make_function_reference_identifier_info(id, lookup_local_function(id));
+    auto new_info = make_function_reference_identifier_info(id, lookup_local_function(id), is_compound);
     classified_identifiers[id] = new_info;
     return ReferenceResult(true, new_info);
 
@@ -208,12 +216,12 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
 
     return ReferenceResult(success, *info);
 
-  } else if (info->type == IdentifierType::unresolved_external_function && !info->is_import) {
+  } else if (info->type == IdentifierType::unresolved_external_function && !info->is_compound_identifier) {
     //  Because functions can be overloaded and are dispatched depending on their argument types,
     //  we can't assume that `id` corresponds to an existing function -- we must make a new
     //  reference. The exception to this rule is that, if the function is explicitly imported, then
     //  `id` always refers to the explicit import.
-    return ReferenceResult(true, make_external_function_reference_identifier_info(id));
+    return ReferenceResult(true, make_external_function_reference_identifier_info(id, is_compound));
 
   } else {
     return ReferenceResult(true, *info);
@@ -228,19 +236,29 @@ IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, in
     return ReferenceResult(false, *local_last_info);
   }
 
-  //  Register the reference as `last_identifier_component`, but create the function reference
-  //  to `complete_identifier`.
-  auto new_info = make_external_function_reference_identifier_info(complete_identifier);
-  new_info.is_import = true;
-  classified_identifiers[last_identifier_component] = new_info;
+  //  Check whether the complete identifier is already registered as an external function in a parent
+  //  scope. If so, we can re-use the parent info.
+  IdentifierInfo new_info;
+  auto* parent_last_info = lookup_variable(complete_identifier, true);
 
+  if (parent_last_info && parent_last_info->type == IdentifierType::unresolved_external_function) {
+    new_info = *parent_last_info;
+  } else {
+    //  Register the reference as `last_identifier_component`, but create the function reference
+    //  to `complete_identifier`.
+    new_info = make_external_function_reference_identifier_info(complete_identifier, true);
+  }
+
+  classified_identifiers[last_identifier_component] = new_info;
   return ReferenceResult(true, new_info);
 }
 
 IdentifierScope::IdentifierInfo
-IdentifierScope::make_external_function_reference_identifier_info(int64_t identifier) {
+IdentifierScope::make_external_function_reference_identifier_info(int64_t identifier, bool is_compound) {
   auto ref = classifier->function_registry->make_external_reference(identifier, matlab_scope);
-  return IdentifierInfo(IdentifierType::unresolved_external_function, current_context(), ref);
+  IdentifierInfo info(IdentifierType::unresolved_external_function, current_context(), ref);
+  info.is_compound_identifier = is_compound;
+  return info;
 }
 
 IdentifierScope::IdentifierInfo
@@ -250,11 +268,11 @@ IdentifierScope::make_local_function_reference_identifier_info(FunctionReference
 }
 
 IdentifierScope::IdentifierInfo
-IdentifierScope::make_function_reference_identifier_info(int64_t identifier, FunctionReference* maybe_local_ref) {
+IdentifierScope::make_function_reference_identifier_info(int64_t identifier, FunctionReference* maybe_local_ref, bool is_compound) {
   if (maybe_local_ref) {
     return make_local_function_reference_identifier_info(maybe_local_ref);
   } else {
-    return make_external_function_reference_identifier_info(identifier);
+    return make_external_function_reference_identifier_info(identifier, is_compound);
   }
 }
 
@@ -534,7 +552,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   const bool is_variable = current_scope()->has_variable(expr.primary_identifier, true);
   const int64_t primary_identifier = expr.primary_identifier;
 
-  const auto primary_result = current_scope()->register_identifier_reference(primary_identifier);
+  const auto primary_result = current_scope()->register_scalar_identifier_reference(primary_identifier);
   if (!primary_result.success) {
     auto err = make_error_variable_referenced_before_assignment(expr.source_token, primary_identifier);
     add_error_if_new_identifier(std::move(err), primary_identifier);
@@ -547,7 +565,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
     //  Presumed function reference with more than 1 identifier component, e.g. `a.b()`. Register
     //  the compound identifier as well.
     const int64_t compound_identifier = string_registry->make_registered_compound_identifier(compound_identifier_components);
-    const auto compound_ref_result = current_scope()->register_identifier_reference(compound_identifier);
+    const auto compound_ref_result = current_scope()->register_compound_identifier_reference(compound_identifier);
     if (!compound_ref_result.success) {
       auto err = make_error_variable_referenced_before_assignment(expr.source_token, compound_identifier);
       add_error_if_new_identifier(std::move(err), compound_identifier);
@@ -690,7 +708,7 @@ FunctionReference* IdentifierClassifier::function_reference(FunctionReference& r
 
   for (const auto& it : scope->matlab_scope->local_functions) {
     //  Local functions take precedence over variables.
-    auto res = scope->register_identifier_reference(it.second->def->header.name);
+    auto res = scope->register_scalar_identifier_reference(it.second->def->header.name);
     if (!res.success || res.info.type != IdentifierType::local_function) {
       assert(res.success && "Failed to register local function.");
     }

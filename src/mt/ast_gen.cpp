@@ -309,9 +309,13 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
   bool should_proceed = true;
   bool any_error = false;
 
+  std::vector<BoxedAstNode> functions;
+  std::vector<BoxedAstNode> non_functions;
+
   while (iterator.has_next() && should_proceed) {
     BoxedAstNode node;
     bool success = true;
+    bool is_function = false;
 
     const auto& tok = iterator.peek();
 
@@ -334,11 +338,11 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
         }
         break;
       }
-
       case TokenType::keyword_function: {
         auto def_res = function_reference();
         if (def_res) {
           node = def_res.rvalue();
+          is_function = true;
         } else {
           success = false;
         }
@@ -360,13 +364,24 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
       iterator.advance_to_one(possible_types.data(), possible_types.size());
 
     } else if (node) {
-      block_node->append(std::move(node));
+      if (is_function) {
+        functions.emplace_back(std::move(node));
+      } else {
+        non_functions.emplace_back(std::move(node));
+      }
     }
   }
 
   if (any_error) {
     return NullOpt{};
   } else {
+    for (auto& node : non_functions) {
+      block_node->append(std::move(node));
+    }
+    for (auto& node : functions) {
+      block_node->append(std::move(node));
+    }
+
     return Optional<std::unique_ptr<Block>>(std::move(block_node));
   }
 }
@@ -376,9 +391,13 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
   bool should_proceed = true;
   bool any_error = false;
 
+  std::vector<BoxedAstNode> functions;
+  std::vector<BoxedAstNode> non_functions;
+
   while (iterator.has_next() && should_proceed) {
     BoxedAstNode node;
     bool success = true;
+    bool is_function = false;
 
     const auto& tok = iterator.peek();
 
@@ -406,12 +425,12 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
         }
         break;
       }
-
       case TokenType::keyword_function: {
         if (is_end_terminated_function) {
           auto def_res = function_reference();
           if (def_res) {
             node = def_res.rvalue();
+            is_function = true;
           } else {
             success = false;
           }
@@ -438,13 +457,23 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
       iterator.advance_to_one(possible_types.data(), possible_types.size());
 
     } else if (node) {
-      block_node->append(std::move(node));
+      if (is_function) {
+        functions.emplace_back(std::move(node));
+      } else {
+        non_functions.emplace_back(std::move(node));
+      }
     }
   }
 
   if (any_error) {
     return NullOpt{};
   } else {
+    for (auto& node : non_functions) {
+      block_node->append(std::move(node));
+    }
+    for (auto& node : functions) {
+      block_node->append(std::move(node));
+    }
     return Optional<std::unique_ptr<Block>>(std::move(block_node));
   }
 }

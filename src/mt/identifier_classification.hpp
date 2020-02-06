@@ -61,17 +61,17 @@ class IdentifierScope {
    * IdentifierInfo
    */
   struct IdentifierInfo {
-    IdentifierInfo() : type(IdentifierType::unknown), function_reference(nullptr), is_import(false) {
+    IdentifierInfo() : type(IdentifierType::unknown), function_reference(nullptr), is_compound_identifier(false) {
       //
     }
 
     IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionReference* reference) :
-      type(type), context(context), function_reference(reference), is_import(false) {
+      type(type), context(context), function_reference(reference), is_compound_identifier(false) {
       //
     }
 
     IdentifierInfo(IdentifierType type, IdentifierContext context, VariableDef* definition) :
-      type(type), context(context), variable_def(definition), is_import(false) {
+      type(type), context(context), variable_def(definition), is_compound_identifier(false) {
       //
     }
 
@@ -83,7 +83,7 @@ class IdentifierScope {
       VariableDef* variable_def;
     };
 
-    bool is_import;
+    bool is_compound_identifier;
   };
 
   /*
@@ -136,7 +136,10 @@ public:
 private:
   bool has_parent() const;
   AssignmentResult register_variable_assignment(int64_t id, bool force_shadow_parent_assignment = false);
-  ReferenceResult register_identifier_reference(int64_t id);
+  ReferenceResult register_identifier_reference(int64_t id, bool is_compound);
+  ReferenceResult register_compound_identifier_reference(int64_t id);
+  ReferenceResult register_scalar_identifier_reference(int64_t id);
+
   ReferenceResult register_fully_qualified_import(int64_t complete_identifier, int64_t last_identifier_component);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
@@ -158,8 +161,9 @@ private:
   const IdentifierContext* context_at_depth(int depth) const;
 
   IdentifierInfo make_local_function_reference_identifier_info(FunctionReference* ref);
-  IdentifierInfo make_external_function_reference_identifier_info(int64_t identifier);
-  IdentifierInfo make_function_reference_identifier_info(int64_t identifier, FunctionReference* maybe_local_ref);
+  IdentifierInfo make_external_function_reference_identifier_info(int64_t identifier, bool is_compound);
+  IdentifierInfo make_function_reference_identifier_info(int64_t identifier,
+    FunctionReference* maybe_local_ref, bool is_compound);
 
 private:
   IdentifierClassifier* classifier;
