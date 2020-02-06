@@ -1,6 +1,15 @@
 function y = test_classification(y)
 
 % import y.keep;
+%{
+@T begin
+
+let X = [] = (double | single)
+given T let Rec = X<T>
+given T let Self = Rec<T> | T
+
+end
+%}
 
 y = test_classification;
 y = z();
@@ -24,7 +33,7 @@ y = disp( 2 );
 
 end
 
-% @T [] = ()
+% @T double | single
 function [] = another()
 
 %{

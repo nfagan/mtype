@@ -61,6 +61,7 @@ public:
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;
   std::string end_operator_expr(const EndOperatorExpr& expr) const;
 
+  std::string union_type(const UnionType& type) const;
   std::string scalar_type(const ScalarType& type) const;
   std::string function_type(const FunctionType& type) const;
   std::string type_begin(const TypeBegin& begin) const;

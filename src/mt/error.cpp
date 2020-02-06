@@ -10,7 +10,7 @@ void ParseError::show() const {
     const auto stop = is_null ? 0 : at_token.lexeme.data() + at_token.lexeme.size() - text.data();
 
     auto msg = mark_text_with_message_and_context(text, start, stop, 50, message);
-    std::cout << msg << std::endl;
+    std::cout << msg << std::endl << std::endl;
   }
 }
 

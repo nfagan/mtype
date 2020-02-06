@@ -74,9 +74,11 @@ end
 %{
 
 % Circular references
+D = double
+
 let A = B
 let B = C
-let C = A
+let C = A | D
 
 %}
 
@@ -86,6 +88,18 @@ let C = A
 % file1.m
 begin export
   import file2 as file2
+
+  class Y
+    f1: X
+    f2: Y | double
+  end
+
+  class X < Y
+    f1: Z
+    f2: Z2
+  end
+
+  given <T> let Value = T | Value<T>
 
   let JSONValue = char | double | struct_map<char, JSONValue>
   

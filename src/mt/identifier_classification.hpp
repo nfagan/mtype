@@ -44,14 +44,16 @@ class IdentifierScope {
    * IdentifierContext
    */
   struct IdentifierContext {
-    IdentifierContext() : depth(0), uuid(0) {
+    IdentifierContext() : depth(0), scope_depth(0), uuid(0) {
       //
     }
-    IdentifierContext(int depth, int64_t uuid) : depth(depth), uuid(uuid) {
+    IdentifierContext(int depth, int scope_depth, int64_t uuid) :
+    depth(depth), scope_depth(scope_depth), uuid(uuid) {
       //
     }
 
     int depth;
+    int scope_depth;
     int64_t uuid;
   };
 
@@ -121,9 +123,10 @@ class IdentifierScope {
   };
 
 public:
-  IdentifierScope(IdentifierClassifier* classifier, std::shared_ptr<MatlabScope> parse_scope, int parent_index) :
+  IdentifierScope(IdentifierClassifier* classifier, std::shared_ptr<MatlabScope> parse_scope, int scope_depth, int parent_index) :
     classifier(classifier),
     matlab_scope(std::move(parse_scope)),
+    scope_depth(scope_depth),
     parent_index(parent_index),
     context_uuid(0) {
     push_context();
@@ -166,6 +169,7 @@ private:
 private:
   IdentifierClassifier* classifier;
   std::shared_ptr<MatlabScope> matlab_scope;
+  int scope_depth;
   int parent_index;
 
   std::vector<IdentifierContext> contexts;

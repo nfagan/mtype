@@ -73,7 +73,7 @@ void IdentifierScope::push_context() {
     variable_assignment_contexts.back().register_child_context(new_context_uuid);
   }
 
-  contexts.emplace_back(IdentifierContext(current_context_depth()+1, new_context_uuid));
+  contexts.emplace_back(IdentifierContext(current_context_depth()+1, scope_depth, new_context_uuid));
 }
 
 int IdentifierScope::current_context_depth() const {
@@ -193,12 +193,17 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  The identifier was previously classified as a variable, so a valid reference requires that
     //  it was assigned / initialized in a context at least as low as the current one, and whose
     //  parent context is the same as the parent of the current context.
-    //  @TODO: Should be also valid if the reference is to the parent scope.
     const auto* current_context_at_info_depth = context_at_depth(info->context.depth);
     bool success = false;
 
     if (current_context_at_info_depth) {
       success = info->context.uuid == current_context_at_info_depth->uuid;
+    } else {
+      //  No classification exists at this context depth, but if it was registered in a parent
+      //  scope, then it's OK to reference, regardless.
+      //  @TODO: This is not quite correct. We must still make sure the variable was initialized
+      //  in the context containing this scope, if this new scope is due to an anonymous function.
+      success = info->context.scope_depth < current_context().scope_depth;
     }
 
     return ReferenceResult(success, *info);
@@ -222,10 +227,6 @@ IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, in
     //  Imported identifier component should not already have been registered.
     return ReferenceResult(false, *local_last_info);
   }
-
-  //  @TODO: If a parent scope has already created an unresolved external function reference to
-  //  the `complete_identifier`, then it's safe to re-use that reference for
-  //  `last_identifier_component`
 
   //  Register the reference as `last_identifier_component`, but create the function reference
   //  to `complete_identifier`.
@@ -346,7 +347,7 @@ void IdentifierClassifier::pop_expr_side() {
 
 void IdentifierClassifier::push_scope(const std::shared_ptr<MatlabScope>& parse_scope) {
   int parent_index = scope_depth++;
-  IdentifierScope new_scope(this, parse_scope, parent_index);
+  IdentifierScope new_scope(this, parse_scope, parent_index, parent_index);
 
   if (scope_depth >= int(scopes.size())) {
     scopes.emplace_back(std::move(new_scope));

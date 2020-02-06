@@ -1638,6 +1638,34 @@ Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token)
 }
 
 Optional<BoxedType> AstGenerator::type(const mt::Token& source_token) {
+  auto first_type_res = one_type(source_token);
+  if (!first_type_res) {
+    return NullOpt{};
+  }
+
+  if (iterator.peek().type != TokenType::vertical_bar) {
+    return first_type_res;
+  }
+
+  std::vector<BoxedType> union_type_members;
+  union_type_members.emplace_back(first_type_res.rvalue());
+
+  while (iterator.has_next() && iterator.peek().type == TokenType::vertical_bar) {
+    iterator.advance();
+
+    auto next_type_res = one_type(iterator.peek());
+    if (!next_type_res) {
+      return NullOpt{};
+    }
+
+    union_type_members.emplace_back(next_type_res.rvalue());
+  }
+
+  auto union_type_node = std::make_unique<UnionType>(std::move(union_type_members));
+  return Optional<BoxedType>(std::move(union_type_node));
+}
+
+Optional<BoxedType> AstGenerator::one_type(const mt::Token& source_token) {
   switch (source_token.type) {
     case TokenType::left_bracket:
       return function_type(source_token);

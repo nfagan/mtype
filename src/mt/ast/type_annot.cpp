@@ -23,6 +23,10 @@ std::string TypeBegin::accept(const StringVisitor& vis) const {
   return vis.type_begin(*this);
 }
 
+std::string UnionType::accept(const StringVisitor& vis) const {
+  return vis.union_type(*this);
+}
+
 std::string ScalarType::accept(const StringVisitor& vis) const {
   return vis.scalar_type(*this);
 }

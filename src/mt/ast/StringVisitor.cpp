@@ -402,6 +402,10 @@ std::string StringVisitor::end_operator_expr(const EndOperatorExpr&) const {
   return "end";
 }
 
+std::string StringVisitor::union_type(const UnionType& type) const {
+  return visit_array(type.members, " | ");
+}
+
 std::string StringVisitor::scalar_type(const ScalarType& type) const {
   auto str = std::string(string_registry->at(type.identifier));
   if (!type.arguments.empty()) {

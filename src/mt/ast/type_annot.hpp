@@ -74,6 +74,16 @@ struct TypeBegin : public TypeAnnot {
   std::vector<BoxedTypeAnnot> contents;
 };
 
+struct UnionType : public Type {
+  explicit UnionType(std::vector<BoxedType>&& members) : members(std::move(members)) {
+    //
+  }
+  ~UnionType() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+
+  std::vector<BoxedType> members;
+};
+
 struct ScalarType : public Type {
   ScalarType(const Token& source_token,
              int64_t identifier,
