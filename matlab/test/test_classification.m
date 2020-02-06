@@ -11,6 +11,8 @@ given T let Self = Rec<T> | T
 end
 %}
 
+a = one();
+
 y = test_classification;
 y = z();
 

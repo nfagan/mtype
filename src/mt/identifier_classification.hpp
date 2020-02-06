@@ -65,11 +65,6 @@ class IdentifierScope {
       //
     }
 
-    IdentifierInfo(IdentifierType type, IdentifierContext context) :
-      IdentifierInfo(type, context, static_cast<FunctionReference*>(nullptr)) {
-      //
-    }
-
     IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionReference* reference) :
       type(type), context(context), function_reference(reference), is_import(false) {
       //
