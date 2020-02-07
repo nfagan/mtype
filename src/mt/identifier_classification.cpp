@@ -219,8 +219,8 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
   } else if (info->type == IdentifierType::unresolved_external_function && !info->is_compound_identifier) {
     //  Because functions can be overloaded and are dispatched depending on their argument types,
     //  we can't assume that `id` corresponds to an existing function -- we must make a new
-    //  reference. The exception to this rule is that, if the function is explicitly imported, then
-    //  `id` always refers to the explicit import.
+    //  reference. The exception to this rule is that package functions and static methods referenced
+    //  via a compound identifier cannot be dispatched, and so always refer to the same function.
     return ReferenceResult(true, make_external_function_reference_identifier_info(id, is_compound));
 
   } else {
@@ -239,10 +239,10 @@ IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, in
   //  Check whether the complete identifier is already registered as an external function in a parent
   //  scope. If so, we can re-use the parent info.
   IdentifierInfo new_info;
-  auto* parent_last_info = lookup_variable(complete_identifier, true);
+  auto* parent_info = lookup_variable(complete_identifier, true);
 
-  if (parent_last_info && parent_last_info->type == IdentifierType::unresolved_external_function) {
-    new_info = *parent_last_info;
+  if (parent_info && parent_info->type == IdentifierType::unresolved_external_function) {
+    new_info = *parent_info;
   } else {
     //  Register the reference as `last_identifier_component`, but create the function reference
     //  to `complete_identifier`.

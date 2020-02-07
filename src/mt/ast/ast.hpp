@@ -101,6 +101,13 @@ struct Block : public AstNode {
   void append(BoxedAstNode other) {
     nodes.emplace_back(std::move(other));
   }
+
+  void append_many(std::vector<BoxedAstNode>& nodes) {
+    for (auto& node : nodes) {
+      append(std::move(node));
+    }
+  }
+
   std::string accept(const StringVisitor& vis) const override;
   Block* accept(IdentifierClassifier& classifier) override;
 

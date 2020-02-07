@@ -17,6 +17,9 @@ const char* to_string(IdentifierType type) {
       return "resolved_external_function";
     case IdentifierType::unknown:
       return "unknown";
+    default:
+      assert(false && "Unreachable.");
+      return "unknown";
   }
 }
 

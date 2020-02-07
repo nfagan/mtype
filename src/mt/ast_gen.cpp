@@ -305,7 +305,6 @@ Optional<std::unique_ptr<FunctionReference>> AstGenerator::function_reference() 
 }
 
 Optional<std::unique_ptr<Block>> AstGenerator::block() {
-  auto block_node = std::make_unique<Block>();
   bool should_proceed = true;
   bool any_error = false;
 
@@ -375,19 +374,14 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
   if (any_error) {
     return NullOpt{};
   } else {
-    for (auto& node : non_functions) {
-      block_node->append(std::move(node));
-    }
-    for (auto& node : functions) {
-      block_node->append(std::move(node));
-    }
-
+    auto block_node = std::make_unique<Block>();
+    block_node->append_many(non_functions);
+    block_node->append_many(functions);
     return Optional<std::unique_ptr<Block>>(std::move(block_node));
   }
 }
 
 Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
-  auto block_node = std::make_unique<Block>();
   bool should_proceed = true;
   bool any_error = false;
 
@@ -468,12 +462,9 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
   if (any_error) {
     return NullOpt{};
   } else {
-    for (auto& node : non_functions) {
-      block_node->append(std::move(node));
-    }
-    for (auto& node : functions) {
-      block_node->append(std::move(node));
-    }
+    auto block_node = std::make_unique<Block>();
+    block_node->append_many(non_functions);
+    block_node->append_many(functions);
     return Optional<std::unique_ptr<Block>>(std::move(block_node));
   }
 }
