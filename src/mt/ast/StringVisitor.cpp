@@ -213,7 +213,10 @@ std::string StringVisitor::command_stmt(const CommandStmt& stmt) const {
 std::string StringVisitor::variable_declaration_stmt(const VariableDeclarationStmt& stmt) const {
   //  @TODO: Derive declaration qualifier.
   auto identifier_strs = string_registry->collect(stmt.identifiers);
-  return tab_str() + std::string(stmt.source_token.lexeme) + " " + join(identifier_strs, " ");
+  std::string decl_keyword(stmt.source_token.lexeme);
+  maybe_colorize(decl_keyword, stmt.source_token.type);
+
+  return tab_str() + decl_keyword + " " + join(identifier_strs, " ");
 }
 
 std::string StringVisitor::control_stmt(const ControlStmt& stmt) const {

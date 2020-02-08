@@ -20,6 +20,7 @@ struct VariableDeclarationStmt : public Stmt {
   }
   ~VariableDeclarationStmt() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  VariableDeclarationStmt* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
   VariableDeclarationQualifier qualifier;

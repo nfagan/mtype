@@ -1,12 +1,15 @@
 #include "stmt.hpp"
 #include "StringVisitor.hpp"
 #include "../identifier_classification.hpp"
-#include "expr.hpp"
 
 namespace mt {
 
 std::string VariableDeclarationStmt::accept(const StringVisitor& vis) const {
   return vis.variable_declaration_stmt(*this);
+}
+
+VariableDeclarationStmt* VariableDeclarationStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.variable_declaration_stmt(*this);
 }
 
 CommandStmt::CommandStmt(const Token& source_token,

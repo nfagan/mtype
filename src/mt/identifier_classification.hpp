@@ -206,6 +206,7 @@ public:
   ForStmt* for_stmt(ForStmt& stmt);
   WhileStmt* while_stmt(WhileStmt& stmt);
   SwitchStmt* switch_stmt(SwitchStmt& stmt);
+  VariableDeclarationStmt* variable_declaration_stmt(VariableDeclarationStmt& stmt);
 
   void if_branch(IfBranch& branch);
   void subscripts(std::vector<Subscript>& subscripts, int64_t begin);
@@ -241,6 +242,7 @@ private:
   void register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers);
   IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token, int64_t primary_identifier);
   void register_imports(IdentifierScope* in_scope);
+  void register_local_functions(IdentifierScope* in_scope);
 
   Expr* identifier_reference_expr_lhs(IdentifierReferenceExpr& expr);
   Expr* identifier_reference_expr_rhs(IdentifierReferenceExpr& expr);
@@ -263,8 +265,8 @@ private:
   ParseError make_error_variable_referenced_before_assignment(const Token& at_token, int64_t identifier);
   ParseError make_error_implicit_variable_initialization(const Token& at_token);
   ParseError make_error_invalid_function_call_expr(const Token& at_token);
-  ParseError make_error_invalid_function_index_expr(const Token& at_token);
   ParseError make_error_shadowed_import(const Token& at_token, IdentifierType present_type);
+  ParseError make_error_pre_declared_qualified_variable(const Token& at_token, int64_t identifier);
 
 private:
   StringRegistry* string_registry;

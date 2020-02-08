@@ -47,20 +47,20 @@ void IdentifierScope::pop_variable_assignment_context() {
       }
     }
 
-    if (!all_assigned) {
-      continue;
+    if (all_assigned) {
+      //  This identifier was assigned a value in all child contexts, so its visibility can be
+      //  "promoted" to the parent context.
+      assert(classified_identifiers.count(identifier) > 0 && "No identifier registered ??");
+      auto var_parent_index = assign_context.parent_index;
+
+      if (var_parent_index >= 0) {
+        auto& var_parent_context = variable_assignment_contexts[var_parent_index];
+        var_parent_context.register_assignment(identifier, curr_context.uuid);
+      }
+
+      auto& info = classified_identifiers.at(identifier);
+      info.context = curr_context;
     }
-
-    assert(classified_identifiers.count(identifier) > 0 && "No identifier registered ??");
-    auto var_parent_index = assign_context.parent_index;
-
-    if (var_parent_index >= 0) {
-      auto& var_parent_context = variable_assignment_contexts[var_parent_index];
-      var_parent_context.register_assignment(identifier, curr_context.uuid);
-    }
-
-    auto& info = classified_identifiers.at(identifier);
-    info.context = curr_context;
   }
 
   variable_assignment_contexts.pop_back();
@@ -431,6 +431,16 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
   }
 }
 
+void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
+  for (const auto& it : scope->matlab_scope->local_functions) {
+    //  Local functions take precedence over variables.
+    auto res = scope->register_scalar_identifier_reference(it.second->def->header.name);
+    if (!res.success || res.info.type != IdentifierType::local_function) {
+      assert(res.success && "Failed to register local function.");
+    }
+  }
+}
+
 void IdentifierClassifier::register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers) {
   for (const auto& id : identifiers) {
     register_function_parameter(source_token, id);
@@ -701,21 +711,24 @@ SwitchStmt* IdentifierClassifier::switch_stmt(SwitchStmt& stmt) {
   return &stmt;
 }
 
+VariableDeclarationStmt* IdentifierClassifier::variable_declaration_stmt(VariableDeclarationStmt& stmt) {
+  for (const int64_t identifier : stmt.identifiers) {
+    const auto assign_res = register_variable_assignment(stmt.source_token, identifier);
+    if (!assign_res.was_initialization) {
+      add_error(make_error_pre_declared_qualified_variable(stmt.source_token, identifier));
+    }
+  }
+
+  return &stmt;
+}
+
 FunctionReference* IdentifierClassifier::function_reference(FunctionReference& ref) {
   push_scope(ref.scope);
   auto* def = ref.def;
   auto* scope = current_scope();
 
-  for (const auto& it : scope->matlab_scope->local_functions) {
-    //  Local functions take precedence over variables.
-    auto res = scope->register_scalar_identifier_reference(it.second->def->header.name);
-    if (!res.success || res.info.type != IdentifierType::local_function) {
-      assert(res.success && "Failed to register local function.");
-    }
-  }
-
+  register_local_functions(scope);
   register_imports(scope);
-
   register_function_parameters(def->header.name_token, def->header.inputs);
   register_function_parameters(def->header.name_token, def->header.outputs);
 
@@ -811,13 +824,15 @@ ParseError IdentifierClassifier::make_error_invalid_function_call_expr(const Tok
   return ParseError(text, at_token, "Functions cannot be `.` or `{}` referenced.");
 }
 
-ParseError IdentifierClassifier::make_error_invalid_function_index_expr(const Token& at_token) {
-  return ParseError(text, at_token, "Function outputs cannot be `()` or `{}` referenced.");
-}
-
 ParseError IdentifierClassifier::make_error_shadowed_import(const Token& at_token, IdentifierType present_type) {
   auto type_str = std::string(to_string(present_type));
   std::string msg = "Import is shadowed by identifier of type `" + type_str + "`.";
+  return ParseError(text, at_token, msg);
+}
+
+ParseError IdentifierClassifier::make_error_pre_declared_qualified_variable(const Token& at_token, int64_t identifier) {
+  auto identifier_str = std::string(string_registry->at(identifier));
+  std::string msg = "The declaration of identifier `" + identifier_str + "` must precede its initialization.";
   return ParseError(text, at_token, msg);
 }
 
