@@ -15,6 +15,7 @@ class CharacterIterator {
 public:
   CharacterIterator();
   CharacterIterator(const char* str, int64_t len);
+  CharacterIterator(const std::string& str);
   ~CharacterIterator() = default;
 
   bool has_next() const;

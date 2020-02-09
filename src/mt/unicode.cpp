@@ -32,6 +32,10 @@ inline uint8_t count_most_significant_set_bits(uint8_t byte, uint8_t max_n_bytes
 
 }
 
+int mt::utf8::count_code_units(const std::string& str) {
+  return count_code_units(str.c_str(), str.size());
+}
+
 int mt::utf8::count_code_units(const char* str, int64_t len) {
   uint8_t max_bytes = (len < 0) ?
                       0 : (len > int64_t(utf8::bytes_per_code_point)) ?
@@ -66,6 +70,29 @@ int mt::utf8::count_code_units(const char* str, int64_t len) {
   }
 
   return expected_n_bytes;
+}
+
+int64_t mt::utf8::count_code_points(const std::string& str) {
+  return count_code_points(str.c_str(), str.size());
+}
+
+int64_t mt::utf8::count_code_points(const char* str, int64_t len) {
+  int64_t i = 0;
+  int64_t count = 0;
+
+  while (i < len) {
+    int64_t num_units = count_code_units(str + i, len - i);
+
+    if (num_units == 0) {
+      //  Invalid byte sequence
+      return 0;
+    }
+
+    count++;
+    i += num_units;
+  }
+
+  return count;
 }
 
 bool mt::utf8::is_valid(const std::string& str) {

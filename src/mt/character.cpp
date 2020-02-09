@@ -11,6 +11,11 @@ CharacterIterator::CharacterIterator(const char* str, int64_t len) :
   //
 }
 
+CharacterIterator::CharacterIterator(const std::string& str) :
+CharacterIterator(str.c_str(), str.size()) {
+  //
+}
+
 int64_t CharacterIterator::next_index() const {
   return current_index;
 }

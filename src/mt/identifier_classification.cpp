@@ -305,11 +305,7 @@ IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(int64_t id, bo
 
 bool IdentifierScope::has_variable(int64_t id, bool traverse_parent) {
   auto* info = lookup_variable(id, traverse_parent);
-  if (!info) {
-    return false;
-  } else {
-    return is_variable(info->type);
-  }
+  return info ? is_variable(info->type) : false;
 }
 
 bool IdentifierScope::has_parent() const {
