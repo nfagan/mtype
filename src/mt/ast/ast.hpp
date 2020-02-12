@@ -11,6 +11,7 @@ namespace mt {
 class StringVisitor;
 class IdentifierClassifier;
 struct Block;
+struct RootBlock;
 struct FunctionDef;
 struct FunctionReference;
 struct VariableDef;
@@ -92,6 +93,7 @@ using BoxedDef = std::unique_ptr<Def>;
 using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;
 using BoxedType = std::unique_ptr<Type>;
 using BoxedBlock = std::unique_ptr<Block>;
+using BoxedRootBlock = std::unique_ptr<RootBlock>;
 using BoxedMatlabScope = std::shared_ptr<MatlabScope>;
 
 struct Block : public AstNode {
@@ -154,6 +156,9 @@ struct MatlabScope {
   bool register_local_function(int64_t name, FunctionReference* ref);
   void register_local_variable(int64_t name, std::unique_ptr<VariableDef> def);
   void register_import(Import&& import);
+
+  FunctionReference* lookup_local_function(int64_t name);
+  const FunctionReference* lookup_local_function(int64_t name) const;
 
   std::shared_ptr<MatlabScope> parent;
   std::unordered_map<int64_t, FunctionReference*> local_functions;

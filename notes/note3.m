@@ -262,14 +262,88 @@ end
 
 @T begin
 
+constraint Scalar(T) := size(T) == [1, 1]
+constraint Positive(T) := all(T > 0)
+constraint ScalarPositive(T) := Scalar(T) && Positive(T)
+constraint DotSubscriptable(T) := T <: Record
 
+given <X, T where Scalar, U where Scalar> function returns_scalar
+  [X] = (T, U)
+end
+
+given <T> function is_scalar verifies Scalar
+  [logical] = (T)
+end
+
+function x = returns_scalar(a, b)
+  % constraint: tx = t(ta + tb);
+  x = a + b;
+
+  function child()
+    % observation: size(x) = size( [a, b] );
+    % constraint: tx = t([ta, tb]);
+    x = [a, b];
+  end
+
+  % constraint: tx = t(ta * tb)
+  x = x * b;
+end
+
+function tf = is_scalar(t)
+tf = isscalar( t );
+end
+
+let T = name_value S
+let Z = field_names S
+
+let Z = {list Y, list single, list T}
+let Z = {Y}
+
+let A = pattern list(double, single), list(double)
+let X = [list(double | single)]  % -> double | single
+
+name_value S: [char, T]*
+
+name_value S: {char where Scalar & Positive, T}*
+field_names S: {char}*
+
+let A = [{ScalarText, T}]*
+let B = [{char | String}]*
+let Z = double*
+
+@T [] = (Another)
+function test_another(a)
+
+z = [];
+[z{1:2}] = a{:};
 
 end
 
-@T given <T, {Ts}, {Ys}> [T, Ts{:}] = (T, Ys{:})
-function [y, varargout] = match(x, varargin)
-
 end
 
+let A = {double+ | {A+}>} % -> {1, 2, {1, {1, {1}}}}
+let Z = {double+ | {A*}>} % -> {}, {{}}
+
+let B = {[double, B]+}
+let B = {[double, B]+}
+let C = {double, B} % same as {[double, B]}
+
+given <[Ts], X> Y = {Ts, X}
+given <T> let Y2 = Y<A, A>
+
+given <[Ts], [Us]> function [Ts] = deal(Us)
+  where nargout == nargin || nargin == 1
+end
+
+% @T [X, double+] = (X, Y?, double*)
+function [y, varargout] = match(x, y, varargin)
+
+  % on rhs, varargin{:} -> [`ts`] ("list of ts")
+  % 
+  [a, b] = varargin{:};
+  
+  y = some_external_func( varargin{:} );
+
+end
 
 %}

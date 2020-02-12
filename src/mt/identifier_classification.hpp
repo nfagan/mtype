@@ -144,7 +144,6 @@ private:
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
   FunctionReference* lookup_local_function(int64_t name) const;
-  static FunctionReference* lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope);
 
   bool has_variable(int64_t id, bool traverse_parent);
 
@@ -190,6 +189,8 @@ public:
                        FunctionRegistry* function_registry, std::string_view text);
   ~IdentifierClassifier() = default;
 
+  void transform_root(BoxedRootBlock& block);
+
   RootBlock* root_block(RootBlock& block);
   Block* block(Block& block);
   FunctionReference* function_reference(FunctionReference& ref);
@@ -214,6 +215,10 @@ public:
 
   const ParseErrors& get_errors() const {
     return errors;
+  }
+
+  const ParseErrors& get_warnings() const {
+    return warnings;
   }
 
 private:
@@ -258,6 +263,7 @@ private:
   bool added_error_for_identifier(int64_t identifier) const;
   void add_error(ParseError&& error);
   void add_error_if_new_identifier(ParseError&& err, int64_t identifier);
+  void add_warning_if_new_identifier(ParseError&& err, int64_t identifier);
 
   Optional<ParseError> check_function_reference_subscript(const IdentifierReferenceExpr& expr, int64_t subscript_end);
 
@@ -280,6 +286,7 @@ private:
   std::vector<bool> expr_sides;
 
   ParseErrors errors;
+  ParseErrors warnings;
 };
 
 template <typename T>

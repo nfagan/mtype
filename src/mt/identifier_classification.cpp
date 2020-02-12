@@ -276,22 +276,8 @@ IdentifierScope::make_function_reference_identifier_info(int64_t identifier, Fun
   }
 }
 
-FunctionReference*
-IdentifierScope::lookup_local_function(int64_t name, const std::shared_ptr<MatlabScope>& lookup_scope) {
-  if (lookup_scope == nullptr) {
-    return nullptr;
-  }
-
-  auto it = lookup_scope->local_functions.find(name);
-  if (it == lookup_scope->local_functions.end()) {
-    return lookup_local_function(name, lookup_scope->parent);
-  } else {
-    return it->second;
-  }
-}
-
 FunctionReference* IdentifierScope::lookup_local_function(int64_t name) const {
-  return lookup_local_function(name, matlab_scope);
+  return matlab_scope ? matlab_scope->lookup_local_function(name) : nullptr;
 }
 
 IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(int64_t id, bool traverse_parent) {
@@ -561,7 +547,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   const auto primary_result = current_scope()->register_scalar_identifier_reference(primary_identifier);
   if (!primary_result.success) {
     auto err = make_error_variable_referenced_before_assignment(expr.source_token, primary_identifier);
-    add_error_if_new_identifier(std::move(err), primary_identifier);
+    add_warning_if_new_identifier(std::move(err), primary_identifier);
   }
 
   const bool is_compound_function_identifier = !is_variable && subscript_end > 0;
@@ -574,7 +560,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
     const auto compound_ref_result = current_scope()->register_compound_identifier_reference(compound_identifier);
     if (!compound_ref_result.success) {
       auto err = make_error_variable_referenced_before_assignment(expr.source_token, compound_identifier);
-      add_error_if_new_identifier(std::move(err), compound_identifier);
+      add_warning_if_new_identifier(std::move(err), compound_identifier);
     }
 
     function_reference = compound_ref_result.info.function_reference;
@@ -733,6 +719,10 @@ FunctionReference* IdentifierClassifier::function_reference(FunctionReference& r
   return &ref;
 }
 
+void IdentifierClassifier::transform_root(BoxedRootBlock& block) {
+  conditional_reset(block, block->accept(*this));
+}
+
 RootBlock* IdentifierClassifier::root_block(RootBlock& block) {
   push_scope(block.scope);
   conditional_reset(block.block, block.block->accept(*this));
@@ -764,6 +754,13 @@ void IdentifierClassifier::add_error(mt::ParseError&& error) {
 void IdentifierClassifier::add_error_if_new_identifier(mt::ParseError&& err, int64_t identifier) {
   if (!added_error_for_identifier(identifier)) {
     add_error(std::move(err));
+    mark_error_identifier(identifier);
+  }
+}
+
+void IdentifierClassifier::add_warning_if_new_identifier(mt::ParseError&& err, int64_t identifier) {
+  if (!added_error_for_identifier(identifier)) {
+    warnings.emplace_back(std::move(err));
     mark_error_identifier(identifier);
   }
 }

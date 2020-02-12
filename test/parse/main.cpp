@@ -5,11 +5,11 @@
 #include "mt/mt.hpp"
 
 namespace {
-  void show_tokens(const std::vector<mt::Token>& tokens) {
-    for (const auto& tok : tokens) {
-      std::cout << tok << std::endl;
-    }
+void show_tokens(const std::vector<mt::Token>& tokens) {
+  for (const auto& tok : tokens) {
+    std::cout << tok << std::endl;
   }
+}
 }
 
 int main(int argc, char** argv) {
@@ -71,23 +71,25 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-#if 1
   mt::IdentifierClassifier classifier(&string_registry, &function_registry, contents);
-  auto block = parse_result.value->accept(classifier);
+  auto root_block = std::move(parse_result.value);
+  classifier.transform_root(root_block);
 
   const auto& classifier_errs = classifier.get_errors();
   for (const auto& err : classifier_errs) {
     err.show();
   }
-#else
-  auto& block = parse_result.value;
-#endif
+
+  const auto& classifier_warnings = classifier.get_warnings();
+  for (const auto& warn : classifier_warnings) {
+    warn.show();
+  }
 
   mt::StringVisitor visitor(&string_registry);
   visitor.parenthesize_exprs = true;
 
 //  std::cout << parse_result.value->accept(visitor) << std::endl;
-  std::cout << block->accept(visitor) << std::endl;
+  std::cout << root_block->accept(visitor) << std::endl;
   std::cout << "Num strings: " << string_registry.size() << std::endl;
 
   return 0;
