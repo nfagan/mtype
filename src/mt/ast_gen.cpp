@@ -107,7 +107,7 @@ Optional<std::vector<Optional<int64_t>>> AstGenerator::anonymous_function_input_
   return Optional<std::vector<Optional<int64_t>>>(std::move(input_parameters));
 }
 
-Optional<std::vector<std::string_view>> AstGenerator::function_identifier_components() {
+Optional<std::vector<std::string_view>> AstGenerator::compound_identifier_components() {
   //  @Note: We can't just use the identical identifier sequence logic from below, because
   //  there's no one expected terminator here.
   std::vector<std::string_view> identifiers;
@@ -189,6 +189,22 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     return NullOpt{};
   }
 
+  if (iterator.peek().type == TokenType::period) {
+    //  set.<property>, when within a methods block
+    if (is_within_class() && block_depths.function_def == 1) {
+      iterator.advance();
+
+      auto property_res = one_identifier();
+      if (!property_res) {
+        return NullOpt{};
+      }
+
+    } else {
+      add_error(make_error_invalid_period_qualified_function_def(iterator.peek()));
+      return NullOpt{};
+    }
+  }
+
   auto input_res = function_inputs();
   if (!input_res) {
     return NullOpt{};
@@ -249,6 +265,9 @@ Optional<std::unique_ptr<FunctionReference>> AstGenerator::function_reference() 
   const auto& source_token = iterator.peek();
   iterator.advance();
 
+  //  Enter function keyword
+  BlockStmtScopeHelper block_depth_helper(&block_depths.function_def);
+
   if (is_within_end_terminated_stmt_block()) {
     //  It's illegal to define a function within an if statement, etc.
     add_error(make_error_invalid_function_def_location(source_token));
@@ -304,6 +323,220 @@ Optional<std::unique_ptr<FunctionReference>> AstGenerator::function_reference() 
   return Optional<std::unique_ptr<FunctionReference>>(std::move(ref_node));
 }
 
+Optional<BoxedAstNode> AstGenerator::class_def() {
+  const auto& source_token = iterator.peek();
+  iterator.advance();
+
+  BlockStmtScopeHelper scope_helper(&block_depths.class_def);
+
+  auto name_res = one_identifier();
+  if (!name_res) {
+    return NullOpt{};
+  }
+
+  std::vector<int64_t> superclass_names;
+
+  //  classdef X < Y
+  if (iterator.peek().type == TokenType::less) {
+    iterator.advance();
+
+    auto superclass_res = compound_identifier_components();
+    if (!superclass_res) {
+      return NullOpt{};
+    }
+
+    const auto& names = superclass_res.value();
+    std::vector<int64_t> name_ids;
+    name_ids.reserve(names.size());
+
+    for (const auto& name : names) {
+      name_ids.emplace_back(string_registry->register_string(name));
+    }
+
+    superclass_names.emplace_back(string_registry->make_registered_compound_identifier(name_ids));
+  }
+
+  std::vector<ClassDef::Properties> property_blocks;
+  std::vector<ClassDef::Methods> method_blocks;
+
+  while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
+    const auto& tok = iterator.peek();
+
+    if (can_be_skipped_in_classdef_block(tok.type)) {
+      iterator.advance();
+
+    } else if (tok.type == TokenType::keyword_properties) {
+      auto prop_res = properties_block(tok);
+      if (!prop_res) {
+        return NullOpt{};
+      } else {
+        property_blocks.emplace_back(prop_res.rvalue());
+      }
+
+    } else if (tok.type == TokenType::keyword_methods) {
+      auto method_res = methods_block(tok);
+      if (!method_res) {
+        return NullOpt{};
+      } else {
+        method_blocks.emplace_back(method_res.rvalue());
+      }
+    } else {
+      std::array<TokenType, 2> possible_types{
+        {TokenType::keyword_properties, TokenType::keyword_methods}
+      };
+
+      add_error(make_error_expected_token_type(tok, possible_types));
+      return NullOpt{};
+    }
+  }
+
+  auto err = consume(TokenType::keyword_end);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto name = string_registry->register_string(name_res.value());
+  auto class_def_node = std::make_unique<ClassDef>(source_token, name,
+    std::move(superclass_names), std::move(property_blocks), std::move(method_blocks));
+
+  return Optional<BoxedAstNode>(std::move(class_def_node));
+}
+
+Optional<ClassDef::Methods> AstGenerator::methods_block(const Token& source_token) {
+  iterator.advance(); //  consume methods
+
+  //  methods (SetAccess = ...)
+  if (iterator.peek().type == TokenType::left_parens) {
+    //  @TODO: Parse attributes
+    auto right_parens = TokenType::right_parens;
+    iterator.advance_to_one(&right_parens, 1);
+    auto err = consume(right_parens);
+    if (err) {
+      add_error(err.rvalue());
+      return NullOpt{};
+    }
+  }
+
+  std::vector<std::unique_ptr<FunctionReference>> local_methods;
+  std::vector<FunctionHeader> external_methods;
+
+  while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
+    const auto& tok = iterator.peek();
+
+    switch (tok.type) {
+      case TokenType::comma:
+      case TokenType::semicolon:
+      case TokenType::new_line:
+        iterator.advance();
+        break;
+      default: {
+        if (tok.type == TokenType::identifier || tok.type == TokenType::left_bracket) {
+          auto header_res = function_header();
+          if (!header_res) {
+            return NullOpt{};
+          } else {
+            external_methods.emplace_back(std::move(header_res.rvalue()));
+          }
+        } else if (tok.type == TokenType::keyword_function) {
+          auto func_res = function_reference();
+          if (!func_res) {
+            return NullOpt{};
+          } else {
+            local_methods.emplace_back(func_res.rvalue());
+          }
+        } else {
+          std::array<TokenType, 3> possible_types{{
+            TokenType::identifier, TokenType::left_bracket, TokenType::keyword_function
+          }};
+          add_error(make_error_expected_token_type(tok, possible_types));
+          return NullOpt{};
+        }
+      }
+    }
+  }
+
+  auto err = consume(TokenType::keyword_end);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  ClassDef::Methods methods(source_token, std::move(local_methods), std::move(external_methods));
+
+  return Optional<ClassDef::Methods>(std::move(methods));
+}
+
+Optional<ClassDef::Properties> AstGenerator::properties_block(const Token& source_token) {
+  iterator.advance(); //  consume properties
+
+  //  properties (SetAccess = ...)
+  if (iterator.peek().type == TokenType::left_parens) {
+    //  @TODO: Parse attributes
+    auto right_parens = TokenType::right_parens;
+    iterator.advance_to_one(&right_parens, 1);
+    auto err = consume(right_parens);
+    if (err) {
+      add_error(err.rvalue());
+      return NullOpt{};
+    }
+  }
+
+  std::vector<ClassDef::Property> properties;
+
+  while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
+    const auto& tok = iterator.peek();
+
+    switch (tok.type) {
+      case TokenType::comma:
+      case TokenType::semicolon:
+      case TokenType::new_line:
+        iterator.advance();
+        break;
+      default: {
+        auto prop_res = property(iterator.peek());
+        if (!prop_res) {
+          return NullOpt{};
+        }
+
+        properties.emplace_back(prop_res.rvalue());
+      }
+    }
+  }
+
+  auto err = consume(TokenType::keyword_end);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  ClassDef::Properties properties_block(source_token, std::move(properties));
+  return Optional<ClassDef::Properties>(std::move(properties_block));
+}
+
+Optional<ClassDef::Property> AstGenerator::property(const Token& source_token) {
+  auto identifier_res = one_identifier();
+  if (!identifier_res) {
+    return NullOpt{};
+  }
+
+  BoxedExpr initializer;
+
+  if (iterator.peek().type == TokenType::equal) {
+    iterator.advance();
+    auto initializer_expr = expr();
+    if (!initializer_expr) {
+      return NullOpt{};
+    } else {
+      initializer = initializer_expr.rvalue();
+    }
+  }
+
+  auto name = string_registry->register_string(identifier_res.value());
+  ClassDef::Property property(source_token, name, std::move(initializer));
+  return Optional<ClassDef::Property>(std::move(property));
+}
+
 Optional<std::unique_ptr<Block>> AstGenerator::block() {
   bool should_proceed = true;
   bool any_error = false;
@@ -332,6 +565,15 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
         auto type_res = type_annotation_macro(tok);
         if (type_res) {
           node = type_res.rvalue();
+        } else {
+          success = false;
+        }
+        break;
+      }
+      case TokenType::keyword_classdef: {
+        auto def_res = class_def();
+        if (def_res) {
+          node = def_res.rvalue();
         } else {
           success = false;
         }
@@ -619,7 +861,7 @@ Optional<BoxedExpr> AstGenerator::function_reference_expr(const Token& source_to
   //  @main
   iterator.advance(); //  consume '@'
 
-  auto component_res = function_identifier_components();
+  auto component_res = compound_identifier_components();
   if (!component_res) {
     return NullOpt{};
   }
@@ -1840,6 +2082,10 @@ bool AstGenerator::is_within_function() const {
   return block_depths.function_def > 0;
 }
 
+bool AstGenerator::is_within_class() const {
+  return block_depths.class_def > 0;
+}
+
 bool AstGenerator::is_within_loop() const {
   return block_depths.for_stmt > 0 || block_depths.parfor_stmt > 0 || block_depths.while_stmt > 0;
 }
@@ -1964,6 +2210,10 @@ ParseError AstGenerator::make_error_duplicate_local_function(const mt::Token& at
 
 ParseError AstGenerator::make_error_incomplete_import_stmt(const mt::Token& at_token) const {
   return ParseError(text, at_token, "An `import` statement must include a compound identifier.");
+}
+
+ParseError AstGenerator::make_error_invalid_period_qualified_function_def(const Token& at_token) const {
+  return ParseError(text, at_token, "A period-qualified function can only appear in a methods block of a class definition.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

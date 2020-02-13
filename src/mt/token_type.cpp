@@ -490,6 +490,17 @@ bool can_precede_prefix_unary_operator(TokenType type) {
   }
 }
 
+bool can_be_skipped_in_classdef_block(TokenType type) {
+  switch (type) {
+    case TokenType::comma:
+    case TokenType::semicolon:
+    case TokenType::new_line:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool can_precede_postfix_unary_operator(TokenType type) {
   return represents_literal(type) || represents_grouping_terminator(type) ||
     type == TokenType::identifier || type == TokenType::apostrophe || type == TokenType::dot_apostrophe;

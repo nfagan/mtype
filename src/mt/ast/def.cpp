@@ -4,6 +4,10 @@
 
 namespace mt {
 
+std::string ClassDef::accept(const StringVisitor& vis) const {
+  return vis.class_def(*this);
+}
+
 std::string FunctionDef::accept(const StringVisitor& vis) const {
   return vis.function_def(*this);
 }

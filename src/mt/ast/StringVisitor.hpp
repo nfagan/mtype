@@ -21,12 +21,17 @@ public:
   }
   ~StringVisitor() = default;
 
+  std::string class_def(const ClassDef& def) const;
   std::string variable_def(const VariableDef& def) const;
   std::string function_def(const FunctionDef& def) const;
   std::string function_header(const FunctionHeader& header) const;
   std::string block(const Block& block) const;
   std::string root_block(const RootBlock& block) const;
   std::string function_reference(const FunctionReference& reference) const;
+
+  std::string properties(const ClassDef::Properties& properties) const;
+  std::string property(const ClassDef::Property& prop) const;
+  std::string methods(const ClassDef::Methods& meths) const;
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;

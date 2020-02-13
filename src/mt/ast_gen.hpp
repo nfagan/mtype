@@ -20,12 +20,14 @@ class StringRegistry;
 
 struct BlockDepths {
   BlockDepths() :
-  function_def(0), for_stmt(0), parfor_stmt(0), if_stmt(0), while_stmt(0), try_stmt(0), switch_stmt(0) {
+  function_def(0), class_def(0), for_stmt(0), parfor_stmt(0), if_stmt(0), while_stmt(0),
+  try_stmt(0), switch_stmt(0) {
     //
   }
   ~BlockDepths() = default;
 
   int function_def;
+  int class_def;
   int for_stmt;
   int parfor_stmt;
   int if_stmt;
@@ -61,8 +63,13 @@ private:
   Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
   Optional<std::string_view> one_identifier();
   Optional<std::vector<std::string_view>> identifier_sequence(TokenType terminator);
-  Optional<std::vector<std::string_view>> function_identifier_components();
+  Optional<std::vector<std::string_view>> compound_identifier_components();
   Optional<std::vector<Optional<int64_t>>> anonymous_function_input_parameters();
+
+  Optional<BoxedAstNode> class_def();
+  Optional<ClassDef::Methods> methods_block(const Token& source_token);
+  Optional<ClassDef::Properties> properties_block(const Token& source_token);
+  Optional<ClassDef::Property> property(const Token& source_token);
 
   Optional<Subscript> period_subscript(const Token& source_token);
   Optional<Subscript> non_period_subscript(const Token& source_token, SubscriptMethod method, TokenType term);
@@ -145,6 +152,7 @@ private:
   ParseError make_error_invalid_function_def_location(const Token& at_token) const;
   ParseError make_error_duplicate_local_function(const Token& at_token) const;
   ParseError make_error_incomplete_import_stmt(const Token& at_token) const;
+  ParseError make_error_invalid_period_qualified_function_def(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
@@ -154,6 +162,7 @@ private:
   bool is_within_loop() const;
   bool is_within_end_terminated_stmt_block() const;
   bool is_within_function() const;
+  bool is_within_class() const;
 
   void push_scope();
   void pop_scope();

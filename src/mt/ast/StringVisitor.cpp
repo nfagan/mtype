@@ -114,6 +114,95 @@ std::string StringVisitor::function_def(const FunctionDef& def) const {
   return header + "\n" + body + "\n" + end;
 }
 
+std::string StringVisitor::class_def(const ClassDef& def) const {
+  //  @TODO
+  std::string class_def_kw = tab_str() + "classdef";
+  maybe_colorize(class_def_kw, TokenType::keyword_classdef);
+  auto result = class_def_kw + " " + std::string(string_registry->at(def.name));
+
+  if (!def.superclasses.empty()) {
+    result += " < ";
+    for (int64_t i = 0; i < int64_t(def.superclasses.size()); i++) {
+      result += string_registry->at(def.superclasses[i]);
+      if (i < int64_t(def.superclasses.size()) - 1) {
+        result += " & ";
+      }
+    }
+  }
+
+  result += "\n";
+
+  std::string properties_strs;
+  for (const auto& property_block : def.property_blocks) {
+    properties_strs += properties(property_block) + "\n";
+  }
+
+  std::string methods_strs;
+  for (const auto& method_block : def.method_blocks) {
+    methods_strs += methods(method_block) + "\n";
+  }
+
+  result += properties_strs;
+  result += methods_strs;
+  result += tab_str() + end_str();
+
+  return result;
+}
+
+std::string StringVisitor::property(const ClassDef::Property& prop) const {
+  auto prop_str = std::string(string_registry->at(prop.name));
+
+  if (prop.initializer) {
+    prop_str += " = " + prop.initializer->accept(*this);
+  }
+
+  prop_str += ";";
+  return prop_str;
+}
+
+std::string StringVisitor::properties(const ClassDef::Properties& properties) const {
+  enter_block();
+
+  std::string prop_str = "properties\n";
+  maybe_colorize(prop_str, properties.source_token.type);
+  prop_str = tab_str() + prop_str;
+
+  enter_block();
+
+  for (const auto& prop : properties.properties) {
+    prop_str += tab_str() + property(prop) + "\n";
+  }
+
+  exit_block();
+  prop_str += tab_str() + end_str();
+  exit_block();
+
+  return prop_str;
+}
+
+std::string StringVisitor::methods(const ClassDef::Methods& meths) const {
+  enter_block();
+
+  std::string method_str("methods");
+  method_str = tab_str() + method_str + "\n";
+  maybe_colorize(method_str, meths.source_token.type);
+
+  enter_block();
+  auto func_refs = visit_array(meths.local_methods, "\n");
+
+  std::string func_header_strs;
+  for (const auto& func_header : meths.external_methods) {
+    func_header_strs += tab_str() + function_header(func_header) + "\n";
+  }
+
+  exit_block();
+  method_str += func_header_strs;
+  method_str += func_refs + "\n" + tab_str() + end_str();
+  exit_block();
+
+  return method_str;
+}
+
 std::string StringVisitor::variable_def(const VariableDef& def) const {
   return tab_str() + std::string(string_registry->at(def.name));
 }

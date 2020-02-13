@@ -69,4 +69,76 @@ struct VariableDef : public Def {
   int64_t name;
 };
 
+struct ClassDef : public Def {
+  struct Property {
+    Property() = default;
+    Property(const Token& source_token, int64_t name, BoxedExpr initializer) :
+    source_token(source_token), name(name), initializer(std::move(initializer)) {
+      //
+    }
+    Property(Property&& other) noexcept = default;
+    Property& operator=(Property&& other) noexcept = default;
+    ~Property() = default;
+
+    Token source_token;
+    int64_t name;
+    BoxedExpr initializer;
+  };
+
+  struct Properties {
+    Properties() = default;
+    Properties(const Token& source_token, std::vector<Property>&& properties) :
+    source_token(source_token), properties(std::move(properties)) {
+      //
+    }
+    Properties(Properties&& other) noexcept = default;
+    Properties& operator=(Properties&& other) noexcept = default;
+    ~Properties() = default;
+
+    Token source_token;
+    std::vector<Property> properties;
+  };
+
+  struct Methods {
+    Methods() = default;
+    Methods(const Token& source_token,
+            std::vector<std::unique_ptr<FunctionReference>>&& local_methods,
+            std::vector<FunctionHeader>&& external_methods) :
+    source_token(source_token),
+    local_methods(std::move(local_methods)),
+    external_methods(std::move(external_methods)) {
+      //
+    }
+    Methods(Methods&& other) noexcept = default;
+    Methods& operator=(Methods&& other) noexcept = default;
+    ~Methods() = default;
+
+    Token source_token;
+    std::vector<std::unique_ptr<FunctionReference>> local_methods;
+    std::vector<FunctionHeader> external_methods;
+  };
+
+  ClassDef(const Token& source_token,
+           int64_t name,
+           std::vector<int64_t>&& superclasses,
+           std::vector<Properties>&& property_blocks,
+           std::vector<Methods>&& method_blocks) :
+           source_token(source_token),
+           name(name),
+           superclasses(std::move(superclasses)),
+           property_blocks(std::move(property_blocks)),
+           method_blocks(std::move(method_blocks)) {
+    //
+  }
+  ~ClassDef() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  int64_t name;
+  std::vector<int64_t> superclasses;
+  std::vector<Properties> property_blocks;
+  std::vector<Methods> method_blocks;
+};
+
 }

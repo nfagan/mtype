@@ -4,8 +4,9 @@ ms = {};
 
 ms = [ ms, io.find(repget('fieldtrip'), '.m', true) ];
 ms = [ ms, io.find(PsychtoolboxRoot, '.m', true) ];
+ms = [ ms, io.find(repget('ptb'), '.m', true) ];
 
-fs = eachcell( @(x) char(unicode2native(fileread(x), 'UTF-8')), ms );
+fs = eachcell( @(x) mt.to_utf8(fileread(x)), ms );
 
 %%
 
@@ -21,4 +22,4 @@ toc;
 %%
 
 failed = fs(~status);
-mt.entry( failed{15} );
+mt.entry( failed{17} );
