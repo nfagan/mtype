@@ -307,8 +307,14 @@ IdentifierScope* IdentifierScope::parent() {
 }
 
 IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
-                                           FunctionRegistry* function_registry, std::string_view text) :
-string_registry(string_registry), function_registry(function_registry), text(text), scope_depth(-1) {
+                                           FunctionRegistry* function_registry,
+                                           ClassDefStore* class_store,
+                                           std::string_view text) :
+string_registry(string_registry),
+function_registry(function_registry),
+class_store(class_store),
+text(text),
+scope_depth(-1) {
   //  Begin on rhs.
   push_rhs();
   //  New scope with no parent.
@@ -716,6 +722,18 @@ FunctionReference* IdentifierClassifier::function_reference(FunctionReference& r
 
   block_new_context(def->body);
   pop_scope();
+  return &ref;
+}
+
+ClassDefReference* IdentifierClassifier::class_def_reference(ClassDefReference& ref) {
+  auto& def = class_store->lookup_class(ref.handle);
+
+  for (auto& method_block : def.method_blocks) {
+    for (auto& function_ref : method_block.definitions) {
+      conditional_reset(function_ref, function_ref->accept(*this));
+    }
+  }
+
   return &ref;
 }
 

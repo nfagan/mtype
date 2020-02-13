@@ -29,15 +29,15 @@ struct ParseScopeHelper {
 };
 
 Result<ParseErrors, std::unique_ptr<RootBlock>>
-AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt,
-                    StringRegistry* registry, FunctionRegistry* func_registry, bool functions_are_end_terminated) {
+AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, const ParseInputs& inputs) {
 
   iterator = TokenIterator(&tokens);
   text = txt;
-  is_end_terminated_function = functions_are_end_terminated;
+  is_end_terminated_function = inputs.functions_are_end_terminated;
   parse_errors.clear();
-  string_registry = registry;
-  function_registry = func_registry;
+  string_registry = inputs.string_registry;
+  function_registry = inputs.function_registry;
+  class_store = inputs.class_store;
 
   block_depths = BlockDepths();
   scopes.clear();
@@ -191,7 +191,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
 
   if (iterator.peek().type == TokenType::period) {
     //  set.<property>, when within a methods block
-    if (is_within_class() && block_depths.function_def == 1) {
+    if (is_within_class() && is_within_top_level_function()) {
       iterator.advance();
 
       auto property_res = one_identifier();
@@ -397,10 +397,13 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   }
 
   auto name = string_registry->register_string(name_res.value());
-  auto class_def_node = std::make_unique<ClassDef>(source_token, name,
-    std::move(superclass_names), std::move(property_blocks), std::move(method_blocks));
+  ClassDef class_def(source_token, name, std::move(superclass_names),
+    std::move(property_blocks), std::move(method_blocks));
 
-  return Optional<BoxedAstNode>(std::move(class_def_node));
+  const auto handle = class_store->emplace_definition(std::move(class_def));
+  auto class_node = std::make_unique<ClassDefReference>(handle);
+
+  return Optional<BoxedAstNode>(std::move(class_node));
 }
 
 Optional<ClassDef::Methods> AstGenerator::methods_block(const Token& source_token) {
@@ -2082,8 +2085,16 @@ bool AstGenerator::is_within_function() const {
   return block_depths.function_def > 0;
 }
 
+bool AstGenerator::is_within_top_level_function() const {
+  return block_depths.function_def == 1;
+}
+
 bool AstGenerator::is_within_class() const {
   return block_depths.class_def > 0;
+}
+
+bool AstGenerator::is_within_methods() const {
+  return block_depths.methods > 0;
 }
 
 bool AstGenerator::is_within_loop() const {
@@ -2213,7 +2224,7 @@ ParseError AstGenerator::make_error_incomplete_import_stmt(const mt::Token& at_t
 }
 
 ParseError AstGenerator::make_error_invalid_period_qualified_function_def(const Token& at_token) const {
-  return ParseError(text, at_token, "A period-qualified function can only appear in a methods block of a class definition.");
+  return ParseError(text, at_token, "A period-qualified `function` is invalid here.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

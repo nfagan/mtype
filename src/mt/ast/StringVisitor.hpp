@@ -9,18 +9,21 @@
 
 namespace mt {
 
+class ClassDefStore;
+
 class StringVisitor {
 public:
-  explicit StringVisitor(const StringRegistry* string_registry) :
+  explicit StringVisitor(const StringRegistry* string_registry, const ClassDefStore* class_store) :
     parenthesize_exprs(true),
     include_identifier_classification(true),
     include_def_ptrs(true),
     colorize(true),
-    tab_depth(-1), string_registry(string_registry) {
+    tab_depth(-1), string_registry(string_registry), class_store(class_store) {
     //
   }
   ~StringVisitor() = default;
 
+  std::string class_def_reference(const ClassDefReference& ref) const;
   std::string class_def(const ClassDef& def) const;
   std::string variable_def(const VariableDef& def) const;
   std::string function_def(const FunctionDef& def) const;
@@ -101,6 +104,7 @@ public:
 private:
   mutable int tab_depth;
   const StringRegistry* string_registry;
+  const ClassDefStore* class_store;
 };
 
 }

@@ -16,4 +16,18 @@ private:
   std::vector<std::unique_ptr<FunctionReference>> external_function_references;
   std::vector<std::unique_ptr<FunctionDef>> local_function_definitions;
 };
+
+class ClassDefStore {
+public:
+  ClassDefStore() = default;
+  ~ClassDefStore() = default;
+
+  ClassDefHandle emplace_definition(ClassDef&& def);
+  const ClassDef& lookup_class(const ClassDefHandle& by_handle) const;
+  ClassDef& lookup_class(ClassDefHandle& by_handle);
+
+private:
+  std::vector<ClassDef> definitions;
+};
+
 }

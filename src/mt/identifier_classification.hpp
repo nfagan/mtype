@@ -3,7 +3,7 @@
 #include "error.hpp"
 #include "ast.hpp"
 #include "lang_components.hpp"
-#include "FunctionRegistry.hpp"
+#include "store.hpp"
 #include "Optional.hpp"
 #include <unordered_map>
 #include <set>
@@ -186,7 +186,9 @@ class IdentifierClassifier {
 
 public:
   IdentifierClassifier(StringRegistry* string_registry,
-                       FunctionRegistry* function_registry, std::string_view text);
+                       FunctionRegistry* function_registry,
+                       ClassDefStore* class_store,
+                       std::string_view text);
   ~IdentifierClassifier() = default;
 
   void transform_root(BoxedRootBlock& block);
@@ -200,6 +202,7 @@ public:
   Expr* binary_operator_expr(BinaryOperatorExpr& expr);
   Expr* unary_operator_expr(UnaryOperatorExpr& expr);
   Expr* anonymous_function_expr(AnonymousFunctionExpr& expr);
+  ClassDefReference* class_def_reference(ClassDefReference& ref);
 
   IfStmt* if_stmt(IfStmt& stmt);
   ExprStmt* expr_stmt(ExprStmt& stmt);
@@ -277,6 +280,7 @@ private:
 private:
   StringRegistry* string_registry;
   FunctionRegistry* function_registry;
+  ClassDefStore* class_store;
   std::string_view text;
 
   std::vector<IdentifierScope> scopes;

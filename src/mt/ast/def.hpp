@@ -104,9 +104,9 @@ struct ClassDef : public Def {
     Methods(const Token& source_token,
             std::vector<std::unique_ptr<FunctionReference>>&& local_methods,
             std::vector<FunctionHeader>&& external_methods) :
-    source_token(source_token),
-    local_methods(std::move(local_methods)),
-    external_methods(std::move(external_methods)) {
+      source_token(source_token),
+      definitions(std::move(local_methods)),
+      declarations(std::move(external_methods)) {
       //
     }
     Methods(Methods&& other) noexcept = default;
@@ -114,8 +114,8 @@ struct ClassDef : public Def {
     ~Methods() = default;
 
     Token source_token;
-    std::vector<std::unique_ptr<FunctionReference>> local_methods;
-    std::vector<FunctionHeader> external_methods;
+    std::vector<std::unique_ptr<FunctionReference>> definitions;
+    std::vector<FunctionHeader> declarations;
   };
 
   ClassDef(const Token& source_token,
@@ -123,20 +123,22 @@ struct ClassDef : public Def {
            std::vector<int64_t>&& superclasses,
            std::vector<Properties>&& property_blocks,
            std::vector<Methods>&& method_blocks) :
-           source_token(source_token),
-           name(name),
-           superclasses(std::move(superclasses)),
-           property_blocks(std::move(property_blocks)),
-           method_blocks(std::move(method_blocks)) {
+    source_token(source_token),
+    name(name),
+    superclass_names(std::move(superclasses)),
+    property_blocks(std::move(property_blocks)),
+    method_blocks(std::move(method_blocks)) {
     //
   }
   ~ClassDef() override = default;
+  ClassDef(ClassDef&& other) noexcept = default;
+  ClassDef& operator=(ClassDef&& other) noexcept = default;
 
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
   int64_t name;
-  std::vector<int64_t> superclasses;
+  std::vector<int64_t> superclass_names;
   std::vector<Properties> property_blocks;
   std::vector<Methods> method_blocks;
 };

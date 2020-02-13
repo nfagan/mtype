@@ -13,8 +13,8 @@ set(sources
         error.cpp
         file_resolution.hpp
         file_resolution.cpp
-        FunctionRegistry.hpp
-        FunctionRegistry.cpp
+        store.hpp
+        store.cpp
         identifier_classification.hpp
         identifier_classification.cpp
         lang_components.hpp

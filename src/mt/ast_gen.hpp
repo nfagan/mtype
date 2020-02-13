@@ -5,7 +5,7 @@
 #include "Result.hpp"
 #include "Optional.hpp"
 #include "error.hpp"
-#include "FunctionRegistry.hpp"
+#include "store.hpp"
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -21,7 +21,7 @@ class StringRegistry;
 struct BlockDepths {
   BlockDepths() :
   function_def(0), class_def(0), for_stmt(0), parfor_stmt(0), if_stmt(0), while_stmt(0),
-  try_stmt(0), switch_stmt(0) {
+  try_stmt(0), switch_stmt(0), methods(0) {
     //
   }
   ~BlockDepths() = default;
@@ -34,6 +34,7 @@ struct BlockDepths {
   int while_stmt;
   int try_stmt;
   int switch_stmt;
+  int methods;
 };
 
 /*
@@ -43,7 +44,26 @@ struct BlockDepths {
 class AstGenerator {
   friend struct ParseScopeHelper;
 public:
-  AstGenerator() : string_registry(nullptr), is_end_terminated_function(true) {
+  struct ParseInputs {
+    ParseInputs(StringRegistry* string_registry,
+                FunctionRegistry* function_registry,
+                ClassDefStore* class_def_store,
+                bool functions_are_end_terminated) :
+                string_registry(string_registry),
+                function_registry(function_registry),
+                class_store(class_def_store),
+                functions_are_end_terminated(functions_are_end_terminated) {
+      //
+    }
+
+    StringRegistry* string_registry;
+    FunctionRegistry* function_registry;
+    ClassDefStore* class_store;
+    bool functions_are_end_terminated;
+  };
+
+public:
+  AstGenerator() : string_registry(nullptr), class_store(nullptr), is_end_terminated_function(true) {
     //
   }
 
@@ -51,9 +71,7 @@ public:
 
   Result<ParseErrors, std::unique_ptr<RootBlock>> parse(const std::vector<Token>& tokens,
                                                         std::string_view text,
-                                                        StringRegistry* registry,
-                                                        FunctionRegistry* function_registry,
-                                                        bool functions_are_end_terminated);
+                                                        const ParseInputs& inputs);
 private:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
@@ -162,7 +180,9 @@ private:
   bool is_within_loop() const;
   bool is_within_end_terminated_stmt_block() const;
   bool is_within_function() const;
+  bool is_within_top_level_function() const;
   bool is_within_class() const;
+  bool is_within_methods() const;
 
   void push_scope();
   void pop_scope();
@@ -180,6 +200,7 @@ private:
   std::string_view text;
   StringRegistry* string_registry;
   FunctionRegistry* function_registry;
+  ClassDefStore* class_store;
   BlockDepths block_depths;
   std::vector<std::shared_ptr<MatlabScope>> scopes;
 

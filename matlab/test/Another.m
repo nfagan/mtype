@@ -1,15 +1,15 @@
-classdef Another
+classdef Another < x.y.z
   properties
     x, y, z = 1; a = 1;
   end
   
-  methods (Access = private)
-  end
-  
   methods
-    function obj = set.x(obj, x)
+    function z = Another()
+      
     end
-    function x = get.x(obj)
+    function a = b(obj)
+    end
+    function a = c()
     end
   end
 end
