@@ -73,12 +73,4 @@ FunctionReference* FunctionReference::accept(IdentifierClassifier& classifier) {
   return classifier.function_reference(*this);
 }
 
-ClassDefReference* ClassDefReference::accept(IdentifierClassifier& classifier) {
-  return classifier.class_def_reference(*this);
-}
-
-std::string ClassDefReference::accept(const StringVisitor& vis) const {
-  return vis.class_def_reference(*this);
-}
-
 }

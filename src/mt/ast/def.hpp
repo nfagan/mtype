@@ -143,4 +143,35 @@ struct ClassDef : public Def {
   std::vector<Methods> method_blocks;
 };
 
+class ClassDefHandle {
+  friend class ClassDefStore;
+public:
+  ClassDefHandle() : index(-1) {
+    //
+  }
+  ~ClassDefHandle() = default;
+
+  bool is_valid() const {
+    return index >= 0;
+  }
+
+private:
+  ClassDefHandle(int64_t index) : index(index) {
+    //
+  }
+
+  int64_t index;
+};
+
+struct ClassDefReference : public AstNode {
+  ClassDefReference(const ClassDefHandle& handle) : handle(handle) {
+    //
+  }
+  ~ClassDefReference() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  ClassDefReference* accept(IdentifierClassifier& classifier) override;
+
+  ClassDefHandle handle;
+};
+
 }
