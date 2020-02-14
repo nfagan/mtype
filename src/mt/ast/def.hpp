@@ -145,6 +145,7 @@ struct ClassDef : public Def {
   using MethodDeclarations = std::vector<MethodDeclaration>;
   using Properties = std::set<Property, Property::Less>;
 
+  ClassDef() = default;
   ClassDef(const Token& source_token,
            int64_t name,
            std::vector<int64_t>&& superclasses,
