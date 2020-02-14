@@ -35,6 +35,7 @@ set(sources
         token_type.cpp
         unicode.hpp
         unicode.cpp
+        utility.hpp
 )
 
 foreach(source ${sources})

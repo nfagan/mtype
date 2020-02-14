@@ -3,6 +3,7 @@
 #include "ast.hpp"
 #include "../token.hpp"
 #include "../lang_components.hpp"
+#include "../utility.hpp"
 
 namespace mt {
 
@@ -110,8 +111,8 @@ struct ClassDef : public Def {
     source_token(source_token), name(name), initializer(std::move(initializer)) {
       //
     }
-    Property(Property&& other) noexcept = default;
-    Property& operator=(Property&& other) noexcept = default;
+    Property(Property&& other) MSVC_MISSING_NOEXCEPT = default;
+    Property& operator=(Property&& other) MSVC_MISSING_NOEXCEPT = default;
     ~Property() = default;
 
     Token source_token;
@@ -124,8 +125,8 @@ struct ClassDef : public Def {
     MethodDef(std::unique_ptr<FunctionDefNode> def_node) : def_node(std::move(def_node)) {
       //
     }
-    MethodDef(MethodDef&& other) noexcept = default;
-    MethodDef& operator=(MethodDef&& other) noexcept = default;
+    MethodDef(MethodDef&& other) MSVC_MISSING_NOEXCEPT = default;
+    MethodDef& operator=(MethodDef&& other) MSVC_MISSING_NOEXCEPT = default;
 
     std::unique_ptr<FunctionDefNode> def_node;
   };
@@ -135,8 +136,8 @@ struct ClassDef : public Def {
     MethodDeclaration(FunctionHeader&& header) : header(std::move(header)) {
       //
     }
-    MethodDeclaration(MethodDeclaration&& other) noexcept = default;
-    MethodDeclaration& operator=(MethodDeclaration&& other) noexcept = default;
+    MethodDeclaration(MethodDeclaration&& other) MSVC_MISSING_NOEXCEPT = default;
+    MethodDeclaration& operator=(MethodDeclaration&& other) MSVC_MISSING_NOEXCEPT = default;
 
     FunctionHeader header;
   };
@@ -161,8 +162,8 @@ struct ClassDef : public Def {
     //
   }
   ~ClassDef() override = default;
-  ClassDef(ClassDef&& other) noexcept = default;
-  ClassDef& operator=(ClassDef&& other) noexcept = default;
+  ClassDef(ClassDef&& other) MSVC_MISSING_NOEXCEPT = default;
+  ClassDef& operator=(ClassDef&& other) MSVC_MISSING_NOEXCEPT = default;
 
   std::string accept(const StringVisitor& vis) const override;
 
