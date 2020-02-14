@@ -13,7 +13,7 @@ void MatlabScope::register_import(Import&& import) {
   }
 }
 
-bool MatlabScope::register_local_function(int64_t name, FunctionReference* ref) {
+bool MatlabScope::register_local_function(int64_t name, FunctionReferenceHandle ref) {
   if (local_functions.count(name) > 0) {
     return false;
   } else {
@@ -22,30 +22,17 @@ bool MatlabScope::register_local_function(int64_t name, FunctionReference* ref) 
   }
 }
 
-namespace {
-namespace detail {
-  template <typename Result, typename Scope>
-  inline Result* lookup_local_function_impl(Scope* scope, int64_t name) {
-    auto it = scope->local_functions.find(name);
-    if (it == scope->local_functions.end()) {
-      return scope->parent ? scope->parent->lookup_local_function(name) : nullptr;
-    } else {
-      return it->second;
-    }
+FunctionReferenceHandle MatlabScope::lookup_local_function(int64_t name) const {
+  auto it = local_functions.find(name);
+  if (it == local_functions.end()) {
+    return parent ? parent->lookup_local_function(name) : FunctionReferenceHandle();
+  } else {
+    return it->second;
   }
 }
-}
 
-const FunctionReference* MatlabScope::lookup_local_function(int64_t name) const {
-  return detail::lookup_local_function_impl<const FunctionReference, const MatlabScope>(this, name);
-}
-
-FunctionReference* MatlabScope::lookup_local_function(int64_t name) {
-  return detail::lookup_local_function_impl<FunctionReference, MatlabScope>(this, name);
-}
-
-void MatlabScope::register_local_variable(int64_t name, std::unique_ptr<VariableDef> def) {
-  local_variables[name] = std::move(def);
+void MatlabScope::register_local_variable(int64_t name, VariableDefHandle handle) {
+  local_variables[name] = handle;
 }
 
 
@@ -63,14 +50,6 @@ std::string Block::accept(const StringVisitor& vis) const {
 
 Block* Block::accept(IdentifierClassifier& classifier) {
   return classifier.block(*this);
-}
-
-std::string FunctionReference::accept(const StringVisitor& vis) const {
-  return vis.function_reference(*this);
-}
-
-FunctionReference* FunctionReference::accept(IdentifierClassifier& classifier) {
-  return classifier.function_reference(*this);
 }
 
 }

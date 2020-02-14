@@ -24,4 +24,12 @@ std::string VariableDef::accept(const mt::StringVisitor& vis) const {
   return vis.variable_def(*this);
 }
 
+std::string FunctionDefNode::accept(const StringVisitor& vis) const {
+  return vis.function_def_node(*this);
+}
+
+FunctionDefNode* FunctionDefNode::accept(IdentifierClassifier& classifier) {
+  return classifier.function_def_node(*this);
+}
+
 }

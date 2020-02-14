@@ -1,7 +1,7 @@
 %{
 
 //  in the AST
-struct FunctionDefReference {
+struct FunctionDefNode {
   FunctionDefHandle handle;
 }
 

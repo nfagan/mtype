@@ -9,16 +9,22 @@
 
 namespace mt {
 
-class ClassDefStore;
+class ClassStore;
+class FunctionStore;
 
 class StringVisitor {
 public:
-  explicit StringVisitor(const StringRegistry* string_registry, const ClassDefStore* class_store) :
+  explicit StringVisitor(const StringRegistry* string_registry,
+                         const FunctionStore* function_registry,
+                         const ClassStore* class_store) :
     parenthesize_exprs(true),
     include_identifier_classification(true),
     include_def_ptrs(true),
     colorize(true),
-    tab_depth(-1), string_registry(string_registry), class_store(class_store) {
+    tab_depth(-1),
+    string_registry(string_registry),
+    function_registry(function_registry),
+    class_store(class_store) {
     //
   }
   ~StringVisitor() = default;
@@ -30,11 +36,11 @@ public:
   std::string function_header(const FunctionHeader& header) const;
   std::string block(const Block& block) const;
   std::string root_block(const RootBlock& block) const;
-  std::string function_reference(const FunctionReference& reference) const;
+  std::string function_def_node(const FunctionDefNode& reference) const;
 
   std::string properties(const ClassDef::Properties& properties) const;
   std::string property(const ClassDef::Property& prop) const;
-  std::string methods(const ClassDef::Methods& meths) const;
+  std::string methods(const ClassDef& def) const;
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
@@ -90,7 +96,7 @@ private:
   std::string subscripts(const std::vector<Subscript>& subs) const;
 
   template <typename T>
-  std::string visit_array(const std::vector<T>& visitables, const std::string& delim) const;
+  std::string visit_array(const T& visitables, const std::string& delim) const;
 
   void enter_block() const;
   void exit_block() const;
@@ -104,7 +110,8 @@ public:
 private:
   mutable int tab_depth;
   const StringRegistry* string_registry;
-  const ClassDefStore* class_store;
+  const FunctionStore* function_registry;
+  const ClassStore* class_store;
 };
 
 }
@@ -123,7 +130,7 @@ namespace detail {
 }
 
 template <typename T>
-std::string mt::StringVisitor::visit_array(const std::vector<T>& visitables,
+std::string mt::StringVisitor::visit_array(const T& visitables,
                                            const std::string& delim) const {
   std::vector<std::string> values;
   for (const auto& arg : visitables) {

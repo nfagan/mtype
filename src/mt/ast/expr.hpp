@@ -149,11 +149,11 @@ struct Subscript {
 
 struct FunctionCallExpr : public Expr {
   FunctionCallExpr(const Token& source_token,
-                   FunctionReference* function_reference,
+                   FunctionReferenceHandle reference_handle,
                    std::vector<BoxedExpr>&& arguments,
                    std::vector<Subscript>&& subscripts) :
     source_token(source_token),
-    function_reference(function_reference),
+    reference_handle(reference_handle),
     arguments(std::move(arguments)),
     subscripts(std::move(subscripts)) {
     //
@@ -162,19 +162,19 @@ struct FunctionCallExpr : public Expr {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  FunctionReference* function_reference;
+  FunctionReferenceHandle reference_handle;
   std::vector<BoxedExpr> arguments;
   std::vector<Subscript> subscripts;
 };
 
 struct VariableReferenceExpr : public Expr {
   VariableReferenceExpr(const Token& source_token,
-                        VariableDef* variable_def,
+                        VariableDefHandle def_handle,
                         int64_t name,
                         std::vector<Subscript>&& subscripts,
                         bool is_initializer) :
   source_token(source_token),
-  variable_def(variable_def),
+  def_handle(def_handle),
   name(name),
   subscripts(std::move(subscripts)),
   is_initializer(is_initializer) {
@@ -184,7 +184,7 @@ struct VariableReferenceExpr : public Expr {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  VariableDef* variable_def;
+  VariableDefHandle def_handle;
   int64_t name;
   std::vector<Subscript> subscripts;
   bool is_initializer;

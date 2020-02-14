@@ -100,12 +100,21 @@ std::string StringVisitor::function_header(const FunctionHeader& header) const {
   return func + " [" + outputs + "]" + " = " + name + "(" + inputs + ")";
 }
 
-std::string StringVisitor::function_reference(const FunctionReference& reference) const {
+std::string StringVisitor::function_def_node(const FunctionDefNode& def_node) const {
+  const auto& def_handle = def_node.def_handle;
+
   std::string ptr_str;
   if (include_def_ptrs) {
-    ptr_str = "<" + ptr_to_hex_string(&reference) + "> ";
+    ptr_str = "<" + std::to_string(def_handle.get_index()) + "> ";
   }
-  return tab_str() + ptr_str + function_def(*reference.def);
+
+  std::string def_str;
+  if (def_handle.is_valid()) {
+    const auto& def = function_registry->at(def_handle);
+    def_str = function_def(def);
+  }
+
+  return tab_str() + ptr_str + def_str;
 }
 
 std::string StringVisitor::function_def(const FunctionDef& def) const {
@@ -136,19 +145,8 @@ std::string StringVisitor::class_def(const ClassDef& def) const {
   }
 
   result += "\n";
-
-  std::string properties_strs;
-  for (const auto& property_block : def.property_blocks) {
-    properties_strs += properties(property_block) + "\n";
-  }
-
-  std::string methods_strs;
-  for (const auto& method_block : def.method_blocks) {
-    methods_strs += methods(method_block) + "\n";
-  }
-
-  result += properties_strs;
-  result += methods_strs;
+  result += properties(def.properties) + "\n";
+  result += methods(def) + "\n";
   result += tab_str() + end_str();
 
   return result;
@@ -169,12 +167,12 @@ std::string StringVisitor::properties(const ClassDef::Properties& properties) co
   enter_block();
 
   std::string prop_str = "properties\n";
-  maybe_colorize(prop_str, properties.source_token.type);
+  maybe_colorize(prop_str, TokenType::keyword_properties);
   prop_str = tab_str() + prop_str;
 
   enter_block();
 
-  for (const auto& prop : properties.properties) {
+  for (const auto& prop : properties) {
     prop_str += tab_str() + property(prop) + "\n";
   }
 
@@ -185,24 +183,28 @@ std::string StringVisitor::properties(const ClassDef::Properties& properties) co
   return prop_str;
 }
 
-std::string StringVisitor::methods(const ClassDef::Methods& meths) const {
+std::string StringVisitor::methods(const ClassDef& def) const {
   enter_block();
 
   std::string method_str("methods");
   method_str = tab_str() + method_str + "\n";
-  maybe_colorize(method_str, meths.source_token.type);
+  maybe_colorize(method_str, TokenType::keyword_methods);
 
   enter_block();
-  auto func_refs = visit_array(meths.definitions, "\n");
+
+  std::string func_def_strs;
+  for (const auto& method_def : def.method_defs) {
+    func_def_strs += method_def.def_node->accept(*this) + "\n";
+  }
 
   std::string func_header_strs;
-  for (const auto& func_header : meths.declarations) {
-    func_header_strs += tab_str() + function_header(func_header) + "\n";
+  for (const auto& declaration : def.method_declarations) {
+    func_header_strs += tab_str() + function_header(declaration.header) + "\n";
   }
 
   exit_block();
   method_str += func_header_strs;
-  method_str += func_refs + "\n" + tab_str() + end_str();
+  method_str += func_def_strs + "\n" + tab_str() + end_str();
   exit_block();
 
   return method_str;
@@ -346,7 +348,7 @@ std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& 
   }
 
   if (include_def_ptrs) {
-    str = "<" + ptr_to_hex_string(expr.variable_def) + " " + str + ">";
+    str = "<" + std::to_string(expr.def_handle.get_index()) + " " + str + ">";
   }
 
   str += sub_str;
@@ -355,20 +357,21 @@ std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& 
 }
 
 std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
-  auto name = std::string(string_registry->at(expr.function_reference->name));
+  const auto& ref = function_registry->at(expr.reference_handle);
+  auto name = std::string(string_registry->at(ref.name));
   const auto arg_str = visit_array(expr.arguments, ", ");
   auto sub_str = subscripts(expr.subscripts);
 
   const std::string call_expr_str = "(" + arg_str + ")" + sub_str;
 
   if (include_identifier_classification) {
-    auto* function_def = expr.function_reference->def;
-    int color_code = function_def ? 1 : 0;
+    const auto& def_handle = ref.def_handle;
+    int color_code = def_handle.is_valid() ? 1 : 0;
     maybe_colorize(name, color_code);
 
     if (include_def_ptrs) {
-      auto ptr_str = ptr_to_hex_string(expr.function_reference) + " ";
-      return "<" + ptr_str + name + ">" + call_expr_str;
+      auto ptr_str = std::to_string(expr.reference_handle.get_index());
+      return "<" + ptr_str + " " + name + ">" + call_expr_str;
     } else {
       return name + call_expr_str;
     }

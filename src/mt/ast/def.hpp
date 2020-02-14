@@ -51,12 +51,40 @@ struct FunctionDef : public Def {
     header(std::move(header)), body(std::move(body)) {
     //
   }
+  FunctionDef(FunctionDef&& other) noexcept = default;
+  FunctionDef& operator=(FunctionDef&& other) noexcept = default;
 
   ~FunctionDef() override = default;
   std::string accept(const StringVisitor& vis) const override;
 
   FunctionHeader header;
   BoxedBlock body;
+};
+
+struct FunctionDefNode : public AstNode {
+  FunctionDefNode(int64_t name, FunctionDefHandle def_handle, BoxedMatlabScope scope) :
+  name(name), def_handle(def_handle), scope(std::move(scope)) {
+    //
+  }
+  ~FunctionDefNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  FunctionDefNode* accept(IdentifierClassifier& classifier) override;
+
+  int64_t name;
+  FunctionDefHandle def_handle;
+  BoxedMatlabScope scope;
+};
+
+struct FunctionReference {
+  FunctionReference(int64_t name, FunctionDefHandle def_handle, BoxedMatlabScope scope) :
+  name(name), def_handle(def_handle), scope(std::move(scope)) {
+    //
+  }
+
+  int64_t name;
+  FunctionDefHandle def_handle;
+  BoxedMatlabScope scope;
 };
 
 struct VariableDef : public Def {
@@ -71,6 +99,12 @@ struct VariableDef : public Def {
 
 struct ClassDef : public Def {
   struct Property {
+    struct Less {
+      bool operator()(const Property& a, const Property& b) const {
+        return a.name < b.name;
+      }
+    };
+
     Property() = default;
     Property(const Token& source_token, int64_t name, BoxedExpr initializer) :
     source_token(source_token), name(name), initializer(std::move(initializer)) {
@@ -85,49 +119,44 @@ struct ClassDef : public Def {
     BoxedExpr initializer;
   };
 
-  struct Properties {
-    Properties() = default;
-    Properties(const Token& source_token, std::vector<Property>&& properties) :
-    source_token(source_token), properties(std::move(properties)) {
+  struct MethodDef {
+    MethodDef() = default;
+    MethodDef(std::unique_ptr<FunctionDefNode> def_node) : def_node(std::move(def_node)) {
       //
     }
-    Properties(Properties&& other) noexcept = default;
-    Properties& operator=(Properties&& other) noexcept = default;
-    ~Properties() = default;
+    MethodDef(MethodDef&& other) noexcept = default;
+    MethodDef& operator=(MethodDef&& other) noexcept = default;
 
-    Token source_token;
-    std::vector<Property> properties;
+    std::unique_ptr<FunctionDefNode> def_node;
   };
 
-  struct Methods {
-    Methods() = default;
-    Methods(const Token& source_token,
-            std::vector<std::unique_ptr<FunctionReference>>&& local_methods,
-            std::vector<FunctionHeader>&& external_methods) :
-      source_token(source_token),
-      definitions(std::move(local_methods)),
-      declarations(std::move(external_methods)) {
+  struct MethodDeclaration {
+    MethodDeclaration() = default;
+    MethodDeclaration(FunctionHeader&& header) : header(std::move(header)) {
       //
     }
-    Methods(Methods&& other) noexcept = default;
-    Methods& operator=(Methods&& other) noexcept = default;
-    ~Methods() = default;
+    MethodDeclaration(MethodDeclaration&& other) noexcept = default;
+    MethodDeclaration& operator=(MethodDeclaration&& other) noexcept = default;
 
-    Token source_token;
-    std::vector<std::unique_ptr<FunctionReference>> definitions;
-    std::vector<FunctionHeader> declarations;
+    FunctionHeader header;
   };
+
+  using MethodDefs = std::vector<MethodDef>;
+  using MethodDeclarations = std::vector<MethodDeclaration>;
+  using Properties = std::set<Property, Property::Less>;
 
   ClassDef(const Token& source_token,
            int64_t name,
            std::vector<int64_t>&& superclasses,
-           std::vector<Properties>&& property_blocks,
-           std::vector<Methods>&& method_blocks) :
+           Properties&& properties,
+           MethodDefs&& method_defs,
+           MethodDeclarations&& method_declarations) :
     source_token(source_token),
     name(name),
     superclass_names(std::move(superclasses)),
-    property_blocks(std::move(property_blocks)),
-    method_blocks(std::move(method_blocks)) {
+    properties(std::move(properties)),
+    method_defs(std::move(method_defs)),
+    method_declarations(std::move(method_declarations)) {
     //
   }
   ~ClassDef() override = default;
@@ -139,12 +168,13 @@ struct ClassDef : public Def {
   Token source_token;
   int64_t name;
   std::vector<int64_t> superclass_names;
-  std::vector<Properties> property_blocks;
-  std::vector<Methods> method_blocks;
+  Properties properties;
+  MethodDefs method_defs;
+  MethodDeclarations method_declarations;
 };
 
 class ClassDefHandle {
-  friend class ClassDefStore;
+  friend class ClassStore;
 public:
   ClassDefHandle() : index(-1) {
     //

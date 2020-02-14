@@ -17,6 +17,7 @@ struct FunctionReference;
 struct VariableDef;
 struct MatlabScope;
 struct Import;
+class FunctionReferenceHandle;
 
 struct AstNode {
   AstNode() = default;
@@ -126,21 +127,56 @@ struct RootBlock : public AstNode {
   RootBlock* accept(IdentifierClassifier& classifier) override;
 
   BoxedBlock block;
-  std::shared_ptr<MatlabScope> scope;
+  BoxedMatlabScope scope;
 };
 
-struct FunctionReference : public AstNode {
-  FunctionReference(int64_t name, FunctionDef* def, std::shared_ptr<MatlabScope> scope) :
-    name(name), def(def), scope(std::move(scope)) {
+class FunctionDefHandle {
+  friend class FunctionStore;
+  friend class VariableStore;
+public:
+  FunctionDefHandle() : index(-1) {
     //
   }
-  ~FunctionReference() override = default;
-  std::string accept(const StringVisitor& vis) const override;
-  FunctionReference* accept(IdentifierClassifier& classifier) override;
 
-  int64_t name;
-  FunctionDef* def;
-  std::shared_ptr<MatlabScope> scope;
+  bool is_valid() const {
+    return index >= 0;
+  }
+
+  int64_t get_index() const {
+    return index;
+  }
+
+private:
+  explicit FunctionDefHandle(int64_t index) : index(index) {
+    //
+  }
+
+  int64_t index;
+};
+
+using VariableDefHandle = FunctionDefHandle;
+
+class FunctionReferenceHandle {
+  friend class FunctionStore;
+public:
+  FunctionReferenceHandle() : index(-1) {
+    //
+  }
+
+  bool is_valid() const {
+    return index >= 0;
+  }
+
+  int64_t get_index() const {
+    return index;
+  }
+
+private:
+  explicit FunctionReferenceHandle(int64_t index) : index(index) {
+    //
+  }
+
+  int64_t index;
 };
 
 /*
@@ -148,21 +184,20 @@ struct FunctionReference : public AstNode {
  */
 
 struct MatlabScope {
-  explicit MatlabScope(std::shared_ptr<MatlabScope> parent) : parent(std::move(parent)) {
+  explicit MatlabScope(BoxedMatlabScope parent) : parent(std::move(parent)) {
     //
   }
   ~MatlabScope() = default;
 
-  bool register_local_function(int64_t name, FunctionReference* ref);
-  void register_local_variable(int64_t name, std::unique_ptr<VariableDef> def);
+  bool register_local_function(int64_t name, FunctionReferenceHandle handle);
+  void register_local_variable(int64_t name, VariableDefHandle handle);
   void register_import(Import&& import);
 
-  FunctionReference* lookup_local_function(int64_t name);
-  const FunctionReference* lookup_local_function(int64_t name) const;
+  FunctionReferenceHandle lookup_local_function(int64_t name) const;
 
-  std::shared_ptr<MatlabScope> parent;
-  std::unordered_map<int64_t, FunctionReference*> local_functions;
-  std::unordered_map<int64_t, std::unique_ptr<VariableDef>> local_variables;
+  BoxedMatlabScope parent;
+  std::unordered_map<int64_t, FunctionReferenceHandle> local_functions;
+  std::unordered_map<int64_t, VariableDefHandle> local_variables;
   std::vector<Import> fully_qualified_imports;
   std::vector<Import> wildcard_imports;
 };

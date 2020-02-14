@@ -4,23 +4,44 @@
 #include "lang_components.hpp"
 
 namespace mt {
-class FunctionRegistry {
-public:
-  FunctionRegistry() = default;
-  ~FunctionRegistry() = default;
 
-  FunctionReference* make_external_reference(int64_t to_identifier, std::shared_ptr<MatlabScope> in_scope);
-  void emplace_local_definition(std::unique_ptr<FunctionDef> function_def);
+class VariableStore {
+public:
+  VariableStore() = default;
+  ~VariableStore() = default;
+
+  VariableDefHandle emplace_definition(VariableDef&& def);
+  const VariableDef& at(const VariableDefHandle& handle) const;
+  VariableDef& at(const VariableDefHandle& handle);
 
 private:
-  std::vector<std::unique_ptr<FunctionReference>> external_function_references;
-  std::vector<std::unique_ptr<FunctionDef>> local_function_definitions;
+  std::vector<VariableDef> definitions;
 };
 
-class ClassDefStore {
+class FunctionStore {
 public:
-  ClassDefStore() = default;
-  ~ClassDefStore() = default;
+  FunctionStore() = default;
+  ~FunctionStore() = default;
+
+  FunctionDefHandle emplace_definition(FunctionDef&& def);
+  FunctionReferenceHandle make_external_reference(int64_t to_identifier, BoxedMatlabScope in_scope);
+  FunctionReferenceHandle make_local_reference(int64_t to_identifier, FunctionDefHandle with_def,
+    BoxedMatlabScope in_scope);
+
+  const FunctionDef& at(const FunctionDefHandle& handle) const;
+  FunctionDef& at(const FunctionDefHandle& handle);
+
+  const FunctionReference& at(const FunctionReferenceHandle& handle) const;
+
+private:
+  std::vector<FunctionDef> definitions;
+  std::vector<FunctionReference> references;
+};
+
+class ClassStore {
+public:
+  ClassStore() = default;
+  ~ClassStore() = default;
 
   ClassDefHandle emplace_definition(ClassDef&& def);
   const ClassDef& lookup_class(const ClassDefHandle& by_handle) const;

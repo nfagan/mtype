@@ -36,7 +36,7 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
   is_end_terminated_function = inputs.functions_are_end_terminated;
   parse_errors.clear();
   string_registry = inputs.string_registry;
-  function_registry = inputs.function_registry;
+  function_store = inputs.function_store;
   class_store = inputs.class_store;
 
   block_depths = BlockDepths();
@@ -194,7 +194,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     if (is_within_class() && is_within_top_level_function()) {
       iterator.advance();
 
-      auto property_res = one_identifier();
+      auto property_res = compound_identifier_components();
       if (!property_res) {
         return NullOpt{};
       }
@@ -261,7 +261,7 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
   }
 }
 
-Optional<std::unique_ptr<FunctionReference>> AstGenerator::function_reference() {
+Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   const auto& source_token = iterator.peek();
   iterator.advance();
 
@@ -304,23 +304,27 @@ Optional<std::unique_ptr<FunctionReference>> AstGenerator::function_reference() 
 
   auto parent_scope = current_scope();
 
-  auto function_def = std::make_unique<FunctionDef>(header_result.rvalue(), body_res.rvalue());
-  const auto name = function_def->header.name;
-  auto* def = function_def.get();
+  FunctionDef function_def(header_result.rvalue(), body_res.rvalue());
+  const auto name = function_def.header.name;
 
   //  Function registry owns the local function definition.
-  function_registry->emplace_local_definition(std::move(function_def));
+  auto def_handle = function_store->emplace_definition(std::move(function_def));
+  auto ref_handle = function_store->make_local_reference(name, def_handle, child_scope);
 
-  auto ref_node = std::make_unique<FunctionReference>(name, def, std::move(child_scope));
-  //  Parent scope holds a pointer to the function reference stored in the AST.
-  bool register_success = parent_scope->register_local_function(name, ref_node.get());
+  bool register_success = true;
+  if (!is_within_class() || !is_within_top_level_function()) {
+    //  In a classdef file, adjacent top-level methods are not visible to one another, so we don't
+    //  register them in the parent's scope.
+    register_success = parent_scope->register_local_function(name, ref_handle);
+  }
 
   if (!register_success) {
     add_error(make_error_duplicate_local_function(source_token));
     return NullOpt{};
   }
 
-  return Optional<std::unique_ptr<FunctionReference>>(std::move(ref_node));
+  auto ast_node = std::make_unique<FunctionDefNode>(name, def_handle, child_scope);
+  return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
 }
 
 Optional<BoxedAstNode> AstGenerator::class_def() {
@@ -356,8 +360,10 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     superclass_names.emplace_back(string_registry->make_registered_compound_identifier(name_ids));
   }
 
-  std::vector<ClassDef::Properties> property_blocks;
-  std::vector<ClassDef::Methods> method_blocks;
+  ClassDef::Properties properties;
+  ClassDef::MethodDeclarations method_declarations;
+  ClassDef::MethodDefs method_defs;
+  std::set<int64_t> method_names;
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
@@ -366,19 +372,15 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
       iterator.advance();
 
     } else if (tok.type == TokenType::keyword_properties) {
-      auto prop_res = properties_block(tok);
+      auto prop_res = properties_block(properties);
       if (!prop_res) {
         return NullOpt{};
-      } else {
-        property_blocks.emplace_back(prop_res.rvalue());
       }
 
     } else if (tok.type == TokenType::keyword_methods) {
-      auto method_res = methods_block(tok);
+      auto method_res = methods_block(method_names, method_defs, method_declarations);
       if (!method_res) {
         return NullOpt{};
-      } else {
-        method_blocks.emplace_back(method_res.rvalue());
       }
     } else {
       std::array<TokenType, 2> possible_types{
@@ -398,7 +400,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
 
   auto name = string_registry->register_string(name_res.value());
   ClassDef class_def(source_token, name, std::move(superclass_names),
-    std::move(property_blocks), std::move(method_blocks));
+    std::move(properties), std::move(method_defs), std::move(method_declarations));
 
   const auto handle = class_store->emplace_definition(std::move(class_def));
   auto class_node = std::make_unique<ClassDefReference>(handle);
@@ -406,7 +408,9 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   return Optional<BoxedAstNode>(std::move(class_node));
 }
 
-Optional<ClassDef::Methods> AstGenerator::methods_block(const Token& source_token) {
+Optional<int> AstGenerator::methods_block(std::set<int64_t>& method_names,
+                                          ClassDef::MethodDefs& method_defs,
+                                          ClassDef::MethodDeclarations& method_declarations) {
   iterator.advance(); //  consume methods
 
   //  methods (SetAccess = ...)
@@ -421,9 +425,6 @@ Optional<ClassDef::Methods> AstGenerator::methods_block(const Token& source_toke
     }
   }
 
-  std::vector<std::unique_ptr<FunctionReference>> local_methods;
-  std::vector<FunctionHeader> external_methods;
-
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
 
@@ -435,23 +436,22 @@ Optional<ClassDef::Methods> AstGenerator::methods_block(const Token& source_toke
         break;
       default: {
         if (tok.type == TokenType::identifier || tok.type == TokenType::left_bracket) {
-          auto header_res = function_header();
-          if (!header_res) {
+          auto res = method_declaration(tok, method_names, method_declarations);
+          if (!res) {
             return NullOpt{};
-          } else {
-            external_methods.emplace_back(std::move(header_res.rvalue()));
           }
+
         } else if (tok.type == TokenType::keyword_function) {
-          auto func_res = function_reference();
-          if (!func_res) {
+          auto res = method_def(tok, method_names, method_defs);
+          if (!res) {
             return NullOpt{};
-          } else {
-            local_methods.emplace_back(func_res.rvalue());
           }
+
         } else {
           std::array<TokenType, 3> possible_types{{
             TokenType::identifier, TokenType::left_bracket, TokenType::keyword_function
           }};
+
           add_error(make_error_expected_token_type(tok, possible_types));
           return NullOpt{};
         }
@@ -465,12 +465,54 @@ Optional<ClassDef::Methods> AstGenerator::methods_block(const Token& source_toke
     return NullOpt{};
   }
 
-  ClassDef::Methods methods(source_token, std::move(local_methods), std::move(external_methods));
-
-  return Optional<ClassDef::Methods>(std::move(methods));
+  return Optional<int>(0);
 }
 
-Optional<ClassDef::Properties> AstGenerator::properties_block(const Token& source_token) {
+Optional<int> AstGenerator::method_declaration(const mt::Token& source_token,
+                                               std::set<int64_t>& method_names,
+                                               mt::ClassDef::MethodDeclarations& method_declarations) {
+  auto header_res = function_header();
+  if (!header_res) {
+    return NullOpt{};
+  }
+
+  auto func_name = header_res.value().name;
+
+  if (method_names.count(func_name) > 0) {
+    add_error(make_error_duplicate_method(source_token));
+    return NullOpt{};
+
+  } else {
+    method_names.emplace(func_name);
+    method_declarations.emplace_back(header_res.rvalue());
+  }
+
+  return Optional<int>(0);
+}
+
+Optional<int> AstGenerator::method_def(const Token& source_token,
+                                       std::set<int64_t>& method_names,
+                                       mt::ClassDef::MethodDefs& method_defs) {
+  auto func_res = function_def();
+  if (!func_res) {
+    return NullOpt{};
+  }
+
+  auto func_name = func_res.value()->name;
+
+  if (method_names.count(func_name) > 0) {
+    add_error(make_error_duplicate_method(source_token));
+    return NullOpt{};
+
+  } else {
+    method_names.emplace(func_name);
+    method_defs.emplace_back(func_res.rvalue());
+  }
+
+  return Optional<int>(0);
+}
+
+Optional<int> AstGenerator::properties_block(ClassDef::Properties& properties) {
   iterator.advance(); //  consume properties
 
   //  properties (SetAccess = ...)
@@ -484,8 +526,6 @@ Optional<ClassDef::Properties> AstGenerator::properties_block(const Token& sourc
       return NullOpt{};
     }
   }
-
-  std::vector<ClassDef::Property> properties;
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
@@ -501,8 +541,13 @@ Optional<ClassDef::Properties> AstGenerator::properties_block(const Token& sourc
         if (!prop_res) {
           return NullOpt{};
         }
-
-        properties.emplace_back(prop_res.rvalue());
+        if (properties.count(prop_res.value()) > 0) {
+          //  Duplicate property
+          add_error(make_error_duplicate_class_property(tok));
+          return NullOpt{};
+        } else {
+          properties.emplace(prop_res.rvalue());
+        }
       }
     }
   }
@@ -513,8 +558,7 @@ Optional<ClassDef::Properties> AstGenerator::properties_block(const Token& sourc
     return NullOpt{};
   }
 
-  ClassDef::Properties properties_block(source_token, std::move(properties));
-  return Optional<ClassDef::Properties>(std::move(properties_block));
+  return Optional<int>(0);
 }
 
 Optional<ClassDef::Property> AstGenerator::property(const Token& source_token) {
@@ -583,7 +627,7 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
         break;
       }
       case TokenType::keyword_function: {
-        auto def_res = function_reference();
+        auto def_res = function_def();
         if (def_res) {
           node = def_res.rvalue();
           is_function = true;
@@ -666,7 +710,7 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
       }
       case TokenType::keyword_function: {
         if (is_end_terminated_function) {
-          auto def_res = function_reference();
+          auto def_res = function_def();
           if (def_res) {
             node = def_res.rvalue();
             is_function = true;
@@ -2225,6 +2269,14 @@ ParseError AstGenerator::make_error_incomplete_import_stmt(const mt::Token& at_t
 
 ParseError AstGenerator::make_error_invalid_period_qualified_function_def(const Token& at_token) const {
   return ParseError(text, at_token, "A period-qualified `function` is invalid here.");
+}
+
+ParseError AstGenerator::make_error_duplicate_class_property(const Token& at_token) const {
+  return ParseError(text, at_token, "Duplicate property.");
+}
+
+ParseError AstGenerator::make_error_duplicate_method(const Token& at_token) const {
+  return ParseError(text, at_token, "Duplicate method.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

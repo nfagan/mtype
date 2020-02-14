@@ -46,19 +46,19 @@ class AstGenerator {
 public:
   struct ParseInputs {
     ParseInputs(StringRegistry* string_registry,
-                FunctionRegistry* function_registry,
-                ClassDefStore* class_def_store,
+                FunctionStore* function_store,
+                ClassStore* class_def_store,
                 bool functions_are_end_terminated) :
                 string_registry(string_registry),
-                function_registry(function_registry),
+                function_store(function_store),
                 class_store(class_def_store),
                 functions_are_end_terminated(functions_are_end_terminated) {
       //
     }
 
     StringRegistry* string_registry;
-    FunctionRegistry* function_registry;
-    ClassDefStore* class_store;
+    FunctionStore* function_store;
+    ClassStore* class_store;
     bool functions_are_end_terminated;
   };
 
@@ -75,7 +75,7 @@ public:
 private:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
-  Optional<std::unique_ptr<FunctionReference>> function_reference();
+  Optional<std::unique_ptr<FunctionDefNode>> function_def();
   Optional<FunctionHeader> function_header();
   Optional<std::vector<std::string_view>> function_inputs();
   Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
@@ -85,8 +85,16 @@ private:
   Optional<std::vector<Optional<int64_t>>> anonymous_function_input_parameters();
 
   Optional<BoxedAstNode> class_def();
-  Optional<ClassDef::Methods> methods_block(const Token& source_token);
-  Optional<ClassDef::Properties> properties_block(const Token& source_token);
+  Optional<int> methods_block(std::set<int64_t>& method_names,
+                              ClassDef::MethodDefs& method_defs,
+                              ClassDef::MethodDeclarations& method_declarations);
+  Optional<int> method_def(const Token& source_token,
+                           std::set<int64_t>& method_names,
+                           ClassDef::MethodDefs& method_defs);
+  Optional<int> method_declaration(const Token& source_token,
+                                   std::set<int64_t>& method_names,
+                                   ClassDef::MethodDeclarations& method_declarations);
+  Optional<int> properties_block(ClassDef::Properties& properties);
   Optional<ClassDef::Property> property(const Token& source_token);
 
   Optional<Subscript> period_subscript(const Token& source_token);
@@ -171,6 +179,8 @@ private:
   ParseError make_error_duplicate_local_function(const Token& at_token) const;
   ParseError make_error_incomplete_import_stmt(const Token& at_token) const;
   ParseError make_error_invalid_period_qualified_function_def(const Token& at_token) const;
+  ParseError make_error_duplicate_class_property(const Token& at_token) const;
+  ParseError make_error_duplicate_method(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
@@ -199,8 +209,8 @@ private:
   TokenIterator iterator;
   std::string_view text;
   StringRegistry* string_registry;
-  FunctionRegistry* function_registry;
-  ClassDefStore* class_store;
+  FunctionStore* function_store;
+  ClassStore* class_store;
   BlockDepths block_depths;
   std::vector<std::shared_ptr<MatlabScope>> scopes;
 

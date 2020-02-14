@@ -61,17 +61,17 @@ class IdentifierScope {
    * IdentifierInfo
    */
   struct IdentifierInfo {
-    IdentifierInfo() : type(IdentifierType::unknown), function_reference(nullptr), is_compound_identifier(false) {
+    IdentifierInfo() : type(IdentifierType::unknown), function_reference(), is_compound_identifier(false) {
       //
     }
 
-    IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionReference* reference) :
+    IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionReferenceHandle reference) :
       type(type), context(context), function_reference(reference), is_compound_identifier(false) {
       //
     }
 
-    IdentifierInfo(IdentifierType type, IdentifierContext context, VariableDef* definition) :
-      type(type), context(context), variable_def(definition), is_compound_identifier(false) {
+    IdentifierInfo(IdentifierType type, IdentifierContext context, VariableDefHandle def_handle) :
+      type(type), context(context), variable_def_handle(def_handle), is_compound_identifier(false) {
       //
     }
 
@@ -79,8 +79,8 @@ class IdentifierScope {
     IdentifierContext context;
 
     union {
-      FunctionReference* function_reference;
-      VariableDef* variable_def;
+      FunctionReferenceHandle function_reference;
+      VariableDefHandle variable_def_handle;
     };
 
     bool is_compound_identifier;
@@ -90,18 +90,18 @@ class IdentifierScope {
    * AssignmentResult
    */
   struct AssignmentResult {
-    AssignmentResult(VariableDef* resolved_def) :
-    success(true), was_initialization(false), variable_def(resolved_def) {
+    AssignmentResult(VariableDefHandle resolved_def) :
+    success(true), was_initialization(false), variable_def_handle(resolved_def) {
 
     }
-    AssignmentResult(bool success, IdentifierType type, VariableDef* new_def) :
-    success(success), was_initialization(false), variable_def(new_def), error_already_had_type(type) {
+    AssignmentResult(bool success, IdentifierType type, VariableDefHandle new_def) :
+    success(success), was_initialization(false), variable_def_handle(new_def), error_already_had_type(type) {
       //
     }
 
     bool success;
     bool was_initialization;
-    VariableDef* variable_def;
+    VariableDefHandle variable_def_handle;
     IdentifierType error_already_had_type;
   };
 
@@ -143,7 +143,7 @@ private:
   ReferenceResult register_fully_qualified_import(int64_t complete_identifier, int64_t last_identifier_component);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
-  FunctionReference* lookup_local_function(int64_t name) const;
+  FunctionReferenceHandle lookup_local_function(int64_t name) const;
 
   bool has_variable(int64_t id, bool traverse_parent);
 
@@ -159,10 +159,10 @@ private:
   IdentifierContext current_context() const;
   const IdentifierContext* context_at_depth(int depth) const;
 
-  IdentifierInfo make_local_function_reference_identifier_info(FunctionReference* ref);
+  IdentifierInfo make_local_function_reference_identifier_info(FunctionReferenceHandle ref);
   IdentifierInfo make_external_function_reference_identifier_info(int64_t identifier, bool is_compound);
   IdentifierInfo make_function_reference_identifier_info(int64_t identifier,
-    FunctionReference* maybe_local_ref, bool is_compound);
+    FunctionReferenceHandle maybe_local_ref, bool is_compound);
 
 private:
   IdentifierClassifier* classifier;
@@ -186,8 +186,9 @@ class IdentifierClassifier {
 
 public:
   IdentifierClassifier(StringRegistry* string_registry,
-                       FunctionRegistry* function_registry,
-                       ClassDefStore* class_store,
+                       FunctionStore* function_store,
+                       ClassStore* class_store,
+                       VariableStore* variable_store,
                        std::string_view text);
   ~IdentifierClassifier() = default;
 
@@ -195,7 +196,7 @@ public:
 
   RootBlock* root_block(RootBlock& block);
   Block* block(Block& block);
-  FunctionReference* function_reference(FunctionReference& ref);
+  FunctionDefNode* function_def_node(FunctionDefNode& def);
   Expr* identifier_reference_expr(IdentifierReferenceExpr& expr);
   Expr* dynamic_field_reference_expr(DynamicFieldReferenceExpr& expr);
   Expr* grouping_expr(GroupingExpr& expr);
@@ -257,7 +258,7 @@ private:
 
   FunctionCallExpr* make_function_call_expr(IdentifierReferenceExpr& from_expr,
                                             int64_t subscript_end,
-                                            FunctionReference* function_reference);
+                                            FunctionReferenceHandle function_reference);
 
   void block_preserve_context(BoxedBlock& block);
   void block_new_context(BoxedBlock& block);
@@ -279,8 +280,9 @@ private:
 
 private:
   StringRegistry* string_registry;
-  FunctionRegistry* function_registry;
-  ClassDefStore* class_store;
+  FunctionStore* function_store;
+  ClassStore* class_store;
+  VariableStore* variable_store;
   std::string_view text;
 
   std::vector<IdentifierScope> scopes;

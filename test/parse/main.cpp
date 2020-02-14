@@ -58,10 +58,11 @@ int main(int argc, char** argv) {
 
   mt::AstGenerator ast_gen;
   mt::StringRegistry string_registry;
-  mt::FunctionRegistry function_registry;
-  mt::ClassDefStore class_store;
+  mt::FunctionStore function_store;
+  mt::ClassStore class_store;
+  mt::VariableStore variable_store;
 
-  mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &function_registry,
+  mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &function_store,
     &class_store, scan_info.functions_are_end_terminated);
   auto parse_result = ast_gen.parse(scan_info.tokens, contents, parse_inputs);
 
@@ -73,7 +74,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  mt::IdentifierClassifier classifier(&string_registry, &function_registry, &class_store, contents);
+  mt::IdentifierClassifier classifier(&string_registry, &function_store, &class_store, &variable_store, contents);
   auto root_block = std::move(parse_result.value);
   classifier.transform_root(root_block);
 
@@ -87,7 +88,7 @@ int main(int argc, char** argv) {
     warn.show();
   }
 
-  mt::StringVisitor visitor(&string_registry, &class_store);
+  mt::StringVisitor visitor(&string_registry, &function_store, &class_store);
   visitor.parenthesize_exprs = true;
 
 //  std::cout << parse_result.value->accept(visitor) << std::endl;
