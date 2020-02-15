@@ -44,8 +44,8 @@ public:
   ~ClassStore() = default;
 
   ClassDefHandle emplace_definition(ClassDef&& def);
-  const ClassDef& lookup_class(const ClassDefHandle& by_handle) const;
-  ClassDef& lookup_class(ClassDefHandle& by_handle);
+  const ClassDef& at(const ClassDefHandle& by_handle) const;
+  ClassDef& at(ClassDefHandle& by_handle);
 
 private:
   std::vector<ClassDef> definitions;

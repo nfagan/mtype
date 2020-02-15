@@ -33,15 +33,17 @@ struct AnonymousFunctionExpr : public Expr {
 };
 
 struct FunctionReferenceExpr : public Expr {
-  FunctionReferenceExpr(const Token& source_token, std::vector<int64_t>&& identifier_components) :
-  source_token(source_token), identifier_components(std::move(identifier_components)) {
+  FunctionReferenceExpr(const Token& source_token, MatlabIdentifier identifier) :
+  source_token(source_token), identifier(identifier) {
     //
   }
   ~FunctionReferenceExpr() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
-  std::vector<int64_t> identifier_components;
+  FunctionReferenceHandle handle;
+  MatlabIdentifier identifier;
 };
 
 struct ColonSubscriptExpr : public Expr {

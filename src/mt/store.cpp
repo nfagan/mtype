@@ -63,12 +63,12 @@ ClassDefHandle ClassStore::emplace_definition(ClassDef&& def) {
   return ClassDefHandle(definitions.size() - 1);
 }
 
-ClassDef& ClassStore::lookup_class(ClassDefHandle& by_handle) {
+ClassDef& ClassStore::at(ClassDefHandle& by_handle) {
   assert(by_handle.index >= 0 && by_handle.index < int64_t(definitions.size()) && "Out of bounds index.");
   return definitions[by_handle.index];
 }
 
-const ClassDef& ClassStore::lookup_class(const ClassDefHandle& by_handle) const {
+const ClassDef& ClassStore::at(const ClassDefHandle& by_handle) const {
   assert(by_handle.index >= 0 && by_handle.index < int64_t(definitions.size()) && "Out of bounds index.");
   return definitions[by_handle.index];
 }

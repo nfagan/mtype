@@ -47,8 +47,7 @@ struct FunctionHeader {
 };
 
 struct FunctionDef : public Def {
-  FunctionDef(FunctionHeader&& header,
-              std::unique_ptr<Block> body) :
+  FunctionDef(FunctionHeader&& header, BoxedBlock body) :
     header(std::move(header)), body(std::move(body)) {
     //
   }
@@ -63,8 +62,8 @@ struct FunctionDef : public Def {
 };
 
 struct FunctionDefNode : public AstNode {
-  FunctionDefNode(int64_t name, FunctionDefHandle def_handle, BoxedMatlabScope scope) :
-  name(name), def_handle(def_handle), scope(std::move(scope)) {
+  FunctionDefNode(FunctionDefHandle def_handle, BoxedMatlabScope scope) :
+  def_handle(def_handle), scope(std::move(scope)) {
     //
   }
   ~FunctionDefNode() override = default;
@@ -72,7 +71,6 @@ struct FunctionDefNode : public AstNode {
   std::string accept(const StringVisitor& vis) const override;
   FunctionDefNode* accept(IdentifierClassifier& classifier) override;
 
-  int64_t name;
   FunctionDefHandle def_handle;
   BoxedMatlabScope scope;
 };
@@ -100,12 +98,6 @@ struct VariableDef : public Def {
 
 struct ClassDef : public Def {
   struct Property {
-    struct Less {
-      bool operator()(const Property& a, const Property& b) const {
-        return a.name < b.name;
-      }
-    };
-
     Property() = default;
     Property(const Token& source_token, int64_t name, BoxedExpr initializer) :
     source_token(source_token), name(name), initializer(std::move(initializer)) {
@@ -144,12 +136,12 @@ struct ClassDef : public Def {
 
   using MethodDefs = std::vector<MethodDef>;
   using MethodDeclarations = std::vector<MethodDeclaration>;
-  using Properties = std::set<Property, Property::Less>;
+  using Properties = std::unordered_map<int64_t, Property>;
 
   ClassDef() = default;
   ClassDef(const Token& source_token,
-           int64_t name,
-           std::vector<int64_t>&& superclasses,
+           MatlabIdentifier name,
+           std::vector<MatlabIdentifier>&& superclasses,
            Properties&& properties,
            MethodDefs&& method_defs,
            MethodDeclarations&& method_declarations) :
@@ -168,8 +160,8 @@ struct ClassDef : public Def {
   std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
-  int64_t name;
-  std::vector<int64_t> superclass_names;
+  MatlabIdentifier name;
+  std::vector<MatlabIdentifier> superclass_names;
   Properties properties;
   MethodDefs method_defs;
   MethodDeclarations method_declarations;

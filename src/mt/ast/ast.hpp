@@ -18,6 +18,8 @@ struct VariableDef;
 struct MatlabScope;
 struct Import;
 class FunctionReferenceHandle;
+class ClassDefHandle;
+class MatlabIdentifier;
 
 struct AstNode {
   AstNode() = default;
@@ -180,6 +182,48 @@ private:
 };
 
 /*
+ * MatlabIdentifier
+ */
+
+class MatlabIdentifier {
+  friend struct Hash;
+public:
+  struct Hash {
+    std::size_t operator()(const MatlabIdentifier& k) const;
+  };
+
+public:
+  explicit MatlabIdentifier(int64_t name) : MatlabIdentifier(name, 1) {
+    //
+  }
+
+  MatlabIdentifier(int64_t name, int num_components) :
+    name(name), num_components(num_components) {
+    //
+  }
+
+  bool operator==(const MatlabIdentifier& other) const {
+    return name == other.name;
+  }
+
+  bool is_compound() const {
+    return num_components > 1;
+  }
+
+  int size() const {
+    return num_components;
+  }
+
+  int64_t full_name() const {
+    return name;
+  }
+
+private:
+  int64_t name;
+  int num_components;
+};
+
+/*
  * MatlabScope
  */
 
@@ -190,6 +234,7 @@ struct MatlabScope {
   ~MatlabScope() = default;
 
   bool register_local_function(int64_t name, FunctionReferenceHandle handle);
+  bool register_class(MatlabIdentifier name, ClassDefHandle handle);
   void register_local_variable(int64_t name, VariableDefHandle handle);
   void register_import(Import&& import);
 
@@ -198,6 +243,7 @@ struct MatlabScope {
   BoxedMatlabScope parent;
   std::unordered_map<int64_t, FunctionReferenceHandle> local_functions;
   std::unordered_map<int64_t, VariableDefHandle> local_variables;
+  std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash> classes;
   std::vector<Import> fully_qualified_imports;
   std::vector<Import> wildcard_imports;
 };

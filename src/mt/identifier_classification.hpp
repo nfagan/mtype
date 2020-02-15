@@ -203,6 +203,7 @@ public:
   Expr* binary_operator_expr(BinaryOperatorExpr& expr);
   Expr* unary_operator_expr(UnaryOperatorExpr& expr);
   Expr* anonymous_function_expr(AnonymousFunctionExpr& expr);
+  Expr* function_reference_expr(FunctionReferenceExpr& expr);
   ClassDefReference* class_def_reference(ClassDefReference& ref);
 
   IfStmt* if_stmt(IfStmt& stmt);
@@ -277,6 +278,9 @@ private:
   ParseError make_error_invalid_function_call_expr(const Token& at_token);
   ParseError make_error_shadowed_import(const Token& at_token, IdentifierType present_type);
   ParseError make_error_pre_declared_qualified_variable(const Token& at_token, int64_t identifier);
+  ParseError make_error_function_reference_to_non_function(const Token& at_token,
+                                                           int64_t identifier,
+                                                           IdentifierType present_type);
 
 private:
   StringRegistry* string_registry;

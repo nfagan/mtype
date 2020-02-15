@@ -10,6 +10,12 @@ void show_tokens(const std::vector<mt::Token>& tokens) {
     std::cout << tok << std::endl;
   }
 }
+
+void summarize_file(const mt::BoxedRootBlock& root_block) {
+  std::cout << "Num classes: " << root_block->scope->classes.size() << std::endl;
+  std::cout << "Num top-level functions: " << root_block->scope->local_functions.size() << std::endl;
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -94,6 +100,7 @@ int main(int argc, char** argv) {
 //  std::cout << parse_result.value->accept(visitor) << std::endl;
   std::cout << root_block->accept(visitor) << std::endl;
   std::cout << "Num strings: " << string_registry.size() << std::endl;
+  summarize_file(root_block);
 
   return 0;
 }

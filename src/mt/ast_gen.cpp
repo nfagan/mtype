@@ -189,8 +189,11 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     return NullOpt{};
   }
 
+  int64_t compound_name;
+  bool use_compound_name = false;
+
   if (iterator.peek().type == TokenType::period) {
-    //  set.<property>, when within a methods block
+    //  e.g., set.<property>, when within a methods block
     if (is_within_class() && is_within_top_level_function()) {
       iterator.advance();
 
@@ -198,6 +201,13 @@ Optional<FunctionHeader> AstGenerator::function_header() {
       if (!property_res) {
         return NullOpt{};
       }
+
+      auto component_names = std::move(property_res.rvalue());
+      component_names.insert(component_names.begin(), name_res.value());
+      const auto component_ids = string_registry->register_strings(component_names);
+
+      compound_name = string_registry->make_registered_compound_identifier(component_ids);
+      use_compound_name = true;
 
     } else {
       add_error(make_error_invalid_period_qualified_function_def(iterator.peek()));
@@ -211,7 +221,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
   }
 
   //  Register function definition strings.
-  int64_t name = string_registry->register_string(name_res.value());
+  const auto name = use_compound_name ? compound_name : string_registry->register_string(name_res.value());
   auto outputs = string_registry->register_strings(output_res.value());
   auto inputs = string_registry->register_strings(input_res.value());
 
@@ -323,7 +333,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
-  auto ast_node = std::make_unique<FunctionDefNode>(name, def_handle, child_scope);
+  auto ast_node = std::make_unique<FunctionDefNode>(def_handle, child_scope);
   return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
 }
 
@@ -331,6 +341,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   const auto& source_token = iterator.peek();
   iterator.advance();
 
+  const auto parent_scope = current_scope();
   BlockStmtScopeHelper scope_helper(&block_depths.class_def);
 
   auto name_res = one_identifier();
@@ -338,7 +349,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     return NullOpt{};
   }
 
-  std::vector<int64_t> superclass_names;
+  std::vector<MatlabIdentifier> superclass_names;
 
   //  classdef X < Y
   if (iterator.peek().type == TokenType::less) {
@@ -357,7 +368,9 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
       name_ids.emplace_back(string_registry->register_string(name));
     }
 
-    superclass_names.emplace_back(string_registry->make_registered_compound_identifier(name_ids));
+    const auto full_name = string_registry->make_registered_compound_identifier(name_ids);
+    MatlabIdentifier identifier(full_name, name_ids.size());
+    superclass_names.emplace_back(identifier);
   }
 
   ClassDef::Properties properties;
@@ -398,12 +411,19 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     return NullOpt{};
   }
 
-  auto name = string_registry->register_string(name_res.value());
+  MatlabIdentifier name(string_registry->register_string(name_res.value()));
+
   ClassDef class_def(source_token, name, std::move(superclass_names),
     std::move(properties), std::move(method_defs), std::move(method_declarations));
 
   const auto handle = class_store->emplace_definition(std::move(class_def));
   auto class_node = std::make_unique<ClassDefReference>(handle);
+
+  bool register_success = parent_scope->register_class(name, handle);
+  if (!register_success) {
+    add_error(make_error_duplicate_class_def(source_token));
+    return NullOpt{};
+  }
 
   return Optional<BoxedAstNode>(std::move(class_node));
 }
@@ -498,7 +518,8 @@ Optional<int> AstGenerator::method_def(const Token& source_token,
     return NullOpt{};
   }
 
-  auto func_name = func_res.value()->name;
+  const auto& def_handle = func_res.value()->def_handle;
+  const auto func_name = function_store->at(def_handle).header.name;
 
   if (method_names.count(func_name) > 0) {
     add_error(make_error_duplicate_method(source_token));
@@ -541,12 +562,15 @@ Optional<int> AstGenerator::properties_block(ClassDef::Properties& properties) {
         if (!prop_res) {
           return NullOpt{};
         }
-        if (properties.count(prop_res.value()) > 0) {
+
+        const auto prop_name = prop_res.value().name;
+
+        if (properties.count(prop_name) > 0) {
           //  Duplicate property
           add_error(make_error_duplicate_class_property(tok));
           return NullOpt{};
         } else {
-          properties.emplace(prop_res.rvalue());
+          properties[prop_name] = prop_res.rvalue();
         }
       }
     }
@@ -913,9 +937,11 @@ Optional<BoxedExpr> AstGenerator::function_reference_expr(const Token& source_to
     return NullOpt{};
   }
 
-  auto component_identifiers = string_registry->register_strings(component_res.value());
+  const auto component_identifiers = string_registry->register_strings(component_res.value());
+  const auto compound_identifier = string_registry->make_registered_compound_identifier(component_identifiers);
+  MatlabIdentifier identifier(compound_identifier, component_identifiers.size());
 
-  auto node = std::make_unique<FunctionReferenceExpr>(source_token, std::move(component_identifiers));
+  auto node = std::make_unique<FunctionReferenceExpr>(source_token, identifier);
   return Optional<BoxedExpr>(std::move(node));
 }
 
@@ -2277,6 +2303,10 @@ ParseError AstGenerator::make_error_duplicate_class_property(const Token& at_tok
 
 ParseError AstGenerator::make_error_duplicate_method(const Token& at_token) const {
   return ParseError(text, at_token, "Duplicate method.");
+}
+
+ParseError AstGenerator::make_error_duplicate_class_def(const Token& at_token) const {
+  return ParseError(text, at_token, "Duplicate class definition.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

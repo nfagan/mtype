@@ -2,6 +2,7 @@
 #include "def.hpp"
 #include "StringVisitor.hpp"
 #include "../identifier_classification.hpp"
+#include <functional>
 
 namespace mt {
 
@@ -10,6 +11,15 @@ void MatlabScope::register_import(Import&& import) {
     wildcard_imports.emplace_back(import);
   } else {
     fully_qualified_imports.emplace_back(import);
+  }
+}
+
+bool MatlabScope::register_class(MatlabIdentifier name, ClassDefHandle handle) {
+  if (classes.count(name) > 0) {
+    return false;
+  } else {
+    classes[name] = handle;
+    return true;
   }
 }
 
@@ -50,6 +60,11 @@ std::string Block::accept(const StringVisitor& vis) const {
 
 Block* Block::accept(IdentifierClassifier& classifier) {
   return classifier.block(*this);
+}
+
+std::size_t MatlabIdentifier::Hash::operator()(const MatlabIdentifier& k) const {
+  using std::hash;
+  return hash<int64_t>()(k.name);
 }
 
 }

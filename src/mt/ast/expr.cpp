@@ -13,6 +13,10 @@ Expr* AnonymousFunctionExpr::accept(IdentifierClassifier& classifier) {
   return classifier.anonymous_function_expr(*this);
 }
 
+Expr* FunctionReferenceExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.function_reference_expr(*this);
+}
+
 std::string FunctionReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.function_reference_expr(*this);
 }

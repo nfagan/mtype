@@ -15,7 +15,7 @@ class FunctionStore;
 class StringVisitor {
 public:
   explicit StringVisitor(const StringRegistry* string_registry,
-                         const FunctionStore* function_registry,
+                         const FunctionStore* function_store,
                          const ClassStore* class_store) :
     parenthesize_exprs(true),
     include_identifier_classification(true),
@@ -23,7 +23,7 @@ public:
     colorize(true),
     tab_depth(-1),
     string_registry(string_registry),
-    function_registry(function_registry),
+    function_store(function_store),
     class_store(class_store) {
     //
   }
@@ -110,7 +110,7 @@ public:
 private:
   mutable int tab_depth;
   const StringRegistry* string_registry;
-  const FunctionStore* function_registry;
+  const FunctionStore* function_store;
   const ClassStore* class_store;
 };
 

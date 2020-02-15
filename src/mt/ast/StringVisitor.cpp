@@ -110,7 +110,7 @@ std::string StringVisitor::function_def_node(const FunctionDefNode& def_node) co
 
   std::string def_str;
   if (def_handle.is_valid()) {
-    const auto& def = function_registry->at(def_handle);
+    const auto& def = function_store->at(def_handle);
     def_str = function_def(def);
   }
 
@@ -125,19 +125,19 @@ std::string StringVisitor::function_def(const FunctionDef& def) const {
 }
 
 std::string StringVisitor::class_def_reference(const ClassDefReference& ref) const {
-  const auto& def = class_store->lookup_class(ref.handle);
+  const auto& def = class_store->at(ref.handle);
   return class_def(def);
 }
 
 std::string StringVisitor::class_def(const ClassDef& def) const {
   std::string class_def_kw = tab_str() + "classdef";
   maybe_colorize(class_def_kw, TokenType::keyword_classdef);
-  auto result = class_def_kw + " " + std::string(string_registry->at(def.name));
+  auto result = class_def_kw + " " + std::string(string_registry->at(def.name.full_name()));
 
   if (!def.superclass_names.empty()) {
     result += " < ";
     for (int64_t i = 0; i < int64_t(def.superclass_names.size()); i++) {
-      result += string_registry->at(def.superclass_names[i]);
+      result += string_registry->at(def.superclass_names[i].full_name());
       if (i < int64_t(def.superclass_names.size()) - 1) {
         result += " & ";
       }
@@ -172,8 +172,8 @@ std::string StringVisitor::properties(const ClassDef::Properties& properties) co
 
   enter_block();
 
-  for (const auto& prop : properties) {
-    prop_str += tab_str() + property(prop) + "\n";
+  for (const auto& prop_it : properties) {
+    prop_str += tab_str() + property(prop_it.second) + "\n";
   }
 
   exit_block();
@@ -334,7 +334,22 @@ std::string StringVisitor::else_branch(const ElseBranch& branch) const {
 }
 
 std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& expr) const {
-  auto str = "@" + join(string_registry->collect(expr.identifier_components), ".");
+  std::string ptr_str;
+
+  if (include_def_ptrs) {
+    ptr_str += "<" + std::to_string(expr.handle.get_index()) + ":";
+
+    if (expr.handle.is_valid()) {
+      const auto& def_handle = function_store->at(expr.handle).def_handle;
+      ptr_str += std::to_string(def_handle.get_index());
+    } else {
+      ptr_str += "-1";
+    }
+
+    ptr_str += ">";
+  }
+
+  auto str = "@" + ptr_str + std::string(string_registry->at(expr.identifier.full_name()));
   maybe_parenthesize(str);
   return str;
 }
@@ -357,7 +372,7 @@ std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& 
 }
 
 std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
-  const auto& ref = function_registry->at(expr.reference_handle);
+  const auto& ref = function_store->at(expr.reference_handle);
   auto name = std::string(string_registry->at(ref.name));
   const auto arg_str = visit_array(expr.arguments, ", ");
   auto sub_str = subscripts(expr.subscripts);

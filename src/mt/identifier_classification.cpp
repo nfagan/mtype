@@ -118,7 +118,7 @@ IdentifierScope::register_variable_assignment(int64_t id, bool force_shadow_pare
 
     } else {
       //  New variable assignment shadows parent declaration. Caller needs to check for
-      //  was_initialization to take ownership of variable_def.
+      //  was_initialization.
       VariableDef variable_def(id);
       auto def_handle = classifier->variable_store->emplace_definition(std::move(variable_def));
       const auto type = IdentifierType::variable_assignment_or_initialization;
@@ -428,6 +428,7 @@ void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
 
     auto res = scope->register_scalar_identifier_reference(def.header.name);
     if (!res.success || res.info.type != IdentifierType::local_function) {
+      //  It's a bug if we fail to register a local function.
       assert(res.success && "Failed to register local function.");
     }
   }
@@ -497,6 +498,25 @@ Expr* IdentifierClassifier::binary_operator_expr(BinaryOperatorExpr& expr) {
 
 Expr* IdentifierClassifier::dynamic_field_reference_expr(DynamicFieldReferenceExpr& expr) {
   conditional_reset(expr.expr, expr.expr->accept(*this));
+  return &expr;
+}
+
+Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr) {
+  const auto& identifier = expr.identifier;
+  const auto name = expr.identifier.full_name();
+  const auto ref_result = current_scope()->register_identifier_reference(name, identifier.full_name());
+
+  if (!is_function(ref_result.info.type)) {
+    const auto& source_token = expr.source_token;
+    const auto type = ref_result.info.type;
+
+    auto err = make_error_function_reference_to_non_function(source_token, name, type);
+    add_error_if_new_identifier(std::move(err), name);
+
+  } else {
+    expr.handle = ref_result.info.function_reference;
+  }
+
   return &expr;
 }
 
@@ -730,10 +750,18 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
 }
 
 ClassDefReference* IdentifierClassifier::class_def_reference(ClassDefReference& ref) {
-  auto& def = class_store->lookup_class(ref.handle);
+  auto& def = class_store->at(ref.handle);
 
   for (auto& method : def.method_defs) {
     conditional_reset(method.def_node, method.def_node->accept(*this));
+  }
+
+  for (auto& prop_it : def.properties) {
+    auto& initializer = prop_it.second.initializer;
+
+    if (initializer) {
+      conditional_reset(initializer, initializer->accept(*this));
+    }
   }
 
   return &ref;
@@ -745,6 +773,10 @@ void IdentifierClassifier::transform_root(BoxedRootBlock& block) {
 
 RootBlock* IdentifierClassifier::root_block(RootBlock& block) {
   push_scope(block.scope);
+
+  register_local_functions(current_scope());
+  register_imports(current_scope());
+
   conditional_reset(block.block, block.block->accept(*this));
   pop_scope();
   return &block;
@@ -835,6 +867,18 @@ ParseError IdentifierClassifier::make_error_implicit_variable_initialization(con
 
 ParseError IdentifierClassifier::make_error_invalid_function_call_expr(const Token& at_token) {
   return ParseError(text, at_token, "Functions cannot be `.` or `{}` referenced.");
+}
+
+ParseError IdentifierClassifier::make_error_function_reference_to_non_function(const Token& at_token,
+                                                                               int64_t identifier,
+                                                                               IdentifierType present_type) {
+  auto identifier_str = std::string(string_registry->at(identifier));
+  auto type_str = std::string(to_string(present_type));
+
+  std::string msg = "The usage of `" + identifier_str + "` as a function reference ";
+  msg += "is inconsistent with its previous usage as a `" + type_str + "`.";
+
+  return ParseError(text, at_token, msg);
 }
 
 ParseError IdentifierClassifier::make_error_shadowed_import(const Token& at_token, IdentifierType present_type) {

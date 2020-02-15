@@ -1,16 +1,15 @@
-function x = test_class2()
+y = 10;
 
-x = y;
-z = local1();
+function x()
+y = y + 1;
 
-  function y()
-    z = y();
-    
-    function y()
-    end
+x = @y.z;
+another = @z;
+another()
+
+  function z()
+    y = y + 2;
   end
 
-end
-
-function local1()
+z();
 end
