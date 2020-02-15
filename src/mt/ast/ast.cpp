@@ -15,7 +15,7 @@ void MatlabScope::register_import(Import&& import) {
   }
 }
 
-bool MatlabScope::register_class(MatlabIdentifier name, ClassDefHandle handle) {
+bool MatlabScope::register_class(const MatlabIdentifier& name, const ClassDefHandle& handle) {
   if (classes.count(name) > 0) {
     return false;
   } else {
@@ -24,7 +24,7 @@ bool MatlabScope::register_class(MatlabIdentifier name, ClassDefHandle handle) {
   }
 }
 
-bool MatlabScope::register_local_function(int64_t name, FunctionReferenceHandle ref) {
+bool MatlabScope::register_local_function(int64_t name, const FunctionReferenceHandle& ref) {
   if (local_functions.count(name) > 0) {
     return false;
   } else {
@@ -47,7 +47,7 @@ FunctionReferenceHandle MatlabScope::lookup_local_function(const ScopeStore* sto
   }
 }
 
-void MatlabScope::register_local_variable(int64_t name, VariableDefHandle handle) {
+void MatlabScope::register_local_variable(int64_t name, const VariableDefHandle& handle) {
   local_variables[name] = handle;
 }
 

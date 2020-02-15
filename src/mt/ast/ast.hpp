@@ -236,9 +236,9 @@ struct MatlabScope {
 
   ~MatlabScope() = default;
 
-  bool register_local_function(int64_t name, FunctionReferenceHandle handle);
-  bool register_class(MatlabIdentifier name, ClassDefHandle handle);
-  void register_local_variable(int64_t name, VariableDefHandle handle);
+  bool register_local_function(int64_t name, const FunctionReferenceHandle& handle);
+  bool register_class(const MatlabIdentifier& name, const ClassDefHandle& handle);
+  void register_local_variable(int64_t name, const VariableDefHandle& handle);
   void register_import(Import&& import);
 
   FunctionReferenceHandle lookup_local_function(const ScopeStore* store, int64_t name) const;
