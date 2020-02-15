@@ -256,7 +256,7 @@ IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, in
 
 IdentifierScope::IdentifierInfo
 IdentifierScope::make_external_function_reference_identifier_info(int64_t identifier, bool is_compound) {
-  auto ref = classifier->function_store->make_external_reference(identifier, matlab_scope);
+  auto ref = classifier->function_store->make_external_reference(identifier, matlab_scope_handle);
   IdentifierInfo info(IdentifierType::unresolved_external_function, current_context(), ref);
   info.is_compound_identifier = is_compound;
   return info;
@@ -279,7 +279,12 @@ IdentifierScope::make_function_reference_identifier_info(int64_t identifier, Fun
 }
 
 FunctionReferenceHandle IdentifierScope::lookup_local_function(int64_t name) const {
-  return matlab_scope ? matlab_scope->lookup_local_function(name) : FunctionReferenceHandle();
+  if (matlab_scope_handle.is_valid()) {
+    auto* scope_store = classifier->scope_store;
+    return scope_store->at(matlab_scope_handle).lookup_local_function(scope_store, name);
+  } else {
+    return FunctionReferenceHandle();
+  }
 }
 
 IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(int64_t id, bool traverse_parent) {
@@ -312,17 +317,19 @@ IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
                                            FunctionStore* function_store,
                                            ClassStore* class_store,
                                            VariableStore* variable_store,
+                                           ScopeStore* scope_store,
                                            std::string_view text) :
   string_registry(string_registry),
   function_store(function_store),
   class_store(class_store),
   variable_store(variable_store),
+  scope_store(scope_store),
   text(text),
   scope_depth(-1) {
   //  Begin on rhs.
   push_rhs();
   //  New scope with no parent.
-  push_scope(nullptr);
+  push_scope(MatlabScopeHandle());
 }
 
 void IdentifierClassifier::register_new_context() {
@@ -355,9 +362,9 @@ void IdentifierClassifier::pop_expr_side() {
   expr_sides.pop_back();
 }
 
-void IdentifierClassifier::push_scope(const std::shared_ptr<MatlabScope>& parse_scope) {
+void IdentifierClassifier::push_scope(const MatlabScopeHandle& parse_scope_handle) {
   int parent_index = scope_depth++;
-  IdentifierScope new_scope(this, parse_scope, parent_index, parent_index);
+  IdentifierScope new_scope(this, parse_scope_handle, parent_index, parent_index);
 
   if (scope_depth >= int(scopes.size())) {
     scopes.emplace_back(std::move(new_scope));
@@ -399,16 +406,17 @@ IdentifierClassifier::register_variable_assignment(const Token& source_token, in
     add_error_if_new_identifier(std::move(err), primary_identifier);
 
   } else if (primary_result.was_initialization) {
-    auto& parse_scope = current_scope()->matlab_scope;
-    assert(parse_scope && "No parse scope.");
-    parse_scope->register_local_variable(primary_identifier, primary_result.variable_def_handle);
+    auto& parse_scope = scope_store->at(current_scope()->matlab_scope_handle);
+    parse_scope.register_local_variable(primary_identifier, primary_result.variable_def_handle);
   }
 
   return primary_result;
 }
 
 void IdentifierClassifier::register_imports(IdentifierScope* scope) {
-  for (const auto& import : scope->matlab_scope->fully_qualified_imports) {
+  const auto& matlab_scope = scope_store->at(scope->matlab_scope_handle);
+
+  for (const auto& import : matlab_scope.fully_qualified_imports) {
     //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
     auto complete_identifier = string_registry->make_registered_compound_identifier(import.identifier_components);
     auto res = scope->register_fully_qualified_import(complete_identifier, import.identifier_components.back());
@@ -420,7 +428,9 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
 }
 
 void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
-  for (const auto& it : scope->matlab_scope->local_functions) {
+  const auto& matlab_scope = scope_store->at(scope->matlab_scope_handle);
+
+  for (const auto& it : matlab_scope.local_functions) {
     //  Local functions take precedence over variables.
     const auto& ref_handle = it.second;
     const auto& def_handle = function_store->at(ref_handle).def_handle;
@@ -450,7 +460,8 @@ void IdentifierClassifier::register_function_parameter(const Token& source_token
     add_error_if_new_identifier(std::move(err), id);
 
   } else if (assign_res.was_initialization) {
-    current_scope()->matlab_scope->register_local_variable(id, assign_res.variable_def_handle);
+    auto& matlab_scope = scope_store->at(current_scope()->matlab_scope_handle);
+    matlab_scope.register_local_variable(id, assign_res.variable_def_handle);
   }
 }
 
@@ -521,7 +532,7 @@ Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr)
 }
 
 Expr* IdentifierClassifier::anonymous_function_expr(AnonymousFunctionExpr& expr) {
-  push_scope(expr.scope);
+  push_scope(expr.scope_handle);
 
   for (const auto& maybe_id : expr.input_identifiers) {
     if (maybe_id) {
@@ -734,7 +745,7 @@ VariableDeclarationStmt* IdentifierClassifier::variable_declaration_stmt(Variabl
 }
 
 FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_node) {
-  push_scope(def_node.scope);
+  push_scope(def_node.scope_handle);
 
   auto& def = function_store->at(def_node.def_handle);
   auto* scope = current_scope();
@@ -772,7 +783,7 @@ void IdentifierClassifier::transform_root(BoxedRootBlock& block) {
 }
 
 RootBlock* IdentifierClassifier::root_block(RootBlock& block) {
-  push_scope(block.scope);
+  push_scope(block.scope_handle);
 
   register_local_functions(current_scope());
   register_imports(current_scope());

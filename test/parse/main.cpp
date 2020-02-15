@@ -11,9 +11,11 @@ void show_tokens(const std::vector<mt::Token>& tokens) {
   }
 }
 
-void summarize_file(const mt::BoxedRootBlock& root_block) {
-  std::cout << "Num classes: " << root_block->scope->classes.size() << std::endl;
-  std::cout << "Num top-level functions: " << root_block->scope->local_functions.size() << std::endl;
+void summarize_file(const mt::BoxedRootBlock& root_block, const mt::ScopeStore* store) {
+  const auto& scope = store->at(root_block->scope_handle);
+
+  std::cout << "Num classes: " << scope.classes.size() << std::endl;
+  std::cout << "Num top-level functions: " << scope.local_functions.size() << std::endl;
 }
 
 }
@@ -23,7 +25,7 @@ int main(int argc, char** argv) {
 
   if (argc < 2) {
 //    file_path = "/Users/Nick/Documents/MATLAB/repositories/mt/test/parse7.m";
-    file_path = "/Users/Nick/repositories/cpp/mt/matlab/test/test_classification.m";
+    file_path = "/Users/Nick/repositories/cpp/mt/matlab/test/Crash.m";
 //    file_path = "/Applications/Psychtoolbox/PsychCal/CalibrateManualDrvr.m";
   } else {
     file_path = argv[1];
@@ -67,9 +69,10 @@ int main(int argc, char** argv) {
   mt::FunctionStore function_store;
   mt::ClassStore class_store;
   mt::VariableStore variable_store;
+  mt::ScopeStore scope_store;
 
   mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &function_store,
-    &class_store, scan_info.functions_are_end_terminated);
+    &class_store, &scope_store, scan_info.functions_are_end_terminated);
   auto parse_result = ast_gen.parse(scan_info.tokens, contents, parse_inputs);
 
   if (!parse_result) {
@@ -80,7 +83,8 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  mt::IdentifierClassifier classifier(&string_registry, &function_store, &class_store, &variable_store, contents);
+  mt::IdentifierClassifier classifier(&string_registry, &function_store, &class_store,
+    &variable_store, &scope_store, contents);
   auto root_block = std::move(parse_result.value);
   classifier.transform_root(root_block);
 
@@ -100,7 +104,7 @@ int main(int argc, char** argv) {
 //  std::cout << parse_result.value->accept(visitor) << std::endl;
   std::cout << root_block->accept(visitor) << std::endl;
   std::cout << "Num strings: " << string_registry.size() << std::endl;
-  summarize_file(root_block);
+  summarize_file(root_block, &scope_store);
 
   return 0;
 }

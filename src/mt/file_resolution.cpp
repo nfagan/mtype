@@ -1,5 +1,6 @@
 #include "file_resolution.hpp"
 #include "string.hpp"
+#include "store.hpp"
 
 namespace mt {
 
@@ -21,22 +22,16 @@ const std::unique_ptr<AbstractFileResolver>& AbstractFileResolver::get_active_fi
  * FileResolver
  */
 
-std::string FileResolver::which_external(int64_t identifier, BoxedMatlabScope scope) const {
+std::string FileResolver::which_external(int64_t identifier, const MatlabScopeHandle&) const {
   //  @TODO
-  const auto identifier_str = string_registry->at(identifier);
-
-  for (const auto& import : scope->wildcard_imports) {
-    std::string import_name = string_registry->make_compound_identifier(import.identifier_components);
-    import_name += ".";
-    import_name += identifier_str;
-  }
-
-  return "";
+  const auto identifier_str = std::string(string_registry->at(identifier));
+  return identifier_str;
 }
 
-std::string FileResolver::which(int64_t, BoxedMatlabScope) const {
+std::string FileResolver::which(int64_t, const MatlabScopeHandle& scope_handle) const {
   //  @TODO
-  return "";
+  const auto& scope = scope_store->at(scope_handle);
+  return std::to_string(scope.local_functions.size());
 }
 
 }

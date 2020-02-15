@@ -85,9 +85,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   mt::FunctionStore function_store;
   mt::ClassStore class_store;
   mt::VariableStore variable_store;
+  mt::ScopeStore scope_store;
   
   mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &function_store,
-    &class_store, scan_info.functions_are_end_terminated);
+    &class_store, &scope_store, scan_info.functions_are_end_terminated);
 
   auto parse_res = ast_generator.parse(scan_info.tokens, str, parse_inputs);
 
@@ -101,7 +102,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   }
   
   mt::IdentifierClassifier classifier(&string_registry, 
-          &function_store, &class_store, &variable_store, str);
+          &function_store, &class_store, &variable_store, &scope_store, str);
   auto* block = parse_res.value->accept(classifier);
   
   if (inputs.show_parse_errors) {

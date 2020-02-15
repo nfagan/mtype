@@ -118,9 +118,12 @@ class IdentifierScope {
   };
 
 public:
-  IdentifierScope(IdentifierClassifier* classifier, std::shared_ptr<MatlabScope> parse_scope, int scope_depth, int parent_index) :
+  IdentifierScope(IdentifierClassifier* classifier,
+                  const MatlabScopeHandle& parse_scope_handle,
+                  int scope_depth,
+                  int parent_index) :
     classifier(classifier),
-    matlab_scope(std::move(parse_scope)),
+    matlab_scope_handle(parse_scope_handle),
     scope_depth(scope_depth),
     parent_index(parent_index),
     context_uuid(0) {
@@ -166,7 +169,7 @@ private:
 
 private:
   IdentifierClassifier* classifier;
-  std::shared_ptr<MatlabScope> matlab_scope;
+  MatlabScopeHandle matlab_scope_handle;
   int scope_depth;
   int parent_index;
 
@@ -189,6 +192,7 @@ public:
                        FunctionStore* function_store,
                        ClassStore* class_store,
                        VariableStore* variable_store,
+                       ScopeStore* scope_store,
                        std::string_view text);
   ~IdentifierClassifier() = default;
 
@@ -230,7 +234,7 @@ private:
   template <typename T>
   static void conditional_reset(std::unique_ptr<T>& source, T* maybe_new_ptr);
 
-  void push_scope(const std::shared_ptr<MatlabScope>& parse_scope);
+  void push_scope(const MatlabScopeHandle& parse_scope_handle);
   void pop_scope();
 
   void push_context();
@@ -281,12 +285,12 @@ private:
   ParseError make_error_function_reference_to_non_function(const Token& at_token,
                                                            int64_t identifier,
                                                            IdentifierType present_type);
-
 private:
   StringRegistry* string_registry;
   FunctionStore* function_store;
   ClassStore* class_store;
   VariableStore* variable_store;
+  ScopeStore* scope_store;
   std::string_view text;
 
   std::vector<IdentifierScope> scopes;

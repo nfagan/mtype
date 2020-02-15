@@ -24,9 +24,10 @@ public:
   ~FunctionStore() = default;
 
   FunctionDefHandle emplace_definition(FunctionDef&& def);
-  FunctionReferenceHandle make_external_reference(int64_t to_identifier, BoxedMatlabScope in_scope);
-  FunctionReferenceHandle make_local_reference(int64_t to_identifier, FunctionDefHandle with_def,
-    BoxedMatlabScope in_scope);
+  FunctionReferenceHandle make_external_reference(int64_t to_identifier, const MatlabScopeHandle& in_scope);
+  FunctionReferenceHandle make_local_reference(int64_t to_identifier,
+                                               const FunctionDefHandle& with_def,
+                                               const MatlabScopeHandle& in_scope);
 
   const FunctionDef& at(const FunctionDefHandle& handle) const;
   FunctionDef& at(const FunctionDefHandle& handle);
@@ -49,6 +50,19 @@ public:
 
 private:
   std::vector<ClassDef> definitions;
+};
+
+class ScopeStore {
+public:
+  ScopeStore() = default;
+  ~ScopeStore() = default;
+
+  MatlabScopeHandle make_matlab_scope(const MatlabScopeHandle& parent);
+  const MatlabScope& at(const MatlabScopeHandle& handle) const;
+  MatlabScope& at(const MatlabScopeHandle& handle);
+
+private:
+  std::vector<MatlabScope> matlab_scopes;
 };
 
 }

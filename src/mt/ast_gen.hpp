@@ -48,10 +48,12 @@ public:
     ParseInputs(StringRegistry* string_registry,
                 FunctionStore* function_store,
                 ClassStore* class_def_store,
+                ScopeStore* scope_store,
                 bool functions_are_end_terminated) :
                 string_registry(string_registry),
                 function_store(function_store),
                 class_store(class_def_store),
+                scope_store(scope_store),
                 functions_are_end_terminated(functions_are_end_terminated) {
       //
     }
@@ -59,6 +61,7 @@ public:
     StringRegistry* string_registry;
     FunctionStore* function_store;
     ClassStore* class_store;
+    ScopeStore* scope_store;
     bool functions_are_end_terminated;
   };
 
@@ -69,9 +72,9 @@ public:
 
   ~AstGenerator() = default;
 
-  Result<ParseErrors, std::unique_ptr<RootBlock>> parse(const std::vector<Token>& tokens,
-                                                        std::string_view text,
-                                                        const ParseInputs& inputs);
+  Result<ParseErrors, BoxedRootBlock> parse(const std::vector<Token>& tokens,
+                                            std::string_view text,
+                                            const ParseInputs& inputs);
 private:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
@@ -85,16 +88,16 @@ private:
   Optional<std::vector<Optional<int64_t>>> anonymous_function_input_parameters();
 
   Optional<BoxedAstNode> class_def();
-  Optional<int> methods_block(std::set<int64_t>& method_names,
-                              ClassDef::MethodDefs& method_defs,
-                              ClassDef::MethodDeclarations& method_declarations);
-  Optional<int> method_def(const Token& source_token,
-                           std::set<int64_t>& method_names,
-                           ClassDef::MethodDefs& method_defs);
-  Optional<int> method_declaration(const Token& source_token,
-                                   std::set<int64_t>& method_names,
-                                   ClassDef::MethodDeclarations& method_declarations);
-  Optional<int> properties_block(ClassDef::Properties& properties);
+  bool methods_block(std::set<int64_t>& method_names,
+                     ClassDef::MethodDefs& method_defs,
+                     ClassDef::MethodDeclarations& method_declarations);
+  bool method_def(const Token& source_token,
+                  std::set<int64_t>& method_names,
+                  ClassDef::MethodDefs& method_defs);
+  bool method_declaration(const Token& source_token,
+                          std::set<int64_t>& method_names,
+                          ClassDef::MethodDeclarations& method_declarations);
+  bool properties_block(ClassDef::Properties& properties);
   Optional<ClassDef::Property> property(const Token& source_token);
 
   Optional<Subscript> period_subscript(const Token& source_token);
@@ -197,7 +200,7 @@ private:
 
   void push_scope();
   void pop_scope();
-  std::shared_ptr<MatlabScope> current_scope() const;
+  MatlabScopeHandle current_scope_handle() const;
 
   void register_import(Import&& import);
 
@@ -212,8 +215,10 @@ private:
   StringRegistry* string_registry;
   FunctionStore* function_store;
   ClassStore* class_store;
+  ScopeStore* scope_store;
   BlockDepths block_depths;
-  std::vector<std::shared_ptr<MatlabScope>> scopes;
+
+  std::vector<MatlabScopeHandle> scope_handles;
 
   bool is_end_terminated_function;
 

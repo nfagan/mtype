@@ -20,6 +20,7 @@ struct Import;
 class FunctionReferenceHandle;
 class ClassDefHandle;
 class MatlabIdentifier;
+class ScopeStore;
 
 struct AstNode {
   AstNode() = default;
@@ -97,44 +98,11 @@ using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;
 using BoxedType = std::unique_ptr<Type>;
 using BoxedBlock = std::unique_ptr<Block>;
 using BoxedRootBlock = std::unique_ptr<RootBlock>;
-using BoxedMatlabScope = std::shared_ptr<MatlabScope>;
-
-struct Block : public AstNode {
-  Block() = default;
-  ~Block() override = default;
-
-  void append(BoxedAstNode other) {
-    nodes.emplace_back(std::move(other));
-  }
-
-  void append_many(std::vector<BoxedAstNode>& nodes) {
-    for (auto& node : nodes) {
-      append(std::move(node));
-    }
-  }
-
-  std::string accept(const StringVisitor& vis) const override;
-  Block* accept(IdentifierClassifier& classifier) override;
-
-  std::vector<BoxedAstNode> nodes;
-};
-
-struct RootBlock : public AstNode {
-  RootBlock(BoxedBlock block, std::shared_ptr<MatlabScope> scope) :
-  block(std::move(block)), scope(std::move(scope)) {
-    //
-  }
-  ~RootBlock() override = default;
-  std::string accept(const StringVisitor& vis) const override;
-  RootBlock* accept(IdentifierClassifier& classifier) override;
-
-  BoxedBlock block;
-  BoxedMatlabScope scope;
-};
 
 class FunctionDefHandle {
   friend class FunctionStore;
   friend class VariableStore;
+  friend class ScopeStore;
 public:
   FunctionDefHandle() : index(-1) {
     //
@@ -155,8 +123,6 @@ private:
 
   int64_t index;
 };
-
-using VariableDefHandle = FunctionDefHandle;
 
 class FunctionReferenceHandle {
   friend class FunctionStore;
@@ -179,6 +145,42 @@ private:
   }
 
   int64_t index;
+};
+
+using VariableDefHandle = FunctionDefHandle;
+using MatlabScopeHandle = FunctionDefHandle;
+
+struct Block : public AstNode {
+  Block() = default;
+  ~Block() override = default;
+
+  void append(BoxedAstNode other) {
+    nodes.emplace_back(std::move(other));
+  }
+
+  void append_many(std::vector<BoxedAstNode>& new_nodes) {
+    for (auto& node : new_nodes) {
+      append(std::move(node));
+    }
+  }
+
+  std::string accept(const StringVisitor& vis) const override;
+  Block* accept(IdentifierClassifier& classifier) override;
+
+  std::vector<BoxedAstNode> nodes;
+};
+
+struct RootBlock : public AstNode {
+  RootBlock(BoxedBlock block, const MatlabScopeHandle& scope_handle) :
+  block(std::move(block)), scope_handle(scope_handle) {
+    //
+  }
+  ~RootBlock() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  RootBlock* accept(IdentifierClassifier& classifier) override;
+
+  BoxedBlock block;
+  MatlabScopeHandle scope_handle;
 };
 
 /*
@@ -228,9 +230,10 @@ private:
  */
 
 struct MatlabScope {
-  explicit MatlabScope(BoxedMatlabScope parent) : parent(std::move(parent)) {
+  explicit MatlabScope(const MatlabScopeHandle& parent) : parent(parent) {
     //
   }
+
   ~MatlabScope() = default;
 
   bool register_local_function(int64_t name, FunctionReferenceHandle handle);
@@ -238,9 +241,9 @@ struct MatlabScope {
   void register_local_variable(int64_t name, VariableDefHandle handle);
   void register_import(Import&& import);
 
-  FunctionReferenceHandle lookup_local_function(int64_t name) const;
+  FunctionReferenceHandle lookup_local_function(const ScopeStore* store, int64_t name) const;
 
-  BoxedMatlabScope parent;
+  MatlabScopeHandle parent;
   std::unordered_map<int64_t, FunctionReferenceHandle> local_functions;
   std::unordered_map<int64_t, VariableDefHandle> local_variables;
   std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash> classes;

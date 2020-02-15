@@ -15,11 +15,11 @@ struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
                         std::vector<Optional<int64_t>>&& input_identifiers,
                         BoxedExpr expr,
-                        std::shared_ptr<MatlabScope> scope) :
+                        const MatlabScopeHandle& scope_handle) :
   source_token(source_token),
   input_identifiers(std::move(input_identifiers)),
   expr(std::move(expr)),
-  scope(std::move(scope)) {
+  scope_handle(scope_handle) {
     //
   }
   ~AnonymousFunctionExpr() override = default;
@@ -29,7 +29,7 @@ struct AnonymousFunctionExpr : public Expr {
   Token source_token;
   std::vector<Optional<int64_t>> input_identifiers;
   BoxedExpr expr;
-  std::shared_ptr<MatlabScope> scope;
+  MatlabScopeHandle scope_handle;
 };
 
 struct FunctionReferenceExpr : public Expr {

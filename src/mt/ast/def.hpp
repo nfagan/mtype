@@ -62,8 +62,8 @@ struct FunctionDef : public Def {
 };
 
 struct FunctionDefNode : public AstNode {
-  FunctionDefNode(FunctionDefHandle def_handle, BoxedMatlabScope scope) :
-  def_handle(def_handle), scope(std::move(scope)) {
+  FunctionDefNode(FunctionDefHandle def_handle, MatlabScopeHandle scope_handle) :
+  def_handle(def_handle), scope_handle(scope_handle) {
     //
   }
   ~FunctionDefNode() override = default;
@@ -72,18 +72,18 @@ struct FunctionDefNode : public AstNode {
   FunctionDefNode* accept(IdentifierClassifier& classifier) override;
 
   FunctionDefHandle def_handle;
-  BoxedMatlabScope scope;
+  MatlabScopeHandle scope_handle;
 };
 
 struct FunctionReference {
-  FunctionReference(int64_t name, FunctionDefHandle def_handle, BoxedMatlabScope scope) :
-  name(name), def_handle(def_handle), scope(std::move(scope)) {
+  FunctionReference(int64_t name, FunctionDefHandle def_handle, MatlabScopeHandle scope_handle) :
+  name(name), def_handle(def_handle), scope_handle(scope_handle) {
     //
   }
 
   int64_t name;
   FunctionDefHandle def_handle;
-  BoxedMatlabScope scope;
+  MatlabScopeHandle scope_handle;
 };
 
 struct VariableDef : public Def {

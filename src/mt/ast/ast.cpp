@@ -2,6 +2,7 @@
 #include "def.hpp"
 #include "StringVisitor.hpp"
 #include "../identifier_classification.hpp"
+#include "../store.hpp"
 #include <functional>
 
 namespace mt {
@@ -32,10 +33,15 @@ bool MatlabScope::register_local_function(int64_t name, FunctionReferenceHandle 
   }
 }
 
-FunctionReferenceHandle MatlabScope::lookup_local_function(int64_t name) const {
+FunctionReferenceHandle MatlabScope::lookup_local_function(const ScopeStore* store, int64_t name) const {
   auto it = local_functions.find(name);
   if (it == local_functions.end()) {
-    return parent ? parent->lookup_local_function(name) : FunctionReferenceHandle();
+    if (parent.is_valid()) {
+      const auto& parent_scope = store->at(parent);
+      return parent_scope.lookup_local_function(store, name);
+    } else {
+      return FunctionReferenceHandle();
+    }
   } else {
     return it->second;
   }
