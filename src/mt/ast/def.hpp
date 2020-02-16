@@ -24,12 +24,25 @@ struct Import {
   std::vector<int64_t> identifier_components;
 };
 
+struct FunctionInputParameter {
+  explicit FunctionInputParameter(int64_t name) : name(name), is_ignored(false) {
+    //
+  }
+
+  FunctionInputParameter() : name(-1), is_ignored(true) {
+    //
+  }
+
+  int64_t name;
+  bool is_ignored;
+};
+
 struct FunctionHeader {
   FunctionHeader() = default;
   FunctionHeader(const Token& name_token,
                  int64_t name,
                  std::vector<int64_t>&& outputs,
-                 std::vector<int64_t>&& inputs) :
+                 std::vector<FunctionInputParameter>&& inputs) :
                  name_token(name_token),
                  name(name),
                  outputs(std::move(outputs)),
@@ -43,7 +56,7 @@ struct FunctionHeader {
   Token name_token;
   int64_t name;
   std::vector<int64_t> outputs;
-  std::vector<int64_t> inputs;
+  std::vector<FunctionInputParameter> inputs;
 };
 
 struct FunctionDef : public Def {
@@ -62,7 +75,7 @@ struct FunctionDef : public Def {
 };
 
 struct FunctionDefNode : public AstNode {
-  FunctionDefNode(FunctionDefHandle def_handle, MatlabScopeHandle scope_handle) :
+  FunctionDefNode(FunctionDefHandle def_handle, const MatlabScopeHandle& scope_handle) :
   def_handle(def_handle), scope_handle(scope_handle) {
     //
   }
@@ -76,7 +89,7 @@ struct FunctionDefNode : public AstNode {
 };
 
 struct FunctionReference {
-  FunctionReference(int64_t name, FunctionDefHandle def_handle, MatlabScopeHandle scope_handle) :
+  FunctionReference(int64_t name, FunctionDefHandle def_handle, const MatlabScopeHandle& scope_handle) :
   name(name), def_handle(def_handle), scope_handle(scope_handle) {
     //
   }

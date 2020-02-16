@@ -22,4 +22,29 @@ toc;
 %%
 
 failed = fs(~status);
-mt.entry( failed{17} );
+mt.entry( failed{22} );
+
+%%
+
+ms = shared_utils.io.find( toolboxdir(''), '.m', true );
+
+%%
+
+status = false( size(ms) );
+n = numel( ms );
+
+tic;
+
+parfor i = 1:n
+  f = mt.to_utf8( fileread(ms{i}) );
+  status(i) = mt.entry( f, 0, 0 );
+end
+
+toc;
+
+%%
+
+z = find( ~status );
+use_z = z(2);
+
+mt.entry( mt.to_utf8(fileread(ms{use_z})) );

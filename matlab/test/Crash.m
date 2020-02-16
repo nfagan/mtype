@@ -1,4 +1,4 @@
-classdef Crash
+classdef (Sealed) Crash
   properties
     x;
   end

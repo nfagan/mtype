@@ -56,6 +56,7 @@ public:
   std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
   std::string else_branch(const ElseBranch& branch) const;
 
+  std::string presumed_superclass_method_reference_expr(const PresumedSuperclassMethodReferenceExpr& expr) const;
   std::string variable_reference_expr(const VariableReferenceExpr& expr) const;
   std::string function_call_expr(const FunctionCallExpr& expr) const;
   std::string function_reference_expr(const FunctionReferenceExpr& expr) const;
@@ -94,6 +95,7 @@ private:
   std::string end_str() const;
 
   std::string subscripts(const std::vector<Subscript>& subs) const;
+  std::string function_input_parameters(const std::vector<FunctionInputParameter>& inputs) const;
 
   template <typename T>
   std::string visit_array(const T& visitables, const std::string& delim) const;

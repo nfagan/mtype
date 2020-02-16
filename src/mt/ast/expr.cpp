@@ -5,6 +5,14 @@
 
 namespace mt {
 
+Expr* PresumedSuperclassMethodReferenceExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.presumed_superclass_method_reference_expr(*this);
+}
+
+std::string PresumedSuperclassMethodReferenceExpr::accept(const StringVisitor& vis) const {
+  return vis.presumed_superclass_method_reference_expr(*this);
+}
+
 std::string AnonymousFunctionExpr::accept(const StringVisitor& vis) const {
   return vis.anonymous_function_expr(*this);
 }
@@ -59,6 +67,21 @@ std::string VariableReferenceExpr::accept(const StringVisitor& vis) const {
 
 std::string FunctionCallExpr::accept(const StringVisitor& vis) const {
   return vis.function_call_expr(*this);
+}
+
+bool IdentifierReferenceExpr::is_static_identifier_reference_expr() const {
+  for (const auto& subscript : subscripts) {
+    const auto& args = subscript.arguments;
+
+    if (subscript.method != SubscriptMethod::period ||
+        args.size() != 1 ||
+        !args[0]->is_literal_field_reference_expr()) {
+      // a(1), a.('b'), a{1}
+      return false;
+    }
+  }
+
+  return true;
 }
 
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {

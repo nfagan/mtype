@@ -444,9 +444,18 @@ void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
   }
 }
 
-void IdentifierClassifier::register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers) {
+void IdentifierClassifier::register_function_parameters(const Token& source_token, const std::vector<int64_t>& identifiers) {
   for (const auto& id : identifiers) {
     register_function_parameter(source_token, id);
+  }
+}
+
+void IdentifierClassifier::register_function_parameters(const Token& source_token,
+                                                        const std::vector<FunctionInputParameter>& inputs) {
+  for (const auto& input : inputs) {
+    if (!input.is_ignored) {
+      register_function_parameter(source_token, input.name);
+    }
   }
 }
 
@@ -515,7 +524,7 @@ Expr* IdentifierClassifier::dynamic_field_reference_expr(DynamicFieldReferenceEx
 Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr) {
   const auto& identifier = expr.identifier;
   const auto name = expr.identifier.full_name();
-  const auto ref_result = current_scope()->register_identifier_reference(name, identifier.full_name());
+  const auto ref_result = current_scope()->register_identifier_reference(name, identifier.is_compound());
 
   if (!is_function(ref_result.info.type)) {
     const auto& source_token = expr.source_token;
@@ -533,16 +542,13 @@ Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr)
 
 Expr* IdentifierClassifier::anonymous_function_expr(AnonymousFunctionExpr& expr) {
   push_scope(expr.scope_handle);
-
-  for (const auto& maybe_id : expr.input_identifiers) {
-    if (maybe_id) {
-      register_function_parameter(expr.source_token, maybe_id.value());
-    }
-  }
-
+  register_function_parameters(expr.source_token, expr.inputs);
   conditional_reset(expr.expr, expr.expr->accept(*this));
-
   pop_scope();
+  return &expr;
+}
+
+Expr* IdentifierClassifier::presumed_superclass_method_reference_expr(PresumedSuperclassMethodReferenceExpr &expr) {
   return &expr;
 }
 

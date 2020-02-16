@@ -44,6 +44,14 @@ struct Expr : public AstNode {
     return this;
   }
 
+  virtual bool is_literal_field_reference_expr() const {
+    return false;
+  }
+
+  virtual bool is_static_identifier_reference_expr() const {
+    return false;
+  }
+
   virtual bool is_valid_assignment_target() const {
     return false;
   }
@@ -195,6 +203,10 @@ public:
   };
 
 public:
+  MatlabIdentifier() : MatlabIdentifier(-1, 0) {
+    //
+  }
+
   explicit MatlabIdentifier(int64_t name) : MatlabIdentifier(name, 1) {
     //
   }
@@ -206,6 +218,10 @@ public:
 
   bool operator==(const MatlabIdentifier& other) const {
     return name == other.name;
+  }
+
+  bool is_valid() const {
+    return size() > 0;
   }
 
   bool is_compound() const {

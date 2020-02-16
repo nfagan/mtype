@@ -30,7 +30,6 @@ struct ParseScopeHelper {
 
 Result<ParseErrors, BoxedRootBlock>
 AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, const ParseInputs& inputs) {
-
   iterator = TokenIterator(&tokens);
   text = txt;
   is_end_terminated_function = inputs.functions_are_end_terminated;
@@ -71,8 +70,8 @@ Optional<std::string_view> AstGenerator::one_identifier() {
   }
 }
 
-Optional<std::vector<Optional<int64_t>>> AstGenerator::anonymous_function_input_parameters() {
-  std::vector<Optional<int64_t>> input_parameters;
+Optional<std::vector<FunctionInputParameter>> AstGenerator::anonymous_function_input_parameters() {
+  std::vector<FunctionInputParameter> input_parameters;
   bool expect_parameter = true;
 
   while (iterator.has_next() && iterator.peek().type != TokenType::right_parens) {
@@ -95,7 +94,8 @@ Optional<std::vector<Optional<int64_t>>> AstGenerator::anonymous_function_input_
       input_parameters.emplace_back(string_registry->register_string(tok.lexeme));
 
     } else if (tok.type == TokenType::tilde) {
-      input_parameters.emplace_back(NullOpt{});
+      //  @(~, y)
+      input_parameters.emplace_back();
     }
 
     expect_parameter = !expect_parameter;
@@ -107,7 +107,7 @@ Optional<std::vector<Optional<int64_t>>> AstGenerator::anonymous_function_input_
     return NullOpt{};
   }
 
-  return Optional<std::vector<Optional<int64_t>>>(std::move(input_parameters));
+  return Optional<std::vector<FunctionInputParameter>>(std::move(input_parameters));
 }
 
 Optional<std::vector<std::string_view>> AstGenerator::compound_identifier_components() {
@@ -171,6 +171,22 @@ Optional<std::vector<std::string_view>> AstGenerator::identifier_sequence(TokenT
   }
 }
 
+Optional<int64_t> AstGenerator::compound_function_name(std::string_view first_component) {
+  iterator.advance();
+
+  auto property_res = compound_identifier_components();
+  if (!property_res) {
+    return NullOpt{};
+  }
+
+  auto component_names = std::move(property_res.rvalue());
+  component_names.insert(component_names.begin(), first_component);
+  const auto component_ids = string_registry->register_strings(component_names);
+  const auto compound_name = string_registry->make_registered_compound_identifier(component_ids);
+
+  return Optional<int64_t>(compound_name);
+}
+
 Optional<FunctionHeader> AstGenerator::function_header() {
   bool provided_outputs;
   auto output_res = function_outputs(&provided_outputs);
@@ -198,18 +214,12 @@ Optional<FunctionHeader> AstGenerator::function_header() {
   if (iterator.peek().type == TokenType::period) {
     //  e.g., set.<property>, when within a methods block
     if (is_within_class() && is_within_top_level_function()) {
-      iterator.advance();
-
-      auto property_res = compound_identifier_components();
-      if (!property_res) {
+      auto compound_res = compound_function_name(name_res.value());
+      if (!compound_res) {
         return NullOpt{};
       }
 
-      auto component_names = std::move(property_res.rvalue());
-      component_names.insert(component_names.begin(), name_res.value());
-      const auto component_ids = string_registry->register_strings(component_names);
-
-      compound_name = string_registry->make_registered_compound_identifier(component_ids);
+      compound_name = compound_res.value();
       use_compound_name = true;
 
     } else {
@@ -226,19 +236,18 @@ Optional<FunctionHeader> AstGenerator::function_header() {
   //  Register function definition strings.
   const auto name = use_compound_name ? compound_name : string_registry->register_string(name_res.value());
   auto outputs = string_registry->register_strings(output_res.value());
-  auto inputs = string_registry->register_strings(input_res.value());
 
-  FunctionHeader header(name_token, name, std::move(outputs), std::move(inputs));
+  FunctionHeader header(name_token, name, std::move(outputs), std::move(input_res.rvalue()));
   return Optional<FunctionHeader>(std::move(header));
 }
 
-Optional<std::vector<std::string_view>> AstGenerator::function_inputs() {
+Optional<std::vector<FunctionInputParameter>> AstGenerator::function_inputs() {
   if (iterator.peek().type == TokenType::left_parens) {
     iterator.advance();
-    return identifier_sequence(TokenType::right_parens);
+    return anonymous_function_input_parameters();
   } else {
     //  Function declarations without parentheses are valid and indicate 0 inputs.
-    return Optional<std::vector<std::string_view>>(std::vector<std::string_view>());
+    return Optional<std::vector<FunctionInputParameter>>(std::vector<FunctionInputParameter>());
   }
 }
 
@@ -340,6 +349,47 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
 }
 
+Optional<MatlabIdentifier> AstGenerator::superclass_name() {
+  auto superclass_res = compound_identifier_components();
+  if (!superclass_res) {
+    return NullOpt{};
+  }
+
+  const auto& names = superclass_res.value();
+  std::vector<int64_t> name_ids;
+  name_ids.reserve(names.size());
+
+  for (const auto& name : names) {
+    name_ids.emplace_back(string_registry->register_string(name));
+  }
+
+  const auto full_name = string_registry->make_registered_compound_identifier(name_ids);
+  MatlabIdentifier identifier(full_name, name_ids.size());
+
+  return Optional<MatlabIdentifier>(identifier);
+}
+
+Optional<std::vector<MatlabIdentifier>> AstGenerator::superclass_names() {
+  std::vector<MatlabIdentifier> names;
+
+  while (iterator.has_next()) {
+    auto one_name_res = superclass_name();
+    if (!one_name_res) {
+      return NullOpt{};
+    }
+
+    names.emplace_back(one_name_res.rvalue());
+
+    if (iterator.peek().type == TokenType::ampersand) {
+      iterator.advance();
+    } else {
+      break;
+    }
+  }
+
+  return Optional<std::vector<MatlabIdentifier>>(std::move(names));
+}
+
 Optional<BoxedAstNode> AstGenerator::class_def() {
   const auto& source_token = iterator.peek();
   iterator.advance();
@@ -347,33 +397,35 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   const auto parent_scope_handle = current_scope_handle();
   BlockStmtScopeHelper scope_helper(&block_depths.class_def);
 
+  if (iterator.peek().type == TokenType::left_parens) {
+    //  @TODO: Handle class attributes.
+    //  e.g., classdef (Sealed)
+    const auto r_parens = TokenType::right_parens;
+    iterator.advance_to_one(&r_parens, 1);
+    auto err = consume(r_parens);
+    if (err) {
+      add_error(err.rvalue());
+      return NullOpt{};
+    }
+  }
+
   auto name_res = one_identifier();
   if (!name_res) {
     return NullOpt{};
   }
 
-  std::vector<MatlabIdentifier> superclass_names;
+  std::vector<MatlabIdentifier> superclasses;
 
   //  classdef X < Y
   if (iterator.peek().type == TokenType::less) {
     iterator.advance();
 
-    auto superclass_res = compound_identifier_components();
+    auto superclass_res = superclass_names();
     if (!superclass_res) {
       return NullOpt{};
     }
 
-    const auto& names = superclass_res.value();
-    std::vector<int64_t> name_ids;
-    name_ids.reserve(names.size());
-
-    for (const auto& name : names) {
-      name_ids.emplace_back(string_registry->register_string(name));
-    }
-
-    const auto full_name = string_registry->make_registered_compound_identifier(name_ids);
-    MatlabIdentifier identifier(full_name, name_ids.size());
-    superclass_names.emplace_back(identifier);
+    superclasses = std::move(superclass_res.rvalue());
   }
 
   ClassDef::Properties properties;
@@ -416,7 +468,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
 
   MatlabIdentifier name(string_registry->register_string(name_res.value()));
 
-  ClassDef class_def(source_token, name, std::move(superclass_names),
+  ClassDef class_def(source_token, name, std::move(superclasses),
     std::move(properties), std::move(method_defs), std::move(method_declarations));
 
   const auto handle = class_store->emplace_definition(std::move(class_def));
@@ -967,6 +1019,16 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
     return NullOpt{};
   }
 
+  //  @Hack: Expect artificially-inserted comma to mark the beginning of the anonymous function
+  //  expression. This is necessary to correctly parse expressions that begin with the prefix unary
+  //  operators +/-, e.g. in @(a) -1; Otherwise, the right parens would cause `expr()` to parse the
+  //  operator as part of a binary expression. See token_manipulation
+  auto err = consume(TokenType::comma);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
   auto body_res = expr();
   if (!body_res) {
     return NullOpt{};
@@ -1187,6 +1249,26 @@ Optional<BoxedExpr> AstGenerator::function_expr(const Token& source_token) {
   }
 }
 
+Optional<BoxedExpr> AstGenerator::presumed_superclass_method_reference_expr(const Token& source_token,
+                                                                            BoxedExpr method_reference_expr) {
+  iterator.advance(); //  consume @
+
+  auto superclass_res = expr();
+  if (!superclass_res) {
+    return NullOpt{};
+  }
+
+  if (!method_reference_expr->is_static_identifier_reference_expr()) {
+    add_error(make_error_invalid_superclass_method_reference_expr(source_token));
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<PresumedSuperclassMethodReferenceExpr>(source_token,
+    std::move(method_reference_expr), std::move(superclass_res.rvalue()));
+
+  return Optional<BoxedExpr>(std::move(node));
+}
+
 Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
   std::vector<BoxedBinaryOperatorExpr> pending_binaries;
   std::vector<BoxedBinaryOperatorExpr> binaries;
@@ -1199,6 +1281,9 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
 
     if (tok.type == TokenType::identifier) {
       node_res = identifier_reference_expr(tok);
+      if (node_res && iterator.peek().type == TokenType::at) {
+        node_res = presumed_superclass_method_reference_expr(iterator.peek(), std::move(node_res.rvalue()));
+      }
 
     } else if (is_ignore_argument_expr(tok)) {
       node_res = ignore_argument_expr(tok);
@@ -1331,6 +1416,7 @@ Optional<BoxedStmt> AstGenerator::switch_stmt(const mt::Token& source_token) {
     switch (tok.type) {
       case TokenType::new_line:
       case TokenType::comma:
+      case TokenType::semicolon:
         iterator.advance();
         break;
       case TokenType::keyword_case: {
@@ -1408,7 +1494,6 @@ Optional<BoxedStmt> AstGenerator::while_stmt(const Token& source_token) {
 }
 
 Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
-  //  @TODO: Handle optional parenthetical initializer: for (i = 1:10) ** but not for ((i = 1:10))
   iterator.advance();
 
   //  Register an increase in the for statement scope depth.
@@ -2219,16 +2304,16 @@ Optional<ParseError> AstGenerator::consume_one_of(const mt::TokenType* types, in
 
 Optional<ParseError>
 AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& source_token,
-                                                                   const std::vector<Optional<int64_t>>& inputs) const {
+                                                                   const std::vector<FunctionInputParameter>& inputs) const {
   std::set<int64_t> uniques;
   for (const auto& input : inputs) {
-    if (!input) {
+    if (input.is_ignored) {
       //  Input argument is ignored (~)
       continue;
     }
 
     auto orig_size = uniques.size();
-    uniques.insert(input.value());
+    uniques.insert(input.name);
 
     if (orig_size == uniques.size()) {
       //  This value is not new.
@@ -2312,6 +2397,10 @@ ParseError AstGenerator::make_error_duplicate_method(const Token& at_token) cons
 
 ParseError AstGenerator::make_error_duplicate_class_def(const Token& at_token) const {
   return ParseError(text, at_token, "Duplicate class definition.");
+}
+
+ParseError AstGenerator::make_error_invalid_superclass_method_reference_expr(const Token& at_token) const {
+  return ParseError(text, at_token, "Invalid superclass method reference.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

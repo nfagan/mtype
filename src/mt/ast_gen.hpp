@@ -80,14 +80,17 @@ private:
   Optional<std::unique_ptr<Block>> sub_block();
   Optional<std::unique_ptr<FunctionDefNode>> function_def();
   Optional<FunctionHeader> function_header();
-  Optional<std::vector<std::string_view>> function_inputs();
+  Optional<int64_t> compound_function_name(std::string_view first_component);
+  Optional<std::vector<FunctionInputParameter>> function_inputs();
   Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
   Optional<std::string_view> one_identifier();
   Optional<std::vector<std::string_view>> identifier_sequence(TokenType terminator);
   Optional<std::vector<std::string_view>> compound_identifier_components();
-  Optional<std::vector<Optional<int64_t>>> anonymous_function_input_parameters();
+  Optional<std::vector<FunctionInputParameter>> anonymous_function_input_parameters();
 
   Optional<BoxedAstNode> class_def();
+  Optional<MatlabIdentifier> superclass_name();
+  Optional<std::vector<MatlabIdentifier>> superclass_names();
   bool methods_block(std::set<int64_t>& method_names,
                      ClassDef::MethodDefs& method_defs,
                      ClassDef::MethodDeclarations& method_declarations);
@@ -104,6 +107,8 @@ private:
   Optional<Subscript> non_period_subscript(const Token& source_token, SubscriptMethod method, TokenType term);
 
   Optional<BoxedExpr> expr(bool allow_empty = false);
+  Optional<BoxedExpr> presumed_superclass_method_reference_expr(const Token& source_token,
+                                                                BoxedExpr method_reference_expr);
   Optional<BoxedExpr> function_expr(const Token& source_token);
   Optional<BoxedExpr> anonymous_function_expr(const Token& source_token);
   Optional<BoxedExpr> function_reference_expr(const Token& source_token);
@@ -185,11 +190,12 @@ private:
   ParseError make_error_duplicate_class_property(const Token& at_token) const;
   ParseError make_error_duplicate_method(const Token& at_token) const;
   ParseError make_error_duplicate_class_def(const Token& at_token) const;
+  ParseError make_error_invalid_superclass_method_reference_expr(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
   Optional<ParseError> check_anonymous_function_input_parameters_are_unique(const Token& source_token,
-                                                                            const std::vector<Optional<int64_t>>& inputs) const;
+                                                                            const std::vector<FunctionInputParameter>& inputs) const;
 
   bool is_within_loop() const;
   bool is_within_end_terminated_stmt_block() const;

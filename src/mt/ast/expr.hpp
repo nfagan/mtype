@@ -10,16 +10,35 @@ namespace mt {
 
 struct FunctionDef;
 struct VariableDef;
+struct FunctionInputParameter;
+
+struct PresumedSuperclassMethodReferenceExpr : public Expr {
+  PresumedSuperclassMethodReferenceExpr(const Token& source_token,
+                                        BoxedExpr method_reference_expr,
+                                        BoxedExpr superclass_reference_expr) :
+                                        source_token(source_token),
+                                        method_reference_expr(std::move(method_reference_expr)),
+                                        superclass_reference_expr(std::move(superclass_reference_expr)) {
+    //
+  }
+  ~PresumedSuperclassMethodReferenceExpr() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  Expr* accept(IdentifierClassifier& classifier) override;
+
+  Token source_token;
+  BoxedExpr method_reference_expr;
+  BoxedExpr superclass_reference_expr;
+};
 
 struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
-                        std::vector<Optional<int64_t>>&& input_identifiers,
+                        std::vector<FunctionInputParameter>&& input_identifiers,
                         BoxedExpr expr,
                         const MatlabScopeHandle& scope_handle) :
-  source_token(source_token),
-  input_identifiers(std::move(input_identifiers)),
-  expr(std::move(expr)),
-  scope_handle(scope_handle) {
+    source_token(source_token),
+    inputs(std::move(input_identifiers)),
+    expr(std::move(expr)),
+    scope_handle(scope_handle) {
     //
   }
   ~AnonymousFunctionExpr() override = default;
@@ -27,13 +46,13 @@ struct AnonymousFunctionExpr : public Expr {
   Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
-  std::vector<Optional<int64_t>> input_identifiers;
+  std::vector<FunctionInputParameter> inputs;
   BoxedExpr expr;
   MatlabScopeHandle scope_handle;
 };
 
 struct FunctionReferenceExpr : public Expr {
-  FunctionReferenceExpr(const Token& source_token, MatlabIdentifier identifier) :
+  FunctionReferenceExpr(const Token& source_token, const MatlabIdentifier& identifier) :
   source_token(source_token), identifier(identifier) {
     //
   }
@@ -129,6 +148,9 @@ struct LiteralFieldReferenceExpr : public Expr {
     prefix.push_back(field_identifier);
     return true;
   }
+  bool is_literal_field_reference_expr() const override {
+    return true;
+  }
 
   Token source_token;
   int64_t field_identifier;
@@ -206,6 +228,9 @@ struct IdentifierReferenceExpr : public Expr {
   bool is_valid_assignment_target() const override {
     return true;
   }
+
+  bool is_static_identifier_reference_expr() const override;
+
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
 

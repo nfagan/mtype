@@ -208,6 +208,7 @@ public:
   Expr* unary_operator_expr(UnaryOperatorExpr& expr);
   Expr* anonymous_function_expr(AnonymousFunctionExpr& expr);
   Expr* function_reference_expr(FunctionReferenceExpr& expr);
+  Expr* presumed_superclass_method_reference_expr(PresumedSuperclassMethodReferenceExpr& expr);
   ClassDefReference* class_def_reference(ClassDefReference& ref);
 
   IfStmt* if_stmt(IfStmt& stmt);
@@ -253,7 +254,9 @@ private:
   const IdentifierScope* current_scope() const;
 
   void register_function_parameter(const Token& source_token, int64_t identifier);
-  void register_function_parameters(const Token& source_token, std::vector<int64_t>& identifiers);
+  void register_function_parameters(const Token& source_token, const std::vector<int64_t>& identifiers);
+  void register_function_parameters(const Token& source_token, const std::vector<FunctionInputParameter>& identifiers);
+
   IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token, int64_t primary_identifier);
   void register_imports(IdentifierScope* in_scope);
   void register_local_functions(IdentifierScope* in_scope);

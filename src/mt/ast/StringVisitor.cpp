@@ -80,6 +80,23 @@ std::string StringVisitor::subscripts(const std::vector<Subscript>& subs) const 
   return sub_str;
 }
 
+std::string StringVisitor::function_input_parameters(const std::vector<FunctionInputParameter>& inputs) const {
+  std::string params("(");
+  for (int64_t i = 0; i < int64_t(inputs.size()); i++) {
+    const auto& input = inputs[i];
+    if (input.is_ignored) {
+      params += "~";
+    } else {
+      params += std::string(string_registry->at(input.name));
+    }
+    if (i < int64_t(inputs.size()) - 1) {
+      params += ", ";
+    }
+  }
+  params += ")";
+  return params;
+}
+
 std::string StringVisitor::root_block(const RootBlock& block) const {
   return block.block->accept(*this);
 }
@@ -93,11 +110,11 @@ std::string StringVisitor::block(const Block& block) const {
 
 std::string StringVisitor::function_header(const FunctionHeader& header) const {
   auto outputs = join(string_registry->collect(header.outputs), ", ");
-  auto inputs = join(string_registry->collect(header.inputs), ", ");
+  auto inputs = function_input_parameters(header.inputs);
   auto name = std::string(string_registry->at(header.name));
   auto func = std::string("function");
   maybe_colorize(func, TokenType::keyword_function);
-  return func + " [" + outputs + "]" + " = " + name + "(" + inputs + ")";
+  return func + " [" + outputs + "]" + " = " + name + inputs;
 }
 
 std::string StringVisitor::function_def_node(const FunctionDefNode& def_node) const {
@@ -396,19 +413,16 @@ std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) cons
 }
 
 std::string StringVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) const {
-  std::vector<std::string> identifier_strs;
-  for (const auto& identifier : expr.input_identifiers) {
-    if (identifier) {
-      identifier_strs.emplace_back(string_registry->at(identifier.value()));
-    } else {
-      identifier_strs.emplace_back("~");
-    }
-  }
-  auto header = std::string("@(") + join(identifier_strs, ", ") + ") ";
+  const auto inputs = function_input_parameters(expr.inputs);
+  auto header = std::string("@") + inputs + " ";
   auto body = expr.expr->accept(*this);
   auto str = header + body;
   maybe_parenthesize(str);
   return str;
+}
+
+std::string StringVisitor::presumed_superclass_method_reference_expr(const PresumedSuperclassMethodReferenceExpr& expr) const {
+  return expr.method_reference_expr->accept(*this) + "@" + expr.superclass_reference_expr->accept(*this);
 }
 
 std::string StringVisitor::colon_subscript_expr(const ColonSubscriptExpr&) const {

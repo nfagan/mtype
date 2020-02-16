@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
   auto scan_info = std::move(scan_result.value);
 //  show_tokens(scan_info.tokens);
 
-  auto insert_res = insert_implicit_expr_delimiters_in_groupings(scan_info.tokens, contents);
+  auto insert_res = insert_implicit_expr_delimiters(scan_info.tokens, contents);
   if (insert_res) {
     insert_res.value().show();
     return 0;

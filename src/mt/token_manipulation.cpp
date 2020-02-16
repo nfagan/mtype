@@ -30,8 +30,7 @@ bool can_insert_comma_between(const Token& curr, const Token& next) {
 
 }
 
-Optional<ParseError> insert_implicit_expr_delimiters_in_groupings(std::vector<Token>& tokens,
-                                                                  std::string_view text) {
+Optional<ParseError> insert_implicit_expr_delimiters(std::vector<Token>& tokens, std::string_view text) {
   //  @TODO: Handle prefix unary + and - operators.
   //  In a matrix or cell construction expression, the treatment of these operators depends on the
   //  spacing between them and the next expression component. [1-1 1] should be parsed as
@@ -50,6 +49,7 @@ Optional<ParseError> insert_implicit_expr_delimiters_in_groupings(std::vector<To
 //    const auto& prev = it.peek_prev();
 
     bool allow_r_parens_terminator = true;
+    bool is_anonymous_function_input_term = false;
 
     if (curr.type == TokenType::left_bracket) {
       bracket_depth++;
@@ -69,14 +69,20 @@ Optional<ParseError> insert_implicit_expr_delimiters_in_groupings(std::vector<To
       next_r_parens_is_anon_func_input_term = true;
 
     } else if (next_r_parens_is_anon_func_input_term && curr.type == TokenType::right_parens) {
+      //  @(a, b, c)
       next_r_parens_is_anon_func_input_term = false;
       allow_r_parens_terminator = false;
+      is_anonymous_function_input_term = true;
     }
 
     if ((bracket_depth > 0 || brace_depth > 0) && allow_r_parens_terminator) {
       if (can_insert_comma_between(curr, next)) {
         insert_at_indices.push_back(it.next_index());
       }
+    } else if (is_anonymous_function_input_term) {
+      //  @Hack: Insert comma after `)` in e.g. `@(a) -1` so that the expression is not erroneously
+      //  parsed as the binary expression ((a) - (1)).
+      insert_at_indices.push_back(it.next_index());
     }
 
     it.advance();

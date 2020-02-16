@@ -66,7 +66,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   }
   
   auto& scan_info = scan_res.value;
-  auto insert_res = insert_implicit_expr_delimiters_in_groupings(scan_info.tokens, str);
+  auto insert_res = insert_implicit_expr_delimiters(scan_info.tokens, str);
   
   if (insert_res) {
     if (inputs.show_parse_errors) {
