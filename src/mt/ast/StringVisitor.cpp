@@ -422,7 +422,8 @@ std::string StringVisitor::anonymous_function_expr(const AnonymousFunctionExpr& 
 }
 
 std::string StringVisitor::presumed_superclass_method_reference_expr(const PresumedSuperclassMethodReferenceExpr& expr) const {
-  return expr.method_reference_expr->accept(*this) + "@" + expr.superclass_reference_expr->accept(*this);
+  auto identifier_str = std::string(string_registry->at(expr.invoking_argument_name.full_name()));
+  return identifier_str + "@" + expr.superclass_reference_expr->accept(*this);
 }
 
 std::string StringVisitor::colon_subscript_expr(const ColonSubscriptExpr&) const {

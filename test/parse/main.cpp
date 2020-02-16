@@ -106,5 +106,7 @@ int main(int argc, char** argv) {
   std::cout << "Num strings: " << string_registry.size() << std::endl;
   summarize_file(root_block, &scope_store);
 
+  std::cout << "File type: " << mt::to_string(mt::code_file_type_from_root_block(*root_block)) << std::endl;
+
   return 0;
 }

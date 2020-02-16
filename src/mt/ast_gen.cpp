@@ -1,5 +1,6 @@
 #include "ast_gen.hpp"
 #include "string.hpp"
+#include "utility.hpp"
 #include <array>
 #include <cassert>
 #include <functional>
@@ -42,6 +43,7 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
   parse_errors.clear();
 
   block_depths = BlockDepths();
+  class_state = ClassDefState();
 
   //  Push root scope.
   ParseScopeHelper scope_helper(*this);
@@ -331,6 +333,9 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   auto def_handle = function_store->emplace_definition(std::move(function_def));
   auto ref_handle = function_store->make_local_reference(name, def_handle, child_scope);
 
+//  ScopeStore::Read reader(*scope_store);
+//  auto& parent_scope = reader.at(current_scope_handle());
+
   auto& parent_scope = scope_store->at(current_scope_handle());
   bool register_success = true;
 
@@ -433,6 +438,9 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   ClassDef::MethodDefs method_defs;
   std::set<int64_t> method_names;
 
+  const auto class_handle = class_store->make_definition();
+  ClassDefState::EnclosingClassHelper class_helper(class_state, class_handle);
+
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
 
@@ -471,11 +479,11 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   ClassDef class_def(source_token, name, std::move(superclasses),
     std::move(properties), std::move(method_defs), std::move(method_declarations));
 
-  const auto handle = class_store->emplace_definition(std::move(class_def));
-  auto class_node = std::make_unique<ClassDefReference>(handle);
+  class_store->emplace_definition(class_handle, std::move(class_def));
+  auto class_node = std::make_unique<ClassDefReference>(class_handle);
 
   auto& parent_scope = scope_store->at(parent_scope_handle);
-  bool register_success = parent_scope.register_class(name, handle);
+  bool register_success = parent_scope.register_class(name, class_handle);
   if (!register_success) {
     add_error(make_error_duplicate_class_def(source_token));
     return NullOpt{};
@@ -1251,6 +1259,11 @@ Optional<BoxedExpr> AstGenerator::function_expr(const Token& source_token) {
 
 Optional<BoxedExpr> AstGenerator::presumed_superclass_method_reference_expr(const Token& source_token,
                                                                             BoxedExpr method_reference_expr) {
+  //  @Note: This function is called for the syntax identifier@function_call(1, 2, 3), where
+  //  `identifier` is either a) the name of a superclass method or b) the name bound to the object
+  //  instance in a constructor (e.g., obj@Superclass(args)). We ensure that `identifier` and
+  //  `function_call` are identifier reference expressions, and then convert the invoking expression
+  //  to a plain identifier, implicitly deleting `method_reference_expr` when this function returns.
   iterator.advance(); //  consume @
 
   auto superclass_res = expr();
@@ -1258,13 +1271,25 @@ Optional<BoxedExpr> AstGenerator::presumed_superclass_method_reference_expr(cons
     return NullOpt{};
   }
 
-  if (!method_reference_expr->is_static_identifier_reference_expr()) {
+  auto superclass_method_expr = std::move(superclass_res.rvalue());
+
+  if (!method_reference_expr->is_static_identifier_reference_expr() ||
+      !superclass_method_expr->is_identifier_reference_expr()) {
+    //
     add_error(make_error_invalid_superclass_method_reference_expr(source_token));
     return NullOpt{};
   }
 
+  auto* method_expr = static_cast<IdentifierReferenceExpr*>(method_reference_expr.get());
+
+  int64_t subscript_end;
+  const auto compound_identifier_components = method_expr->make_compound_identifier(&subscript_end);
+
+  auto compound_identifier = string_registry->make_registered_compound_identifier(compound_identifier_components);
+  MatlabIdentifier invoking_argument(compound_identifier);
+
   auto node = std::make_unique<PresumedSuperclassMethodReferenceExpr>(source_token,
-    std::move(method_reference_expr), std::move(superclass_res.rvalue()));
+    invoking_argument, std::move(superclass_method_expr));
 
   return Optional<BoxedExpr>(std::move(node));
 }
@@ -1282,6 +1307,7 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
     if (tok.type == TokenType::identifier) {
       node_res = identifier_reference_expr(tok);
       if (node_res && iterator.peek().type == TokenType::at) {
+        //  method@superclass()
         node_res = presumed_superclass_method_reference_expr(iterator.peek(), std::move(node_res.rvalue()));
       }
 
@@ -2246,6 +2272,10 @@ bool AstGenerator::is_within_function() const {
 
 bool AstGenerator::is_within_top_level_function() const {
   return block_depths.function_def == 1;
+}
+
+bool AstGenerator::parent_function_is_class_method() const {
+  return is_within_class() && block_depths.function_def == 1;
 }
 
 bool AstGenerator::is_within_class() const {

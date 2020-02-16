@@ -81,6 +81,10 @@ struct FunctionDefNode : public AstNode {
   }
   ~FunctionDefNode() override = default;
 
+  bool represents_function_def() const override {
+    return true;
+  }
+
   std::string accept(const StringVisitor& vis) const override;
   FunctionDefNode* accept(IdentifierClassifier& classifier) override;
 
@@ -205,6 +209,11 @@ struct ClassDefReference : public AstNode {
     //
   }
   ~ClassDefReference() override = default;
+
+  bool represents_class_def() const override {
+    return true;
+  }
+
   std::string accept(const StringVisitor& vis) const override;
   ClassDefReference* accept(IdentifierClassifier& classifier) override;
 

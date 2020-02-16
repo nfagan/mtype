@@ -4,7 +4,7 @@ classdef Another
   end
   
   properties
-    x, y, z = 1; a = 1;
+    X, y, z = 1; a = 1;
     d = test( 1 );
     e = Another.Z;
   end
@@ -12,12 +12,12 @@ classdef Another
   methods    
     [a] = c();
     
-    function obj = set.x(obj, a)
-      obj.x = obj;
+    function obj = set.X(obj, a)
+      obj.X = obj;
     end
     
     function z = Another(x)
-      z.x = x;
+      z.X = x;
     end
     
     function a = b(obj, a)

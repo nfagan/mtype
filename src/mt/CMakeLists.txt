@@ -13,6 +13,7 @@ set(sources
         error.cpp
         file_resolution.hpp
         file_resolution.cpp
+        fs.hpp
         store.hpp
         store.cpp
         identifier_classification.hpp
@@ -33,6 +34,8 @@ set(sources
         token_manipulation.cpp
         token_type.hpp
         token_type.cpp
+        traversal.hpp
+        traversal.cpp
         unicode.hpp
         unicode.cpp
         utility.hpp
@@ -47,3 +50,4 @@ endfunction(configure_common)
 configure_common()
 
 add_subdirectory(ast)
+add_subdirectory(fs)

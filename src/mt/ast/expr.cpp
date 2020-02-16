@@ -2,6 +2,7 @@
 #include "def.hpp"
 #include "StringVisitor.hpp"
 #include "../identifier_classification.hpp"
+#include <cassert>
 
 namespace mt {
 
@@ -82,6 +83,29 @@ bool IdentifierReferenceExpr::is_static_identifier_reference_expr() const {
   }
 
   return true;
+}
+
+std::vector<int64_t> IdentifierReferenceExpr::make_compound_identifier(int64_t* end) const {
+  std::vector<int64_t> identifier_components;
+  identifier_components.push_back(primary_identifier);
+
+  int64_t i = 0;
+  const auto sz = int64_t(subscripts.size());
+
+  while (i < sz && subscripts[i].method == SubscriptMethod::period) {
+    const auto& sub = subscripts[i];
+    assert(sub.arguments.size() == 1 && "Expected 1 argument for period subscript.");
+
+    //  Period subscript expressions always have 1 argument.
+    if (!sub.arguments[0]->append_to_compound_identifier(identifier_components)) {
+      break;
+    }
+
+    i++;
+  }
+
+  *end = i;
+  return identifier_components;
 }
 
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {

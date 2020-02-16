@@ -5,6 +5,7 @@
 #include "lang_components.hpp"
 #include "store.hpp"
 #include "Optional.hpp"
+#include "traversal.hpp"
 #include <unordered_map>
 #include <set>
 #include <vector>
@@ -263,6 +264,7 @@ private:
 
   Expr* identifier_reference_expr_lhs(IdentifierReferenceExpr& expr);
   Expr* identifier_reference_expr_rhs(IdentifierReferenceExpr& expr);
+  Expr* superclass_method_application(IdentifierReferenceExpr& expr);
 
   FunctionCallExpr* make_function_call_expr(IdentifierReferenceExpr& from_expr,
                                             int64_t subscript_end,
@@ -301,6 +303,8 @@ private:
   int scope_depth;
 
   std::vector<bool> expr_sides;
+  ClassDefState class_state;
+  FunctionDefState function_state;
 
   ParseErrors errors;
   ParseErrors warnings;

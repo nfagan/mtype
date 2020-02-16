@@ -6,6 +6,7 @@
 #include "Optional.hpp"
 #include "error.hpp"
 #include "store.hpp"
+#include "traversal.hpp"
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -203,6 +204,7 @@ private:
   bool is_within_top_level_function() const;
   bool is_within_class() const;
   bool is_within_methods() const;
+  bool parent_function_is_class_method() const;
 
   void push_scope();
   void pop_scope();
@@ -223,6 +225,7 @@ private:
   ClassStore* class_store;
   ScopeStore* scope_store;
   BlockDepths block_depths;
+  ClassDefState class_state;
 
   std::vector<MatlabScopeHandle> scope_handles;
 

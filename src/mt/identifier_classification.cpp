@@ -328,6 +328,8 @@ IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
   scope_depth(-1) {
   //  Begin on rhs.
   push_rhs();
+  //  Begin in non-superclass method application, etc.
+  class_state.push_default_state();
   //  New scope with no parent.
   push_scope(MatlabScopeHandle());
 }
@@ -474,30 +476,6 @@ void IdentifierClassifier::register_function_parameter(const Token& source_token
   }
 }
 
-namespace {
-std::vector<int64_t> make_compound_identifier(const IdentifierReferenceExpr& expr, int64_t* end) {
-  std::vector<int64_t> identifier_components;
-  identifier_components.push_back(expr.primary_identifier);
-
-  int64_t i = 0;
-  const auto sz = int64_t(expr.subscripts.size());
-
-  while (i < sz && expr.subscripts[i].method == SubscriptMethod::period) {
-    const auto& sub = expr.subscripts[i];
-
-    //  Period subscript expressions always have 1 argument.
-    if (!sub.arguments[0]->append_to_compound_identifier(identifier_components)) {
-      break;
-    }
-
-    i++;
-  }
-
-  *end = i;
-  return identifier_components;
-}
-}
-
 Expr* IdentifierClassifier::grouping_expr(GroupingExpr& expr) {
   for (auto& component : expr.components) {
     conditional_reset(component.expr, component.expr->accept(*this));
@@ -548,13 +526,20 @@ Expr* IdentifierClassifier::anonymous_function_expr(AnonymousFunctionExpr& expr)
   return &expr;
 }
 
-Expr* IdentifierClassifier::presumed_superclass_method_reference_expr(PresumedSuperclassMethodReferenceExpr &expr) {
+Expr* IdentifierClassifier::presumed_superclass_method_reference_expr(PresumedSuperclassMethodReferenceExpr& expr) {
+  class_state.push_superclass_method_application();
+  conditional_reset(expr.superclass_reference_expr, expr.superclass_reference_expr->accept(*this));
+  class_state.pop_superclass_method_application();
   return &expr;
 }
 
 Expr* IdentifierClassifier::identifier_reference_expr(IdentifierReferenceExpr& expr) {
   if (is_lhs()) {
     return identifier_reference_expr_lhs(expr);
+
+  } else if (class_state.is_within_superclass_method_application()) {
+    return superclass_method_application(expr);
+
   } else {
     return identifier_reference_expr_rhs(expr);
   }
@@ -572,7 +557,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
   }
 
   int64_t subscript_end;
-  const auto compound_identifier_components = make_compound_identifier(expr, &subscript_end);
+  const auto compound_identifier_components = expr.make_compound_identifier(&subscript_end);
 
   //  Proceed beginning from the first non literal field reference subscript.
   push_rhs();
@@ -585,7 +570,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
 
 Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenceExpr& expr) {
   int64_t subscript_end;
-  const auto compound_identifier_components = make_compound_identifier(expr, &subscript_end);
+  const auto compound_identifier_components = expr.make_compound_identifier(&subscript_end);
 
   const bool is_variable = current_scope()->has_variable(expr.primary_identifier, true);
   const int64_t primary_identifier = expr.primary_identifier;
@@ -629,6 +614,28 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
 
   return new VariableReferenceExpr(expr.source_token, primary_result.info.variable_def_handle,
     primary_identifier, std::move(expr.subscripts), false);
+}
+
+Expr* IdentifierClassifier::superclass_method_application(mt::IdentifierReferenceExpr& expr) {
+  int64_t subscript_end;
+  const auto compound_identifier_components = expr.make_compound_identifier(&subscript_end);
+
+  auto ref_err = check_function_reference_subscript(expr, subscript_end);
+  if (ref_err) {
+    add_error(ref_err.rvalue());
+    return &expr;
+  }
+
+  const auto scope_handle = current_scope()->matlab_scope_handle;
+
+  const auto function_name = string_registry->make_registered_compound_identifier(compound_identifier_components);
+  const auto function_reference_handle = function_store->make_external_reference(function_name, scope_handle);
+
+  class_state.push_non_superclass_method_application();
+  auto* func_node = make_function_call_expr(expr, subscript_end, function_reference_handle);
+  class_state.pop_superclass_method_application();
+
+  return func_node;
 }
 
 FunctionCallExpr* IdentifierClassifier::make_function_call_expr(IdentifierReferenceExpr& from_expr,
@@ -756,6 +763,9 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
   auto& def = function_store->at(def_node.def_handle);
   auto* scope = current_scope();
 
+  //  Enter function definition.
+  FunctionDefState::EnclosingFunctionHelper function_helper(function_state, def_node.def_handle);
+
   register_local_functions(scope);
   register_imports(scope);
   register_function_parameters(def.header.name_token, def.header.inputs);
@@ -768,6 +778,7 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
 
 ClassDefReference* IdentifierClassifier::class_def_reference(ClassDefReference& ref) {
   auto& def = class_store->at(ref.handle);
+  ClassDefState::EnclosingClassHelper class_helper(class_state, ref.handle);
 
   for (auto& method : def.method_defs) {
     conditional_reset(method.def_node, method.def_node->accept(*this));

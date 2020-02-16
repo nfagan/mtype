@@ -42,6 +42,7 @@ struct FilePath {
 struct CodeDirectory {
   FilePath absolute_path;
   CodeDirectoryHandle parent;
+  vector<CodeDirectoryHandle> children;
   
   vector<FunctionDefHandle> public_functions;
   vector<FunctionDefHandle> private_functions;
@@ -51,15 +52,13 @@ struct CodeDirectory {
   std::string package_prefix()
 };
 
-struct CodeFile {
-  FileInfo file_info;
-  CodeDirectoryHandle parent_directory;
-}
-
-struct FileInfo {
-  bool is_anonymous() const;
-
+struct CodeFileDescriptor {
+  FileType file_type;
   FilePath file_path;
+  CodeDirectoryHandle parent_directory;
+
+  bool is_anonymous() const;
+  bool is_mex_file() const;
 }
 
 classify_function(FunctionReference& ref, Types argument_types, Types return_types) {

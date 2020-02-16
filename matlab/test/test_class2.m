@@ -3,7 +3,7 @@ y = 10;
 function x()
 y = y + 1;
 
-x = z@y.z()
+x = z@y.z();
 another = @z;
 another()
 

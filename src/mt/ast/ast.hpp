@@ -28,6 +28,16 @@ struct AstNode {
 
   virtual std::string accept(const StringVisitor& vis) const = 0;
   virtual AstNode* accept(IdentifierClassifier& classifier) = 0;
+
+  virtual bool represents_class_def() const {
+    return false;
+  }
+  virtual bool represents_function_def() const {
+    return false;
+  }
+  virtual bool represents_stmt_or_stmts() const {
+    return false;
+  }
 };
 
 template <typename T>
@@ -48,6 +58,10 @@ struct Expr : public AstNode {
     return false;
   }
 
+  virtual bool is_identifier_reference_expr() const {
+    return false;
+  }
+
   virtual bool is_static_identifier_reference_expr() const {
     return false;
   }
@@ -64,6 +78,10 @@ struct Expr : public AstNode {
 struct Stmt : public AstNode {
   Stmt() = default;
   ~Stmt() override = default;
+
+  bool represents_stmt_or_stmts() const override {
+    return true;
+  }
 
   std::string accept(const StringVisitor& vis) const override = 0;
   Stmt* accept(IdentifierClassifier&) override {
@@ -162,6 +180,10 @@ struct Block : public AstNode {
   Block() = default;
   ~Block() override = default;
 
+  bool represents_stmt_or_stmts() const override {
+    return true;
+  }
+
   void append(BoxedAstNode other) {
     nodes.emplace_back(std::move(other));
   }
@@ -184,6 +206,11 @@ struct RootBlock : public AstNode {
     //
   }
   ~RootBlock() override = default;
+
+  bool represents_stmt_or_stmts() const override {
+    return true;
+  }
+
   std::string accept(const StringVisitor& vis) const override;
   RootBlock* accept(IdentifierClassifier& classifier) override;
 

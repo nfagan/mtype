@@ -11,13 +11,14 @@ namespace mt {
 struct FunctionDef;
 struct VariableDef;
 struct FunctionInputParameter;
+struct IdentifierReferenceExpr;
 
 struct PresumedSuperclassMethodReferenceExpr : public Expr {
   PresumedSuperclassMethodReferenceExpr(const Token& source_token,
-                                        BoxedExpr method_reference_expr,
+                                        const MatlabIdentifier& invoking_argument_name,
                                         BoxedExpr superclass_reference_expr) :
                                         source_token(source_token),
-                                        method_reference_expr(std::move(method_reference_expr)),
+                                        invoking_argument_name(invoking_argument_name),
                                         superclass_reference_expr(std::move(superclass_reference_expr)) {
     //
   }
@@ -26,7 +27,7 @@ struct PresumedSuperclassMethodReferenceExpr : public Expr {
   Expr* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
-  BoxedExpr method_reference_expr;
+  MatlabIdentifier invoking_argument_name;
   BoxedExpr superclass_reference_expr;
 };
 
@@ -230,9 +231,14 @@ struct IdentifierReferenceExpr : public Expr {
   }
 
   bool is_static_identifier_reference_expr() const override;
+  bool is_identifier_reference_expr() const override {
+    return true;
+  }
 
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+
+  std::vector<int64_t> make_compound_identifier(int64_t* end) const;
 
   Token source_token;
   int64_t primary_identifier;

@@ -58,9 +58,13 @@ FunctionReferenceHandle FunctionStore::make_local_reference(int64_t to_identifie
  * ClassStore
  */
 
-ClassDefHandle ClassStore::emplace_definition(ClassDef&& def) {
-  definitions.emplace_back(std::move(def));
+ClassDefHandle ClassStore::make_definition() {
+  definitions.emplace_back();
   return ClassDefHandle(definitions.size() - 1);
+}
+
+void ClassStore::emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def) {
+  definitions[at_handle.index] = std::move(def);
 }
 
 ClassDef& ClassStore::at(ClassDefHandle& by_handle) {
