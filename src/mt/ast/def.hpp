@@ -59,16 +59,13 @@ struct FunctionHeader {
   std::vector<FunctionInputParameter> inputs;
 };
 
-struct FunctionDef : public Def {
+struct FunctionDef {
   FunctionDef(FunctionHeader&& header, BoxedBlock body) :
     header(std::move(header)), body(std::move(body)) {
     //
   }
   FunctionDef(FunctionDef&& other) noexcept = default;
   FunctionDef& operator=(FunctionDef&& other) noexcept = default;
-
-  ~FunctionDef() override = default;
-  std::string accept(const StringVisitor& vis) const override;
 
   FunctionHeader header;
   BoxedBlock body;
@@ -103,12 +100,10 @@ struct FunctionReference {
   MatlabScopeHandle scope_handle;
 };
 
-struct VariableDef : public Def {
+struct VariableDef {
   explicit VariableDef(int64_t name) : name(name) {
     //
   }
-  ~VariableDef() override = default;
-  std::string accept(const StringVisitor& vis) const override;
 
   int64_t name;
 };
@@ -133,7 +128,7 @@ private:
   int64_t index;
 };
 
-struct ClassDef : public Def {
+struct ClassDef {
   struct Property {
     Property() = default;
     Property(const MatlabIdentifier& name) : name(name) {
@@ -187,11 +182,9 @@ struct ClassDef : public Def {
     method_declarations(std::move(method_declarations)) {
     //
   }
-  ~ClassDef() override = default;
+  ~ClassDef() = default;
   ClassDef(ClassDef&& other) MSVC_MISSING_NOEXCEPT = default;
   ClassDef& operator=(ClassDef&& other) MSVC_MISSING_NOEXCEPT = default;
-
-  std::string accept(const StringVisitor& vis) const override;
 
   Token source_token;
   MatlabIdentifier name;

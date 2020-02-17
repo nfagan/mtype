@@ -11,8 +11,8 @@ void show_tokens(const std::vector<mt::Token>& tokens) {
   }
 }
 
-void summarize_file(const mt::BoxedRootBlock& root_block, const mt::ScopeStore* store) {
-  mt::ScopeStore::ReadConst reader(*store);
+void summarize_file(const mt::BoxedRootBlock& root_block, const mt::Store* store) {
+  mt::Store::ReadConst reader(*store);
   const auto& scope = reader.at(root_block->scope_handle);
 
   std::cout << "Num classes: " << scope.classes.size() << std::endl;
@@ -67,13 +67,9 @@ int main(int argc, char** argv) {
 
   mt::AstGenerator ast_gen;
   mt::StringRegistry string_registry;
-  mt::FunctionStore function_store;
-  mt::ClassStore class_store;
-  mt::VariableStore variable_store;
-  mt::ScopeStore scope_store;
+  mt::Store store;
 
-  mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &function_store,
-    &class_store, &variable_store, &scope_store, scan_info.functions_are_end_terminated);
+  mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &store, scan_info.functions_are_end_terminated);
   auto parse_result = ast_gen.parse(scan_info.tokens, contents, parse_inputs);
 
   if (!parse_result) {
@@ -84,8 +80,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  mt::IdentifierClassifier classifier(&string_registry, &function_store, &class_store,
-    &variable_store, &scope_store, contents);
+  mt::IdentifierClassifier classifier(&string_registry, &store, contents);
   auto root_block = std::move(parse_result.value);
   classifier.transform_root(root_block);
 
@@ -99,13 +94,13 @@ int main(int argc, char** argv) {
     warn.show();
   }
 
-  mt::StringVisitor visitor(&string_registry, &function_store, &class_store);
+  mt::StringVisitor visitor(&string_registry, &store);
   visitor.parenthesize_exprs = true;
 
 //  std::cout << parse_result.value->accept(visitor) << std::endl;
   std::cout << root_block->accept(visitor) << std::endl;
   std::cout << "Num strings: " << string_registry.size() << std::endl;
-  summarize_file(root_block, &scope_store);
+  summarize_file(root_block, &store);
 
   std::cout << "File type: " << mt::to_string(mt::code_file_type_from_root_block(*root_block)) << std::endl;
 

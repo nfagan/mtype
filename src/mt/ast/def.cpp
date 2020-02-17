@@ -12,18 +12,6 @@ std::string ClassDefNode::accept(const StringVisitor& vis) const {
   return vis.class_def_node(*this);
 }
 
-std::string ClassDef::accept(const StringVisitor& vis) const {
-  return vis.class_def(*this);
-}
-
-std::string FunctionDef::accept(const StringVisitor& vis) const {
-  return vis.function_def(*this);
-}
-
-std::string VariableDef::accept(const mt::StringVisitor& vis) const {
-  return vis.variable_def(*this);
-}
-
 std::string FunctionDefNode::accept(const StringVisitor& vis) const {
   return vis.function_def_node(*this);
 }

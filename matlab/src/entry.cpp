@@ -82,14 +82,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   }
   
   mt::StringRegistry string_registry;
-  mt::FunctionStore function_store;
-  mt::ClassStore class_store;
-  mt::VariableStore variable_store;
-  mt::ScopeStore scope_store;
+  mt::Store store;
+  const bool end_terminated = scan_info.functions_are_end_terminated;
   
-  mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &function_store,
-    &class_store, &scope_store, scan_info.functions_are_end_terminated);
-
+  mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &store, end_terminated);
   auto parse_res = ast_generator.parse(scan_info.tokens, str, parse_inputs);
 
   if (!parse_res) {
@@ -101,8 +97,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     return;
   }
   
-  mt::IdentifierClassifier classifier(&string_registry, 
-          &function_store, &class_store, &variable_store, &scope_store, str);
+  mt::IdentifierClassifier classifier(&string_registry, &store, str);
   auto* block = parse_res.value->accept(classifier);
   
   if (inputs.show_parse_errors) {
@@ -116,7 +111,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   *mxGetLogicals(plhs[0]) = true;
 
   if (inputs.show_ast) {
-    mt::StringVisitor visitor(&string_registry, &function_store, &class_store);
+    mt::StringVisitor visitor(&string_registry, &store);
     visitor.parenthesize_exprs = true;
     visitor.colorize = false;
     std::cout << block->accept(visitor) << std::endl;
