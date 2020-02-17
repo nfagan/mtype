@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
   mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &store, scan_info.functions_are_end_terminated);
 
   std::mutex parse_barrier_mutex;
-  const int num_threads = 10;
+  const int num_threads = 16;
 
   std::vector<std::thread> threads;
   std::vector<mt::BoxedRootBlock> root_blocks(num_threads);
