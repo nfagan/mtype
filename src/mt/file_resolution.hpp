@@ -7,11 +7,11 @@
 namespace mt {
 
 class StringRegistry;
-class ScopeStore;
+class Store;
 
 class AbstractFileResolver {
 public:
-  AbstractFileResolver(const ScopeStore* scope_store) : scope_store(scope_store) {
+  AbstractFileResolver(const Store* store) : store(store) {
     //
   }
   virtual ~AbstractFileResolver() = default;
@@ -23,7 +23,7 @@ public:
   static const std::unique_ptr<AbstractFileResolver>& get_active_file_resolver();
 
 protected:
-  const ScopeStore* scope_store;
+  const Store* store;
 
 private:
   static std::unique_ptr<AbstractFileResolver> active_file_resolver;
@@ -31,11 +31,11 @@ private:
 
 class FileResolver : AbstractFileResolver {
 public:
-  FileResolver(const ScopeStore* scope_store,
+  FileResolver(const Store* store,
                const StringRegistry* string_registry,
                std::string current_directory,
                std::vector<std::string> path_directories) :
-  AbstractFileResolver(scope_store),
+  AbstractFileResolver(store),
   string_registry(string_registry),
   current_directory(std::move(current_directory)),
   path_directories(std::move(path_directories)) {

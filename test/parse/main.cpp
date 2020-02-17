@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
   mt::ScopeStore scope_store;
 
   mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &function_store,
-    &class_store, &scope_store, scan_info.functions_are_end_terminated);
+    &class_store, &variable_store, &scope_store, scan_info.functions_are_end_terminated);
   auto parse_result = ast_gen.parse(scan_info.tokens, contents, parse_inputs);
 
   if (!parse_result) {

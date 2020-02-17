@@ -4,84 +4,82 @@
 namespace mt {
 
 /*
- * VariableStore
+ * Class components
  */
 
-VariableDefHandle VariableStore::emplace_definition(mt::VariableDef&& def) {
-  definitions.emplace_back(std::move(def));
-  return VariableDefHandle(definitions.size() - 1);
+ClassDefHandle Store::make_class_definition() {
+  class_definitions.emplace_back();
+  return ClassDefHandle(class_definitions.size() - 1);
 }
 
-const VariableDef& VariableStore::at(const mt::VariableDefHandle& handle) const {
-  return definitions[handle.index];
+void Store::emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def) {
+  class_definitions[at_handle.index] = std::move(def);
 }
 
-VariableDef& VariableStore::at(const VariableDefHandle& handle) {
-  return definitions[handle.index];
+const ClassDef& Store::at(const ClassDefHandle& handle) const {
+  return class_definitions[handle.index];
+}
+
+ClassDef& Store::at(const ClassDefHandle& handle) {
+  return class_definitions[handle.index];
 }
 
 /*
- * FunctionStore
+ * Variable components
  */
 
-FunctionDef& FunctionStore::at(const FunctionDefHandle& handle) {
-  return definitions[handle.index];
+VariableDefHandle Store::emplace_definition(mt::VariableDef&& def) {
+  variable_definitions.emplace_back(std::move(def));
+  return VariableDefHandle(variable_definitions.size() - 1);
 }
 
-const FunctionDef& FunctionStore::at(const FunctionDefHandle& handle) const {
-  return definitions[handle.index];
+const VariableDef& Store::at(const mt::VariableDefHandle& handle) const {
+  return variable_definitions[handle.index];
 }
 
-const FunctionReference& FunctionStore::at(const FunctionReferenceHandle& handle) const {
-  return references[handle.index];
+VariableDef& Store::at(const VariableDefHandle& handle) {
+  return variable_definitions[handle.index];
 }
 
-FunctionReferenceHandle FunctionStore::make_external_reference(int64_t to_identifier,
-                                                               const MatlabScopeHandle& in_scope) {
+/*
+ * Function components
+ */
+
+FunctionDef& Store::at(const FunctionDefHandle& handle) {
+  return function_definitions[handle.index];
+}
+
+const FunctionDef& Store::at(const FunctionDefHandle& handle) const {
+  return function_definitions[handle.index];
+}
+
+const FunctionReference& Store::at(const FunctionReferenceHandle& handle) const {
+  return function_references[handle.index];
+}
+
+FunctionDefHandle Store::emplace_definition(FunctionDef&& def) {
+  function_definitions.emplace_back(std::move(def));
+  return FunctionDefHandle(function_definitions.size() - 1);
+}
+
+FunctionReferenceHandle Store::make_external_reference(int64_t to_identifier,
+                                                       const MatlabScopeHandle& in_scope) {
   return make_local_reference(to_identifier, FunctionDefHandle(), in_scope);
 }
 
-FunctionDefHandle FunctionStore::emplace_definition(FunctionDef&& def) {
-  definitions.emplace_back(std::move(def));
-  return FunctionDefHandle(definitions.size() - 1);
-}
-
-FunctionReferenceHandle FunctionStore::make_local_reference(int64_t to_identifier,
-                                                            const FunctionDefHandle& with_def,
-                                                            const MatlabScopeHandle& in_scope) {
+FunctionReferenceHandle Store::make_local_reference(int64_t to_identifier,
+                                                    const FunctionDefHandle& with_def,
+                                                    const MatlabScopeHandle& in_scope) {
   FunctionReference reference(to_identifier, with_def, in_scope);
-  references.emplace_back(reference);
-  return FunctionReferenceHandle(references.size() - 1);
+  function_references.emplace_back(reference);
+  return FunctionReferenceHandle(function_references.size() - 1);
 }
 
 /*
- * ClassStore
+ * Scope components
  */
 
-ClassDefHandle ClassStore::make_definition() {
-  definitions.emplace_back();
-  return ClassDefHandle(definitions.size() - 1);
-}
-
-void ClassStore::emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def) {
-  definitions[at_handle.index] = std::move(def);
-}
-
-ClassDef& ClassStore::at(ClassDefHandle& by_handle) {
-  assert(by_handle.index >= 0 && by_handle.index < int64_t(definitions.size()) && "Out of bounds index.");
-  return definitions[by_handle.index];
-}
-
-const ClassDef& ClassStore::at(const ClassDefHandle& by_handle) const {
-  assert(by_handle.index >= 0 && by_handle.index < int64_t(definitions.size()) && "Out of bounds index.");
-  return definitions[by_handle.index];
-}
-
-/*
- * ScopeStore
- */
-
-FunctionReferenceHandle ScopeStore::lookup_local_function(const MatlabScopeHandle& in_scope, int64_t name) const {
+FunctionReferenceHandle Store::lookup_local_function(const MatlabScopeHandle& in_scope, int64_t name) const {
   MatlabScopeHandle read_handle = in_scope;
 
   while (read_handle.is_valid()) {
@@ -97,18 +95,18 @@ FunctionReferenceHandle ScopeStore::lookup_local_function(const MatlabScopeHandl
   return FunctionReferenceHandle();
 }
 
-MatlabScopeHandle ScopeStore::make_matlab_scope(const mt::MatlabScopeHandle& parent) {
+MatlabScopeHandle Store::make_matlab_scope(const mt::MatlabScopeHandle& parent) {
   MatlabScope scope(parent);
   matlab_scopes.emplace_back(std::move(scope));
   return MatlabScopeHandle(matlab_scopes.size() - 1);
 }
 
-const MatlabScope& ScopeStore::at(const MatlabScopeHandle& handle) const {
+const MatlabScope& Store::at(const MatlabScopeHandle& handle) const {
   assert(handle.index >= 0 && handle.index < int64_t(matlab_scopes.size()) && "Out of bounds scope handle.");
   return matlab_scopes[handle.index];
 }
 
-MatlabScope& ScopeStore::at(const MatlabScopeHandle& handle) {
+MatlabScope& Store::at(const MatlabScopeHandle& handle) {
   assert(handle.index >= 0 && handle.index < int64_t(matlab_scopes.size()) && "Out of bounds scope handle.");
   return matlab_scopes[handle.index];
 }

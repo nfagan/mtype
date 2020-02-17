@@ -47,27 +47,21 @@ class AstGenerator {
 public:
   struct ParseInputs {
     ParseInputs(StringRegistry* string_registry,
-                FunctionStore* function_store,
-                ClassStore* class_def_store,
-                ScopeStore* scope_store,
+                Store* store,
                 bool functions_are_end_terminated) :
                 string_registry(string_registry),
-                function_store(function_store),
-                class_store(class_def_store),
-                scope_store(scope_store),
+                store(store),
                 functions_are_end_terminated(functions_are_end_terminated) {
       //
     }
 
     StringRegistry* string_registry;
-    FunctionStore* function_store;
-    ClassStore* class_store;
-    ScopeStore* scope_store;
+    Store* store;
     bool functions_are_end_terminated;
   };
 
 public:
-  AstGenerator() : string_registry(nullptr), class_store(nullptr), is_end_terminated_function(true) {
+  AstGenerator() : string_registry(nullptr), is_end_terminated_function(true) {
     //
   }
 
@@ -94,15 +88,19 @@ private:
   Optional<std::vector<MatlabIdentifier>> superclass_names();
   bool methods_block(std::set<int64_t>& method_names,
                      ClassDef::MethodDefs& method_defs,
-                     ClassDef::MethodDeclarations& method_declarations);
+                     ClassDef::MethodDeclarations& method_declarations,
+                     std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes);
   bool method_def(const Token& source_token,
                   std::set<int64_t>& method_names,
-                  ClassDef::MethodDefs& method_defs);
+                  ClassDef::MethodDefs& method_defs,
+                  std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes);
   bool method_declaration(const Token& source_token,
                           std::set<int64_t>& method_names,
                           ClassDef::MethodDeclarations& method_declarations);
-  bool properties_block(ClassDef::Properties& properties);
-  Optional<ClassDef::Property> property(const Token& source_token);
+  bool properties_block(std::set<int64_t>& property_names,
+                        std::vector<ClassDef::Property>& properties,
+                        std::vector<ClassDefNode::Property>& property_nodes);
+  Optional<ClassDefNode::Property> property(const Token& source_token);
 
   Optional<Subscript> period_subscript(const Token& source_token);
   Optional<Subscript> non_period_subscript(const Token& source_token, SubscriptMethod method, TokenType term);
@@ -221,9 +219,7 @@ private:
   TokenIterator iterator;
   std::string_view text;
   StringRegistry* string_registry;
-  FunctionStore* function_store;
-  ClassStore* class_store;
-  ScopeStore* scope_store;
+  Store* store;
   BlockDepths block_depths;
   ClassDefState class_state;
 

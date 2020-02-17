@@ -113,31 +113,49 @@ struct VariableDef : public Def {
   int64_t name;
 };
 
+class ClassDefHandle {
+  friend class ClassStore;
+  friend class Store;
+public:
+  ClassDefHandle() : index(-1) {
+    //
+  }
+  ~ClassDefHandle() = default;
+
+  bool is_valid() const {
+    return index >= 0;
+  }
+
+private:
+  ClassDefHandle(int64_t index) : index(index) {
+    //
+  }
+
+  int64_t index;
+};
+
 struct ClassDef : public Def {
   struct Property {
     Property() = default;
-    Property(const Token& source_token, int64_t name, BoxedExpr initializer) :
-    source_token(source_token), name(name), initializer(std::move(initializer)) {
+    Property(const MatlabIdentifier& name) : name(name) {
       //
     }
     Property(Property&& other) MSVC_MISSING_NOEXCEPT = default;
     Property& operator=(Property&& other) MSVC_MISSING_NOEXCEPT = default;
     ~Property() = default;
 
-    Token source_token;
-    int64_t name;
-    BoxedExpr initializer;
+    MatlabIdentifier name;
   };
 
   struct MethodDef {
     MethodDef() = default;
-    MethodDef(std::unique_ptr<FunctionDefNode> def_node) : def_node(std::move(def_node)) {
+    MethodDef(const FunctionDefHandle& def_handle) : def_handle(def_handle) {
       //
     }
     MethodDef(MethodDef&& other) MSVC_MISSING_NOEXCEPT = default;
     MethodDef& operator=(MethodDef&& other) MSVC_MISSING_NOEXCEPT = default;
 
-    std::unique_ptr<FunctionDefNode> def_node;
+    FunctionDefHandle def_handle;
   };
 
   struct MethodDeclaration {
@@ -153,7 +171,7 @@ struct ClassDef : public Def {
 
   using MethodDefs = std::vector<MethodDef>;
   using MethodDeclarations = std::vector<MethodDeclaration>;
-  using Properties = std::unordered_map<int64_t, Property>;
+  using Properties = std::vector<Property>;
 
   ClassDef() = default;
   ClassDef(const Token& source_token,
@@ -184,40 +202,48 @@ struct ClassDef : public Def {
   MethodDeclarations method_declarations;
 };
 
-class ClassDefHandle {
-  friend class ClassStore;
+struct ClassDefNode : public AstNode {
 public:
-  ClassDefHandle() : index(-1) {
+  struct Property {
+    Property() = default;
+    Property(const Token& source_token, int64_t name, BoxedExpr initializer) :
+      source_token(source_token), name(name), initializer(std::move(initializer)) {
+      //
+    }
+    Property(Property&& other) MSVC_MISSING_NOEXCEPT = default;
+    Property& operator=(Property&& other) MSVC_MISSING_NOEXCEPT = default;
+    ~Property() = default;
+
+    Token source_token;
+    int64_t name;
+    BoxedExpr initializer;
+  };
+
+public:
+  ClassDefNode(const Token& source_token,
+               const ClassDefHandle& handle,
+               std::vector<Property>&& properties,
+               std::vector<std::unique_ptr<FunctionDefNode>>&& method_defs) :
+               source_token(source_token),
+               handle(handle),
+               properties(std::move(properties)),
+               method_defs(std::move(method_defs)) {
     //
   }
-  ~ClassDefHandle() = default;
-
-  bool is_valid() const {
-    return index >= 0;
-  }
-
-private:
-  ClassDefHandle(int64_t index) : index(index) {
-    //
-  }
-
-  int64_t index;
-};
-
-struct ClassDefReference : public AstNode {
-  ClassDefReference(const ClassDefHandle& handle) : handle(handle) {
-    //
-  }
-  ~ClassDefReference() override = default;
+  ~ClassDefNode() override = default;
 
   bool represents_class_def() const override {
     return true;
   }
 
   std::string accept(const StringVisitor& vis) const override;
-  ClassDefReference* accept(IdentifierClassifier& classifier) override;
+  ClassDefNode* accept(IdentifierClassifier& classifier) override;
 
+  Token source_token;
   ClassDefHandle handle;
+  std::vector<Property> properties;
+  std::vector<std::unique_ptr<FunctionDefNode>> method_defs;
 };
+
 
 }

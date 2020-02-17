@@ -17,7 +17,6 @@ struct FunctionReference;
 struct VariableDef;
 struct MatlabScope;
 struct Import;
-class FunctionReferenceHandle;
 class ClassDefHandle;
 class MatlabIdentifier;
 class ScopeStore;
@@ -125,56 +124,63 @@ using BoxedType = std::unique_ptr<Type>;
 using BoxedBlock = std::unique_ptr<Block>;
 using BoxedRootBlock = std::unique_ptr<RootBlock>;
 
-class FunctionDefHandle {
-  friend class FunctionStore;
-  friend class VariableStore;
+namespace detail {
+  template <int Disambiguator>
+  class Handle {
+  public:
+    Handle() : index(-1) {
+      //
+    }
+
+    bool is_valid() const {
+      return index >= 0;
+    }
+
+    int64_t get_index() const {
+      return index;
+    }
+
+  protected:
+    explicit Handle(int64_t index) : index(index) {
+      //
+    }
+
+    int64_t index;
+  };
+}
+
+class FunctionDefHandle : public detail::Handle<0> {
+public:
+  friend class Store;
+  using Handle::Handle;
+  using Handle::is_valid;
+  using Handle::get_index;
+};
+
+class FunctionReferenceHandle : public detail::Handle<1> {
+public:
+  friend class Store;
+  using Handle::Handle;
+  using Handle::is_valid;
+  using Handle::get_index;
+};
+
+class VariableDefHandle : public detail::Handle<2> {
+public:
+  friend class Store;
+  using Handle::Handle;
+  using Handle::is_valid;
+  using Handle::get_index;
+};
+
+class MatlabScopeHandle : public detail::Handle<3> {
+public:
+  friend class Store;
   friend class ScopeStore;
-public:
-  FunctionDefHandle() : index(-1) {
-    //
-  }
-
-  bool is_valid() const {
-    return index >= 0;
-  }
-
-  int64_t get_index() const {
-    return index;
-  }
-
-private:
-  explicit FunctionDefHandle(int64_t index) : index(index) {
-    //
-  }
-
-  int64_t index;
+  using Handle::Handle;
+  using Handle::is_valid;
+  using Handle::get_index;
 };
-
-class FunctionReferenceHandle {
-  friend class FunctionStore;
-public:
-  FunctionReferenceHandle() : index(-1) {
-    //
-  }
-
-  bool is_valid() const {
-    return index >= 0;
-  }
-
-  int64_t get_index() const {
-    return index;
-  }
-
-private:
-  explicit FunctionReferenceHandle(int64_t index) : index(index) {
-    //
-  }
-
-  int64_t index;
-};
-
-using VariableDefHandle = FunctionDefHandle;
-using MatlabScopeHandle = FunctionDefHandle;
 
 struct Block : public AstNode {
   Block() = default;

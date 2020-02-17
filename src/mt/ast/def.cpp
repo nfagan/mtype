@@ -4,12 +4,12 @@
 
 namespace mt {
 
-ClassDefReference* ClassDefReference::accept(IdentifierClassifier& classifier) {
-  return classifier.class_def_reference(*this);
+ClassDefNode* ClassDefNode::accept(IdentifierClassifier& classifier) {
+  return classifier.class_def_node(*this);
 }
 
-std::string ClassDefReference::accept(const StringVisitor& vis) const {
-  return vis.class_def_reference(*this);
+std::string ClassDefNode::accept(const StringVisitor& vis) const {
+  return vis.class_def_node(*this);
 }
 
 std::string ClassDef::accept(const StringVisitor& vis) const {

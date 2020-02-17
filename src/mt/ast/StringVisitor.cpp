@@ -126,7 +126,7 @@ std::string StringVisitor::function_def_node(const FunctionDefNode& def_node) co
 
   std::string def_str;
   if (def_handle.is_valid()) {
-    const auto& def = function_reader.at(def_handle);
+    const auto& def = store_reader.at(def_handle);
     def_str = function_def(def);
   }
 
@@ -140,8 +140,8 @@ std::string StringVisitor::function_def(const FunctionDef& def) const {
   return header + "\n" + body + "\n" + end;
 }
 
-std::string StringVisitor::class_def_reference(const ClassDefReference& ref) const {
-  const auto& def = class_reader.at(ref.handle);
+std::string StringVisitor::class_def_node(const ClassDefNode& ref) const {
+  const auto& def = store_reader.at(ref.handle);
   return class_def(def);
 }
 
@@ -169,12 +169,7 @@ std::string StringVisitor::class_def(const ClassDef& def) const {
 }
 
 std::string StringVisitor::property(const ClassDef::Property& prop) const {
-  auto prop_str = std::string(string_registry->at(prop.name));
-
-  if (prop.initializer) {
-    prop_str += " = " + prop.initializer->accept(*this);
-  }
-
+  auto prop_str = std::string(string_registry->at(prop.name.full_name()));
   prop_str += ";";
   return prop_str;
 }
@@ -188,8 +183,8 @@ std::string StringVisitor::properties(const ClassDef::Properties& properties) co
 
   enter_block();
 
-  for (const auto& prop_it : properties) {
-    prop_str += tab_str() + property(prop_it.second) + "\n";
+  for (const auto& prop : properties) {
+    prop_str += tab_str() + property(prop) + "\n";
   }
 
   exit_block();
@@ -210,7 +205,8 @@ std::string StringVisitor::methods(const ClassDef& def) const {
 
   std::string func_def_strs;
   for (const auto& method_def : def.method_defs) {
-    func_def_strs += method_def.def_node->accept(*this) + "\n";
+    const auto& func_def = store_reader.at(method_def.def_handle);
+    func_def_strs += function_def(func_def) + "\n";
   }
 
   std::string func_header_strs;
@@ -356,7 +352,7 @@ std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& 
     ptr_str += "<" + std::to_string(expr.handle.get_index()) + ":";
 
     if (expr.handle.is_valid()) {
-      const auto& def_handle = function_reader.at(expr.handle).def_handle;
+      const auto& def_handle = store_reader.at(expr.handle).def_handle;
       ptr_str += std::to_string(def_handle.get_index());
     } else {
       ptr_str += "-1";
@@ -388,7 +384,7 @@ std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& 
 }
 
 std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
-  const auto& ref = function_reader.at(expr.reference_handle);
+  const auto& ref = store_reader.at(expr.reference_handle);
   auto name = std::string(string_registry->at(ref.name));
   const auto arg_str = visit_array(expr.arguments, ", ");
   auto sub_str = subscripts(expr.subscripts);

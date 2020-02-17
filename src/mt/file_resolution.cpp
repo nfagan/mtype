@@ -30,7 +30,7 @@ std::string FileResolver::which_external(int64_t identifier, const MatlabScopeHa
 
 std::string FileResolver::which(int64_t, const MatlabScopeHandle& scope_handle) const {
   //  @TODO
-  ScopeStore::ReadConst reader(*scope_store);
+  Store::ReadConst reader(*store);
   const auto& scope = reader.at(scope_handle);
   return std::to_string(scope.local_functions.size());
 }

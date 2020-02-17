@@ -142,24 +142,23 @@ public:
 
 private:
   bool has_parent() const;
-  AssignmentResult register_variable_assignment(int64_t id, bool force_shadow_parent_assignment = false);
-  ReferenceResult register_identifier_reference(FunctionStore::Write& function_read_write,
-                                                const ScopeStore::ReadConst& scope_reader,
+  AssignmentResult register_variable_assignment(Store::Write& writer,
+                                                int64_t id,
+                                                bool force_shadow_parent_assignment = false);
+  ReferenceResult register_identifier_reference(Store::Write& read_write,
                                                 int64_t id,
                                                 bool is_compound);
-  ReferenceResult register_compound_identifier_reference(FunctionStore::Write& function_read_write,
-                                                         const ScopeStore::ReadConst& scope_reader,
+  ReferenceResult register_compound_identifier_reference(Store::Write& read_write,
                                                          int64_t id);
-  ReferenceResult register_scalar_identifier_reference(FunctionStore::Write& function_read_write,
-                                                       const ScopeStore::ReadConst& scope_reader,
+  ReferenceResult register_scalar_identifier_reference(Store::Write& read_write,
                                                        int64_t id);
 
-  ReferenceResult register_fully_qualified_import(FunctionStore::Write& function_writer,
+  ReferenceResult register_fully_qualified_import(Store::Write& function_writer,
                                                   int64_t complete_identifier,
                                                   int64_t last_identifier_component);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
-  FunctionReferenceHandle lookup_local_function(const ScopeStore::ReadConst& reader, int64_t name) const;
+  FunctionReferenceHandle lookup_local_function(const Store::Write& writer, int64_t name) const;
 
   bool has_variable(int64_t id, bool traverse_parent);
 
@@ -175,12 +174,12 @@ private:
   IdentifierContext current_context() const;
   const IdentifierContext* context_at_depth(int depth) const;
 
-  IdentifierInfo make_local_function_reference_identifier_info(FunctionStore::Write& function_read_write,
+  IdentifierInfo make_local_function_reference_identifier_info(Store::Write& function_read_write,
                                                                FunctionReferenceHandle ref);
-  IdentifierInfo make_external_function_reference_identifier_info(FunctionStore::Write& function_read_write,
+  IdentifierInfo make_external_function_reference_identifier_info(Store::Write& function_read_write,
                                                                   int64_t identifier,
                                                                   bool is_compound);
-  IdentifierInfo make_function_reference_identifier_info(FunctionStore::Write& function_read_write, int64_t identifier,
+  IdentifierInfo make_function_reference_identifier_info(Store::Write& function_read_write, int64_t identifier,
     FunctionReferenceHandle maybe_local_ref, bool is_compound);
 
 private:
@@ -205,10 +204,7 @@ class IdentifierClassifier {
 
 public:
   IdentifierClassifier(StringRegistry* string_registry,
-                       FunctionStore* function_store,
-                       ClassStore* class_store,
-                       VariableStore* variable_store,
-                       ScopeStore* scope_store,
+                       Store* store,
                        std::string_view text);
   ~IdentifierClassifier() = default;
 
@@ -225,7 +221,7 @@ public:
   Expr* anonymous_function_expr(AnonymousFunctionExpr& expr);
   Expr* function_reference_expr(FunctionReferenceExpr& expr);
   Expr* presumed_superclass_method_reference_expr(PresumedSuperclassMethodReferenceExpr& expr);
-  ClassDefReference* class_def_reference(ClassDefReference& ref);
+  ClassDefNode* class_def_node(ClassDefNode& ref);
 
   IfStmt* if_stmt(IfStmt& stmt);
   ExprStmt* expr_stmt(ExprStmt& stmt);
@@ -269,9 +265,11 @@ private:
   IdentifierScope* current_scope();
   const IdentifierScope* current_scope() const;
 
-  void register_function_parameter(const Token& source_token, int64_t identifier);
-  void register_function_parameters(const Token& source_token, const std::vector<int64_t>& identifiers);
-  void register_function_parameters(const Token& source_token, const std::vector<FunctionInputParameter>& identifiers);
+  void register_function_parameter(Store::Write& read_write, const Token& source_token, int64_t identifier);
+  void register_function_parameters(Store::Write& read_write, const Token& source_token,
+    const std::vector<int64_t>& identifiers);
+  void register_function_parameters(Store::Write& read_write, const Token& source_token,
+    const std::vector<FunctionInputParameter>& identifiers);
 
   IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token, int64_t primary_identifier);
   void register_imports(IdentifierScope* in_scope);
@@ -307,10 +305,7 @@ private:
                                                            IdentifierType present_type);
 private:
   StringRegistry* string_registry;
-  FunctionStore* function_store;
-  ClassStore* class_store;
-  VariableStore* variable_store;
-  ScopeStore* scope_store;
+  Store* store;
   std::string_view text;
 
   std::vector<IdentifierScope> scopes;

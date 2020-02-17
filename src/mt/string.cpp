@@ -9,10 +9,12 @@
 namespace mt {
 
 int64_t StringRegistry::size() const {
+  std::unique_lock<std::mutex> lock(mutex);
   return strings.size();
 }
 
 std::string_view StringRegistry::at(int64_t index) const {
+  std::unique_lock<std::mutex> lock(mutex);
   assert(index >= 0 && index < int64_t(strings.size()) && "Out of bounds array access.");
   return strings[index];
 }
@@ -36,22 +38,17 @@ std::vector<std::string_view> StringRegistry::collect_n(const std::vector<int64_
 }
 
 int64_t StringRegistry::register_string(std::string_view str) {
-#if MT_COPY_STRING_TO_REGISTRY
+  std::unique_lock<std::mutex> lock(mutex);
+
   auto search = std::string(str);
   auto it = string_registry.find(search);
-#else
-  auto it = string_registry.find(str);
-#endif
+
   if (it == string_registry.end()) {
     //  String not yet registered.
     int64_t next_index = strings.size();
-#if MT_COPY_STRING_TO_REGISTRY
     strings.push_back(search);
     string_registry[search] = next_index;
-#else
-    string_registry[str] = next_index;
-    strings.push_back(str);
-#endif
+
     return next_index;
   } else {
     return it->second;

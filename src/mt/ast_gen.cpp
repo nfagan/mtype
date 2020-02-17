@@ -35,9 +35,7 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
   text = txt;
   is_end_terminated_function = inputs.functions_are_end_terminated;
   string_registry = inputs.string_registry;
-  function_store = inputs.function_store;
-  class_store = inputs.class_store;
-  scope_store = inputs.scope_store;
+  store = inputs.store;
 
   scope_handles.clear();
   parse_errors.clear();
@@ -334,12 +332,12 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   FunctionReferenceHandle ref_handle;
 
   {
-    FunctionStore::Write writer(*function_store);
+    Store::Write writer(*store);
     def_handle = writer.emplace_definition(std::move(function_def));
     ref_handle = writer.make_local_reference(name, def_handle, child_scope);
   }
 
-  ScopeStore::ReadMut reader(*scope_store);
+  Store::ReadMut reader(*store);
   auto& parent_scope = reader.at(current_scope_handle());
 
   bool register_success = true;
@@ -441,13 +439,17 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   ClassDef::Properties properties;
   ClassDef::MethodDeclarations method_declarations;
   ClassDef::MethodDefs method_defs;
+  std::vector<std::unique_ptr<FunctionDefNode>> method_def_nodes;
+  std::vector<ClassDefNode::Property> property_nodes;
+
+  std::set<int64_t> property_names;
   std::set<int64_t> method_names;
 
   ClassDefHandle class_handle;
 
   {
-    ClassStore::Write writer(*class_store);
-    class_handle = writer.make_definition();
+    Store::Write writer(*store);
+    class_handle = writer.make_class_definition();
   }
 
   ClassDefState::EnclosingClassHelper class_helper(class_state, class_handle);
@@ -459,13 +461,13 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
       iterator.advance();
 
     } else if (tok.type == TokenType::keyword_properties) {
-      auto prop_res = properties_block(properties);
+      auto prop_res = properties_block(property_names, properties, property_nodes);
       if (!prop_res) {
         return NullOpt{};
       }
 
     } else if (tok.type == TokenType::keyword_methods) {
-      auto method_res = methods_block(method_names, method_defs, method_declarations);
+      auto method_res = methods_block(method_names, method_defs, method_declarations, method_def_nodes);
       if (!method_res) {
         return NullOpt{};
       }
@@ -491,18 +493,21 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     std::move(properties), std::move(method_defs), std::move(method_declarations));
 
   {
-    ClassStore::Write writer(*class_store);
+    Store::Write writer(*store);
     writer.emplace_definition(class_handle, std::move(class_def));
   }
 
-  auto class_node = std::make_unique<ClassDefReference>(class_handle);
+  auto class_node = std::make_unique<ClassDefNode>(source_token, class_handle,
+    std::move(property_nodes), std::move(method_def_nodes));
 
-  ScopeStore::ReadMut reader(*scope_store);
-  auto& parent_scope = reader.at(parent_scope_handle);
-  bool register_success = parent_scope.register_class(name, class_handle);
-  if (!register_success) {
-    add_error(make_error_duplicate_class_def(source_token));
-    return NullOpt{};
+  {
+    Store::ReadMut reader(*store);
+    auto& parent_scope = reader.at(parent_scope_handle);
+    bool register_success = parent_scope.register_class(name, class_handle);
+    if (!register_success) {
+      add_error(make_error_duplicate_class_def(source_token));
+      return NullOpt{};
+    }
   }
 
   return Optional<BoxedAstNode>(std::move(class_node));
@@ -510,7 +515,8 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
 
 bool AstGenerator::methods_block(std::set<int64_t>& method_names,
                                  ClassDef::MethodDefs& method_defs,
-                                 ClassDef::MethodDeclarations& method_declarations) {
+                                 ClassDef::MethodDeclarations& method_declarations,
+                                 std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes) {
   iterator.advance(); //  consume methods
 
   //  methods (SetAccess = ...)
@@ -542,7 +548,7 @@ bool AstGenerator::methods_block(std::set<int64_t>& method_names,
           }
 
         } else if (tok.type == TokenType::keyword_function) {
-          auto res = method_def(tok, method_names, method_defs);
+          auto res = method_def(tok, method_names, method_defs, method_def_nodes);
           if (!res) {
             return false;
           }
@@ -570,7 +576,7 @@ bool AstGenerator::methods_block(std::set<int64_t>& method_names,
 
 bool AstGenerator::method_declaration(const mt::Token& source_token,
                                       std::set<int64_t>& method_names,
-                                      mt::ClassDef::MethodDeclarations& method_declarations) {
+                                      ClassDef::MethodDeclarations& method_declarations) {
   auto header_res = function_header();
   if (!header_res) {
     return false;
@@ -592,14 +598,15 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
 
 bool AstGenerator::method_def(const Token& source_token,
                               std::set<int64_t>& method_names,
-                              mt::ClassDef::MethodDefs& method_defs) {
+                              mt::ClassDef::MethodDefs& method_defs,
+                              std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes) {
   auto func_res = function_def();
   if (!func_res) {
     return false;
   }
 
   const auto& def_handle = func_res.value()->def_handle;
-  FunctionStore::ReadConst reader(*function_store);
+  Store::ReadConst reader(*store);
   const auto func_name = reader.at(def_handle).header.name;
 
   if (method_names.count(func_name) > 0) {
@@ -608,13 +615,17 @@ bool AstGenerator::method_def(const Token& source_token,
 
   } else {
     method_names.emplace(func_name);
-    method_defs.emplace_back(func_res.rvalue());
+    ClassDef::MethodDef method_def(def_handle);
+    method_defs.emplace_back(std::move(method_def));
+    method_def_nodes.emplace_back(std::move(func_res.rvalue()));
   }
 
   return true;
 }
 
-bool AstGenerator::properties_block(ClassDef::Properties& properties) {
+bool AstGenerator::properties_block(std::set<int64_t>& property_names,
+                                    std::vector<ClassDef::Property>& properties,
+                                    std::vector<ClassDefNode::Property>& property_nodes) {
   iterator.advance(); //  consume properties
 
   //  properties (SetAccess = ...)
@@ -644,14 +655,17 @@ bool AstGenerator::properties_block(ClassDef::Properties& properties) {
           return false;
         }
 
-        const auto prop_name = prop_res.value().name;
+        auto property_node = std::move(prop_res.rvalue());
+        const auto prop_name = property_node.name;
 
-        if (properties.count(prop_name) > 0) {
+        if (property_names.count(prop_name) > 0) {
           //  Duplicate property
           add_error(make_error_duplicate_class_property(tok));
           return false;
         } else {
-          properties[prop_name] = prop_res.rvalue();
+          property_names.emplace(prop_name);
+          properties.emplace_back(ClassDef::Property(MatlabIdentifier(prop_name)));
+          property_nodes.emplace_back(std::move(property_node));
         }
       }
     }
@@ -666,7 +680,7 @@ bool AstGenerator::properties_block(ClassDef::Properties& properties) {
   return true;
 }
 
-Optional<ClassDef::Property> AstGenerator::property(const Token& source_token) {
+Optional<ClassDefNode::Property> AstGenerator::property(const Token& source_token) {
   auto identifier_res = one_identifier();
   if (!identifier_res) {
     return NullOpt{};
@@ -685,8 +699,8 @@ Optional<ClassDef::Property> AstGenerator::property(const Token& source_token) {
   }
 
   auto name = string_registry->register_string(identifier_res.value());
-  ClassDef::Property property(source_token, name, std::move(initializer));
-  return Optional<ClassDef::Property>(std::move(property));
+  ClassDefNode::Property property(source_token, name, std::move(initializer));
+  return Optional<ClassDefNode::Property>(std::move(property));
 }
 
 Optional<std::unique_ptr<Block>> AstGenerator::block() {
@@ -2308,7 +2322,7 @@ bool AstGenerator::is_within_loop() const {
 }
 
 void AstGenerator::push_scope() {
-  ScopeStore::Write writer(*scope_store);
+  Store::Write writer(*store);
   scope_handles.emplace_back(writer.make_matlab_scope(current_scope_handle()));
 }
 
@@ -2322,7 +2336,7 @@ MatlabScopeHandle AstGenerator::current_scope_handle() const {
 }
 
 void AstGenerator::register_import(mt::Import&& import) {
-  ScopeStore::ReadMut reader(*scope_store);
+  Store::ReadMut reader(*store);
   auto& scope = reader.at(current_scope_handle());
   scope.register_import(std::move(import));
 }

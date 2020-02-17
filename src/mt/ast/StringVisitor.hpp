@@ -13,21 +13,19 @@ namespace mt {
 class StringVisitor {
 public:
   explicit StringVisitor(const StringRegistry* string_registry,
-                         const FunctionStore* function_store,
-                         const ClassStore* class_store) :
+                         const Store* store) :
     parenthesize_exprs(true),
     include_identifier_classification(true),
     include_def_ptrs(true),
     colorize(true),
     tab_depth(-1),
     string_registry(string_registry),
-    function_reader(*function_store),
-    class_reader(*class_store) {
+    store_reader(*store) {
     //
   }
   ~StringVisitor() = default;
 
-  std::string class_def_reference(const ClassDefReference& ref) const;
+  std::string class_def_node(const ClassDefNode& ref) const;
   std::string class_def(const ClassDef& def) const;
   std::string variable_def(const VariableDef& def) const;
   std::string function_def(const FunctionDef& def) const;
@@ -110,10 +108,7 @@ public:
 private:
   mutable int tab_depth;
   const StringRegistry* string_registry;
-//  const FunctionStore* function_store;
-//  const ClassStore* class_store;
-  FunctionStore::ReadConst function_reader;
-  ClassStore::ReadConst class_reader;
+  Store::ReadConst store_reader;
 };
 
 }

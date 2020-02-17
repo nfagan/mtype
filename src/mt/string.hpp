@@ -5,8 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <cstdint>
-
-#define MT_COPY_STRING_TO_REGISTRY (1)
+#include <mutex>
 
 namespace mt {
 class Character;
@@ -31,13 +30,10 @@ public:
   int64_t size() const;
 
 private:
-#if MT_COPY_STRING_TO_REGISTRY
+  mutable std::mutex mutex;
+
   std::unordered_map<std::string, int64_t> string_registry;
   std::vector<std::string> strings;
-#else
-  std::unordered_map<std::string_view, int64_t> string_registry;
-  std::vector<std::string_view> strings;
-#endif
 };
 
 std::vector<std::string_view> split(const char* str, int64_t len, const Character& delim);

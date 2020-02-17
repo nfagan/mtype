@@ -4,216 +4,241 @@
 #include "lang_components.hpp"
 #include <mutex>
 #include <thread>
+#include <condition_variable>
 
-#define MT_USE_SHARED_MUTEX (0)
-
-#if MT_USE_SHARED_MUTEX
-#include <shared_mutex>
-#endif
+#define MT_USE_READ_WRITE_OPTIM (0)
 
 namespace mt {
 
 namespace detail {
-#if MT_USE_SHARED_MUTEX
-  using DefaultMutex = std::shared_mutex;
-  template <typename T>
-  using DefaultReadLock = std::shared_lock<T>;
-#else
   using DefaultMutex = std::mutex;
-  template <typename T>
-  using DefaultReadLock = std::unique_lock<T>;
-#endif
-
-  template <typename T>
-  using DefaultWriteLock = std::unique_lock<T>;
-
-  template <typename T, typename Mutex = DefaultMutex, typename Lock = DefaultReadLock<Mutex>>
-  class ReadCommon {
-  public:
-    explicit ReadCommon(T store) : store(store), lock(store.mutex) {
-      //
-    }
-
-    template <typename... Args>
-    auto& at(Args&&... args) {
-      return store.at(std::forward<Args>(args)...);
-    }
-
-    template <typename... Args>
-    const auto& at(Args&&... args) const {
-      return store.at(std::forward<Args>(args)...);
-    }
-
-  public:
-    T store;
-    Lock lock;
-  };
 }
 
-class VariableStore {
-public:
-  VariableStore() = default;
-  ~VariableStore() = default;
-
-  VariableDefHandle emplace_definition(VariableDef&& def);
-  const VariableDef& at(const VariableDefHandle& handle) const;
-  VariableDef& at(const VariableDefHandle& handle);
-
+class Store {
 private:
-  std::vector<VariableDef> definitions;
-};
-
-class FunctionStore {
-private:
-  template<typename T, typename M, typename L>
-  friend class detail::ReadCommon;
-
-  template <typename T>
-  class Read : detail::ReadCommon<T> {
+  class StoreAccessor {
   public:
-    using detail::ReadCommon<T>::ReadCommon;
-    using detail::ReadCommon<T>::at;
-  };
+    template <typename T>
+    class Read {
+    public:
+#if MT_USE_READ_WRITE_OPTIM
+      explicit Read(T store) : store(store), accessor(store.accessor), lock(accessor.mutex) {
+        accessor.write_condition.wait(lock, [&]() {
+          return !accessor.is_writer_active && accessor.num_pending_writers == 0;
+        });
+        accessor.num_readers++;
+        lock.unlock();
+      }
 
-public:
-  using ReadConst = Read<const FunctionStore&>;
-  using ReadMut = Read<FunctionStore&>;
+      ~Read() {
+        lock.lock();
+        accessor.num_readers--;
+        if (accessor.num_readers == 0) {
+          lock.unlock();
+          accessor.write_condition.notify_all();
+        }
+      }
+#else
+      explicit Read(T store) : store(store), accessor(store.accessor), lock(accessor.mutex) {
+        //
+      }
+#endif
 
-class Write : public detail::ReadCommon<FunctionStore&, detail::DefaultMutex,
-  detail::DefaultWriteLock<detail::DefaultMutex>> {
+      template <typename... Args>
+      const auto& at(Args&&... args) const {
+        return store.at(std::forward<Args&&>(args)...);
+      }
+      template <typename... Args>
+      auto& at(Args&&... args) {
+        return store.at(std::forward<Args&&>(args)...);
+      }
+
+      template <typename... Args>
+      auto lookup_local_function(Args&&... args) const {
+        return store.lookup_local_function(std::forward<Args>(args)...);
+      }
+
+    private:
+      T store;
+      StoreAccessor& accessor;
+      std::unique_lock<detail::DefaultMutex> lock;
+    };
+
+    class Write {
+    public:
+#if MT_USE_READ_WRITE_OPTIM
+      explicit Write(Store& store) : store(store), accessor(store.accessor), lock(accessor.mutex) {
+        accessor.num_pending_writers++;
+        accessor.write_condition.wait(lock, [&]() {
+          return accessor.num_readers == 0 && !accessor.is_writer_active;
+        });
+        accessor.num_pending_writers--;
+        accessor.is_writer_active = true;
+        lock.unlock();
+      }
+
+      ~Write() {
+        lock.lock();
+        accessor.is_writer_active = false;
+        lock.unlock();
+        accessor.write_condition.notify_all();
+      }
+#else
+      explicit Write(Store& store) : store(store), accessor(store.accessor), lock(accessor.mutex) {
+        //
+      }
+#endif
+
+      template <typename... Args>
+      auto emplace_definition(Args&&... args) {
+        return store.emplace_definition(std::forward<Args&&>(args)...);
+      }
+
+      ClassDefHandle make_class_definition() {
+        return store.make_class_definition();
+      }
+
+      template <typename... Args>
+      auto make_matlab_scope(Args&&... args) {
+        return store.make_matlab_scope(std::forward<Args>(args)...);
+      }
+
+      template <typename... Args>
+      auto make_external_reference(Args&&... args) {
+        return store.make_external_reference(std::forward<Args>(args)...);
+      }
+      template <typename... Args>
+      auto make_local_reference(Args&&... args) {
+        return store.make_local_reference(std::forward<Args>(args)...);
+      }
+
+      template <typename... Args>
+      const auto& at(Args&&... args) const {
+        return store.at(std::forward<Args&&>(args)...);
+      }
+      template <typename... Args>
+      auto& at(Args&&... args) {
+        return store.at(std::forward<Args&&>(args)...);
+      }
+      template <typename... Args>
+      auto lookup_local_function(Args&&... args) const {
+        return store.lookup_local_function(std::forward<Args>(args)...);
+      }
+
+    private:
+      Store& store;
+      StoreAccessor& accessor;
+      std::unique_lock<detail::DefaultMutex> lock;
+    };
+
   public:
-    explicit Write(FunctionStore& store) : ReadCommon(store) {
+#if MT_USE_READ_WRITE_OPTIM
+    StoreAccessor() : is_writer_active(false), num_pending_writers(0), num_readers(0) {
       //
     }
+#else
+    StoreAccessor() = default;
+#endif
 
-    FunctionDefHandle emplace_definition(FunctionDef&& def) {
-      return store.emplace_definition(std::forward<FunctionDef&&>(def));
-    }
-    template <typename... Args>
-    auto make_external_reference(Args&&... args) {
-      return store.make_external_reference(std::forward<Args>(args)...);
-    }
-    template <typename... Args>
-    auto make_local_reference(Args&&... args) {
-      return store.make_local_reference(std::forward<Args>(args)...);
-    }
+  private:
+    mutable detail::DefaultMutex mutex;
+
+#if MT_USE_READ_WRITE_OPTIM
+    std::condition_variable write_condition;
+    bool is_writer_active;
+    int num_pending_writers;
+    int num_readers;
+#endif
   };
 
 public:
-  FunctionStore() = default;
-  ~FunctionStore() = default;
+  using ReadMut = StoreAccessor::Read<Store&>;
+  using ReadConst = StoreAccessor::Read<const Store&>;
+  using Write = StoreAccessor::Write;
+
+  friend ReadMut;
+  friend ReadConst;
+  friend Write;
+public:
+  Store() = default;
+  ~Store() = default;
 
 private:
+  MatlabScopeHandle make_matlab_scope(const MatlabScopeHandle& parent);
+
+  ClassDefHandle make_class_definition();
+
+  VariableDefHandle emplace_definition(VariableDef&& def);
   FunctionDefHandle emplace_definition(FunctionDef&& def);
+  void emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def);
+
   FunctionReferenceHandle make_external_reference(int64_t to_identifier, const MatlabScopeHandle& in_scope);
   FunctionReferenceHandle make_local_reference(int64_t to_identifier,
                                                const FunctionDefHandle& with_def,
                                                const MatlabScopeHandle& in_scope);
 
+  const ClassDef& at(const ClassDefHandle& handle) const;
+  ClassDef& at(const ClassDefHandle& handle);
+
+  const VariableDef& at(const VariableDefHandle& handle) const;
+  VariableDef& at(const VariableDefHandle& handle);
+
   const FunctionDef& at(const FunctionDefHandle& handle) const;
   FunctionDef& at(const FunctionDefHandle& handle);
   const FunctionReference& at(const FunctionReferenceHandle& handle) const;
 
-private:
-  mutable detail::DefaultMutex mutex;
-
-  std::vector<FunctionDef> definitions;
-  std::vector<FunctionReference> references;
-};
-
-class ClassStore {
-private:
-  template<typename T, typename M, typename L>
-  friend class detail::ReadCommon;
-
-  template <typename T>
-  class Read : detail::ReadCommon<T> {
-  public:
-    using detail::ReadCommon<T>::ReadCommon;
-    using detail::ReadCommon<T>::at;
-  };
-public:
-  using ReadConst = Read<const ClassStore&>;
-  using ReadMut = Read<ClassStore&>;
-
-  class Write : public detail::ReadCommon<ClassStore&, detail::DefaultMutex,
-    detail::DefaultWriteLock<detail::DefaultMutex>> {
-  public:
-    explicit Write(ClassStore& store) : ReadCommon(store) {
-      //
-    }
-    ClassDefHandle make_definition() {
-      return store.make_definition();
-    }
-    void emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def) {
-      store.emplace_definition(at_handle, std::forward<ClassDef&&>(def));
-    }
-  };
-
-public:
-  ClassStore() = default;
-  ~ClassStore() = default;
-
-private:
-  ClassDefHandle make_definition();
-  void emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def);
-
-  const ClassDef& at(const ClassDefHandle& by_handle) const;
-  ClassDef& at(ClassDefHandle& by_handle);
-
-private:
-  mutable detail::DefaultMutex mutex;
-  std::vector<ClassDef> definitions;
-};
-
-class ScopeStore {
-private:
-  template<typename T, typename M, typename L>
-  friend class detail::ReadCommon;
-
-  template <typename T>
-  class Read : public detail::ReadCommon<T> {
-  public:
-    using detail::ReadCommon<T>::ReadCommon;
-    using detail::ReadCommon<T>::at;
-    using detail::ReadCommon<T>::store;
-
-    template <typename... Args>
-    auto lookup_local_function(Args&&... args) const {
-      return store.lookup_local_function(std::forward<Args>(args)...);
-    }
-  };
-
-public:
-  using ReadConst = Read<const ScopeStore&>;
-  using ReadMut = Read<ScopeStore&>;
-
-class Write : public detail::ReadCommon<ScopeStore&, detail::DefaultMutex,
-  detail::DefaultWriteLock<detail::DefaultMutex>> {
-  public:
-    explicit Write(ScopeStore& store) : ReadCommon(store) {
-      //
-    }
-    template <typename... Args>
-    auto make_matlab_scope(Args&&... args) {
-      return store.make_matlab_scope(std::forward<Args>(args)...);
-    }
-  };
-
-public:
-  ScopeStore() = default;
-  ~ScopeStore() = default;
-
-private:
-  FunctionReferenceHandle lookup_local_function(const MatlabScopeHandle& in_scope, int64_t name) const;
-  MatlabScopeHandle make_matlab_scope(const MatlabScopeHandle& parent);
-
   const MatlabScope& at(const MatlabScopeHandle& handle) const;
   MatlabScope& at(const MatlabScopeHandle& handle);
 
+  FunctionReferenceHandle lookup_local_function(const MatlabScopeHandle& in_scope, int64_t name) const;
+
 private:
-  mutable detail::DefaultMutex mutex;
+  mutable StoreAccessor accessor;
+  std::vector<VariableDef> variable_definitions;
+  std::vector<ClassDef> class_definitions;
+  std::vector<FunctionDef> function_definitions;
+  std::vector<FunctionReference> function_references;
   std::vector<MatlabScope> matlab_scopes;
 };
+
+#if 0
+class TraversalStoreAccessor {
+  class Proxy {
+    Proxy(TraversalStoreAccessor& accessor,
+          bool reacquire_const_reader,
+          bool reacquire_mut_reader,
+          bool reacquire_writer) :
+          accessor(accessor),
+          reacquire_const_reader(reacquire_const_reader),
+          reacquire_mut_reader(reacquire_mut_reader),
+          reacquire_writer(reacquire_writer) {
+      //
+    }
+
+    ~Proxy() {
+      //
+    }
+
+    static Proxy read_const(TraversalStoreAccessor& accessor) {
+      //
+    }
+
+    TraversalStoreAccessor& accessor;
+    bool reacquire_const_reader;
+    bool reacquire_mut_reader;
+    bool reacquire_writer;
+  };
+
+public:
+  Store::ReadConst& require_const_reader();
+  Store::ReadMut& require_mut_reader();
+  Store::Write& require_writer();
+
+private:
+  std::unique_ptr<Store::ReadConst> const_reader;
+  std::unique_ptr<Store::ReadMut> mut_reader;
+  std::unique_ptr<Store::Write> writer;
+};
+#endif
 
 }
