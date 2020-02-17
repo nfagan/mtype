@@ -6,7 +6,7 @@
 #include <thread>
 #include <condition_variable>
 
-#define MT_USE_READ_WRITE_OPTIM (0)
+#define MT_USE_READ_WRITE_OPTIM (1)
 
 namespace mt {
 

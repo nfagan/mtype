@@ -206,7 +206,7 @@ std::string StringVisitor::methods(const ClassDef& def) const {
   std::string func_def_strs;
   for (const auto& method_def : def.method_defs) {
     const auto& func_def = store_reader.at(method_def.def_handle);
-    func_def_strs += function_def(func_def) + "\n";
+    func_def_strs += tab_str() + function_def(func_def) + "\n";
   }
 
   std::string func_header_strs;
@@ -216,7 +216,7 @@ std::string StringVisitor::methods(const ClassDef& def) const {
 
   exit_block();
   method_str += func_header_strs;
-  method_str += func_def_strs + "\n" + tab_str() + end_str();
+  method_str += func_def_strs + tab_str() + end_str();
   exit_block();
 
   return method_str;

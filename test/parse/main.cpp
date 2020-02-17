@@ -94,14 +94,14 @@ int main(int argc, char** argv) {
     warn.show();
   }
 
-  mt::StringVisitor visitor(&string_registry, &store);
-  visitor.parenthesize_exprs = true;
+  {
+    mt::StringVisitor visitor(&string_registry, &store);
+    visitor.parenthesize_exprs = true;
+    std::cout << root_block->accept(visitor) << std::endl;
+  }
 
-//  std::cout << parse_result.value->accept(visitor) << std::endl;
-  std::cout << root_block->accept(visitor) << std::endl;
   std::cout << "Num strings: " << string_registry.size() << std::endl;
   summarize_file(root_block, &store);
-
   std::cout << "File type: " << mt::to_string(mt::code_file_type_from_root_block(*root_block)) << std::endl;
 
   return 0;
