@@ -110,6 +110,9 @@ class IdentifierScope {
    * ReferenceResult
    */
   struct ReferenceResult {
+    ReferenceResult() : success(false) {
+      //
+    }
     ReferenceResult(bool success, IdentifierInfo info) :
     success(success), info(info) {
       //
@@ -140,14 +143,23 @@ public:
 private:
   bool has_parent() const;
   AssignmentResult register_variable_assignment(int64_t id, bool force_shadow_parent_assignment = false);
-  ReferenceResult register_identifier_reference(int64_t id, bool is_compound);
-  ReferenceResult register_compound_identifier_reference(int64_t id);
-  ReferenceResult register_scalar_identifier_reference(int64_t id);
+  ReferenceResult register_identifier_reference(FunctionStore::Write& function_read_write,
+                                                const ScopeStore::ReadConst& scope_reader,
+                                                int64_t id,
+                                                bool is_compound);
+  ReferenceResult register_compound_identifier_reference(FunctionStore::Write& function_read_write,
+                                                         const ScopeStore::ReadConst& scope_reader,
+                                                         int64_t id);
+  ReferenceResult register_scalar_identifier_reference(FunctionStore::Write& function_read_write,
+                                                       const ScopeStore::ReadConst& scope_reader,
+                                                       int64_t id);
 
-  ReferenceResult register_fully_qualified_import(int64_t complete_identifier, int64_t last_identifier_component);
+  ReferenceResult register_fully_qualified_import(FunctionStore::Write& function_writer,
+                                                  int64_t complete_identifier,
+                                                  int64_t last_identifier_component);
 
   IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
-  FunctionReferenceHandle lookup_local_function(int64_t name) const;
+  FunctionReferenceHandle lookup_local_function(const ScopeStore::ReadConst& reader, int64_t name) const;
 
   bool has_variable(int64_t id, bool traverse_parent);
 
@@ -163,9 +175,12 @@ private:
   IdentifierContext current_context() const;
   const IdentifierContext* context_at_depth(int depth) const;
 
-  IdentifierInfo make_local_function_reference_identifier_info(FunctionReferenceHandle ref);
-  IdentifierInfo make_external_function_reference_identifier_info(int64_t identifier, bool is_compound);
-  IdentifierInfo make_function_reference_identifier_info(int64_t identifier,
+  IdentifierInfo make_local_function_reference_identifier_info(FunctionStore::Write& function_read_write,
+                                                               FunctionReferenceHandle ref);
+  IdentifierInfo make_external_function_reference_identifier_info(FunctionStore::Write& function_read_write,
+                                                                  int64_t identifier,
+                                                                  bool is_compound);
+  IdentifierInfo make_function_reference_identifier_info(FunctionStore::Write& function_read_write, int64_t identifier,
     FunctionReferenceHandle maybe_local_ref, bool is_compound);
 
 private:

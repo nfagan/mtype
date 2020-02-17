@@ -1,5 +1,4 @@
 #include "StringVisitor.hpp"
-#include "../store.hpp"
 #include <algorithm>
 #include <cassert>
 
@@ -127,7 +126,7 @@ std::string StringVisitor::function_def_node(const FunctionDefNode& def_node) co
 
   std::string def_str;
   if (def_handle.is_valid()) {
-    const auto& def = function_store->at(def_handle);
+    const auto& def = function_reader.at(def_handle);
     def_str = function_def(def);
   }
 
@@ -142,7 +141,7 @@ std::string StringVisitor::function_def(const FunctionDef& def) const {
 }
 
 std::string StringVisitor::class_def_reference(const ClassDefReference& ref) const {
-  const auto& def = class_store->at(ref.handle);
+  const auto& def = class_reader.at(ref.handle);
   return class_def(def);
 }
 
@@ -357,7 +356,7 @@ std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& 
     ptr_str += "<" + std::to_string(expr.handle.get_index()) + ":";
 
     if (expr.handle.is_valid()) {
-      const auto& def_handle = function_store->at(expr.handle).def_handle;
+      const auto& def_handle = function_reader.at(expr.handle).def_handle;
       ptr_str += std::to_string(def_handle.get_index());
     } else {
       ptr_str += "-1";
@@ -389,7 +388,7 @@ std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& 
 }
 
 std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
-  const auto& ref = function_store->at(expr.reference_handle);
+  const auto& ref = function_reader.at(expr.reference_handle);
   auto name = std::string(string_registry->at(ref.name));
   const auto arg_str = visit_array(expr.arguments, ", ");
   auto sub_str = subscripts(expr.subscripts);

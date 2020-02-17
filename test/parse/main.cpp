@@ -12,7 +12,8 @@ void show_tokens(const std::vector<mt::Token>& tokens) {
 }
 
 void summarize_file(const mt::BoxedRootBlock& root_block, const mt::ScopeStore* store) {
-  const auto& scope = store->at(root_block->scope_handle);
+  mt::ScopeStore::ReadConst reader(*store);
+  const auto& scope = reader.at(root_block->scope_handle);
 
   std::cout << "Num classes: " << scope.classes.size() << std::endl;
   std::cout << "Num top-level functions: " << scope.local_functions.size() << std::endl;

@@ -13,7 +13,7 @@ fs = eachcell( @(x) mt.to_utf8(fileread(x)), ms );
 tic;
 
 status = false( size(fs) );
-for i = 1:numel(fs)
+parfor i = 1:numel(fs)
   status(i) = mt.entry( fs{i}, 0, 0 );
 end
 
@@ -27,17 +27,20 @@ mt.entry( failed{22} );
 %%
 
 ms = shared_utils.io.find( toolboxdir(''), '.m', true );
+fs = cell( size(ms) );
+for i = 1:numel(ms)
+  fs{i} = mt.to_utf8( fileread(ms{i}) );
+end
 
 %%
 
-status = false( size(ms) );
-n = numel( ms );
+status = false( size(fs) );
+n = numel( fs );
 
 tic;
 
 parfor i = 1:n
-  f = mt.to_utf8( fileread(ms{i}) );
-  status(i) = mt.entry( f, 0, 0 );
+  status(i) = mt.entry( fs{i}, 0, 0 );
 end
 
 toc;

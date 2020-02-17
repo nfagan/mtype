@@ -163,15 +163,25 @@ inline IdentifierType identifier_type_from_function_def(FunctionDefHandle def) {
 }
 }
 
-IdentifierScope::ReferenceResult IdentifierScope::register_compound_identifier_reference(int64_t id) {
-  return register_identifier_reference(id, true);
+IdentifierScope::ReferenceResult
+IdentifierScope::register_compound_identifier_reference(FunctionStore::Write& function_writer,
+                                                        const ScopeStore::ReadConst& scope_reader,
+                                                        int64_t id) {
+  return register_identifier_reference(function_writer, scope_reader, id, true);
 }
 
-IdentifierScope::ReferenceResult IdentifierScope::register_scalar_identifier_reference(int64_t id) {
-  return register_identifier_reference(id, false);
+IdentifierScope::ReferenceResult
+IdentifierScope::register_scalar_identifier_reference(FunctionStore::Write& function_writer,
+                                                      const ScopeStore::ReadConst& scope_reader,
+                                                      int64_t id) {
+  return register_identifier_reference(function_writer, scope_reader, id, false);
 }
 
-IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(int64_t id, bool is_compound) {
+IdentifierScope::ReferenceResult
+IdentifierScope::register_identifier_reference(FunctionStore::Write& function_writer,
+                                               const ScopeStore::ReadConst& scope_reader,
+                                               int64_t id,
+                                               bool is_compound) {
   const auto* info = lookup_variable(id, true);
   const auto* local_info = lookup_variable(id, false);
 
@@ -179,19 +189,20 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  This identifier has not been classified, and has not been assigned or initialized, so it is
     //  either an external function reference or a reference to a function in the current or
     //  a parent's scope.
-    auto new_info = make_function_reference_identifier_info(id, lookup_local_function(id), is_compound);
+    const auto local_func_handle = lookup_local_function(scope_reader, id);
+    auto new_info = make_function_reference_identifier_info(function_writer, id, local_func_handle, is_compound);
     classified_identifiers[id] = new_info;
     return ReferenceResult(true, new_info);
 
   } else if (!local_info) {
     //  This is an identifier in a parent scope, but we need to check to see if any local functions
     //  take precedence over the parent's usage of the identifier.
-    FunctionReferenceHandle maybe_function_ref = lookup_local_function(id);
+    FunctionReferenceHandle maybe_function_ref = lookup_local_function(scope_reader, id);
     if (!maybe_function_ref.is_valid()) {
       //  No local function in the current scope, so it inherits the usage from the parent.
       classified_identifiers[id] = *info;
     } else {
-      auto new_info = make_local_function_reference_identifier_info(maybe_function_ref);
+      auto new_info = make_local_function_reference_identifier_info(function_writer, maybe_function_ref);
       classified_identifiers[id] = new_info;
       return ReferenceResult(true, new_info);
     }
@@ -222,7 +233,7 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
     //  we can't assume that `id` corresponds to an existing function -- we must make a new
     //  reference. The exception to this rule is that package functions and static methods referenced
     //  via a compound identifier cannot be dispatched, and so always refer to the same function.
-    return ReferenceResult(true, make_external_function_reference_identifier_info(id, is_compound));
+    return ReferenceResult(true, make_external_function_reference_identifier_info(function_writer, id, is_compound));
 
   } else {
     return ReferenceResult(true, *info);
@@ -230,7 +241,9 @@ IdentifierScope::ReferenceResult IdentifierScope::register_identifier_reference(
 }
 
 IdentifierScope::ReferenceResult
-IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, int64_t last_identifier_component) {
+IdentifierScope::register_fully_qualified_import(FunctionStore::Write& writer,
+                                                 int64_t complete_identifier,
+                                                 int64_t last_identifier_component) {
   auto* local_last_info = lookup_variable(last_identifier_component, false);
   if (local_last_info) {
     //  Imported identifier component should not already have been registered.
@@ -247,7 +260,7 @@ IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, in
   } else {
     //  Register the reference as `last_identifier_component`, but create the function reference
     //  to `complete_identifier`.
-    new_info = make_external_function_reference_identifier_info(complete_identifier, true);
+    new_info = make_external_function_reference_identifier_info(writer, complete_identifier, true);
   }
 
   classified_identifiers[last_identifier_component] = new_info;
@@ -255,33 +268,38 @@ IdentifierScope::register_fully_qualified_import(int64_t complete_identifier, in
 }
 
 IdentifierScope::IdentifierInfo
-IdentifierScope::make_external_function_reference_identifier_info(int64_t identifier, bool is_compound) {
-  auto ref = classifier->function_store->make_external_reference(identifier, matlab_scope_handle);
+IdentifierScope::make_external_function_reference_identifier_info(FunctionStore::Write& writer,
+                                                                  int64_t identifier,
+                                                                  bool is_compound) {
+  auto ref = writer.make_external_reference(identifier, matlab_scope_handle);
   IdentifierInfo info(IdentifierType::unresolved_external_function, current_context(), ref);
   info.is_compound_identifier = is_compound;
   return info;
 }
 
 IdentifierScope::IdentifierInfo
-IdentifierScope::make_local_function_reference_identifier_info(FunctionReferenceHandle ref_handle) {
-  auto& ref = classifier->function_store->at(ref_handle);
+IdentifierScope::make_local_function_reference_identifier_info(FunctionStore::Write& writer,
+                                                               FunctionReferenceHandle ref_handle) {
+  auto& ref = writer.at(ref_handle);
   auto type = identifier_type_from_function_def(ref.def_handle);
   return IdentifierInfo(type, current_context(), ref_handle);
 }
 
 IdentifierScope::IdentifierInfo
-IdentifierScope::make_function_reference_identifier_info(int64_t identifier, FunctionReferenceHandle maybe_local_ref, bool is_compound) {
+IdentifierScope::make_function_reference_identifier_info(FunctionStore::Write& writer,
+                                                         int64_t identifier,
+                                                         FunctionReferenceHandle maybe_local_ref,
+                                                         bool is_compound) {
   if (maybe_local_ref.is_valid()) {
-    return make_local_function_reference_identifier_info(maybe_local_ref);
+    return make_local_function_reference_identifier_info(writer, maybe_local_ref);
   } else {
-    return make_external_function_reference_identifier_info(identifier, is_compound);
+    return make_external_function_reference_identifier_info(writer, identifier, is_compound);
   }
 }
 
-FunctionReferenceHandle IdentifierScope::lookup_local_function(int64_t name) const {
+FunctionReferenceHandle IdentifierScope::lookup_local_function(const ScopeStore::ReadConst& reader, int64_t name) const {
   if (matlab_scope_handle.is_valid()) {
-    auto* scope_store = classifier->scope_store;
-    return scope_store->at(matlab_scope_handle).lookup_local_function(scope_store, name);
+    return reader.lookup_local_function(matlab_scope_handle, name);
   } else {
     return FunctionReferenceHandle();
   }
@@ -408,7 +426,8 @@ IdentifierClassifier::register_variable_assignment(const Token& source_token, in
     add_error_if_new_identifier(std::move(err), primary_identifier);
 
   } else if (primary_result.was_initialization) {
-    auto& parse_scope = scope_store->at(current_scope()->matlab_scope_handle);
+    ScopeStore::ReadMut reader(*scope_store);
+    auto& parse_scope = reader.at(current_scope()->matlab_scope_handle);
     parse_scope.register_local_variable(primary_identifier, primary_result.variable_def_handle);
   }
 
@@ -416,12 +435,16 @@ IdentifierClassifier::register_variable_assignment(const Token& source_token, in
 }
 
 void IdentifierClassifier::register_imports(IdentifierScope* scope) {
-  const auto& matlab_scope = scope_store->at(scope->matlab_scope_handle);
+  ScopeStore::ReadConst reader(*scope_store);
+  const auto& matlab_scope = reader.at(scope->matlab_scope_handle);
 
   for (const auto& import : matlab_scope.fully_qualified_imports) {
+    FunctionStore::Write function_read_write(*function_store);
+
     //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
     auto complete_identifier = string_registry->make_registered_compound_identifier(import.identifier_components);
-    auto res = scope->register_fully_qualified_import(complete_identifier, import.identifier_components.back());
+    auto res = scope->register_fully_qualified_import(function_read_write,
+      complete_identifier, import.identifier_components.back());
 
     if (!res.success) {
       add_error(make_error_shadowed_import(import.source_token, res.info.type));
@@ -430,15 +453,18 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
 }
 
 void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
-  const auto& matlab_scope = scope_store->at(scope->matlab_scope_handle);
+  ScopeStore::ReadConst scope_reader(*scope_store);
+  const auto& matlab_scope = scope_reader.at(scope->matlab_scope_handle);
 
   for (const auto& it : matlab_scope.local_functions) {
     //  Local functions take precedence over variables.
-    const auto& ref_handle = it.second;
-    const auto& def_handle = function_store->at(ref_handle).def_handle;
-    const auto& def = function_store->at(def_handle);
+    FunctionStore::Write function_read_write(*function_store);
 
-    auto res = scope->register_scalar_identifier_reference(def.header.name);
+    const auto& ref_handle = it.second;
+    const auto& def_handle = function_read_write.at(ref_handle).def_handle;
+    const auto& def = function_read_write.at(def_handle);
+
+    auto res = scope->register_scalar_identifier_reference(function_read_write, scope_reader, def.header.name);
     if (!res.success || res.info.type != IdentifierType::local_function) {
       //  It's a bug if we fail to register a local function.
       assert(res.success && "Failed to register local function.");
@@ -471,7 +497,8 @@ void IdentifierClassifier::register_function_parameter(const Token& source_token
     add_error_if_new_identifier(std::move(err), id);
 
   } else if (assign_res.was_initialization) {
-    auto& matlab_scope = scope_store->at(current_scope()->matlab_scope_handle);
+    ScopeStore::ReadMut reader(*scope_store);
+    auto& matlab_scope = reader.at(current_scope()->matlab_scope_handle);
     matlab_scope.register_local_variable(id, assign_res.variable_def_handle);
   }
 }
@@ -500,9 +527,13 @@ Expr* IdentifierClassifier::dynamic_field_reference_expr(DynamicFieldReferenceEx
 }
 
 Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr) {
+  ScopeStore::ReadConst scope_reader(*scope_store);
+  FunctionStore::Write function_read_write(*function_store);
+
   const auto& identifier = expr.identifier;
   const auto name = expr.identifier.full_name();
-  const auto ref_result = current_scope()->register_identifier_reference(name, identifier.is_compound());
+  const auto ref_result = current_scope()->register_identifier_reference(function_read_write,
+    scope_reader, name, identifier.is_compound());
 
   if (!is_function(ref_result.info.type)) {
     const auto& source_token = expr.source_token;
@@ -575,10 +606,21 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   const bool is_variable = current_scope()->has_variable(expr.primary_identifier, true);
   const int64_t primary_identifier = expr.primary_identifier;
 
-  const auto primary_result = current_scope()->register_scalar_identifier_reference(primary_identifier);
-  if (!primary_result.success) {
-    auto err = make_error_variable_referenced_before_assignment(expr.source_token, primary_identifier);
-    add_warning_if_new_identifier(std::move(err), primary_identifier);
+  auto* scope = current_scope();
+
+  IdentifierScope::ReferenceResult primary_result;
+
+  {
+    ScopeStore::ReadConst scope_reader(*scope_store);
+    FunctionStore::Write function_read_write(*function_store);
+
+    primary_result =
+      scope->register_scalar_identifier_reference(function_read_write, scope_reader, primary_identifier);
+
+    if (!primary_result.success) {
+      auto err = make_error_variable_referenced_before_assignment(expr.source_token, primary_identifier);
+      add_warning_if_new_identifier(std::move(err), primary_identifier);
+    }
   }
 
   const bool is_compound_function_identifier = !is_variable && subscript_end > 0;
@@ -587,8 +629,15 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   if (is_compound_function_identifier) {
     //  Presumed function reference with more than 1 identifier component, e.g. `a.b()`. Register
     //  the compound identifier as well.
-    const int64_t compound_identifier = string_registry->make_registered_compound_identifier(compound_identifier_components);
-    const auto compound_ref_result = current_scope()->register_compound_identifier_reference(compound_identifier);
+    ScopeStore::ReadConst scope_reader(*scope_store);
+    FunctionStore::Write function_read_write(*function_store);
+
+    const int64_t compound_identifier =
+      string_registry->make_registered_compound_identifier(compound_identifier_components);
+
+    const auto compound_ref_result =
+      scope->register_compound_identifier_reference(function_read_write, scope_reader, compound_identifier);
+
     if (!compound_ref_result.success) {
       auto err = make_error_variable_referenced_before_assignment(expr.source_token, compound_identifier);
       add_warning_if_new_identifier(std::move(err), compound_identifier);
@@ -629,7 +678,12 @@ Expr* IdentifierClassifier::superclass_method_application(mt::IdentifierReferenc
   const auto scope_handle = current_scope()->matlab_scope_handle;
 
   const auto function_name = string_registry->make_registered_compound_identifier(compound_identifier_components);
-  const auto function_reference_handle = function_store->make_external_reference(function_name, scope_handle);
+  FunctionReferenceHandle function_reference_handle;
+
+  {
+    FunctionStore::Write read_write(*function_store);
+    function_reference_handle = read_write.make_external_reference(function_name, scope_handle);
+  }
 
   class_state.push_non_superclass_method_application();
   auto* func_node = make_function_call_expr(expr, subscript_end, function_reference_handle);
@@ -760,24 +814,41 @@ VariableDeclarationStmt* IdentifierClassifier::variable_declaration_stmt(Variabl
 FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_node) {
   push_scope(def_node.scope_handle);
 
-  auto& def = function_store->at(def_node.def_handle);
-  auto* scope = current_scope();
+  //  Local functions take precedence over imports
+  register_local_functions(current_scope());
+  //  Imports take precedence over variables
+  register_imports(current_scope());
+
+  BoxedBlock function_body;
+
+  {
+    FunctionStore::ReadMut reader(*function_store);
+    auto& def = reader.at(def_node.def_handle);
+
+    register_function_parameters(def.header.name_token, def.header.inputs);
+    register_function_parameters(def.header.name_token, def.header.outputs);
+
+    function_body = std::move(def.body);
+  }
 
   //  Enter function definition.
   FunctionDefState::EnclosingFunctionHelper function_helper(function_state, def_node.def_handle);
-
-  register_local_functions(scope);
-  register_imports(scope);
-  register_function_parameters(def.header.name_token, def.header.inputs);
-  register_function_parameters(def.header.name_token, def.header.outputs);
-
-  block_new_context(def.body);
+  block_new_context(function_body);
   pop_scope();
+
+  {
+    FunctionStore::ReadMut reader(*function_store);
+    auto& def = reader.at(def_node.def_handle);
+    def.body = std::move(function_body);
+  }
+
   return &def_node;
 }
 
 ClassDefReference* IdentifierClassifier::class_def_reference(ClassDefReference& ref) {
-  auto& def = class_store->at(ref.handle);
+  ClassStore::ReadMut reader(*class_store);
+
+  auto& def = reader.at(ref.handle);
   ClassDefState::EnclosingClassHelper class_helper(class_state, ref.handle);
 
   for (auto& method : def.method_defs) {

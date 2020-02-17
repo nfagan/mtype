@@ -330,13 +330,18 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   const auto name = function_def.header.name;
 
   //  Function registry owns the local function definition.
-  auto def_handle = function_store->emplace_definition(std::move(function_def));
-  auto ref_handle = function_store->make_local_reference(name, def_handle, child_scope);
+  FunctionDefHandle def_handle;
+  FunctionReferenceHandle ref_handle;
 
-//  ScopeStore::Read reader(*scope_store);
-//  auto& parent_scope = reader.at(current_scope_handle());
+  {
+    FunctionStore::Write writer(*function_store);
+    def_handle = writer.emplace_definition(std::move(function_def));
+    ref_handle = writer.make_local_reference(name, def_handle, child_scope);
+  }
 
-  auto& parent_scope = scope_store->at(current_scope_handle());
+  ScopeStore::ReadMut reader(*scope_store);
+  auto& parent_scope = reader.at(current_scope_handle());
+
   bool register_success = true;
 
   if (!is_within_class() || !is_within_top_level_function()) {
@@ -438,7 +443,13 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   ClassDef::MethodDefs method_defs;
   std::set<int64_t> method_names;
 
-  const auto class_handle = class_store->make_definition();
+  ClassDefHandle class_handle;
+
+  {
+    ClassStore::Write writer(*class_store);
+    class_handle = writer.make_definition();
+  }
+
   ClassDefState::EnclosingClassHelper class_helper(class_state, class_handle);
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
@@ -479,10 +490,15 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   ClassDef class_def(source_token, name, std::move(superclasses),
     std::move(properties), std::move(method_defs), std::move(method_declarations));
 
-  class_store->emplace_definition(class_handle, std::move(class_def));
+  {
+    ClassStore::Write writer(*class_store);
+    writer.emplace_definition(class_handle, std::move(class_def));
+  }
+
   auto class_node = std::make_unique<ClassDefReference>(class_handle);
 
-  auto& parent_scope = scope_store->at(parent_scope_handle);
+  ScopeStore::ReadMut reader(*scope_store);
+  auto& parent_scope = reader.at(parent_scope_handle);
   bool register_success = parent_scope.register_class(name, class_handle);
   if (!register_success) {
     add_error(make_error_duplicate_class_def(source_token));
@@ -583,7 +599,8 @@ bool AstGenerator::method_def(const Token& source_token,
   }
 
   const auto& def_handle = func_res.value()->def_handle;
-  const auto func_name = function_store->at(def_handle).header.name;
+  FunctionStore::ReadConst reader(*function_store);
+  const auto func_name = reader.at(def_handle).header.name;
 
   if (method_names.count(func_name) > 0) {
     add_error(make_error_duplicate_method(source_token));
@@ -2291,7 +2308,8 @@ bool AstGenerator::is_within_loop() const {
 }
 
 void AstGenerator::push_scope() {
-  scope_handles.emplace_back(scope_store->make_matlab_scope(current_scope_handle()));
+  ScopeStore::Write writer(*scope_store);
+  scope_handles.emplace_back(writer.make_matlab_scope(current_scope_handle()));
 }
 
 void AstGenerator::pop_scope() {
@@ -2304,7 +2322,8 @@ MatlabScopeHandle AstGenerator::current_scope_handle() const {
 }
 
 void AstGenerator::register_import(mt::Import&& import) {
-  auto& scope = scope_store->at(current_scope_handle());
+  ScopeStore::ReadMut reader(*scope_store);
+  auto& scope = reader.at(current_scope_handle());
   scope.register_import(std::move(import));
 }
 

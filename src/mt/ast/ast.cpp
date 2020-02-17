@@ -33,20 +33,6 @@ bool MatlabScope::register_local_function(int64_t name, const FunctionReferenceH
   }
 }
 
-FunctionReferenceHandle MatlabScope::lookup_local_function(const ScopeStore* store, int64_t name) const {
-  auto it = local_functions.find(name);
-  if (it == local_functions.end()) {
-    if (parent.is_valid()) {
-      const auto& parent_scope = store->at(parent);
-      return parent_scope.lookup_local_function(store, name);
-    } else {
-      return FunctionReferenceHandle();
-    }
-  } else {
-    return it->second;
-  }
-}
-
 void MatlabScope::register_local_variable(int64_t name, const VariableDefHandle& handle) {
   local_variables[name] = handle;
 }

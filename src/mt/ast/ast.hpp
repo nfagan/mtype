@@ -284,8 +284,6 @@ struct MatlabScope {
   void register_local_variable(int64_t name, const VariableDefHandle& handle);
   void register_import(Import&& import);
 
-  FunctionReferenceHandle lookup_local_function(const ScopeStore* store, int64_t name) const;
-
   MatlabScopeHandle parent;
   std::unordered_map<int64_t, FunctionReferenceHandle> local_functions;
   std::unordered_map<int64_t, VariableDefHandle> local_variables;

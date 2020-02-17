@@ -5,12 +5,10 @@
 #include "stmt.hpp"
 #include "expr.hpp"
 #include "type_annot.hpp"
+#include "../store.hpp"
 #include "../string.hpp"
 
 namespace mt {
-
-class ClassStore;
-class FunctionStore;
 
 class StringVisitor {
 public:
@@ -23,8 +21,8 @@ public:
     colorize(true),
     tab_depth(-1),
     string_registry(string_registry),
-    function_store(function_store),
-    class_store(class_store) {
+    function_reader(*function_store),
+    class_reader(*class_store) {
     //
   }
   ~StringVisitor() = default;
@@ -112,11 +110,15 @@ public:
 private:
   mutable int tab_depth;
   const StringRegistry* string_registry;
-  const FunctionStore* function_store;
-  const ClassStore* class_store;
+//  const FunctionStore* function_store;
+//  const ClassStore* class_store;
+  FunctionStore::ReadConst function_reader;
+  ClassStore::ReadConst class_reader;
 };
 
 }
+
+namespace mt {
 
 namespace detail {
   template <typename T>
@@ -139,4 +141,6 @@ std::string mt::StringVisitor::visit_array(const T& visitables,
     values.emplace_back(detail::accept_impl(*this, arg));
   }
   return mt::join(values, delim);
+}
+
 }

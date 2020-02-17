@@ -81,6 +81,22 @@ const ClassDef& ClassStore::at(const ClassDefHandle& by_handle) const {
  * ScopeStore
  */
 
+FunctionReferenceHandle ScopeStore::lookup_local_function(const MatlabScopeHandle& in_scope, int64_t name) const {
+  MatlabScopeHandle read_handle = in_scope;
+
+  while (read_handle.is_valid()) {
+    const auto& scope = at(read_handle);
+    const auto it = scope.local_functions.find(name);
+    if (it == scope.local_functions.end()) {
+      read_handle = scope.parent;
+    } else {
+      return it->second;
+    }
+  }
+
+  return FunctionReferenceHandle();
+}
+
 MatlabScopeHandle ScopeStore::make_matlab_scope(const mt::MatlabScopeHandle& parent) {
   MatlabScope scope(parent);
   matlab_scopes.emplace_back(std::move(scope));
