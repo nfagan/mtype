@@ -201,44 +201,4 @@ private:
   std::vector<MatlabScope> matlab_scopes;
 };
 
-#if 0
-class TraversalStoreAccessor {
-  class Proxy {
-    Proxy(TraversalStoreAccessor& accessor,
-          bool reacquire_const_reader,
-          bool reacquire_mut_reader,
-          bool reacquire_writer) :
-          accessor(accessor),
-          reacquire_const_reader(reacquire_const_reader),
-          reacquire_mut_reader(reacquire_mut_reader),
-          reacquire_writer(reacquire_writer) {
-      //
-    }
-
-    ~Proxy() {
-      //
-    }
-
-    static Proxy read_const(TraversalStoreAccessor& accessor) {
-      //
-    }
-
-    TraversalStoreAccessor& accessor;
-    bool reacquire_const_reader;
-    bool reacquire_mut_reader;
-    bool reacquire_writer;
-  };
-
-public:
-  Store::ReadConst& require_const_reader();
-  Store::ReadMut& require_mut_reader();
-  Store::Write& require_writer();
-
-private:
-  std::unique_ptr<Store::ReadConst> const_reader;
-  std::unique_ptr<Store::ReadMut> mut_reader;
-  std::unique_ptr<Store::Write> writer;
-};
-#endif
-
 }

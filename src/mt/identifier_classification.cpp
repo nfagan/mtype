@@ -522,12 +522,14 @@ Expr* IdentifierClassifier::dynamic_field_reference_expr(DynamicFieldReferenceEx
 }
 
 Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr) {
-  Store::Write read_write(*store);
-
+  IdentifierScope::ReferenceResult ref_result;
   const auto& identifier = expr.identifier;
   const auto name = expr.identifier.full_name();
-  const auto ref_result =
-    current_scope()->register_identifier_reference(read_write, name, identifier.is_compound());
+
+  {
+    Store::Write read_write(*store);
+    ref_result = current_scope()->register_identifier_reference(read_write, name, identifier.is_compound());
+  }
 
   if (!is_function(ref_result.info.type)) {
     const auto& source_token = expr.source_token;
@@ -834,6 +836,7 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
   pop_scope();
 
   {
+    //  Reassign transformed function body.
     Store::ReadMut reader(*store);
     auto& def = reader.at(def_node.def_handle);
     def.body = std::move(function_body);

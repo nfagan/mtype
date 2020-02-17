@@ -114,7 +114,6 @@ struct VariableDef : public Def {
 };
 
 class ClassDefHandle {
-  friend class ClassStore;
   friend class Store;
 public:
   ClassDefHandle() : index(-1) {

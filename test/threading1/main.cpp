@@ -1,7 +1,7 @@
 #include "mt/mt.hpp"
 #include <fstream>
 #include <thread>
-#include <cassert>
+#include <chrono>
 
 namespace {
 
@@ -85,10 +85,12 @@ int main(int argc, char** argv) {
   mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &store, scan_info.functions_are_end_terminated);
 
   std::mutex parse_barrier_mutex;
-  const int num_threads = 20;
+  const int num_threads = 10;
 
   std::vector<std::thread> threads;
   std::vector<mt::BoxedRootBlock> root_blocks(num_threads);
+
+  auto thread_t0 = std::chrono::high_resolution_clock::now();
 
   for (int i = 0; i < num_threads; i++) {
     threads.emplace_back([&, i]() {
@@ -99,6 +101,9 @@ int main(int argc, char** argv) {
   for (auto& thread : threads) {
     thread.join();
   }
+
+  auto thread_t1 = std::chrono::high_resolution_clock::now();
+  auto thread_elapsed = std::chrono::duration<double>(thread_t1 - thread_t0).count() * 1e3;
 
   std::vector<std::string> string_res;
 
@@ -118,6 +123,27 @@ int main(int argc, char** argv) {
       }
     }
   }
+
+  mt::StringRegistry serial_string_registry;
+  mt::Store serial_store;
+  std::vector<mt::BoxedRootBlock> serial_root_blocks(num_threads);
+  mt::AstGenerator::ParseInputs serial_parse_inputs(&serial_string_registry, &serial_store,
+    scan_info.functions_are_end_terminated);
+
+  auto serial_t0 = std::chrono::high_resolution_clock::now();
+
+  for (int i = 0; i < num_threads; i++) {
+    run_parse(parse_barrier_mutex, i, serial_root_blocks, tokens, contents, serial_parse_inputs);
+  }
+
+  auto serial_t1 = std::chrono::high_resolution_clock::now();
+  auto serial_elapsed = std::chrono::duration<double>(serial_t1 - serial_t0).count() * 1e3;
+
+  std::cout << "Serial time: " << serial_elapsed << "(ms)" << std::endl;
+  std::cout << "Parallel time: " << thread_elapsed << "(ms)" << std::endl;
+
+  std::cout << "Serial size: " << serial_string_registry.size() << std::endl;
+  std::cout << "Parallel size: " << string_registry.size() << std::endl;
 
   return 0;
 }
