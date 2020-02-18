@@ -140,13 +140,13 @@ public:
   }
 
   bool is_abstract() const {
-    return boolean_attributes & 1u;
+    return boolean_attributes & AttributeFlags::is_abstract;
   }
   bool is_sealed() const {
-    return boolean_attributes & (1u << 1u);
+    return boolean_attributes & AttributeFlags::is_sealed;
   }
   bool is_static() const {
-    return boolean_attributes & (1u << 2u);
+    return boolean_attributes & AttributeFlags::is_static;
   }
   bool has_defining_class() const {
     return class_handle.is_valid();
