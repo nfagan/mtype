@@ -4,6 +4,7 @@
 #include "../lang_components.hpp"
 #include "../token.hpp"
 #include "../Optional.hpp"
+#include "../definitions.hpp"
 #include <algorithm>
 
 namespace mt {

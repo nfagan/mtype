@@ -4,6 +4,14 @@
 
 namespace mt {
 
+enum class AccessSpecifier : uint8_t {
+  public_access,
+  private_access,
+  protected_access,
+  by_meta_classes_access,
+  immutable_access
+};
+
 enum class ImportType : uint8_t {
   fully_qualified,
   wildcard

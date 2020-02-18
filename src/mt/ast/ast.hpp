@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include "../handles.hpp"
 
 namespace mt {
 
@@ -19,7 +20,6 @@ struct MatlabScope;
 struct Import;
 class ClassDefHandle;
 class MatlabIdentifier;
-class ScopeStore;
 
 struct AstNode {
   AstNode() = default;
@@ -113,64 +113,6 @@ using BoxedType = std::unique_ptr<Type>;
 using BoxedBlock = std::unique_ptr<Block>;
 using BoxedRootBlock = std::unique_ptr<RootBlock>;
 
-namespace detail {
-  template <int Disambiguator>
-  class Handle {
-  public:
-    Handle() : index(-1) {
-      //
-    }
-
-    bool is_valid() const {
-      return index >= 0;
-    }
-
-    int64_t get_index() const {
-      return index;
-    }
-
-  protected:
-    explicit Handle(int64_t index) : index(index) {
-      //
-    }
-
-    int64_t index;
-  };
-}
-
-class FunctionDefHandle : public detail::Handle<0> {
-public:
-  friend class Store;
-  using Handle::Handle;
-  using Handle::is_valid;
-  using Handle::get_index;
-};
-
-class FunctionReferenceHandle : public detail::Handle<1> {
-public:
-  friend class Store;
-  using Handle::Handle;
-  using Handle::is_valid;
-  using Handle::get_index;
-};
-
-class VariableDefHandle : public detail::Handle<2> {
-public:
-  friend class Store;
-  using Handle::Handle;
-  using Handle::is_valid;
-  using Handle::get_index;
-};
-
-class MatlabScopeHandle : public detail::Handle<3> {
-public:
-  friend class Store;
-  friend class ScopeStore;
-  using Handle::Handle;
-  using Handle::is_valid;
-  using Handle::get_index;
-};
-
 struct Block : public AstNode {
   Block() = default;
   ~Block() override = default;
@@ -211,80 +153,6 @@ struct RootBlock : public AstNode {
 
   BoxedBlock block;
   MatlabScopeHandle scope_handle;
-};
-
-/*
- * MatlabIdentifier
- */
-
-class MatlabIdentifier {
-  friend struct Hash;
-public:
-  struct Hash {
-    std::size_t operator()(const MatlabIdentifier& k) const;
-  };
-
-public:
-  MatlabIdentifier() : MatlabIdentifier(-1, 0) {
-    //
-  }
-
-  explicit MatlabIdentifier(int64_t name) : MatlabIdentifier(name, 1) {
-    //
-  }
-
-  MatlabIdentifier(int64_t name, int num_components) :
-    name(name), num_components(num_components) {
-    //
-  }
-
-  bool operator==(const MatlabIdentifier& other) const {
-    return name == other.name;
-  }
-
-  bool is_valid() const {
-    return size() > 0;
-  }
-
-  bool is_compound() const {
-    return num_components > 1;
-  }
-
-  int size() const {
-    return num_components;
-  }
-
-  int64_t full_name() const {
-    return name;
-  }
-
-private:
-  int64_t name;
-  int num_components;
-};
-
-/*
- * MatlabScope
- */
-
-struct MatlabScope {
-  explicit MatlabScope(const MatlabScopeHandle& parent) : parent(parent) {
-    //
-  }
-
-  ~MatlabScope() = default;
-
-  bool register_local_function(int64_t name, const FunctionReferenceHandle& handle);
-  bool register_class(const MatlabIdentifier& name, const ClassDefHandle& handle);
-  void register_local_variable(int64_t name, const VariableDefHandle& handle);
-  void register_import(Import&& import);
-
-  MatlabScopeHandle parent;
-  std::unordered_map<int64_t, FunctionReferenceHandle> local_functions;
-  std::unordered_map<int64_t, VariableDefHandle> local_variables;
-  std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash> classes;
-  std::vector<Import> fully_qualified_imports;
-  std::vector<Import> wildcard_imports;
 };
 
 }

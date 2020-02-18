@@ -3,6 +3,10 @@ classdef (Sealed) Crash < Another
     x;
   end
   
+  properties (SetAccess = immutable)
+    zz = 10;
+  end
+  
   methods
     function obj = Crash(x)
       obj@Another( Another() );
@@ -12,6 +16,8 @@ classdef (Sealed) Crash < Another
       function z = Another()
         z = 1;
       end
+      
+      obj.zz = 2;
     end
     
     function obj = set.x(obj, x)

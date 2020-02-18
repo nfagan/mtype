@@ -1,12 +1,15 @@
 #pragma once
 
-#include "ast.hpp"
+#define MT_USE_READ_WRITE_OPTIM (0)
+
+#include "handles.hpp"
+#include "definitions.hpp"
 #include "lang_components.hpp"
 #include <mutex>
-#include <thread>
-#include <condition_variable>
 
-#define MT_USE_READ_WRITE_OPTIM (1)
+#if MT_USE_READ_WRITE_OPTIM
+#include <condition_variable>
+#endif
 
 namespace mt {
 

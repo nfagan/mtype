@@ -9,11 +9,14 @@ set(sources
         character.hpp
         character.cpp
         character_traits.hpp
+        definitions.hpp
+        definitions.cpp
         error.hpp
         error.cpp
         file_resolution.hpp
         file_resolution.cpp
         fs.hpp
+        handles.hpp
         store.hpp
         store.cpp
         identifier_classification.hpp
