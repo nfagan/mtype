@@ -6,3 +6,4 @@ build/
 *.hpp~
 *.m~
 *.asv
+matlab/data

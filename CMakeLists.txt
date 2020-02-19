@@ -9,6 +9,12 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   ${PROJECT_SOURCE_DIR}/src
 )
 
+set(MT_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
+
+target_compile_definitions(${PROJECT_NAME} PUBLIC
+  MT_PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
+
 if(MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

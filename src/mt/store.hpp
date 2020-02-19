@@ -49,11 +49,11 @@ private:
 
       template <typename... Args>
       const auto& at(Args&&... args) const {
-        return store.at(std::forward<Args&&>(args)...);
+        return store.at(std::forward<Args>(args)...);
       }
       template <typename... Args>
       auto& at(Args&&... args) {
-        return store.at(std::forward<Args&&>(args)...);
+        return store.at(std::forward<Args>(args)...);
       }
 
       template <typename... Args>
@@ -94,7 +94,7 @@ private:
 
       template <typename... Args>
       auto emplace_definition(Args&&... args) {
-        return store.emplace_definition(std::forward<Args&&>(args)...);
+        return store.emplace_definition(std::forward<Args>(args)...);
       }
 
       ClassDefHandle make_class_definition() {
@@ -105,7 +105,6 @@ private:
       auto make_matlab_scope(Args&&... args) {
         return store.make_matlab_scope(std::forward<Args>(args)...);
       }
-
       template <typename... Args>
       auto make_external_reference(Args&&... args) {
         return store.make_external_reference(std::forward<Args>(args)...);
@@ -114,14 +113,13 @@ private:
       auto make_local_reference(Args&&... args) {
         return store.make_local_reference(std::forward<Args>(args)...);
       }
-
       template <typename... Args>
       const auto& at(Args&&... args) const {
-        return store.at(std::forward<Args&&>(args)...);
+        return store.at(std::forward<Args>(args)...);
       }
       template <typename... Args>
       auto& at(Args&&... args) {
-        return store.at(std::forward<Args&&>(args)...);
+        return store.at(std::forward<Args>(args)...);
       }
       template <typename... Args>
       auto lookup_local_function(Args&&... args) const {

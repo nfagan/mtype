@@ -9,6 +9,11 @@ classdef (Sealed) Crash < Another
   
   methods
     function obj = Crash(x)
+      %{     
+      @T begin
+        let X = Y
+      end
+      %}
       obj@Another( Another() );
       obj.x = x;
       Another();
