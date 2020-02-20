@@ -1,4 +1,4 @@
-classdef Another
+classdef Another < dynamicprops
   properties (Constant = true)
     Z = test( 1 );
   end
