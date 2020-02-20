@@ -110,7 +110,7 @@ std::string StringVisitor::block(const Block& block) const {
 std::string StringVisitor::function_header(const FunctionHeader& header) const {
   auto outputs = join(string_registry->collect(header.outputs), ", ");
   auto inputs = function_input_parameters(header.inputs);
-  auto name = std::string(string_registry->at(header.name));
+  auto name = std::string(string_registry->at(header.name.full_name()));
   auto func = std::string("function");
   maybe_colorize(func, TokenType::keyword_function);
   return func + " [" + outputs + "]" + " = " + name + inputs;
@@ -220,7 +220,7 @@ std::string StringVisitor::methods(const ClassDef& def) const {
 }
 
 std::string StringVisitor::variable_def(const VariableDef& def) const {
-  return tab_str() + std::string(string_registry->at(def.name));
+  return tab_str() + std::string(string_registry->at(def.name.full_name()));
 }
 
 std::string StringVisitor::expr_stmt(const ExprStmt& stmt) const {
@@ -236,7 +236,7 @@ std::string StringVisitor::assignment_stmt(const AssignmentStmt& stmt) const {
 std::string StringVisitor::for_stmt(const ForStmt& stmt) const {
   std::string for_str = "for";
   maybe_colorize(for_str, stmt.source_token.type);
-  std::string loop_var_str = std::string(string_registry->at(stmt.loop_variable_identifier));
+  std::string loop_var_str = std::string(string_registry->at(stmt.loop_variable_identifier.full_name()));
   std::string str = tab_str() + for_str + " " + loop_var_str + " = ";
   str += stmt.loop_variable_expr->accept(*this) + "\n";
   str += (stmt.body->accept(*this) + "\n" + tab_str() + end_str());
@@ -317,7 +317,10 @@ std::string StringVisitor::command_stmt(const CommandStmt& stmt) const {
 
 std::string StringVisitor::variable_declaration_stmt(const VariableDeclarationStmt& stmt) const {
   //  @TODO: Derive declaration qualifier.
-  auto identifier_strs = string_registry->collect(stmt.identifiers);
+  std::vector<std::string_view> identifier_strs;
+  for (const auto& id : stmt.identifiers) {
+    identifier_strs.push_back(string_registry->at(id.full_name()));
+  }
   std::string decl_keyword(stmt.source_token.lexeme);
   maybe_colorize(decl_keyword, stmt.source_token.type);
 
@@ -364,7 +367,7 @@ std::string StringVisitor::function_reference_expr(const FunctionReferenceExpr& 
 }
 
 std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& expr) const {
-  std::string str = std::string(string_registry->at(expr.name));
+  std::string str = std::string(string_registry->at(expr.name.full_name()));
   std::string sub_str = subscripts(expr.subscripts);
 
   if (expr.is_initializer) {
@@ -382,7 +385,7 @@ std::string StringVisitor::variable_reference_expr(const VariableReferenceExpr& 
 
 std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) const {
   const auto& ref = store_reader.at(expr.reference_handle);
-  auto name = std::string(string_registry->at(ref.name));
+  auto name = std::string(string_registry->at(ref.name.full_name()));
   const auto arg_str = visit_array(expr.arguments, ", ");
   auto sub_str = subscripts(expr.subscripts);
 
@@ -450,7 +453,7 @@ std::string StringVisitor::literal_field_reference_expr(const LiteralFieldRefere
 
 std::string StringVisitor::identifier_reference_expr(const IdentifierReferenceExpr& expr) const {
   std::string sub_str = subscripts(expr.subscripts);
-  std::string str = std::string(string_registry->at(expr.primary_identifier)) + sub_str;
+  std::string str = std::string(string_registry->at(expr.primary_identifier.full_name())) + sub_str;
   maybe_parenthesize(str);
   return str;
 }

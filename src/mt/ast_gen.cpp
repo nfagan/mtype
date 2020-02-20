@@ -195,7 +195,7 @@ Optional<std::vector<std::string_view>> AstGenerator::identifier_sequence(TokenT
   }
 }
 
-Optional<int64_t> AstGenerator::compound_function_name(std::string_view first_component) {
+Optional<MatlabIdentifier> AstGenerator::compound_function_name(std::string_view first_component) {
   iterator.advance();
 
   auto property_res = compound_identifier_components();
@@ -208,7 +208,7 @@ Optional<int64_t> AstGenerator::compound_function_name(std::string_view first_co
   const auto component_ids = string_registry->register_strings(component_names);
   const auto compound_name = string_registry->make_registered_compound_identifier(component_ids);
 
-  return Optional<int64_t>(compound_name);
+  return Optional<MatlabIdentifier>(MatlabIdentifier(compound_name, component_ids.size()));
 }
 
 Optional<FunctionHeader> AstGenerator::function_header() {
@@ -232,7 +232,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     return NullOpt{};
   }
 
-  int64_t compound_name;
+  MatlabIdentifier name;
   bool use_compound_name = false;
 
   if (iterator.peek().type == TokenType::period) {
@@ -243,7 +243,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
         return NullOpt{};
       }
 
-      compound_name = compound_res.value();
+      name = compound_res.value();
       use_compound_name = true;
 
     } else {
@@ -257,8 +257,11 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     return NullOpt{};
   }
 
-  //  Register function definition strings.
-  const auto name = use_compound_name ? compound_name : string_registry->register_string(name_res.value());
+  if (!use_compound_name) {
+    auto single_name_component = string_registry->register_string(name_res.value());
+    name = MatlabIdentifier(single_name_component);
+  }
+
   auto outputs = string_registry->register_strings(output_res.value());
 
   FunctionHeader header(name_token, name, std::move(outputs), std::move(input_res.rvalue()));
@@ -758,12 +761,12 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
 
   auto func_name = header_res.value().name;
 
-  if (method_names.count(func_name) > 0) {
+  if (method_names.count(func_name.full_name()) > 0) {
     add_error(make_error_duplicate_method(source_token));
     return false;
 
   } else {
-    method_names.emplace(func_name);
+    method_names.emplace(func_name.full_name());
     FunctionDefHandle pending_def_handle;
     const auto& attrs = current_function_attributes();
 
@@ -791,12 +794,12 @@ bool AstGenerator::method_def(const Token& source_token,
   Store::ReadConst reader(*store);
   const auto func_name = reader.at(def_handle).header.name;
 
-  if (method_names.count(func_name) > 0) {
+  if (method_names.count(func_name.full_name()) > 0) {
     add_error(make_error_duplicate_method(source_token));
     return false;
 
   } else {
-    method_names.emplace(func_name);
+    method_names.emplace(func_name.full_name());
     methods.emplace_back(def_handle);
     method_def_nodes.emplace_back(std::move(func_res.rvalue()));
   }
@@ -1198,7 +1201,8 @@ Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_
   }
 
   //  Register main identifier.
-  int64_t primary_identifier = string_registry->register_string(main_ident_res.value());
+  const int64_t primary_identifier_id = string_registry->register_string(main_ident_res.value());
+  MatlabIdentifier primary_identifier(primary_identifier_id);
 
   auto node = std::make_unique<IdentifierReferenceExpr>(source_token, primary_identifier, std::move(subscripts));
   return Optional<BoxedExpr>(std::move(node));
@@ -1777,9 +1781,9 @@ Optional<BoxedStmt> AstGenerator::for_stmt(const Token& source_token) {
     return NullOpt{};
   }
 
-  int64_t loop_variable_identifier = string_registry->register_string(loop_var_res.value());
+  MatlabIdentifier loop_variable_id = MatlabIdentifier(string_registry->register_string(loop_var_res.value()));
 
-  auto node = std::make_unique<ForStmt>(source_token, loop_variable_identifier,
+  auto node = std::make_unique<ForStmt>(source_token, loop_variable_id,
     initializer_res.rvalue(), block_res.rvalue());
 
   return Optional<BoxedStmt>(std::move(node));
@@ -1870,7 +1874,7 @@ Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_
   iterator.advance();
 
   bool should_proceed = true;
-  std::vector<std::int64_t> identifiers;
+  std::vector<MatlabIdentifier> identifiers;
 
   while (iterator.has_next() && should_proceed) {
     const auto& tok = iterator.peek();
@@ -1884,7 +1888,7 @@ Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_
         break;
       case TokenType::identifier:
         iterator.advance();
-        identifiers.push_back(string_registry->register_string(tok.lexeme));
+        identifiers.push_back(MatlabIdentifier(string_registry->register_string(tok.lexeme)));
         break;
       default:
         //  e.g. global 1

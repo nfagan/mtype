@@ -67,12 +67,12 @@ FunctionDefHandle Store::emplace_definition(FunctionDef&& def) {
   return FunctionDefHandle(function_definitions.size() - 1);
 }
 
-FunctionReferenceHandle Store::make_external_reference(int64_t to_identifier,
+FunctionReferenceHandle Store::make_external_reference(const MatlabIdentifier& to_identifier,
                                                        const MatlabScopeHandle& in_scope) {
   return make_local_reference(to_identifier, FunctionDefHandle(), in_scope);
 }
 
-FunctionReferenceHandle Store::make_local_reference(int64_t to_identifier,
+FunctionReferenceHandle Store::make_local_reference(const MatlabIdentifier& to_identifier,
                                                     const FunctionDefHandle& with_def,
                                                     const MatlabScopeHandle& in_scope) {
   FunctionReference reference(to_identifier, with_def, in_scope);
@@ -84,7 +84,7 @@ FunctionReferenceHandle Store::make_local_reference(int64_t to_identifier,
  * Scope components
  */
 
-FunctionReferenceHandle Store::lookup_local_function(const MatlabScopeHandle& in_scope, int64_t name) const {
+FunctionReferenceHandle Store::lookup_local_function(const MatlabScopeHandle& in_scope, const MatlabIdentifier& name) const {
   MatlabScopeHandle read_handle = in_scope;
 
   while (read_handle.is_valid()) {

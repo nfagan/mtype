@@ -5,62 +5,13 @@
 #include "handles.hpp"
 #include "utility.hpp"
 #include "ast/ast.hpp"
+#include "identifier.hpp"
 #include <unordered_map>
 #include <cstdint>
 
 namespace mt {
 
 struct Import;
-
-/*
- * MatlabIdentifier
- */
-
-class MatlabIdentifier {
-  friend struct Hash;
-public:
-  struct Hash {
-    std::size_t operator()(const MatlabIdentifier& k) const;
-  };
-
-public:
-  MatlabIdentifier() : MatlabIdentifier(-1, 0) {
-    //
-  }
-
-  explicit MatlabIdentifier(int64_t name) : MatlabIdentifier(name, 1) {
-    //
-  }
-
-  MatlabIdentifier(int64_t name, int num_components) :
-    name(name), num_components(num_components) {
-    //
-  }
-
-  bool operator==(const MatlabIdentifier& other) const {
-    return name == other.name;
-  }
-
-  bool is_valid() const {
-    return size() > 0;
-  }
-
-  bool is_compound() const {
-    return num_components > 1;
-  }
-
-  int size() const {
-    return num_components;
-  }
-
-  int64_t full_name() const {
-    return name;
-  }
-
-private:
-  int64_t name;
-  int num_components;
-};
 
 /*
 * MatlabScope
@@ -73,14 +24,14 @@ struct MatlabScope {
 
   ~MatlabScope() = default;
 
-  bool register_local_function(int64_t name, const FunctionReferenceHandle& handle);
+  bool register_local_function(const MatlabIdentifier& name, const FunctionReferenceHandle& handle);
   bool register_class(const MatlabIdentifier& name, const ClassDefHandle& handle);
-  void register_local_variable(int64_t name, const VariableDefHandle& handle);
+  void register_local_variable(const MatlabIdentifier& name, const VariableDefHandle& handle);
   void register_import(Import&& import);
 
   MatlabScopeHandle parent;
-  std::unordered_map<int64_t, FunctionReferenceHandle> local_functions;
-  std::unordered_map<int64_t, VariableDefHandle> local_variables;
+  std::unordered_map<MatlabIdentifier, FunctionReferenceHandle, MatlabIdentifier::Hash> local_functions;
+  std::unordered_map<MatlabIdentifier, VariableDefHandle, MatlabIdentifier::Hash> local_variables;
   std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash> classes;
   std::vector<Import> fully_qualified_imports;
   std::vector<Import> wildcard_imports;
@@ -192,7 +143,7 @@ private:
 struct FunctionHeader {
   FunctionHeader() = default;
   FunctionHeader(const Token& name_token,
-                 int64_t name,
+                 const MatlabIdentifier& name,
                  std::vector<int64_t>&& outputs,
                  std::vector<FunctionInputParameter>&& inputs) :
     name_token(name_token),
@@ -206,7 +157,7 @@ struct FunctionHeader {
   ~FunctionHeader() = default;
 
   Token name_token;
-  int64_t name;
+  MatlabIdentifier name;
   std::vector<int64_t> outputs;
   std::vector<FunctionInputParameter> inputs;
 };
@@ -234,22 +185,24 @@ struct FunctionDef {
 };
 
 struct FunctionReference {
-  FunctionReference(int64_t name, FunctionDefHandle def_handle, const MatlabScopeHandle& scope_handle) :
+  FunctionReference(const MatlabIdentifier& name,
+                    FunctionDefHandle def_handle,
+                    const MatlabScopeHandle& scope_handle) :
     name(name), def_handle(def_handle), scope_handle(scope_handle) {
     //
   }
 
-  int64_t name;
+  MatlabIdentifier name;
   FunctionDefHandle def_handle;
   MatlabScopeHandle scope_handle;
 };
 
 struct VariableDef {
-  explicit VariableDef(int64_t name) : name(name) {
+  explicit VariableDef(const MatlabIdentifier& name) : name(name) {
     //
   }
 
-  int64_t name;
+  MatlabIdentifier name;
 };
 
 struct ClassDef {

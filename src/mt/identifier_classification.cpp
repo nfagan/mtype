@@ -4,7 +4,7 @@
 
 namespace mt {
 
-void VariableAssignmentContext::register_assignment(int64_t id, int64_t context_uuid) {
+void VariableAssignmentContext::register_assignment(const MatlabIdentifier& id, int64_t context_uuid) {
   if (context_uuids_by_identifier.count(id) == 0) {
     register_initialization(id, context_uuid);
   } else {
@@ -12,7 +12,7 @@ void VariableAssignmentContext::register_assignment(int64_t id, int64_t context_
   }
 }
 
-void VariableAssignmentContext::register_initialization(int64_t id, int64_t context_uuid) {
+void VariableAssignmentContext::register_initialization(const MatlabIdentifier& id, int64_t context_uuid) {
   assert(context_uuids_by_identifier.count(id) == 0 && "Identifier was already initialized.");
   std::set<int64_t> context_uuids;
   context_uuids.insert(context_uuid);
@@ -36,7 +36,7 @@ void IdentifierScope::pop_variable_assignment_context() {
   const auto& child_context_ids = assign_context.child_context_uuids;
 
   for (const auto& identifiers : assign_context.context_uuids_by_identifier) {
-    const int64_t identifier = identifiers.first;
+    const auto& identifier = identifiers.first;
     const auto& present_in_contexts = identifiers.second;
     bool all_assigned = true;
 
@@ -100,7 +100,7 @@ void IdentifierScope::pop_context() {
 
 IdentifierScope::AssignmentResult
 IdentifierScope::register_variable_assignment(Store::Write& variable_writer,
-                                              int64_t id,
+                                              const MatlabIdentifier& id,
                                               bool force_shadow_parent_assignment) {
   auto* info = lookup_variable(id, false);
 
@@ -126,7 +126,7 @@ IdentifierScope::register_variable_assignment(Store::Write& variable_writer,
       auto def_handle = variable_writer.emplace_definition(std::move(variable_def));
       const auto type = IdentifierType::variable_assignment_or_initialization;
 
-      IdentifierInfo new_info(type, current_context(), def_handle);
+      IdentifierInfo new_info(id, type, current_context(), def_handle);
       classified_identifiers[id] = new_info;
 
       AssignmentResult success_result(def_handle);
@@ -167,21 +167,7 @@ inline IdentifierType identifier_type_from_function_def(FunctionDefHandle def) {
 }
 
 IdentifierScope::ReferenceResult
-IdentifierScope::register_compound_identifier_reference(Store::Write& writer,
-                                                        int64_t id) {
-  return register_identifier_reference(writer, id, true);
-}
-
-IdentifierScope::ReferenceResult
-IdentifierScope::register_scalar_identifier_reference(Store::Write& writer,
-                                                      int64_t id) {
-  return register_identifier_reference(writer, id, false);
-}
-
-IdentifierScope::ReferenceResult
-IdentifierScope::register_identifier_reference(Store::Write& writer,
-                                               int64_t id,
-                                               bool is_compound) {
+IdentifierScope::register_identifier_reference(Store::Write& writer, const MatlabIdentifier& id) {
   const auto* info = lookup_variable(id, true);
   const auto* local_info = lookup_variable(id, false);
 
@@ -190,7 +176,7 @@ IdentifierScope::register_identifier_reference(Store::Write& writer,
     //  either an external function reference or a reference to a function in the current or
     //  a parent's scope.
     const auto local_func_handle = lookup_local_function(writer, id);
-    auto new_info = make_function_reference_identifier_info(writer, id, local_func_handle, is_compound);
+    auto new_info = make_function_reference_identifier_info(writer, id, local_func_handle);
     classified_identifiers[id] = new_info;
     return ReferenceResult(true, new_info);
 
@@ -202,7 +188,7 @@ IdentifierScope::register_identifier_reference(Store::Write& writer,
       //  No local function in the current scope, so it inherits the usage from the parent.
       classified_identifiers[id] = *info;
     } else {
-      auto new_info = make_local_function_reference_identifier_info(writer, maybe_function_ref);
+      auto new_info = make_local_function_reference_identifier_info(writer, id, maybe_function_ref);
       classified_identifiers[id] = new_info;
       return ReferenceResult(true, new_info);
     }
@@ -228,12 +214,12 @@ IdentifierScope::register_identifier_reference(Store::Write& writer,
 
     return ReferenceResult(success, *info);
 
-  } else if (info->type == IdentifierType::unresolved_external_function && !info->is_compound_identifier) {
+  } else if (info->type == IdentifierType::unresolved_external_function && !info->source.is_compound()) {
     //  Because functions can be overloaded and are dispatched depending on their argument types,
     //  we can't assume that `id` corresponds to an existing function -- we must make a new
     //  reference. The exception to this rule is that package functions and static methods referenced
     //  via a compound identifier cannot be dispatched, and so always refer to the same function.
-    return ReferenceResult(true, make_external_function_reference_identifier_info(writer, id, is_compound));
+    return ReferenceResult(true, make_external_function_reference_identifier_info(writer, id));
 
   } else {
     return ReferenceResult(true, *info);
@@ -242,8 +228,8 @@ IdentifierScope::register_identifier_reference(Store::Write& writer,
 
 IdentifierScope::ReferenceResult
 IdentifierScope::register_fully_qualified_import(Store::Write& writer,
-                                                 int64_t complete_identifier,
-                                                 int64_t last_identifier_component) {
+                                                 const MatlabIdentifier& complete_identifier,
+                                                 const MatlabIdentifier& last_identifier_component) {
   auto* local_last_info = lookup_variable(last_identifier_component, false);
   if (local_last_info) {
     //  Imported identifier component should not already have been registered.
@@ -260,7 +246,7 @@ IdentifierScope::register_fully_qualified_import(Store::Write& writer,
   } else {
     //  Register the reference as `last_identifier_component`, but create the function reference
     //  to `complete_identifier`.
-    new_info = make_external_function_reference_identifier_info(writer, complete_identifier, true);
+    new_info = make_external_function_reference_identifier_info(writer, complete_identifier);
   }
 
   classified_identifiers[last_identifier_component] = new_info;
@@ -269,35 +255,33 @@ IdentifierScope::register_fully_qualified_import(Store::Write& writer,
 
 IdentifierScope::IdentifierInfo
 IdentifierScope::make_external_function_reference_identifier_info(Store::Write& writer,
-                                                                  int64_t identifier,
-                                                                  bool is_compound) {
-  auto ref = writer.make_external_reference(identifier, matlab_scope_handle);
-  IdentifierInfo info(IdentifierType::unresolved_external_function, current_context(), ref);
-  info.is_compound_identifier = is_compound;
+                                                                  const MatlabIdentifier& id) {
+  auto ref = writer.make_external_reference(id, matlab_scope_handle);
+  IdentifierInfo info(id, IdentifierType::unresolved_external_function, current_context(), ref);
   return info;
 }
 
 IdentifierScope::IdentifierInfo
 IdentifierScope::make_local_function_reference_identifier_info(Store::Write& writer,
+                                                               const MatlabIdentifier& id,
                                                                FunctionReferenceHandle ref_handle) {
   auto& ref = writer.at(ref_handle);
   auto type = identifier_type_from_function_def(ref.def_handle);
-  return IdentifierInfo(type, current_context(), ref_handle);
+  return IdentifierInfo(id, type, current_context(), ref_handle);
 }
 
 IdentifierScope::IdentifierInfo
 IdentifierScope::make_function_reference_identifier_info(Store::Write& writer,
-                                                         int64_t identifier,
-                                                         FunctionReferenceHandle maybe_local_ref,
-                                                         bool is_compound) {
+                                                         const MatlabIdentifier& identifier,
+                                                         FunctionReferenceHandle maybe_local_ref) {
   if (maybe_local_ref.is_valid()) {
-    return make_local_function_reference_identifier_info(writer, maybe_local_ref);
+    return make_local_function_reference_identifier_info(writer, identifier, maybe_local_ref);
   } else {
-    return make_external_function_reference_identifier_info(writer, identifier, is_compound);
+    return make_external_function_reference_identifier_info(writer, identifier);
   }
 }
 
-FunctionReferenceHandle IdentifierScope::lookup_local_function(const Store::Write& writer, int64_t name) const {
+FunctionReferenceHandle IdentifierScope::lookup_local_function(const Store::Write& writer, const MatlabIdentifier& name) const {
   if (matlab_scope_handle.is_valid()) {
     return writer.lookup_local_function(matlab_scope_handle, name);
   } else {
@@ -305,7 +289,7 @@ FunctionReferenceHandle IdentifierScope::lookup_local_function(const Store::Writ
   }
 }
 
-IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(int64_t id, bool traverse_parent) {
+IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(const MatlabIdentifier& id, bool traverse_parent) {
   auto it = classified_identifiers.find(id);
   if (it == classified_identifiers.end()) {
     return traverse_parent && has_parent() ? parent()->lookup_variable(id, true) : nullptr;
@@ -314,7 +298,7 @@ IdentifierScope::IdentifierInfo* IdentifierScope::lookup_variable(int64_t id, bo
   }
 }
 
-bool IdentifierScope::has_variable(int64_t id, bool traverse_parent) {
+bool IdentifierScope::has_variable(const MatlabIdentifier& id, bool traverse_parent) {
   auto* info = lookup_variable(id, traverse_parent);
   return info ? is_variable(info->type) : false;
 }
@@ -412,7 +396,7 @@ IdentifierScope* IdentifierClassifier::current_scope() {
 }
 
 IdentifierScope::AssignmentResult
-IdentifierClassifier::register_variable_assignment(const Token& source_token, int64_t primary_identifier) {
+IdentifierClassifier::register_variable_assignment(const Token& source_token, const MatlabIdentifier& primary_identifier) {
   Store::Write read_write(*store);
 
   auto primary_result = current_scope()->register_variable_assignment(read_write, primary_identifier);
@@ -436,9 +420,12 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
 
   for (const auto& import : matlab_scope.fully_qualified_imports) {
     //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
-    auto complete_identifier = string_registry->make_registered_compound_identifier(import.identifier_components);
-    auto res = scope->register_fully_qualified_import(read_write,
-      complete_identifier, import.identifier_components.back());
+    auto complete_identifier_id = string_registry->make_registered_compound_identifier(import.identifier_components);
+
+    MatlabIdentifier complete_identifier(complete_identifier_id, import.identifier_components.size());
+    MatlabIdentifier import_alias(import.identifier_components.back());
+
+    auto res = scope->register_fully_qualified_import(read_write, complete_identifier, import_alias);
 
     if (!res.success) {
       add_error(make_error_shadowed_import(import.source_token, res.info.type));
@@ -456,7 +443,7 @@ void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
     const auto& def_handle = read_write.at(ref_handle).def_handle;
     const auto& def = read_write.at(def_handle);
 
-    auto res = scope->register_scalar_identifier_reference(read_write, def.header.name);
+    auto res = scope->register_identifier_reference(read_write, def.header.name);
     if (!res.success || res.info.type != IdentifierType::local_function) {
       //  It's a bug if we fail to register a local function.
       assert(res.success && "Failed to register local function.");
@@ -468,7 +455,7 @@ void IdentifierClassifier::register_function_parameters(Store::Write& read_write
                                                         const Token& source_token,
                                                         const std::vector<int64_t>& identifiers) {
   for (const auto& id : identifiers) {
-    register_function_parameter(read_write, source_token, id);
+    register_function_parameter(read_write, source_token, MatlabIdentifier(id));
   }
 }
 
@@ -477,12 +464,14 @@ void IdentifierClassifier::register_function_parameters(Store::Write& read_write
                                                         const std::vector<FunctionInputParameter>& inputs) {
   for (const auto& input : inputs) {
     if (!input.is_ignored) {
-      register_function_parameter(read_write, source_token, input.name);
+      register_function_parameter(read_write, source_token, MatlabIdentifier(input.name));
     }
   }
 }
 
-void IdentifierClassifier::register_function_parameter(Store::Write& read_write, const Token& source_token, int64_t id) {
+void IdentifierClassifier::register_function_parameter(Store::Write& read_write,
+                                                       const Token& source_token,
+                                                       const MatlabIdentifier& id) {
   //  Input and output parameters always introduce new local variables.
   const bool force_shadow_parent_assignment = true;
   auto assign_res =
@@ -523,12 +512,11 @@ Expr* IdentifierClassifier::dynamic_field_reference_expr(DynamicFieldReferenceEx
 
 Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr) {
   IdentifierScope::ReferenceResult ref_result;
-  const auto& identifier = expr.identifier;
-  const auto name = expr.identifier.full_name();
+  const auto& name = expr.identifier;
 
   {
     Store::Write read_write(*store);
-    ref_result = current_scope()->register_identifier_reference(read_write, name, identifier.is_compound());
+    ref_result = current_scope()->register_identifier_reference(read_write, name);
   }
 
   if (!is_function(ref_result.info.type)) {
@@ -605,7 +593,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
   const auto compound_identifier_components = expr.make_compound_identifier(&subscript_end);
 
   const bool is_variable = current_scope()->has_variable(expr.primary_identifier, true);
-  const int64_t primary_identifier = expr.primary_identifier;
+  const auto& primary_identifier = expr.primary_identifier;
 
   auto* scope = current_scope();
 
@@ -615,7 +603,7 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
     Store::Write read_write(*store);
 
     primary_result =
-      scope->register_scalar_identifier_reference(read_write, primary_identifier);
+      scope->register_identifier_reference(read_write, primary_identifier);
 
     if (!primary_result.success) {
       auto err = make_error_variable_referenced_before_assignment(expr.source_token, primary_identifier);
@@ -631,11 +619,12 @@ Expr* IdentifierClassifier::identifier_reference_expr_rhs(mt::IdentifierReferenc
     //  the compound identifier as well.
     Store::Write read_write(*store);
 
-    const int64_t compound_identifier =
+    const int64_t compound_identifier_id =
       string_registry->make_registered_compound_identifier(compound_identifier_components);
+    const MatlabIdentifier compound_identifier(compound_identifier_id, compound_identifier_components.size());
 
     const auto compound_ref_result =
-      scope->register_compound_identifier_reference(read_write, compound_identifier);
+      scope->register_identifier_reference(read_write, compound_identifier);
 
     if (!compound_ref_result.success) {
       auto err = make_error_variable_referenced_before_assignment(expr.source_token, compound_identifier);
@@ -676,7 +665,8 @@ Expr* IdentifierClassifier::superclass_method_application(mt::IdentifierReferenc
 
   const auto scope_handle = current_scope()->matlab_scope_handle;
 
-  const auto function_name = string_registry->make_registered_compound_identifier(compound_identifier_components);
+  const auto function_name_id = string_registry->make_registered_compound_identifier(compound_identifier_components);
+  MatlabIdentifier function_name(function_name_id, compound_identifier_components.size());
   FunctionReferenceHandle function_reference_handle;
 
   {
@@ -800,7 +790,7 @@ SwitchStmt* IdentifierClassifier::switch_stmt(SwitchStmt& stmt) {
 }
 
 VariableDeclarationStmt* IdentifierClassifier::variable_declaration_stmt(VariableDeclarationStmt& stmt) {
-  for (const int64_t identifier : stmt.identifiers) {
+  for (const auto& identifier : stmt.identifiers) {
     const auto assign_res = register_variable_assignment(stmt.source_token, identifier);
     if (!assign_res.was_initialization) {
       add_error(make_error_pre_declared_qualified_variable(stmt.source_token, identifier));
@@ -899,26 +889,26 @@ void IdentifierClassifier::add_error(mt::ParseError&& error) {
   errors.emplace_back(error);
 }
 
-void IdentifierClassifier::add_error_if_new_identifier(mt::ParseError&& err, int64_t identifier) {
+void IdentifierClassifier::add_error_if_new_identifier(mt::ParseError&& err, const MatlabIdentifier& identifier) {
   if (!added_error_for_identifier(identifier)) {
     add_error(std::move(err));
     mark_error_identifier(identifier);
   }
 }
 
-void IdentifierClassifier::add_warning_if_new_identifier(mt::ParseError&& err, int64_t identifier) {
+void IdentifierClassifier::add_warning_if_new_identifier(mt::ParseError&& err, const MatlabIdentifier& identifier) {
   if (!added_error_for_identifier(identifier)) {
     warnings.emplace_back(std::move(err));
     mark_error_identifier(identifier);
   }
 }
 
-bool IdentifierClassifier::added_error_for_identifier(int64_t identifier) const {
-  return error_identifiers_by_scope.back().count(identifier) > 0;
+bool IdentifierClassifier::added_error_for_identifier(const MatlabIdentifier& identifier) const {
+  return error_identifiers_by_scope.back().count(identifier.full_name()) > 0;
 }
 
-void IdentifierClassifier::mark_error_identifier(int64_t identifier) {
-  error_identifiers_by_scope.back().insert(identifier);
+void IdentifierClassifier::mark_error_identifier(const MatlabIdentifier& identifier) {
+  error_identifiers_by_scope.back().insert(identifier.full_name());
 }
 
 Optional<ParseError>
@@ -937,9 +927,9 @@ IdentifierClassifier::check_function_reference_subscript(const IdentifierReferen
 }
 
 ParseError IdentifierClassifier::make_error_assignment_to_non_variable(const Token& at_token,
-                                                                       int64_t identifier,
+                                                                       const MatlabIdentifier& identifier,
                                                                        IdentifierType present_type) {
-  auto identifier_str = std::string(string_registry->at(identifier));
+  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
   auto type_str = std::string(to_string(present_type));
 
   std::string msg = "The usage of `" + identifier_str + "` as a variable assignment target ";
@@ -948,8 +938,9 @@ ParseError IdentifierClassifier::make_error_assignment_to_non_variable(const Tok
   return ParseError(text, at_token, msg);
 }
 
-ParseError IdentifierClassifier::make_error_variable_referenced_before_assignment(const Token& at_token, int64_t identifier) {
-  auto identifier_str = std::string(string_registry->at(identifier));
+ParseError IdentifierClassifier::make_error_variable_referenced_before_assignment(const Token& at_token,
+                                                                                  const MatlabIdentifier& identifier) {
+  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
 
   std::string msg = "The identifier `" + identifier_str + "`, apparently a variable, might be ";
   msg += "referenced before it is explicitly assigned a value.";
@@ -966,9 +957,9 @@ ParseError IdentifierClassifier::make_error_invalid_function_call_expr(const Tok
 }
 
 ParseError IdentifierClassifier::make_error_function_reference_to_non_function(const Token& at_token,
-                                                                               int64_t identifier,
+                                                                               const MatlabIdentifier& identifier,
                                                                                IdentifierType present_type) {
-  auto identifier_str = std::string(string_registry->at(identifier));
+  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
   auto type_str = std::string(to_string(present_type));
 
   std::string msg = "The usage of `" + identifier_str + "` as a function reference ";
@@ -983,8 +974,8 @@ ParseError IdentifierClassifier::make_error_shadowed_import(const Token& at_toke
   return ParseError(text, at_token, msg);
 }
 
-ParseError IdentifierClassifier::make_error_pre_declared_qualified_variable(const Token& at_token, int64_t identifier) {
-  auto identifier_str = std::string(string_registry->at(identifier));
+ParseError IdentifierClassifier::make_error_pre_declared_qualified_variable(const Token& at_token, const MatlabIdentifier& identifier) {
+  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
   std::string msg = "The declaration of identifier `" + identifier_str + "` must precede its initialization.";
   return ParseError(text, at_token, msg);
 }

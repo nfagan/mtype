@@ -196,7 +196,7 @@ struct FunctionCallExpr : public Expr {
 struct VariableReferenceExpr : public Expr {
   VariableReferenceExpr(const Token& source_token,
                         VariableDefHandle def_handle,
-                        int64_t name,
+                        const MatlabIdentifier& name,
                         std::vector<Subscript>&& subscripts,
                         bool is_initializer) :
   source_token(source_token),
@@ -211,14 +211,14 @@ struct VariableReferenceExpr : public Expr {
 
   Token source_token;
   VariableDefHandle def_handle;
-  int64_t name;
+  MatlabIdentifier name;
   std::vector<Subscript> subscripts;
   bool is_initializer;
 };
 
 struct IdentifierReferenceExpr : public Expr {
   IdentifierReferenceExpr(const Token& source_token,
-                          int64_t primary_identifier,
+                          const MatlabIdentifier& primary_identifier,
                           std::vector<Subscript>&& subscripts) :
   source_token(source_token),
   primary_identifier(primary_identifier),
@@ -242,7 +242,7 @@ struct IdentifierReferenceExpr : public Expr {
   std::vector<int64_t> make_compound_identifier(int64_t* end) const;
 
   Token source_token;
-  int64_t primary_identifier;
+  MatlabIdentifier primary_identifier;
   std::vector<Subscript> subscripts;
 };
 

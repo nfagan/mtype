@@ -179,8 +179,9 @@ private:
   FunctionDefHandle emplace_definition(FunctionDef&& def);
   void emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def);
 
-  FunctionReferenceHandle make_external_reference(int64_t to_identifier, const MatlabScopeHandle& in_scope);
-  FunctionReferenceHandle make_local_reference(int64_t to_identifier,
+  FunctionReferenceHandle make_external_reference(const MatlabIdentifier& to_identifier,
+                                                  const MatlabScopeHandle& in_scope);
+  FunctionReferenceHandle make_local_reference(const MatlabIdentifier& to_identifier,
                                                const FunctionDefHandle& with_def,
                                                const MatlabScopeHandle& in_scope);
 
@@ -197,7 +198,7 @@ private:
   const MatlabScope& at(const MatlabScopeHandle& handle) const;
   MatlabScope& at(const MatlabScopeHandle& handle);
 
-  FunctionReferenceHandle lookup_local_function(const MatlabScopeHandle& in_scope, int64_t name) const;
+  FunctionReferenceHandle lookup_local_function(const MatlabScopeHandle& in_scope, const MatlabIdentifier& name) const;
 
 private:
   mutable StoreAccessor accessor;

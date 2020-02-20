@@ -87,7 +87,7 @@ bool IdentifierReferenceExpr::is_static_identifier_reference_expr() const {
 
 std::vector<int64_t> IdentifierReferenceExpr::make_compound_identifier(int64_t* end) const {
   std::vector<int64_t> identifier_components;
-  identifier_components.push_back(primary_identifier);
+  identifier_components.push_back(primary_identifier.full_name());
 
   int64_t i = 0;
   const auto sz = int64_t(subscripts.size());

@@ -76,7 +76,7 @@ private:
   Optional<std::unique_ptr<Block>> sub_block();
   Optional<std::unique_ptr<FunctionDefNode>> function_def();
   Optional<FunctionHeader> function_header();
-  Optional<int64_t> compound_function_name(std::string_view first_component);
+  Optional<MatlabIdentifier> compound_function_name(std::string_view first_component);
   Optional<std::vector<FunctionInputParameter>> function_inputs();
   Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
   Optional<std::string_view> one_identifier();

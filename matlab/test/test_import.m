@@ -6,8 +6,9 @@ import mt.parse_struct;
 
 y = parse_struct( struct(), {} );
 
-disp( import() );
-import( s );
+  function local()
+    z = parsestruct();
+  end
 
 end
 

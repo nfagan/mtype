@@ -17,6 +17,8 @@ set(sources
         file_resolution.cpp
         fs.hpp
         handles.hpp
+        identifier.hpp
+        identifier.cpp
         store.hpp
         store.cpp
         identifier_classification.hpp

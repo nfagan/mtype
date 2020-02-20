@@ -4,6 +4,7 @@
 #include "../token.hpp"
 #include "../lang_components.hpp"
 #include "../Optional.hpp"
+#include "../identifier.hpp"
 
 namespace mt {
 
@@ -12,7 +13,7 @@ struct CharLiteralExpr;
 struct VariableDeclarationStmt : public Stmt {
   VariableDeclarationStmt(const Token& source_token,
                           VariableDeclarationQualifier qualifier,
-                          std::vector<int64_t>&& identifiers) :
+                          std::vector<MatlabIdentifier>&& identifiers) :
                           source_token(source_token),
                           qualifier(qualifier),
                           identifiers(std::move(identifiers)) {
@@ -24,7 +25,7 @@ struct VariableDeclarationStmt : public Stmt {
 
   Token source_token;
   VariableDeclarationQualifier qualifier;
-  std::vector<int64_t> identifiers;
+  std::vector<MatlabIdentifier> identifiers;
 };
 
 struct CommandStmt : public Stmt {
@@ -139,7 +140,7 @@ struct ControlStmt : public Stmt {
 
 struct ForStmt : public Stmt {
   ForStmt(const Token& source_token,
-          int64_t loop_variable_identifier,
+          const MatlabIdentifier& loop_variable_identifier,
           BoxedExpr loop_variable_expr,
           BoxedBlock body) :
   source_token(source_token),
@@ -153,7 +154,7 @@ struct ForStmt : public Stmt {
   ForStmt* accept(IdentifierClassifier& classifier) override;
 
   Token source_token;
-  int64_t loop_variable_identifier;
+  MatlabIdentifier loop_variable_identifier;
   BoxedExpr loop_variable_expr;
   BoxedBlock body;
 };

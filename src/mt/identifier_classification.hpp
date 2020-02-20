@@ -23,15 +23,15 @@ public:
     //
   }
   ~VariableAssignmentContext() = default;
-  void register_assignment(int64_t id, int64_t context_uuid);
+  void register_assignment(const MatlabIdentifier& id, int64_t context_uuid);
   void register_child_context(int64_t context_uuid);
 
 private:
-  void register_initialization(int64_t id, int64_t context_uuid);
+  void register_initialization(const MatlabIdentifier& id, int64_t context_uuid);
 
 public:
   int64_t parent_index;
-  std::unordered_map<int64_t, std::set<int64_t>> context_uuids_by_identifier;
+  std::unordered_map<MatlabIdentifier, std::set<int64_t>, MatlabIdentifier::Hash> context_uuids_by_identifier;
   std::vector<int64_t> child_context_uuids;
 };
 
@@ -62,20 +62,27 @@ class IdentifierScope {
    * IdentifierInfo
    */
   struct IdentifierInfo {
-    IdentifierInfo() : type(IdentifierType::unknown), function_reference(), is_compound_identifier(false) {
+    IdentifierInfo() : type(IdentifierType::unknown), function_reference() {
       //
     }
 
-    IdentifierInfo(IdentifierType type, IdentifierContext context, FunctionReferenceHandle reference) :
-      type(type), context(context), function_reference(reference), is_compound_identifier(false) {
+    IdentifierInfo(const MatlabIdentifier& source,
+                   IdentifierType type,
+                   IdentifierContext context,
+                   FunctionReferenceHandle reference) :
+      source(source), type(type), context(context), function_reference(reference) {
       //
     }
 
-    IdentifierInfo(IdentifierType type, IdentifierContext context, VariableDefHandle def_handle) :
-      type(type), context(context), variable_def_handle(def_handle), is_compound_identifier(false) {
+    IdentifierInfo(const MatlabIdentifier& source,
+                  IdentifierType type,
+                  IdentifierContext context,
+                  VariableDefHandle def_handle) :
+      source(source), type(type), context(context), variable_def_handle(def_handle) {
       //
     }
 
+    MatlabIdentifier source;
     IdentifierType type;
     IdentifierContext context;
 
@@ -83,8 +90,6 @@ class IdentifierScope {
       FunctionReferenceHandle function_reference;
       VariableDefHandle variable_def_handle;
     };
-
-    bool is_compound_identifier;
   };
 
   /*
@@ -143,24 +148,19 @@ public:
 private:
   bool has_parent() const;
   AssignmentResult register_variable_assignment(Store::Write& writer,
-                                                int64_t id,
+                                                const MatlabIdentifier& id,
                                                 bool force_shadow_parent_assignment = false);
   ReferenceResult register_identifier_reference(Store::Write& read_write,
-                                                int64_t id,
-                                                bool is_compound);
-  ReferenceResult register_compound_identifier_reference(Store::Write& read_write,
-                                                         int64_t id);
-  ReferenceResult register_scalar_identifier_reference(Store::Write& read_write,
-                                                       int64_t id);
+                                                const MatlabIdentifier& id);
 
   ReferenceResult register_fully_qualified_import(Store::Write& function_writer,
-                                                  int64_t complete_identifier,
-                                                  int64_t last_identifier_component);
+                                                  const MatlabIdentifier& complete_identifier,
+                                                  const MatlabIdentifier& last_identifier_component);
 
-  IdentifierInfo* lookup_variable(int64_t id, bool traverse_parent);
-  FunctionReferenceHandle lookup_local_function(const Store::Write& writer, int64_t name) const;
+  IdentifierInfo* lookup_variable(const MatlabIdentifier& id, bool traverse_parent);
+  FunctionReferenceHandle lookup_local_function(const Store::Write& writer, const MatlabIdentifier& name) const;
 
-  bool has_variable(int64_t id, bool traverse_parent);
+  bool has_variable(const MatlabIdentifier& id, bool traverse_parent);
 
   const IdentifierScope* parent() const;
   IdentifierScope* parent();
@@ -175,12 +175,13 @@ private:
   const IdentifierContext* context_at_depth(int depth) const;
 
   IdentifierInfo make_local_function_reference_identifier_info(Store::Write& function_read_write,
+                                                               const MatlabIdentifier& id,
                                                                FunctionReferenceHandle ref);
   IdentifierInfo make_external_function_reference_identifier_info(Store::Write& function_read_write,
-                                                                  int64_t identifier,
-                                                                  bool is_compound);
-  IdentifierInfo make_function_reference_identifier_info(Store::Write& function_read_write, int64_t identifier,
-    FunctionReferenceHandle maybe_local_ref, bool is_compound);
+                                                                  const MatlabIdentifier& identifier);
+  IdentifierInfo make_function_reference_identifier_info(Store::Write& function_read_write,
+                                                         const MatlabIdentifier& identifier,
+                                                         FunctionReferenceHandle maybe_local_ref);
 
 private:
   IdentifierClassifier* classifier;
@@ -190,7 +191,7 @@ private:
 
   std::vector<IdentifierContext> contexts;
   int64_t context_uuid;
-  std::unordered_map<int64_t, IdentifierInfo> classified_identifiers;
+  std::unordered_map<MatlabIdentifier, IdentifierInfo, MatlabIdentifier::Hash> classified_identifiers;
 
   std::vector<VariableAssignmentContext> variable_assignment_contexts;
 };
@@ -265,13 +266,15 @@ private:
   IdentifierScope* current_scope();
   const IdentifierScope* current_scope() const;
 
-  void register_function_parameter(Store::Write& read_write, const Token& source_token, int64_t identifier);
+  void register_function_parameter(Store::Write& read_write, const Token& source_token,
+    const MatlabIdentifier& identifier);
   void register_function_parameters(Store::Write& read_write, const Token& source_token,
     const std::vector<int64_t>& identifiers);
   void register_function_parameters(Store::Write& read_write, const Token& source_token,
     const std::vector<FunctionInputParameter>& identifiers);
 
-  IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token, int64_t primary_identifier);
+  IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token,
+                                                                 const MatlabIdentifier& primary_identifier);
   void register_imports(IdentifierScope* in_scope);
   void register_local_functions(IdentifierScope* in_scope);
 
@@ -286,22 +289,22 @@ private:
   void block_preserve_context(BoxedBlock& block);
   void block_new_context(BoxedBlock& block);
 
-  void mark_error_identifier(int64_t identifier);
-  bool added_error_for_identifier(int64_t identifier) const;
+  void mark_error_identifier(const MatlabIdentifier& identifier);
+  bool added_error_for_identifier(const MatlabIdentifier& identifier) const;
   void add_error(ParseError&& error);
-  void add_error_if_new_identifier(ParseError&& err, int64_t identifier);
-  void add_warning_if_new_identifier(ParseError&& err, int64_t identifier);
+  void add_error_if_new_identifier(ParseError&& err, const MatlabIdentifier& id);
+  void add_warning_if_new_identifier(ParseError&& err, const MatlabIdentifier& id);
 
   Optional<ParseError> check_function_reference_subscript(const IdentifierReferenceExpr& expr, int64_t subscript_end);
 
-  ParseError make_error_assignment_to_non_variable(const Token& at_token, int64_t identifier, IdentifierType present_type);
-  ParseError make_error_variable_referenced_before_assignment(const Token& at_token, int64_t identifier);
+  ParseError make_error_assignment_to_non_variable(const Token& at_token, const MatlabIdentifier& identifier, IdentifierType present_type);
+  ParseError make_error_variable_referenced_before_assignment(const Token& at_token, const MatlabIdentifier& identifier);
   ParseError make_error_implicit_variable_initialization(const Token& at_token);
   ParseError make_error_invalid_function_call_expr(const Token& at_token);
   ParseError make_error_shadowed_import(const Token& at_token, IdentifierType present_type);
-  ParseError make_error_pre_declared_qualified_variable(const Token& at_token, int64_t identifier);
+  ParseError make_error_pre_declared_qualified_variable(const Token& at_token, const MatlabIdentifier& identifier);
   ParseError make_error_function_reference_to_non_function(const Token& at_token,
-                                                           int64_t identifier,
+                                                           const MatlabIdentifier& identifier,
                                                            IdentifierType present_type);
 private:
   StringRegistry* string_registry;

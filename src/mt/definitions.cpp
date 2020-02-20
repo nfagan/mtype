@@ -24,11 +24,6 @@ void FunctionAttributes::mark_boolean_attribute_from_name(std::string_view name)
   }
 }
 
-std::size_t MatlabIdentifier::Hash::operator()(const MatlabIdentifier& k) const {
-  using std::hash;
-  return hash<int64_t>()(k.name);
-}
-
 void MatlabScope::register_import(Import&& import) {
   if (import.type == ImportType::wildcard) {
     wildcard_imports.emplace_back(import);
@@ -46,7 +41,7 @@ bool MatlabScope::register_class(const MatlabIdentifier& name, const ClassDefHan
   }
 }
 
-bool MatlabScope::register_local_function(int64_t name, const FunctionReferenceHandle& ref) {
+bool MatlabScope::register_local_function(const MatlabIdentifier& name, const FunctionReferenceHandle& ref) {
   if (local_functions.count(name) > 0) {
     return false;
   } else {
@@ -55,7 +50,7 @@ bool MatlabScope::register_local_function(int64_t name, const FunctionReferenceH
   }
 }
 
-void MatlabScope::register_local_variable(int64_t name, const VariableDefHandle& handle) {
+void MatlabScope::register_local_variable(const MatlabIdentifier& name, const VariableDefHandle& handle) {
   local_variables[name] = handle;
 }
 
