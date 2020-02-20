@@ -4,7 +4,7 @@
 
 namespace mt {
 
-enum class AccessSpecifier : uint8_t {
+enum class AccessType : uint8_t {
   public_access,
   private_access,
   protected_access,
@@ -98,6 +98,7 @@ GroupingMethod grouping_method_from_token_type(TokenType type);
 SubscriptMethod subscript_method_from_token_type(TokenType type);
 ControlFlowManipulator control_flow_manipulator_from_token_type(TokenType type);
 VariableDeclarationQualifier variable_declaration_qualifier_from_token_type(TokenType type);
+AccessType access_type_from_access_attribute_value(std::string_view value);
 
 bool is_loop_control_flow_manipulator(ControlFlowManipulator manip);
 

@@ -135,7 +135,10 @@ std::string StringVisitor::function_def_node(const FunctionDefNode& def_node) co
 
 std::string StringVisitor::function_def(const FunctionDef& def) const {
   const auto header = function_header(def.header);
-  auto body = def.body->accept(*this);
+  std::string body;
+  if (def.body) {
+    body = def.body->accept(*this);
+  }
   auto end = tab_str() + end_str();
   return header + "\n" + body + "\n" + end;
 }
@@ -204,18 +207,12 @@ std::string StringVisitor::methods(const ClassDef& def) const {
   enter_block();
 
   std::string func_def_strs;
-  for (const auto& method_def : def.method_defs) {
-    const auto& func_def = store_reader.at(method_def.def_handle);
+  for (const auto& def_handle : def.methods) {
+    const auto& func_def = store_reader.at(def_handle);
     func_def_strs += tab_str() + function_def(func_def) + "\n";
   }
 
-  std::string func_header_strs;
-  for (const auto& declaration : def.method_declarations) {
-    func_header_strs += tab_str() + function_header(declaration.header) + "\n";
-  }
-
   exit_block();
-  method_str += func_header_strs;
   method_str += func_def_strs + tab_str() + end_str();
   exit_block();
 

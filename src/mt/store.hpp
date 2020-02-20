@@ -102,6 +102,11 @@ private:
       }
 
       template <typename... Args>
+      FunctionDefHandle make_function_declaration(Args&&... args) {
+        return store.make_function_declaration(std::forward<Args>(args)...);
+      }
+
+      template <typename... Args>
       auto make_matlab_scope(Args&&... args) {
         return store.make_matlab_scope(std::forward<Args>(args)...);
       }
@@ -168,6 +173,7 @@ private:
   MatlabScopeHandle make_matlab_scope(const MatlabScopeHandle& parent);
 
   ClassDefHandle make_class_definition();
+  FunctionDefHandle make_function_declaration(FunctionHeader&& header, const FunctionAttributes& attrs);
 
   VariableDefHandle emplace_definition(VariableDef&& def);
   FunctionDefHandle emplace_definition(FunctionDef&& def);

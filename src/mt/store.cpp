@@ -12,6 +12,11 @@ ClassDefHandle Store::make_class_definition() {
   return ClassDefHandle(class_definitions.size() - 1);
 }
 
+FunctionDefHandle Store::make_function_declaration(FunctionHeader&& header, const FunctionAttributes& attrs) {
+  function_definitions.emplace_back(std::move(header), attrs);
+  return FunctionDefHandle(function_definitions.size() - 1);
+}
+
 void Store::emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def) {
   class_definitions[at_handle.index] = std::move(def);
 }
@@ -96,8 +101,7 @@ FunctionReferenceHandle Store::lookup_local_function(const MatlabScopeHandle& in
 }
 
 MatlabScopeHandle Store::make_matlab_scope(const mt::MatlabScopeHandle& parent) {
-  MatlabScope scope(parent);
-  matlab_scopes.emplace_back(std::move(scope));
+  matlab_scopes.emplace_back(parent);
   return MatlabScopeHandle(matlab_scopes.size() - 1);
 }
 

@@ -71,6 +71,58 @@ bool matlab::is_end_terminated(std::string_view kw) {
     kw == "spmd" || kw == "switch" || kw == "try" || kw == "while" || is_classdef_keyword(kw);
 }
 
+bool matlab::is_access_attribute_value(std::string_view str) {
+  return str == "public" || str == "private" || str == "protected" || str == "immutable";
+}
+
+bool matlab::is_public_access_attribute_value(std::string_view str) {
+  return str == "public";
+}
+
+bool matlab::is_private_access_attribute_value(std::string_view str) {
+  return str == "private";
+}
+
+bool matlab::is_protected_access_attribute_value(std::string_view str) {
+  return str == "protected";
+}
+
+bool matlab::is_immutable_access_attribute_value(std::string_view str) {
+  return str == "immutable";
+}
+
+bool matlab::is_access_attribute(std::string_view str) {
+  return str == "Access";
+}
+
+bool matlab::is_abstract_attribute(std::string_view str) {
+  return str == "Abstract";
+}
+
+bool matlab::is_hidden_attribute(std::string_view str) {
+  return str == "Hidden";
+}
+
+bool matlab::is_sealed_attribute(std::string_view str) {
+  return str == "Sealed";
+}
+
+bool matlab::is_static_attribute(std::string_view str) {
+  return str == "Static";
+}
+
+bool matlab::is_method_attribute(std::string_view str) {
+  return str == "Abstract" || str == "Access" || str == "Hidden" || str == "Sealed" || str == "Static";
+}
+
+bool matlab::is_boolean_method_attribute(std::string_view str) {
+  return str == "Abstract" || str == "Hidden" || str == "Sealed" || str == "Static";
+}
+
+bool matlab::is_boolean(std::string_view str) {
+  return str == "true" || str == "false";
+}
+
 bool is_end_terminated(std::string_view kw) {
   return matlab::is_end_terminated(kw) || typing::is_end_terminated(kw);
 }

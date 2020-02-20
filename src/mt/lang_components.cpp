@@ -1,4 +1,5 @@
 #include "lang_components.hpp"
+#include "keyword.hpp"
 #include <cassert>
 
 namespace mt {
@@ -219,6 +220,25 @@ BinaryOperator binary_operator_from_token_type(TokenType type) {
       return BinaryOperator::colon;
     default:
       return BinaryOperator::unknown;
+  }
+}
+
+AccessType access_type_from_access_attribute_value(std::string_view value) {
+  if (matlab::is_public_access_attribute_value(value)) {
+    return AccessType::public_access;
+
+  } else if (matlab::is_private_access_attribute_value(value)) {
+    return AccessType::private_access;
+
+  } else if (matlab::is_protected_access_attribute_value(value)) {
+    return AccessType::protected_access;
+
+  } else if (matlab::is_immutable_access_attribute_value(value)) {
+    return AccessType::immutable_access;
+
+  } else {
+    assert(false && "Unknown access attribute value.");
+    return AccessType::public_access;
   }
 }
 

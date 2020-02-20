@@ -1,6 +1,7 @@
 #include "ast_gen.hpp"
 #include "string.hpp"
 #include "utility.hpp"
+#include "keyword.hpp"
 #include <array>
 #include <cassert>
 #include <functional>
@@ -19,14 +20,30 @@ struct BlockStmtScopeHelper {
   int* scope;
 };
 
-struct ParseScopeHelper {
-  ParseScopeHelper(AstGenerator& gen) : gen(gen) {
+struct ParseScopeStack {
+  static void push(AstGenerator& gen) {
     gen.push_scope();
   }
-  ~ParseScopeHelper() {
+  static void pop(AstGenerator& gen) {
     gen.pop_scope();
   }
-  AstGenerator& gen;
+};
+
+struct ParseScopeHelper : public ScopeHelper<AstGenerator, ParseScopeStack> {
+  using ScopeHelper::ScopeHelper;
+};
+
+struct FunctionAttributeStack {
+  static void push(AstGenerator&) {
+    //
+  }
+  static void pop(AstGenerator& gen) {
+    gen.pop_function_attributes();
+  }
+};
+
+struct FunctionAttributeHelper : public ScopeHelper<AstGenerator, FunctionAttributeStack> {
+  using ScopeHelper::ScopeHelper;
 };
 
 Result<ParseErrors, BoxedRootBlock>
@@ -38,6 +55,7 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
   store = inputs.store;
 
   scope_handles.clear();
+  function_attributes.clear();
   parse_errors.clear();
 
   block_depths = BlockDepths();
@@ -45,6 +63,12 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
 
   //  Push root scope.
   ParseScopeHelper scope_helper(*this);
+
+  //  Push default function attributes.
+  push_function_attributes(FunctionAttributes());
+  FunctionAttributeHelper attr_helper(*this);
+
+  //  Main block.
   auto result = block();
 
   if (result) {
@@ -324,7 +348,8 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     }
   }
 
-  FunctionDef function_def(header_result.rvalue(), body_res.rvalue());
+  const FunctionAttributes& attrs = current_function_attributes();
+  FunctionDef function_def(header_result.rvalue(), attrs, body_res.rvalue());
   const auto name = function_def.header.name;
 
   //  Function registry owns the local function definition.
@@ -437,8 +462,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   }
 
   ClassDef::Properties properties;
-  ClassDef::MethodDeclarations method_declarations;
-  ClassDef::MethodDefs method_defs;
+  ClassDef::Methods methods;
   std::vector<std::unique_ptr<FunctionDefNode>> method_def_nodes;
   std::vector<ClassDefNode::Property> property_nodes;
 
@@ -467,7 +491,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
       }
 
     } else if (tok.type == TokenType::keyword_methods) {
-      auto method_res = methods_block(method_names, method_defs, method_declarations, method_def_nodes);
+      auto method_res = methods_block(method_names, methods, method_def_nodes);
       if (!method_res) {
         return NullOpt{};
       }
@@ -488,9 +512,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   }
 
   MatlabIdentifier name(string_registry->register_string(name_res.value()));
-
-  ClassDef class_def(source_token, name, std::move(superclasses),
-    std::move(properties), std::move(method_defs), std::move(method_declarations));
+  ClassDef class_def(source_token, name, std::move(superclasses), std::move(properties), std::move(methods));
 
   {
     Store::Write writer(*store);
@@ -513,23 +535,175 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   return Optional<BoxedAstNode>(std::move(class_node));
 }
 
+Optional<MatlabIdentifier> AstGenerator::meta_class() {
+  iterator.advance(); //  consume ?
+  auto component_res = compound_identifier_components();
+  if (!component_res) {
+    return NullOpt{};
+  }
+
+  const auto components = string_registry->register_strings(component_res.value());
+  const auto identifier = string_registry->make_registered_compound_identifier(components);
+
+  return Optional<MatlabIdentifier>(MatlabIdentifier(identifier, components.size()));
+}
+
+Optional<FunctionAttributes> AstGenerator::method_attributes() {
+  iterator.advance(); //  consume (
+
+  FunctionAttributes attributes;
+  attributes.class_handle = class_state.enclosing_class();
+
+  while (iterator.peek().type != TokenType::right_parens) {
+    const auto& tok = iterator.peek();
+
+    auto identifier_res = one_identifier();
+    if (!identifier_res) {
+      return NullOpt{};
+    }
+
+    const auto& attribute_name = identifier_res.value();
+
+    if (!matlab::is_method_attribute(attribute_name)) {
+      add_error(make_error_unrecognized_method_attribute(tok));
+      return NullOpt{};
+    }
+
+    const bool is_boolean_attribute = matlab::is_boolean_method_attribute(attribute_name);
+    const bool has_assigned_value = iterator.peek().type == TokenType::equal;
+
+    if (is_boolean_attribute) {
+      if (has_assigned_value) {
+        //  (Static = true)
+        const auto maybe_value = boolean_attribute_value();
+        if (!maybe_value) {
+          return NullOpt{};
+
+        } else if (maybe_value.value()) {
+          attributes.mark_boolean_attribute_from_name(attribute_name);
+        }
+      } else {
+        //  (Static)
+        attributes.mark_boolean_attribute_from_name(attribute_name);
+      }
+    } else if (matlab::is_access_attribute(attribute_name)) {
+      //  (Access = public)
+      if (!has_assigned_value) {
+        //  Access must be explicitly set.
+        add_error(consume(TokenType::equal).rvalue());
+        return NullOpt{};
+
+      } else {
+        iterator.advance(); //  consume =
+
+        auto access_res = access_specifier();
+        if (!access_res) {
+          return NullOpt{};
+        } else {
+          attributes.access_type = access_res.value().type;
+        }
+      }
+    } else {
+      assert(false && "Unhandled attribute.");
+    }
+
+    if (iterator.peek().type == TokenType::comma) {
+      iterator.advance();
+    }
+  }
+
+  auto err = consume(TokenType::right_parens);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  return Optional<FunctionAttributes>(attributes);
+}
+
+Optional<AccessSpecifier> AstGenerator::access_specifier() {
+  auto type = AccessType::public_access;
+  std::unique_ptr<MatlabIdentifier[]> classes = nullptr;
+  int64_t num_classes = 0;
+
+  const auto& tok = iterator.peek();
+  if (tok.type == TokenType::left_brace) {
+    //  @TODO: Access = {?class1, ?class2}
+    const auto skip_to = TokenType::right_brace;
+    iterator.advance_to_one(&skip_to, 1);
+    auto err = consume(skip_to);
+    if (err) {
+      add_error(err.rvalue());
+      return NullOpt{};
+    }
+  } else if (tok.type == TokenType::question) {
+    //  Access = ?x
+    auto meta_class_res = meta_class();
+    if (!meta_class_res) {
+      return NullOpt{};
+    }
+    type = AccessType::by_meta_classes_access;
+    classes = std::unique_ptr<MatlabIdentifier[]>(new MatlabIdentifier[1]{meta_class_res.value()});
+    num_classes = 1;
+
+  } else {
+    //  Access = public
+    auto identifier_res = one_identifier();
+    if (!identifier_res) {
+      return NullOpt{};
+    }
+
+    const auto& attribute_value = identifier_res.value();
+
+    if (!matlab::is_access_attribute_value(attribute_value)) {
+      add_error(make_error_invalid_access_attribute_value(tok));
+      return NullOpt{};
+    } else {
+      type = access_type_from_access_attribute_value(attribute_value);
+    }
+  }
+
+  return Optional<AccessSpecifier>(AccessSpecifier(type, std::move(classes), num_classes));
+}
+
+Optional<bool> AstGenerator::boolean_attribute_value() {
+  iterator.advance(); //  consume =
+
+  auto identifier_res = one_identifier();
+  if (!identifier_res) {
+    return NullOpt{};
+  }
+
+  const auto& source_token = iterator.peek();
+  const auto& value = identifier_res.value();
+
+  if (!matlab::is_boolean(value)) {
+    add_error(make_error_invalid_boolean_attribute_value(source_token));
+    return NullOpt{};
+  }
+
+  return Optional<bool>(value == "true");
+}
+
 bool AstGenerator::methods_block(std::set<int64_t>& method_names,
-                                 ClassDef::MethodDefs& method_defs,
-                                 ClassDef::MethodDeclarations& method_declarations,
+                                 ClassDef::Methods& methods,
                                  std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes) {
   iterator.advance(); //  consume methods
 
   //  methods (SetAccess = ...)
   if (iterator.peek().type == TokenType::left_parens) {
-    //  @TODO: Parse attributes
-    auto right_parens = TokenType::right_parens;
-    iterator.advance_to_one(&right_parens, 1);
-    auto err = consume(right_parens);
-    if (err) {
-      add_error(err.rvalue());
+    auto attr_res = method_attributes();
+    if (!attr_res) {
       return false;
     }
+
+    push_function_attributes(attr_res.rvalue());
+  } else {
+    push_function_attributes(FunctionAttributes());
   }
+
+  //  Pop function attributes on return.
+  FunctionAttributeHelper attr_helper(*this);
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
@@ -542,13 +716,13 @@ bool AstGenerator::methods_block(std::set<int64_t>& method_names,
         break;
       default: {
         if (tok.type == TokenType::identifier || tok.type == TokenType::left_bracket) {
-          auto res = method_declaration(tok, method_names, method_declarations);
+          auto res = method_declaration(tok, method_names, methods);
           if (!res) {
             return false;
           }
 
         } else if (tok.type == TokenType::keyword_function) {
-          auto res = method_def(tok, method_names, method_defs, method_def_nodes);
+          auto res = method_def(tok, method_names, methods, method_def_nodes);
           if (!res) {
             return false;
           }
@@ -576,7 +750,7 @@ bool AstGenerator::methods_block(std::set<int64_t>& method_names,
 
 bool AstGenerator::method_declaration(const mt::Token& source_token,
                                       std::set<int64_t>& method_names,
-                                      ClassDef::MethodDeclarations& method_declarations) {
+                                      ClassDef::Methods& methods) {
   auto header_res = function_header();
   if (!header_res) {
     return false;
@@ -590,7 +764,15 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
 
   } else {
     method_names.emplace(func_name);
-    method_declarations.emplace_back(header_res.rvalue());
+    FunctionDefHandle pending_def_handle;
+    const auto& attrs = current_function_attributes();
+
+    {
+      Store::Write writer(*store);
+      pending_def_handle = writer.make_function_declaration(header_res.rvalue(), attrs);
+    }
+
+    methods.emplace_back(pending_def_handle);
   }
 
   return true;
@@ -598,7 +780,7 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
 
 bool AstGenerator::method_def(const Token& source_token,
                               std::set<int64_t>& method_names,
-                              mt::ClassDef::MethodDefs& method_defs,
+                              mt::ClassDef::Methods& methods,
                               std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes) {
   auto func_res = function_def();
   if (!func_res) {
@@ -615,8 +797,7 @@ bool AstGenerator::method_def(const Token& source_token,
 
   } else {
     method_names.emplace(func_name);
-    ClassDef::MethodDef method_def(def_handle);
-    method_defs.emplace_back(std::move(method_def));
+    methods.emplace_back(def_handle);
     method_def_nodes.emplace_back(std::move(func_res.rvalue()));
   }
 
@@ -2331,6 +2512,20 @@ void AstGenerator::pop_scope() {
   scope_handles.pop_back();
 }
 
+void AstGenerator::push_function_attributes(mt::FunctionAttributes&& attrs) {
+  function_attributes.emplace_back(std::move(attrs));
+}
+
+const FunctionAttributes& AstGenerator::current_function_attributes() const {
+  assert(!function_attributes.empty() && "No function attributes.");
+  return function_attributes.back();
+}
+
+void AstGenerator::pop_function_attributes() {
+  assert(function_attributes.size() > 0 && "No attributes to pop.");
+  function_attributes.pop_back();
+}
+
 MatlabScopeHandle AstGenerator::current_scope_handle() const {
   return scope_handles.empty() ? MatlabScopeHandle() : scope_handles.back();
 }
@@ -2464,6 +2659,18 @@ ParseError AstGenerator::make_error_duplicate_class_def(const Token& at_token) c
 
 ParseError AstGenerator::make_error_invalid_superclass_method_reference_expr(const Token& at_token) const {
   return ParseError(text, at_token, "Invalid superclass method reference.");
+}
+
+ParseError AstGenerator::make_error_unrecognized_method_attribute(const Token& at_token) const {
+  return ParseError(text, at_token, "Unrecognized method attribute.");
+}
+
+ParseError AstGenerator::make_error_invalid_boolean_attribute_value(const Token& at_token) const {
+  return ParseError(text, at_token, "Expected attribute value to be one of `true` or `false`.");
+}
+
+ParseError AstGenerator::make_error_invalid_access_attribute_value(const Token& at_token) const {
+  return ParseError(text, at_token, "Unrecognized access attribute value.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

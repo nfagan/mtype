@@ -7,6 +7,9 @@ classdef (Sealed) Crash < Another
     zz = 10;
   end
   
+  methods (Access = public, Static = true)
+  end
+  
   methods
     function obj = Crash(x)
       %{     

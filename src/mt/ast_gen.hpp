@@ -43,7 +43,8 @@ struct BlockDepths {
  */
 
 class AstGenerator {
-  friend struct ParseScopeHelper;
+  friend struct ParseScopeStack;
+  friend struct FunctionAttributeStack;
 public:
   struct ParseInputs {
     ParseInputs(StringRegistry* string_registry,
@@ -86,21 +87,27 @@ private:
   Optional<BoxedAstNode> class_def();
   Optional<MatlabIdentifier> superclass_name();
   Optional<std::vector<MatlabIdentifier>> superclass_names();
+
   bool methods_block(std::set<int64_t>& method_names,
-                     ClassDef::MethodDefs& method_defs,
-                     ClassDef::MethodDeclarations& method_declarations,
+                     ClassDef::Methods& methods,
                      std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes);
   bool method_def(const Token& source_token,
                   std::set<int64_t>& method_names,
-                  ClassDef::MethodDefs& method_defs,
+                  ClassDef::Methods& methods,
                   std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes);
   bool method_declaration(const Token& source_token,
                           std::set<int64_t>& method_names,
-                          ClassDef::MethodDeclarations& method_declarations);
+                          ClassDef::Methods& methods);
   bool properties_block(std::set<int64_t>& property_names,
                         std::vector<ClassDef::Property>& properties,
                         std::vector<ClassDefNode::Property>& property_nodes);
   Optional<ClassDefNode::Property> property(const Token& source_token);
+
+  Optional<FunctionAttributes> method_attributes();
+  Optional<bool> boolean_attribute_value();
+  Optional<AccessSpecifier> access_specifier();
+
+  Optional<MatlabIdentifier> meta_class();
 
   Optional<Subscript> period_subscript(const Token& source_token);
   Optional<Subscript> non_period_subscript(const Token& source_token, SubscriptMethod method, TokenType term);
@@ -190,6 +197,9 @@ private:
   ParseError make_error_duplicate_method(const Token& at_token) const;
   ParseError make_error_duplicate_class_def(const Token& at_token) const;
   ParseError make_error_invalid_superclass_method_reference_expr(const Token& at_token) const;
+  ParseError make_error_unrecognized_method_attribute(const Token& at_token) const;
+  ParseError make_error_invalid_boolean_attribute_value(const Token& at_token) const;
+  ParseError make_error_invalid_access_attribute_value(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
@@ -208,6 +218,10 @@ private:
   void pop_scope();
   MatlabScopeHandle current_scope_handle() const;
 
+  void push_function_attributes(FunctionAttributes&& attrs);
+  void pop_function_attributes();
+  const FunctionAttributes& current_function_attributes() const;
+
   void register_import(Import&& import);
 
   void add_error(ParseError&& err);
@@ -224,6 +238,7 @@ private:
   ClassDefState class_state;
 
   std::vector<MatlabScopeHandle> scope_handles;
+  std::vector<FunctionAttributes> function_attributes;
 
   bool is_end_terminated_function;
 

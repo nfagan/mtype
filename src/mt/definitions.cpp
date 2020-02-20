@@ -1,7 +1,28 @@
 #include "definitions.hpp"
 #include "ast/ast.hpp"
+#include "keyword.hpp"
+#include <cassert>
 
 namespace mt {
+
+void FunctionAttributes::mark_boolean_attribute_from_name(std::string_view name) {
+  if (matlab::is_abstract_attribute(name)) {
+    mark_abstract();
+
+  } else if (matlab::is_hidden_attribute(name)) {
+    mark_hidden();
+
+  } else if (matlab::is_sealed_attribute(name)) {
+    mark_sealed();
+
+  } else if (matlab::is_static_attribute(name)) {
+    mark_static();
+
+  } else {
+    //  Should be handled by a preceding call to is_method_attribute(name).
+    assert(false && "Unhandled method attribute name.");
+  }
+}
 
 std::size_t MatlabIdentifier::Hash::operator()(const MatlabIdentifier& k) const {
   using std::hash;

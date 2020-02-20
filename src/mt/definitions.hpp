@@ -112,55 +112,80 @@ struct FunctionInputParameter {
   bool is_ignored;
 };
 
-class MethodAttributes {
+struct AccessSpecifier {
+  AccessSpecifier() : type(AccessType::private_access), num_classes(0) {
+    //
+  }
+
+  AccessSpecifier(AccessType type, std::unique_ptr<MatlabIdentifier[]> classes, int64_t num_classes) :
+  type(type), classes(std::move(classes)), num_classes(num_classes) {
+    //
+  }
+  AccessSpecifier(AccessSpecifier&& other) noexcept = default;
+  AccessSpecifier& operator=(AccessSpecifier&& other) noexcept = default;
+
+  ~AccessSpecifier() = default;
+
+  AccessType type;
+  std::unique_ptr<MatlabIdentifier[]> classes;
+  int64_t num_classes;
+};
+
+class FunctionAttributes {
 public:
   struct AttributeFlags {
     using Flag = uint8_t;
 
-    static constexpr Flag is_abstract = 1u;
-    static constexpr Flag is_sealed = 1u << 1u;
-    static constexpr Flag is_static = 1u << 2u;
+    static constexpr Flag is_abstract_method = 1u;
+    static constexpr Flag is_hidden_method = 1u << 1u;
+    static constexpr Flag is_sealed_method = 1u << 2u;
+    static constexpr Flag is_static_method = 1u << 3u;
   };
 public:
-  MethodAttributes() : access_specifier(AccessSpecifier::public_access), boolean_attributes(0) {
+  FunctionAttributes() : FunctionAttributes(ClassDefHandle()) {
     //
   }
-  MethodAttributes(const ClassDefHandle& class_handle) : class_handle(class_handle) {
+  FunctionAttributes(const ClassDefHandle& class_handle) :
+  class_handle(class_handle), access_type(AccessType::public_access), boolean_attributes(0) {
     //
   }
 
+  void mark_boolean_attribute_from_name(std::string_view name);
+
   void mark_abstract() {
-    boolean_attributes |= AttributeFlags::is_abstract;
+    boolean_attributes |= AttributeFlags::is_abstract_method;
+  }
+  void mark_hidden() {
+    boolean_attributes |= AttributeFlags::is_hidden_method;
   }
   void mark_sealed() {
-    boolean_attributes |= AttributeFlags::is_sealed;
+    boolean_attributes |= AttributeFlags::is_sealed_method;
   }
   void mark_static() {
-    boolean_attributes |= AttributeFlags::is_static;
+    boolean_attributes |= AttributeFlags::is_static_method;
   }
 
   bool is_abstract() const {
-    return boolean_attributes & AttributeFlags::is_abstract;
+    return boolean_attributes & AttributeFlags::is_abstract_method;
+  }
+  bool is_hidden() const {
+    return boolean_attributes & AttributeFlags::is_hidden_method;
   }
   bool is_sealed() const {
-    return boolean_attributes & AttributeFlags::is_sealed;
+    return boolean_attributes & AttributeFlags::is_sealed_method;
   }
   bool is_static() const {
-    return boolean_attributes & AttributeFlags::is_static;
+    return boolean_attributes & AttributeFlags::is_static_method;
   }
-  bool has_defining_class() const {
+  bool is_class_method() const {
     return class_handle.is_valid();
-  }
-
-  AccessSpecifier get_access_specifier() const {
-    return access_specifier;
   }
 
 public:
   ClassDefHandle class_handle;
+  AccessType access_type;
 
 private:
-  AccessSpecifier access_specifier;
   AttributeFlags::Flag boolean_attributes;
 };
 
@@ -187,14 +212,24 @@ struct FunctionHeader {
 };
 
 struct FunctionDef {
-  FunctionDef(FunctionHeader&& header, std::unique_ptr<Block> body) :
-    header(std::move(header)), body(std::move(body)) {
+  FunctionDef(FunctionHeader&& header, const FunctionAttributes& attrs) :
+  header(std::move(header)), attributes(attrs), body(nullptr) {
+    //
+  }
+
+  FunctionDef(FunctionHeader&& header, const FunctionAttributes& attrs, std::unique_ptr<Block> body) :
+    header(std::move(header)), attributes(attrs), body(std::move(body)) {
     //
   }
   FunctionDef(FunctionDef&& other) noexcept = default;
   FunctionDef& operator=(FunctionDef&& other) noexcept = default;
 
+  bool is_declaration() const {
+    return body == nullptr;
+  }
+
   FunctionHeader header;
+  FunctionAttributes attributes;
   std::unique_ptr<Block> body;
 };
 
@@ -227,41 +262,20 @@ struct ClassDef {
 
     MatlabIdentifier name;
   };
-
-  struct MethodDef {
-    MethodDef() = default;
-    explicit MethodDef(const FunctionDefHandle& def_handle) : def_handle(def_handle) {
-      //
-    }
-    FunctionDefHandle def_handle;
-  };
-
-  struct MethodDeclaration {
-    MethodDeclaration() = default;
-    explicit MethodDeclaration(FunctionHeader&& header) : header(std::move(header)) {
-      //
-    }
-
-    FunctionHeader header;
-  };
-
-  using MethodDefs = std::vector<MethodDef>;
-  using MethodDeclarations = std::vector<MethodDeclaration>;
   using Properties = std::vector<Property>;
+  using Methods = std::vector<FunctionDefHandle>;
 
   ClassDef() = default;
   ClassDef(const Token& source_token,
            const MatlabIdentifier& name,
            std::vector<MatlabIdentifier>&& superclasses,
            Properties&& properties,
-           MethodDefs&& method_defs,
-           MethodDeclarations&& method_declarations) :
+           Methods&& methods) :
     source_token(source_token),
     name(name),
     superclass_names(std::move(superclasses)),
     properties(std::move(properties)),
-    method_defs(std::move(method_defs)),
-    method_declarations(std::move(method_declarations)) {
+    methods(std::move(methods)) {
     //
   }
   ~ClassDef() = default;
@@ -272,8 +286,7 @@ struct ClassDef {
   MatlabIdentifier name;
   std::vector<MatlabIdentifier> superclass_names;
   Properties properties;
-  MethodDefs method_defs;
-  MethodDeclarations method_declarations;
+  Methods methods;
 };
 
 
