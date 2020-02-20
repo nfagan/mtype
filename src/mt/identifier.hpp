@@ -6,10 +6,9 @@
 namespace mt {
 
 class MatlabIdentifier {
-  friend struct Hash;
 public:
   struct Hash {
-    std::size_t operator()(const MatlabIdentifier& k) const;
+    std::size_t operator()(const MatlabIdentifier& k) const noexcept;
   };
 
 public:

@@ -16,16 +16,13 @@ public:
   ~StringRegistry() = default;
 
   int64_t register_string(std::string_view str);
-  void register_strings(const std::vector<std::string_view>& strs, std::vector<int64_t>& out);
   std::vector<int64_t> register_strings(const std::vector<std::string_view>& strs);
 
-  int64_t make_registered_compound_identifier(const std::vector<int64_t>& components, int64_t num);
   int64_t make_registered_compound_identifier(const std::vector<int64_t>& components);
   std::string make_compound_identifier(const std::vector<int64_t>& components) const;
 
-  std::string_view at(int64_t index) const;
-  std::vector<std::string_view> collect(const std::vector<int64_t>& indices) const;
-  std::vector<std::string_view> collect_n(const std::vector<int64_t>& indices, int64_t num) const;
+  std::string at(int64_t index) const;
+  std::vector<std::string> collect(const std::vector<int64_t>& indices) const;
 
   int64_t size() const;
 

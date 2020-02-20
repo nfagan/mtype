@@ -929,7 +929,7 @@ IdentifierClassifier::check_function_reference_subscript(const IdentifierReferen
 ParseError IdentifierClassifier::make_error_assignment_to_non_variable(const Token& at_token,
                                                                        const MatlabIdentifier& identifier,
                                                                        IdentifierType present_type) {
-  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
+  auto identifier_str = string_registry->at(identifier.full_name());
   auto type_str = std::string(to_string(present_type));
 
   std::string msg = "The usage of `" + identifier_str + "` as a variable assignment target ";
@@ -940,7 +940,7 @@ ParseError IdentifierClassifier::make_error_assignment_to_non_variable(const Tok
 
 ParseError IdentifierClassifier::make_error_variable_referenced_before_assignment(const Token& at_token,
                                                                                   const MatlabIdentifier& identifier) {
-  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
+  auto identifier_str = string_registry->at(identifier.full_name());
 
   std::string msg = "The identifier `" + identifier_str + "`, apparently a variable, might be ";
   msg += "referenced before it is explicitly assigned a value.";
@@ -959,7 +959,7 @@ ParseError IdentifierClassifier::make_error_invalid_function_call_expr(const Tok
 ParseError IdentifierClassifier::make_error_function_reference_to_non_function(const Token& at_token,
                                                                                const MatlabIdentifier& identifier,
                                                                                IdentifierType present_type) {
-  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
+  auto identifier_str = string_registry->at(identifier.full_name());
   auto type_str = std::string(to_string(present_type));
 
   std::string msg = "The usage of `" + identifier_str + "` as a function reference ";
@@ -975,7 +975,7 @@ ParseError IdentifierClassifier::make_error_shadowed_import(const Token& at_toke
 }
 
 ParseError IdentifierClassifier::make_error_pre_declared_qualified_variable(const Token& at_token, const MatlabIdentifier& identifier) {
-  auto identifier_str = std::string(string_registry->at(identifier.full_name()));
+  auto identifier_str = string_registry->at(identifier.full_name());
   std::string msg = "The declaration of identifier `" + identifier_str + "` must precede its initialization.";
   return ParseError(text, at_token, msg);
 }

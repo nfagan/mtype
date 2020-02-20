@@ -13,26 +13,17 @@ int64_t StringRegistry::size() const {
   return strings.size();
 }
 
-std::string_view StringRegistry::at(int64_t index) const {
+std::string StringRegistry::at(int64_t index) const {
   std::lock_guard<std::mutex> lock(mutex);
   assert(index >= 0 && index < int64_t(strings.size()) && "Out of bounds array access.");
   return strings[index];
 }
 
-std::vector<std::string_view> StringRegistry::collect(const std::vector<int64_t>& indices) const {
-  std::vector<std::string_view> result;
+std::vector<std::string> StringRegistry::collect(const std::vector<int64_t>& indices) const {
+  std::vector<std::string> result;
   result.reserve(indices.size());
   for (const auto& index : indices) {
-    result.push_back(at(index));
-  }
-  return result;
-}
-
-std::vector<std::string_view> StringRegistry::collect_n(const std::vector<int64_t>& indices, int64_t num) const {
-  std::vector<std::string_view> result;
-  result.reserve(num);
-  for (int64_t i = 0; i < num; i++) {
-    result.push_back(at(indices[i]));
+    result.emplace_back(at(index));
   }
   return result;
 }
@@ -45,7 +36,7 @@ int64_t StringRegistry::register_string(std::string_view str) {
 
   if (it == string_registry.end()) {
     //  String not yet registered.
-    int64_t next_index = strings.size();
+    const int64_t next_index = strings.size();
     strings.push_back(search);
     string_registry[search] = next_index;
 
@@ -59,23 +50,18 @@ std::string StringRegistry::make_compound_identifier(const std::vector<int64_t>&
   return join(collect(components), ".");
 }
 
-int64_t StringRegistry::make_registered_compound_identifier(const std::vector<int64_t>& components, int64_t num) {
-  return register_string(join(collect_n(components, num), "."));
-}
-
 int64_t StringRegistry::make_registered_compound_identifier(const std::vector<int64_t>& components) {
-  return make_registered_compound_identifier(components, components.size());
-}
-
-void StringRegistry::register_strings(const std::vector<std::string_view>& strs, std::vector<int64_t>& out) {
-  for (const auto& str : strs) {
-    out.push_back(register_string(str));
-  }
+  return register_string(join(collect(components), "."));
 }
 
 std::vector<int64_t> StringRegistry::register_strings(const std::vector<std::string_view>& strs) {
   std::vector<int64_t> res;
-  register_strings(strs, res);
+  res.reserve(strs.size());
+
+  for (const auto& str : strs) {
+    res.emplace_back(register_string(str));
+  }
+
   return res;
 }
 

@@ -3,6 +3,8 @@ function(configure_fs)
     set(sources
             code_file.hpp
             code_file.cpp
+            directory.hpp
+            directory.cpp
             path.hpp
             path.cpp
             )

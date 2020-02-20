@@ -24,8 +24,7 @@ const std::unique_ptr<AbstractFileResolver>& AbstractFileResolver::get_active_fi
 
 std::string FileResolver::which_external(int64_t identifier, const MatlabScopeHandle&) const {
   //  @TODO
-  const auto identifier_str = std::string(string_registry->at(identifier));
-  return identifier_str;
+  return string_registry->at(identifier);
 }
 
 std::string FileResolver::which(int64_t, const MatlabScopeHandle& scope_handle) const {
