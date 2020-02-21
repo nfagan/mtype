@@ -54,7 +54,7 @@ mt::Optional<std::vector<mt::FilePath>> find_n_files(const mt::FilePath& in_dire
 
   auto res = iterator.open();
   if (res != DirectoryIterator::Status::success) {
-    return mt::NullOpt{};
+    return NullOpt{};
   }
 
   std::vector<mt::FilePath> file_paths;
@@ -69,8 +69,7 @@ mt::Optional<std::vector<mt::FilePath>> find_n_files(const mt::FilePath& in_dire
     }
 
     const auto& dir_entry = entry_res.value.value();
-
-    if (dir_entry.name_size <= 2) {
+    if (dir_entry.type != DirectoryEntry::Type::regular_file || dir_entry.name_size <= 2) {
       continue;
     }
 
@@ -152,7 +151,7 @@ int main(int argc, char** argv) {
 
   auto file_path_res = find_n_files(mt::FilePath(src_dir), num_threads);
   if (!file_path_res) {
-    std::cout << "Failed to acquire at least " << num_threads << " files.";
+    std::cout << "Failed to acquire at least " << num_threads << " files." << std::endl;
     return 0;
   }
 
