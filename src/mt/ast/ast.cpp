@@ -1,8 +1,17 @@
 #include "ast.hpp"
 #include "StringVisitor.hpp"
+#include "visitor.hpp"
 #include "../identifier_classification.hpp"
 
 namespace mt {
+
+void RootBlock::accept(TypePreservingVisitor& vis) {
+  vis.root_block(*this);
+}
+
+void RootBlock::accept(const TypePreservingVisitor& vis) const {
+  vis.root_block(*this);
+}
 
 RootBlock* RootBlock::accept(IdentifierClassifier& classifier) {
   return classifier.root_block(*this);

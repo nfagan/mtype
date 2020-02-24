@@ -27,4 +27,6 @@ private:
 
 using ParseErrors = std::vector<ParseError>;
 
+void show_parse_errors(const ParseErrors& errs);
+
 }

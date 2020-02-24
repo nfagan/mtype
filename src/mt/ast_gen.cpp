@@ -554,8 +554,7 @@ Optional<MatlabIdentifier> AstGenerator::meta_class() {
 Optional<FunctionAttributes> AstGenerator::method_attributes() {
   iterator.advance(); //  consume (
 
-  FunctionAttributes attributes;
-  attributes.class_handle = class_state.enclosing_class();
+  FunctionAttributes attributes(class_state.enclosing_class());
 
   while (iterator.peek().type != TokenType::right_parens) {
     const auto& tok = iterator.peek();

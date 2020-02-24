@@ -14,4 +14,10 @@ void ParseError::show() const {
   }
 }
 
+void show_parse_errors(const ParseErrors& errs) {
+  for (const auto& err : errs) {
+    err.show();
+  }
+}
+
 }

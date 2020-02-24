@@ -61,6 +61,9 @@ struct ScanInfo {
   ~ScanInfo() = default;
 };
 
+//  swap for ScanInfo
+void swap(ScanInfo& lhs, ScanInfo& rhs);
+
 using ScanResult = Result<ScanErrors, ScanInfo>;
 
 class Scanner {

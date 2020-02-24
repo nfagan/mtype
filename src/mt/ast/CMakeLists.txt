@@ -13,6 +13,7 @@ function(configure_ast)
             type_annot.cpp
             StringVisitor.hpp
             StringVisitor.cpp
+            visitor.hpp
     )
 
     foreach(source ${sources})

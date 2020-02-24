@@ -60,13 +60,13 @@ public:
 
 template <typename E, typename V, typename... Args>
 inline Result<E, V> make_error(Args&&... args) {
-  E err(std::forward<Args...>(args...));
+  E err(std::forward<Args>(args)...);
   return Result<E, V>(std::move(err));
 }
 
 template <typename E, typename V, typename... Args>
 inline Result<E, V> make_success(Args&&... args) {
-  V value(std::forward<Args...>(args...));
+  V value(std::forward<Args>(args)...);
   return Result<E, V>(std::move(value), 1);
 }
 

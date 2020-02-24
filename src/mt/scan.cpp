@@ -5,6 +5,14 @@
 
 namespace mt {
 
+//  swap for ScanInfo
+void swap(ScanInfo& lhs, ScanInfo& rhs) {
+  using std::swap;
+
+  swap(lhs.tokens, rhs.tokens);
+  swap(lhs.functions_are_end_terminated, rhs.functions_are_end_terminated);
+}
+
 bool EndTerminatedKeywordCounts::parent_is_classdef() const {
   return !keyword_types.empty() && keyword_types.back() == TokenType::keyword_classdef;
 }

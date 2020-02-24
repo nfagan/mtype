@@ -572,8 +572,8 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
   auto primary_result = register_variable_assignment(expr.source_token, expr.primary_identifier);
   if (primary_result.was_initialization && !expr.subscripts.empty()) {
     //  Implicit variable initialization of the form e.g. `a.b = 3;`
-    auto err = make_error_implicit_variable_initialization(expr.source_token);
-    add_error_if_new_identifier(std::move(err), expr.primary_identifier);
+    auto warn = make_error_implicit_variable_initialization(expr.source_token);
+    add_warning_if_new_identifier(std::move(warn), expr.primary_identifier);
   }
 
   int64_t subscript_end;

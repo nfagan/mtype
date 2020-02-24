@@ -240,6 +240,10 @@ public:
     return errors;
   }
 
+  ParseErrors& get_errors() {
+    return errors;
+  }
+
   const ParseErrors& get_warnings() const {
     return warnings;
   }

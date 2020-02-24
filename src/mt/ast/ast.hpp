@@ -10,6 +10,8 @@
 namespace mt {
 
 class StringVisitor;
+class TypePreservingVisitor;
+
 class IdentifierClassifier;
 struct Block;
 struct RootBlock;
@@ -27,6 +29,9 @@ struct AstNode {
 
   virtual std::string accept(const StringVisitor& vis) const = 0;
   virtual AstNode* accept(IdentifierClassifier& classifier) = 0;
+
+  virtual void accept(TypePreservingVisitor&) {}
+  virtual void accept(const TypePreservingVisitor&) const {}
 
   virtual bool represents_class_def() const {
     return false;
@@ -150,6 +155,9 @@ struct RootBlock : public AstNode {
 
   std::string accept(const StringVisitor& vis) const override;
   RootBlock* accept(IdentifierClassifier& classifier) override;
+
+  virtual void accept(TypePreservingVisitor& vis) override;
+  virtual void accept(const TypePreservingVisitor&) const override;
 
   BoxedBlock block;
   MatlabScopeHandle scope_handle;
