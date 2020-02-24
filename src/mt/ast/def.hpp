@@ -8,6 +8,8 @@
 
 namespace mt {
 
+class TypePreservingVisitor;
+
 struct FunctionDefNode : public AstNode {
   FunctionDefNode(const FunctionDefHandle& def_handle, const MatlabScopeHandle& scope_handle) :
   def_handle(def_handle), scope_handle(scope_handle) {
@@ -21,6 +23,8 @@ struct FunctionDefNode : public AstNode {
 
   std::string accept(const StringVisitor& vis) const override;
   FunctionDefNode* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   FunctionDefHandle def_handle;
   MatlabScopeHandle scope_handle;
@@ -62,6 +66,8 @@ public:
 
   std::string accept(const StringVisitor& vis) const override;
   ClassDefNode* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   ClassDefHandle handle;

@@ -1,4 +1,5 @@
 #include "mt/mt.hpp"
+#include "typing.hpp"
 #include "util.hpp"
 #include <chrono>
 
@@ -10,15 +11,6 @@ std::string get_source_file_path(int argc, char** argv) {
     return argv[1];
   }
 }
-}
-
-namespace mt {
-class TypeVisitor : public TypePreservingVisitor {
-public:
-  void root_block(RootBlock& block) override {
-    std::cout << "root" << std::endl;
-  }
-};
 }
 
 int main(int argc, char** argv) {
@@ -48,12 +40,13 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  TypeVisitor visitor(&store);
+  const auto root_block = std::move(parse_result.value.root_block);
+  root_block->accept_const(visitor);
+
   auto t1 = std::chrono::high_resolution_clock::now();
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
-
-  TypeVisitor visitor;
-  parse_result.value.root_block->accept(visitor);
 
   return 0;
 }

@@ -11,17 +11,10 @@ namespace mt {
 
 class StringVisitor;
 class TypePreservingVisitor;
-
 class IdentifierClassifier;
+
 struct Block;
 struct RootBlock;
-struct FunctionDef;
-struct FunctionReference;
-struct VariableDef;
-struct MatlabScope;
-struct Import;
-class ClassDefHandle;
-class MatlabIdentifier;
 
 struct AstNode {
   AstNode() = default;
@@ -30,8 +23,8 @@ struct AstNode {
   virtual std::string accept(const StringVisitor& vis) const = 0;
   virtual AstNode* accept(IdentifierClassifier& classifier) = 0;
 
-  virtual void accept(TypePreservingVisitor&) {}
-  virtual void accept(const TypePreservingVisitor&) const {}
+  virtual void accept(TypePreservingVisitor&) = 0;
+  virtual void accept_const(TypePreservingVisitor&) const = 0;
 
   virtual bool represents_class_def() const {
     return false;
@@ -52,6 +45,9 @@ struct is_ast_node<AstNode> : public std::true_type {};
 struct Expr : public AstNode {
   Expr() = default;
   ~Expr() override = default;
+
+  void accept(TypePreservingVisitor& vis) override = 0;
+  void accept_const(TypePreservingVisitor& vis) const override = 0;
 
   std::string accept(const StringVisitor& vis) const override = 0;
   Expr* accept(IdentifierClassifier&) override {
@@ -83,6 +79,9 @@ struct Stmt : public AstNode {
   Stmt() = default;
   ~Stmt() override = default;
 
+  void accept(TypePreservingVisitor& vis) override = 0;
+  void accept_const(TypePreservingVisitor& vis) const override = 0;
+
   bool represents_stmt_or_stmts() const override {
     return true;
   }
@@ -101,6 +100,9 @@ struct TypeAnnot : public AstNode {
   TypeAnnot* accept(IdentifierClassifier&) override {
     return this;
   }
+
+  virtual void accept(TypePreservingVisitor&) override {}
+  virtual void accept_const(TypePreservingVisitor&) const override {}
 };
 
 struct Type : public TypeAnnot {
@@ -138,6 +140,8 @@ struct Block : public AstNode {
 
   std::string accept(const StringVisitor& vis) const override;
   Block* accept(IdentifierClassifier& classifier) override;
+  virtual void accept(TypePreservingVisitor& vis) override;
+  virtual void accept_const(TypePreservingVisitor&) const override;
 
   std::vector<BoxedAstNode> nodes;
 };
@@ -157,7 +161,7 @@ struct RootBlock : public AstNode {
   RootBlock* accept(IdentifierClassifier& classifier) override;
 
   virtual void accept(TypePreservingVisitor& vis) override;
-  virtual void accept(const TypePreservingVisitor&) const override;
+  virtual void accept_const(TypePreservingVisitor&) const override;
 
   BoxedBlock block;
   MatlabScopeHandle scope_handle;

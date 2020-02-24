@@ -9,6 +9,8 @@
 
 namespace mt {
 
+class TypePreservingVisitor;
+
 struct FunctionDef;
 struct VariableDef;
 struct FunctionInputParameter;
@@ -24,8 +26,11 @@ struct PresumedSuperclassMethodReferenceExpr : public Expr {
     //
   }
   ~PresumedSuperclassMethodReferenceExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   MatlabIdentifier invoking_argument_name;
@@ -44,8 +49,11 @@ struct AnonymousFunctionExpr : public Expr {
     //
   }
   ~AnonymousFunctionExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   std::vector<FunctionInputParameter> inputs;
@@ -59,8 +67,11 @@ struct FunctionReferenceExpr : public Expr {
     //
   }
   ~FunctionReferenceExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   FunctionReferenceHandle handle;
@@ -72,7 +83,10 @@ struct ColonSubscriptExpr : public Expr {
     //
   }
   ~ColonSubscriptExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
 };
@@ -83,7 +97,10 @@ struct StringLiteralExpr : public Expr {
   }
 
   ~StringLiteralExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
 };
@@ -94,7 +111,10 @@ struct CharLiteralExpr : public Expr {
   }
 
   ~CharLiteralExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
 };
@@ -105,7 +125,10 @@ struct NumberLiteralExpr : public Expr {
     //
   }
   ~NumberLiteralExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   double value;
@@ -117,7 +140,11 @@ struct IgnoreFunctionArgumentExpr : public Expr {
     //
   }
   ~IgnoreFunctionArgumentExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+
   bool is_valid_assignment_target() const override {
     return true;
   }
@@ -134,6 +161,8 @@ struct DynamicFieldReferenceExpr : public Expr {
 
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   BoxedExpr expr;
@@ -145,7 +174,11 @@ struct LiteralFieldReferenceExpr : public Expr {
     //
   }
   ~LiteralFieldReferenceExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+
   bool append_to_compound_identifier(std::vector<int64_t>& prefix) const override {
     prefix.push_back(field_identifier);
     return true;
@@ -185,7 +218,10 @@ struct FunctionCallExpr : public Expr {
     //
   }
   ~FunctionCallExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   FunctionReferenceHandle reference_handle;
@@ -207,7 +243,10 @@ struct VariableReferenceExpr : public Expr {
     //
   }
   ~VariableReferenceExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   VariableDefHandle def_handle;
@@ -238,6 +277,8 @@ struct IdentifierReferenceExpr : public Expr {
 
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   std::vector<int64_t> make_compound_identifier(int64_t* end) const;
 
@@ -265,17 +306,12 @@ struct GroupingExpr : public Expr {
     //
   }
 
-  bool is_valid_assignment_target() const override {
-    if (method != GroupingMethod::bracket || components.empty()) {
-      return false;
-    }
+  bool is_valid_assignment_target() const override;
 
-    return std::all_of(components.cbegin(), components.cend(), [](const auto& arg) {
-      return arg.delimiter == TokenType::comma && arg.expr->is_valid_assignment_target();
-    });
-  }
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   GroupingMethod method;
@@ -287,7 +323,10 @@ struct EndOperatorExpr : public Expr {
     //
   }
   ~EndOperatorExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
 };
@@ -298,8 +337,11 @@ struct UnaryOperatorExpr : public Expr {
     //
   }
   ~UnaryOperatorExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   UnaryOperator op;
@@ -312,8 +354,11 @@ struct BinaryOperatorExpr : public Expr {
 
   }
   ~BinaryOperatorExpr() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& visitor) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   BinaryOperator op;

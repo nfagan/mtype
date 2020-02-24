@@ -6,6 +6,8 @@ target_link_libraries(${PROJECT_NAME} mt)
 
 target_sources(${PROJECT_NAME} PRIVATE
         main.cpp
+        typing.hpp
+        typing.cpp
         util.hpp
         util.cpp
         )

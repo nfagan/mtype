@@ -9,6 +9,7 @@
 namespace mt {
 
 struct CharLiteralExpr;
+class TypePreservingVisitor;
 
 struct VariableDeclarationStmt : public Stmt {
   VariableDeclarationStmt(const Token& source_token,
@@ -20,8 +21,11 @@ struct VariableDeclarationStmt : public Stmt {
     //
   }
   ~VariableDeclarationStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   VariableDeclarationStmt* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   VariableDeclarationQualifier qualifier;
@@ -34,7 +38,10 @@ struct CommandStmt : public Stmt {
               int64_t identifier,
               std::vector<CharLiteralExpr>&& arguments);
   ~CommandStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   int64_t command_identifier;
@@ -64,7 +71,10 @@ struct TryStmt : public Stmt {
     //
   }
   ~TryStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   BoxedBlock try_block;
@@ -101,8 +111,11 @@ struct SwitchStmt : public Stmt {
     //
   }
   ~SwitchStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   SwitchStmt* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   BoxedExpr condition_expr;
@@ -118,8 +131,11 @@ struct WhileStmt : public Stmt {
     //
   }
   ~WhileStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   WhileStmt* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   BoxedExpr condition_expr;
@@ -132,7 +148,10 @@ struct ControlStmt : public Stmt {
     //
   }
   ~ControlStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   ControlFlowManipulator kind;
@@ -150,8 +169,11 @@ struct ForStmt : public Stmt {
     //
   }
   ~ForStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   ForStmt* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   Token source_token;
   MatlabIdentifier loop_variable_identifier;
@@ -198,8 +220,11 @@ struct IfStmt : public Stmt {
     //
   }
   ~IfStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   IfStmt* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   IfBranch if_branch;
   std::vector<IfBranch> elseif_branches;
@@ -213,8 +238,11 @@ struct AssignmentStmt : public Stmt {
   }
 
   ~AssignmentStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   AssignmentStmt* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   BoxedExpr of_expr;
   BoxedExpr to_expr;
@@ -226,8 +254,11 @@ struct ExprStmt : public Stmt {
   }
 
   ~ExprStmt() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   ExprStmt* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
 
   BoxedExpr expr;
 };
