@@ -5,7 +5,6 @@
 #include "../token.hpp"
 #include "../Optional.hpp"
 #include "../definitions.hpp"
-#include <algorithm>
 
 namespace mt {
 
@@ -208,7 +207,7 @@ struct Subscript {
 
 struct FunctionCallExpr : public Expr {
   FunctionCallExpr(const Token& source_token,
-                   FunctionReferenceHandle reference_handle,
+                   const FunctionReferenceHandle& reference_handle,
                    std::vector<BoxedExpr>&& arguments,
                    std::vector<Subscript>&& subscripts) :
     source_token(source_token),
@@ -231,7 +230,7 @@ struct FunctionCallExpr : public Expr {
 
 struct VariableReferenceExpr : public Expr {
   VariableReferenceExpr(const Token& source_token,
-                        VariableDefHandle def_handle,
+                        const VariableDefHandle& def_handle,
                         const MatlabIdentifier& name,
                         std::vector<Subscript>&& subscripts,
                         bool is_initializer) :

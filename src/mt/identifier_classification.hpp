@@ -273,7 +273,7 @@ private:
   void register_function_parameter(Store::Write& read_write, const Token& source_token,
     const MatlabIdentifier& identifier);
   void register_function_parameters(Store::Write& read_write, const Token& source_token,
-    const std::vector<int64_t>& identifiers);
+    const std::vector<MatlabIdentifier>& identifiers);
   void register_function_parameters(Store::Write& read_write, const Token& source_token,
     const std::vector<FunctionInputParameter>& identifiers);
 

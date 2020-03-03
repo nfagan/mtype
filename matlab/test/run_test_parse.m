@@ -28,7 +28,7 @@ mt.entry( failed{22} );
 
 ms = shared_utils.io.find( toolboxdir(''), '.m', true );
 fs = cell( size(ms) );
-for i = 1:numel(ms)
+parfor i = 1:numel(ms)
   fs{i} = mt.to_utf8( fileread(ms{i}) );
 end
 

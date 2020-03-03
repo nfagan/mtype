@@ -115,7 +115,8 @@ Optional<std::vector<FunctionInputParameter>> AstGenerator::anonymous_function_i
     }
 
     if (tok.type == TokenType::identifier) {
-      input_parameters.emplace_back(string_registry->register_string(tok.lexeme));
+      MatlabIdentifier name(string_registry->register_string(tok.lexeme));
+      input_parameters.emplace_back(name);
 
     } else if (tok.type == TokenType::tilde) {
       //  @(~, y)
@@ -262,9 +263,16 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     name = MatlabIdentifier(single_name_component);
   }
 
-  auto outputs = string_registry->register_strings(output_res.value());
+  const auto& output_strs = output_res.value();
+  std::vector<MatlabIdentifier> output_names;
+  output_names.reserve(output_strs.size());
 
-  FunctionHeader header(name_token, name, std::move(outputs), std::move(input_res.rvalue()));
+  for (const auto& str : output_strs) {
+    MatlabIdentifier output_name(string_registry->register_string(str));
+    output_names.emplace_back(output_name);
+  }
+
+  FunctionHeader header(name_token, name, std::move(output_names), std::move(input_res.rvalue()));
   return Optional<FunctionHeader>(std::move(header));
 }
 
@@ -2574,7 +2582,7 @@ AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& 
     }
 
     auto orig_size = uniques.size();
-    uniques.insert(input.name);
+    uniques.insert(input.name.full_name());
 
     if (orig_size == uniques.size()) {
       //  This value is not new.

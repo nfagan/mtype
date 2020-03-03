@@ -26,17 +26,9 @@ public:
   ~StringVisitor() = default;
 
   std::string class_def_node(const ClassDefNode& ref) const;
-  std::string class_def(const ClassDef& def) const;
-  std::string variable_def(const VariableDef& def) const;
-  std::string function_def(const FunctionDef& def) const;
-  std::string function_header(const FunctionHeader& header) const;
   std::string block(const Block& block) const;
   std::string root_block(const RootBlock& block) const;
   std::string function_def_node(const FunctionDefNode& reference) const;
-
-  std::string properties(const ClassDef::Properties& properties) const;
-  std::string property(const ClassDef::Property& prop) const;
-  std::string methods(const ClassDef& def) const;
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
@@ -48,9 +40,6 @@ public:
   std::string try_stmt(const TryStmt& stmt) const;
   std::string command_stmt(const CommandStmt& stmt) const;
   std::string variable_declaration_stmt(const VariableDeclarationStmt& stmt) const;
-
-  std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
-  std::string else_branch(const ElseBranch& branch) const;
 
   std::string presumed_superclass_method_reference_expr(const PresumedSuperclassMethodReferenceExpr& expr) const;
   std::string variable_reference_expr(const VariableReferenceExpr& expr) const;
@@ -66,7 +55,6 @@ public:
   std::string literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) const;
   std::string subscript_expr(const Subscript& expr) const;
   std::string identifier_reference_expr(const IdentifierReferenceExpr& expr) const;
-  std::string grouping_expr_component(const GroupingExprComponent& expr, bool include_delimiter) const;
   std::string grouping_expr(const GroupingExpr& expr) const;
   std::string unary_operator_expr(const UnaryOperatorExpr& expr) const;
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;
@@ -82,6 +70,20 @@ public:
   std::string type_annot_macro(const TypeAnnotMacro& type) const;
 
 private:
+  std::string class_def(const ClassDef& def) const;
+  std::string variable_def(const VariableDef& def) const;
+  std::string function_def(const FunctionDef& def) const;
+  std::string function_header(const FunctionHeader& header) const;
+
+  std::string properties(const ClassDef::Properties& properties) const;
+  std::string property(const ClassDef::Property& prop) const;
+  std::string methods(const ClassDef& def) const;
+
+  std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
+  std::string else_branch(const ElseBranch& branch) const;
+
+  std::string grouping_expr_component(const GroupingExprComponent& expr, bool include_delimiter) const;
+
   void maybe_parenthesize(std::string& str) const;
   void maybe_colorize(std::string& str, TokenType type) const;
   void maybe_colorize(std::string& str, int color_code_index) const;

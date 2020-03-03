@@ -92,6 +92,10 @@ enum class BinaryOperator : unsigned int {
   unknown
 };
 
+inline bool operator<(BinaryOperator a, BinaryOperator b) {
+  return static_cast<unsigned int>(a) < static_cast<unsigned int>(b);
+}
+
 BinaryOperator binary_operator_from_token_type(TokenType type);
 UnaryOperator unary_operator_from_token_type(TokenType type);
 GroupingMethod grouping_method_from_token_type(TokenType type);

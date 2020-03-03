@@ -86,7 +86,7 @@ std::string StringVisitor::function_input_parameters(const std::vector<FunctionI
     if (input.is_ignored) {
       params += "~";
     } else {
-      params += string_registry->at(input.name);
+      params += string_registry->at(input.name.full_name());
     }
     if (i < int64_t(inputs.size()) - 1) {
       params += ", ";
@@ -108,7 +108,12 @@ std::string StringVisitor::block(const Block& block) const {
 }
 
 std::string StringVisitor::function_header(const FunctionHeader& header) const {
-  auto outputs = join(string_registry->collect(header.outputs), ", ");
+  std::vector<std::string> output_strs;
+  for (const auto& output : header.outputs) {
+    output_strs.emplace_back(string_registry->at(output.full_name()));
+  }
+
+  auto outputs = join(output_strs, ", ");
   auto inputs = function_input_parameters(header.inputs);
   auto name = string_registry->at(header.name.full_name());
   auto func = std::string("function");

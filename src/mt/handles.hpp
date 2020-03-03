@@ -1,12 +1,25 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 namespace mt {
 
 namespace detail {
   template <int Disambiguator>
   class Handle {
+  public:
+    struct Hash {
+      std::size_t operator()(const Handle& handle) const {
+        return std::hash<int64_t>{}(handle.index);
+      }
+    };
+    struct Less {
+      bool operator()(const Handle& a, const Handle& b) const {
+        return a.index < b.index;
+      }
+    };
+
   public:
     Handle() : index(-1) {
       //
@@ -18,6 +31,19 @@ namespace detail {
 
     int64_t get_index() const {
       return index;
+    }
+
+    friend inline bool operator==(const Handle& a, const Handle& b) {
+      return a.index == b.index;
+    }
+    friend inline bool operator!=(const Handle& a, const Handle& b) {
+      return !(a == b);
+    }
+    friend inline bool operator<(const Handle& a, const Handle& b) {
+      return a.index < b.index;
+    }
+    friend inline bool operator>(const Handle& a, const Handle& b) {
+      return a.index > b.index;
     }
 
   protected:

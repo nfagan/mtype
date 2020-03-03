@@ -16,6 +16,22 @@
 #define MSVC_MISSING_NOEXCEPT noexcept
 #endif
 
+#define MT_DELETE_COPY_CTOR_AND_ASSIGNMENT(class_name) \
+  class_name(const class_name& other) = delete; \
+  class_name& operator=(const class_name& other) = delete;
+
+#define MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT(class_name) \
+  class_name(class_name&& other) = default; \
+  class_name& operator=(class_name&& other) = default;
+
+#define MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(class_name) \
+  class_name(class_name&& other) noexcept = default; \
+  class_name& operator=(class_name&& other) noexcept = default;
+
+#define MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(class_name) \
+  class_name(const class_name& other) = default; \
+  class_name& operator=(const class_name& other) = default;
+
 namespace mt {
 
 template <typename T, typename Stack>

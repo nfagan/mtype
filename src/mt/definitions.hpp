@@ -53,13 +53,13 @@ struct Import {
 };
 
 struct FunctionInputParameter {
-  explicit FunctionInputParameter(int64_t name) : name(name), is_ignored(false) {
+  explicit FunctionInputParameter(const MatlabIdentifier& name) : name(name), is_ignored(false) {
     //
   }
-  FunctionInputParameter() : name(-1), is_ignored(true) {
+  FunctionInputParameter() : is_ignored(true) {
     //
   }
-  int64_t name;
+  MatlabIdentifier name;
   bool is_ignored;
 };
 
@@ -144,7 +144,7 @@ struct FunctionHeader {
   FunctionHeader() = default;
   FunctionHeader(const Token& name_token,
                  const MatlabIdentifier& name,
-                 std::vector<int64_t>&& outputs,
+                 std::vector<MatlabIdentifier>&& outputs,
                  std::vector<FunctionInputParameter>&& inputs) :
     name_token(name_token),
     name(name),
@@ -158,7 +158,7 @@ struct FunctionHeader {
 
   Token name_token;
   MatlabIdentifier name;
-  std::vector<int64_t> outputs;
+  std::vector<MatlabIdentifier> outputs;
   std::vector<FunctionInputParameter> inputs;
 };
 

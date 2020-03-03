@@ -41,6 +41,24 @@ struct ExprStmt;
 struct ClassDefNode;
 struct FunctionDefNode;
 
+struct UnionType;
+struct ScalarType;
+struct FunctionType;
+struct TypeBegin;
+struct TypeGiven;
+struct TypeLet;
+struct InlineType;
+struct TypeAnnotMacro;
+
+//  std::string union_type(const UnionType& type) const;
+//  std::string scalar_type(const ScalarType& type) const;
+//  std::string function_type(const FunctionType& type) const;
+//  std::string type_begin(const TypeBegin& begin) const;
+//  std::string type_given(const TypeGiven& given) const;
+//  std::string type_let(const TypeLet& let) const;
+//  std::string inline_type(const InlineType& type) const;
+//  std::string type_annot_macro(const TypeAnnotMacro& type) const;
+
 class TypePreservingVisitor {
 public:
   MT_VISITOR_METHOD(root_block, RootBlock)
@@ -77,6 +95,15 @@ public:
 
   MT_VISITOR_METHOD(class_def_node, ClassDefNode)
   MT_VISITOR_METHOD(function_def_node, FunctionDefNode)
+
+  MT_VISITOR_METHOD(union_type, UnionType)
+  MT_VISITOR_METHOD(scalar_type, ScalarType)
+  MT_VISITOR_METHOD(function_type, FunctionType)
+  MT_VISITOR_METHOD(type_given, TypeGiven)
+  MT_VISITOR_METHOD(type_begin, TypeBegin)
+  MT_VISITOR_METHOD(type_let, TypeLet)
+  MT_VISITOR_METHOD(inline_type, InlineType)
+  MT_VISITOR_METHOD(type_annot_macro, TypeAnnotMacro)
 };
 
 #undef MT_VISITOR_METHOD
