@@ -28,8 +28,15 @@ struct TypeEquation {
 
 class Substitution : public TypeExprVisitor {
 public:
-  explicit Substitution(const TypeVisitor& visitor) : visitor(visitor) {
+  using BoundVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
+public:
+  explicit Substitution(TypeVisitor& visitor) : visitor(visitor) {
+    //
+  }
 
+  ~Substitution() {
+    std::cout << "Num type eqs: " << type_equations.size() << std::endl;
+    std::cout << "Subs size: " << substitution.size() << std::endl;
   }
 
   void push_type_equation(TypeEquation&& eq) {
@@ -41,12 +48,15 @@ public:
 private:
   void unify_new();
   void unify_one(TypeEquation eq);
+  void substitute_function(types::Function& func);
+  void substitute_dispatch(TypeHandle& handle);
+  DebugType::Tag type_of(const TypeHandle& handle) const;
 
 public:
   std::vector<TypeEquation> type_equations;
   std::vector<TypeExprHandle> type_expr_handles;
-  std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash> bound_variables;
-  const TypeVisitor& visitor;
+  BoundVariables bound_variables;
+  TypeVisitor& visitor;
 
   std::map<texpr::Application, TypeExprHandle, texpr::Application::Less> applications;
 
@@ -68,14 +78,9 @@ private:
   using MatlabScopeHelper = ScopeHelper<TypeVisitor, ScopeStack>;
 
 public:
-  explicit TypeVisitor(Store& store) : substitution(*this), store(store), type_variable_ids(0) {
+  explicit TypeVisitor(Store& store, const StringRegistry& string_registry) :
+  substitution(*this), store(store), string_registry(string_registry), type_variable_ids(0) {
     make_builtin_types();
-  }
-
-  ~TypeVisitor() {
-    std::cout << "Num remaining exprs: " << type_expr_handles.size() << std::endl;
-    std::cout << "Num exprs: " << type_exprs.size() << std::endl;
-    std::cout << "Num type eqs: " << substitution.type_equations.size() << std::endl;
   }
 
   void make_builtin_types() {
@@ -101,16 +106,13 @@ public:
 
   void number_literal_expr(const NumberLiteralExpr& expr) override {
     assert(double_type_handle.is_valid());
-    auto t_expr = std::make_unique<texpr::TypeReference>(double_type_handle);
-    auto expr_handle = push_type_expr(std::move(t_expr));
     push_type_handle(double_type_handle);
   }
 
   void string_literal_expr(const StringLiteralExpr& expr) override {
     assert(false && "Unhandled");
     assert(string_type_handle.is_valid());
-    auto t_expr = std::make_unique<texpr::TypeReference>(string_type_handle);
-    auto expr_handle = push_type_expr(std::move(t_expr));
+    push_type_handle(string_type_handle);
   }
 
   void function_call_expr(const FunctionCallExpr& expr) override {
@@ -124,7 +126,6 @@ public:
   void variable_reference_expr(const VariableReferenceExpr& expr) override {
     assert(expr.subscripts.empty() && "Subscripts not yet handled.");
     const auto variable_type_handle = require_bound_type_variable(expr.def_handle);
-    const auto expr_handle = require_type_variable_expr(variable_type_handle);
     push_type_handle(variable_type_handle);
   }
 
@@ -133,13 +134,19 @@ public:
     push_type_handle(tvar_lhs);
     expr.left->accept_const(*this);
     auto lhs_result = pop_type_handle();
-    substitution.push_type_equation(TypeEquation(tvar_lhs, lhs_result));
+
+    if (variables.count(lhs_result) == 0) {
+      substitution.push_type_equation(TypeEquation(tvar_lhs, lhs_result));
+    }
 
     auto tvar_rhs = make_fresh_type_variable_reference();
     push_type_handle(tvar_rhs);
     expr.right->accept_const(*this);
     auto rhs_result = pop_type_handle();
-    substitution.push_type_equation(TypeEquation(tvar_rhs, rhs_result));
+
+    if (variables.count(rhs_result) == 0) {
+      substitution.push_type_equation(TypeEquation(tvar_rhs, rhs_result));
+    }
 
     std::vector<TypeHandle> arguments;
     arguments.reserve(2);
@@ -160,6 +167,9 @@ public:
       func_type.outputs = app.outputs;
       assign(result_handle, DebugType(std::move(func_type)));
       applications.emplace(app, output_handle);
+
+      const auto tvar = make_fresh_type_variable_reference();
+      substitution.push_type_equation(TypeEquation(tvar, result_handle));
 
       result_handle = output_handle;
 
@@ -232,15 +242,11 @@ public:
     }
 
     assign(type_handle, DebugType(std::move(function_type)));
+    substitution.push_type_equation(TypeEquation(make_fresh_type_variable_reference(), type_handle));
 
     if (function_body) {
       function_body->accept_const(*this);
     }
-  }
-
-  const texpr::BoxedExpr& at(const TypeExprHandle& handle) const {
-    assert(handle.is_valid() && handle.get_index() < type_exprs.size());
-    return type_exprs[handle.get_index()];
   }
 
   const DebugType& at(const TypeHandle& handle) const {
@@ -248,30 +254,12 @@ public:
     return types[handle.get_index()];
   }
 
+  DebugType& at(const TypeHandle& handle) {
+    assert(handle.is_valid() && handle.get_index() < types.size());
+    return types[handle.get_index()];
+  }
+
 private:
-  TypeExprHandle make_type_reference_expr() {
-    auto tvar_handle = make_type();
-    assign(tvar_handle, DebugType(make_type_variable()));
-    return make_type_reference_expr(tvar_handle);
-  }
-
-  TypeExprHandle make_type_reference_expr(const TypeHandle& tvar_handle) {
-    auto texpr0 = std::make_unique<texpr::TypeReference>(tvar_handle);
-    return push_type_expr(std::move(texpr0));
-  }
-
-  TypeExprHandle require_type_variable_expr(const TypeHandle& handle) {
-    if (variable_type_expr_handles.count(handle) == 0) {
-      auto t_expr = std::make_unique<texpr::TypeReference>(handle);
-      auto t_handle = push_type_expr(std::move(t_expr));
-      variable_type_expr_handles[handle] = t_handle;
-      return t_handle;
-    } else {
-      type_expr_handles.push_back(variable_type_expr_handles.at(handle));
-      return type_expr_handles.back();
-    }
-  }
-
   bool is_bound_type_variable(const VariableDefHandle& handle) {
     return variable_type_handles.count(handle) > 0;
   }
@@ -290,6 +278,7 @@ private:
 
   void bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, const TypeHandle& type_handle) {
     variable_type_handles[def_handle] = type_handle;
+    variables[type_handle] = def_handle;
   }
 
   void push_scope(const MatlabScopeHandle& handle) {
@@ -336,38 +325,21 @@ private:
     type_handles.pop_back();
     return handle;
   }
-
-  void push_type_expr_handle(const TypeExprHandle& handle) {
-    type_expr_handles.push_back(handle);
-  }
-
-  [[nodiscard]] TypeExprHandle push_type_expr(texpr::BoxedExpr expr) {
-    type_exprs.emplace_back(std::move(expr));
-    type_expr_handles.emplace_back(TypeExprHandle(type_exprs.size() - 1));
-    return type_expr_handles.back();
-  }
-
-  TypeExprHandle pop_type_expr_handle() {
-    assert(!type_expr_handles.empty() && "No type expr to pop.");
-    const auto back = type_expr_handles.back();
-    type_expr_handles.pop_back();
-    return back;
-  }
 public:
   Substitution substitution;
 
 private:
   Store& store;
+  const StringRegistry& string_registry;
+
   std::vector<MatlabScopeHandle> scope_handles;
   int64_t type_variable_ids;
 
-  std::unordered_map<TypeHandle, TypeExprHandle, TypeHandle::Hash> variable_type_expr_handles;
   std::unordered_map<VariableDefHandle, TypeHandle, VariableDefHandle::Hash> variable_type_handles;
+  std::unordered_map<TypeHandle, VariableDefHandle, TypeHandle::Hash> variables;
   std::unordered_map<FunctionDefHandle, TypeHandle, FunctionDefHandle::Hash> function_type_handles;
   std::vector<DebugType> types;
 
-  std::vector<texpr::BoxedExpr> type_exprs;
-  std::vector<TypeExprHandle> type_expr_handles;
   std::vector<TypeHandle> type_handles;
 
   TypeHandle double_type_handle;

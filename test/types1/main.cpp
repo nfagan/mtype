@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  TypeVisitor type_visitor(store);
+  TypeVisitor type_visitor(store, str_registry);
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
   root_block->accept_const(type_visitor);
 
@@ -50,8 +50,8 @@ int main(int argc, char** argv) {
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
 
-  StringVisitor str_visitor(&str_registry, &store);
-  std::cout << root_block->accept(str_visitor) << std::endl;
+//  StringVisitor str_visitor(&str_registry, &store);
+//  std::cout << root_block->accept(str_visitor) << std::endl;
 
   TypeExprStringVisitor expr_str_visitor(type_visitor);
   expr_str_visitor.show();
