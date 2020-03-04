@@ -4,13 +4,20 @@ namespace mt {
 
 namespace {
 
+template <typename T>
+void show_type_handle(const T& handle) {
+  std::cout << "T" << handle.get_index();
+}
+
 void show_function_type(const types::Function& func) {
   std::cout << "(";
   for (const auto& arg : func.inputs) {
-    std::cout << "T" << arg.get_index() << ",";
+    show_type_handle(arg);
+    std::cout << ",";
   }
   assert(!func.outputs.empty());
-  std::cout << ") -> T" << func.outputs[0].get_index();
+  std::cout << ") -> ";
+  show_type_handle(func.outputs[0]);
 }
 
 void show_type_eqs(const TypeVisitor& visitor, const std::vector<TypeEquation>& eqs) {
@@ -19,13 +26,13 @@ void show_type_eqs(const TypeVisitor& visitor, const std::vector<TypeEquation>& 
     const auto& left_type = visitor.at(eq.lhs);
     const auto& right_type = visitor.at(eq.rhs);
 
-    std::cout << "T" << eq.lhs.get_index() << " = " << "T" << eq.rhs.get_index();
+    show_type_handle(eq.lhs);
+    std::cout << " = ";
+    show_type_handle(eq.rhs);
 
     if (right_type.tag == DebugType::Tag::function) {
       std::cout << " ";
       show_function_type(right_type.function);
-//      assert(!right_type.function.outputs.empty());
-//      std::cout << "; Result: T" << right_type.function.outputs[0].get_index();
     } else if (right_type.tag == DebugType::Tag::scalar) {
       std::cout << " (sclr)";
     } else if (right_type.tag == DebugType::Tag::variable) {
@@ -41,38 +48,30 @@ void show_type_eqs(const TypeVisitor& visitor, const std::vector<TypeEquation>& 
 void show_app_type(const texpr::Application& app) {
   std::cout << "(";
   for (const auto& arg : app.arguments) {
-    std::cout << "T" << arg.get_index() << ",";
+    show_type_handle(arg);
+    std::cout << ",";
   }
   assert(!app.outputs.empty());
-  std::cout << ") -> T" << app.outputs[0].get_index() << std::endl;
+  std::cout << ") -> ";
+  show_type_handle(app.outputs[0]);
   std::cout << std::endl;
 }
 
 }
 
 void Substitution::unify() {
-  unify_new();
-
-  show_type_eqs(visitor, type_equations);
-  show_type_eqs(visitor, substitution);
-
-  std::cout << "----" << std::endl;
-  for (const auto& t : visitor.types) {
-    if (t.tag == DebugType::Tag::function) {
-      show_function_type(t.function);
-      std::cout << std::endl;
-    }
+  while (!type_equations.empty()) {
+    auto eq = type_equations.front();
+    type_equations.erase(type_equations.begin());
+    unify_one(eq);
   }
-  std::cout << "----" << std::endl;
-  for (const auto& it : visitor.variables) {
-    int64_t var_name;
-    {
-      Store::ReadConst reader(visitor.store);
-      var_name = reader.at(it.second).name.full_name();
-    }
 
-    std::cout << "Source var: T" << it.first.get_index() << " ";
-    std::cout << "(" << visitor.string_registry.at(var_name) << ")" << std::endl;
+  show();
+}
+
+void Substitution::substitute_variable(TypeHandle& var_handle, mt::types::Variable& var) {
+  if (bound_variables.count(var_handle) > 0) {
+    var_handle = bound_variables.at(var_handle);
   }
 }
 
@@ -101,18 +100,14 @@ void Substitution::substitute_dispatch(mt::TypeHandle& handle) {
   auto& type = visitor.at(handle);
 
   switch (type.tag) {
-    case DebugType::Tag::variable: {
-      if (bound_variables.count(handle) > 0) {
-        handle = bound_variables.at(handle);
-      }
+    case DebugType::Tag::variable:
+      substitute_variable(handle, type.variable);
       break;
-    }
     case DebugType::Tag::scalar:
       break;
-    case DebugType::Tag::function: {
+    case DebugType::Tag::function:
       substitute_function(type.function);
       break;
-    }
     default:
       assert(false);
   }
@@ -139,11 +134,20 @@ void Substitution::unify_one(mt::TypeEquation eq) {
     return;
   }
 
-  if (type_of(eq.rhs) != Tag::variable && type_of(eq.lhs) != Tag::variable) {
-    std::cout << "Both non-variable" << std::endl;
-    std::cout << "===========" << std::endl;
+  lhs_type = type_of(eq.lhs);
+  rhs_type = type_of(eq.rhs);
+
+  if (lhs_type != Tag::variable && rhs_type != Tag::variable) {
+    if (eq.lhs != eq.rhs) {
+      std::cout << "Error unlike types" << std::endl;
+    }
+    return;
+//    assert(false && "Unhandled.");
+  } else if (lhs_type != Tag::variable) {
+    assert(false && "Unhandled");
   }
 
+  assert(bound_variables.count(eq.lhs) == 0);
   bound_variables[eq.lhs] = eq.rhs;
 
   for (auto& subst_eq : substitution) {
@@ -154,16 +158,33 @@ void Substitution::unify_one(mt::TypeEquation eq) {
   substitution.push_back(eq);
 }
 
-void Substitution::unify_new() {
-  while (!type_equations.empty()) {
-    auto eq = type_equations.front();
-    type_equations.erase(type_equations.begin());
-    unify_one(eq);
-  }
-}
 
 DebugType::Tag Substitution::type_of(const mt::TypeHandle& handle) const {
   return visitor.at(handle).tag;
+}
+
+void Substitution::show() {
+  show_type_eqs(visitor, type_equations);
+  show_type_eqs(visitor, substitution);
+
+  std::cout << "----" << std::endl;
+  for (const auto& t : visitor.types) {
+    if (t.tag == DebugType::Tag::function) {
+      show_function_type(t.function);
+      std::cout << std::endl;
+    }
+  }
+  std::cout << "----" << std::endl;
+  for (const auto& it : visitor.variables) {
+    int64_t var_name;
+    {
+      Store::ReadConst reader(visitor.store);
+      var_name = reader.at(it.second).name.full_name();
+    }
+
+    show_type_handle(it.first);
+    std::cout << " | " << visitor.string_registry.at(var_name) << std::endl;
+  }
 }
 
 }

@@ -11,12 +11,6 @@ namespace mt {
 
 class TypeVisitor;
 
-/*
- * Push type mapping: t0 -> BoxedExpr
- * In substitution, retain a map: mapped_type = map[t0];
- * And update: map[t1] = map[t0];
- */
-
 struct TypeEquation {
   TypeEquation(const TypeHandle& lhs, const TypeHandle& rhs) : lhs(lhs), rhs(rhs) {
     //
@@ -46,21 +40,18 @@ public:
   void unify();
 
 private:
-  void unify_new();
   void unify_one(TypeEquation eq);
   void substitute_function(types::Function& func);
+  void substitute_variable(TypeHandle& var_handle, types::Variable& var);
   void substitute_dispatch(TypeHandle& handle);
   DebugType::Tag type_of(const TypeHandle& handle) const;
-
-public:
-  std::vector<TypeEquation> type_equations;
-  std::vector<TypeExprHandle> type_expr_handles;
-  BoundVariables bound_variables;
-  TypeVisitor& visitor;
-
-  std::map<texpr::Application, TypeExprHandle, texpr::Application::Less> applications;
+  void show();
 
 private:
+  TypeVisitor& visitor;
+
+  std::vector<TypeEquation> type_equations;
+  BoundVariables bound_variables;
   std::vector<TypeEquation> substitution;
 };
 
@@ -86,9 +77,11 @@ public:
   void make_builtin_types() {
     double_type_handle = make_type();
     string_type_handle = make_type();
+    char_type_handle = make_type();
 
     assign(double_type_handle, DebugType(types::Scalar(make_type_identifier())));
     assign(string_type_handle, DebugType(types::Scalar(make_type_identifier())));
+    assign(char_type_handle, DebugType(types::Scalar(make_type_identifier())));
   }
 
   void root_block(const RootBlock& block) override {
@@ -109,8 +102,12 @@ public:
     push_type_handle(double_type_handle);
   }
 
+  void char_literal_expr(const CharLiteralExpr& expr) override {
+    assert(char_type_handle.is_valid());
+    push_type_handle(char_type_handle);
+  }
+
   void string_literal_expr(const StringLiteralExpr& expr) override {
-    assert(false && "Unhandled");
     assert(string_type_handle.is_valid());
     push_type_handle(string_type_handle);
   }
@@ -174,13 +171,6 @@ public:
       result_handle = output_handle;
 
     } else {
-      std::cout << "===" << std::endl;
-      std::cout << "===" << std::endl;
-      std::cout << "===" << std::endl;
-      std::cout << "Using existing" << std::endl;
-      std::cout << "===" << std::endl;
-      std::cout << "===" << std::endl;
-      std::cout << "===" << std::endl;
       result_handle = app_it->second;
     }
 
@@ -206,7 +196,8 @@ public:
     MatlabScopeHelper scope_helper(*this, node.scope_handle);
 
     const auto type_handle = make_type();
-    function_type_handles[node.def_handle] = type_handle;
+    bind_type_variable_to_function_def(node.def_handle, type_handle);
+
     types::Function function_type;
 
     {
@@ -281,6 +272,11 @@ private:
     variables[type_handle] = def_handle;
   }
 
+  void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, const TypeHandle& type_handle) {
+    function_type_handles[def_handle] = type_handle;
+    functions[type_handle] = def_handle;
+  }
+
   void push_scope(const MatlabScopeHandle& handle) {
     scope_handles.push_back(handle);
   }
@@ -337,13 +333,16 @@ private:
 
   std::unordered_map<VariableDefHandle, TypeHandle, VariableDefHandle::Hash> variable_type_handles;
   std::unordered_map<TypeHandle, VariableDefHandle, TypeHandle::Hash> variables;
+
   std::unordered_map<FunctionDefHandle, TypeHandle, FunctionDefHandle::Hash> function_type_handles;
+  std::unordered_map<TypeHandle, FunctionDefHandle, TypeHandle::Hash> functions;
   std::vector<DebugType> types;
 
   std::vector<TypeHandle> type_handles;
 
   TypeHandle double_type_handle;
   TypeHandle string_type_handle;
+  TypeHandle char_type_handle;
 
   std::map<texpr::Application, TypeHandle, texpr::Application::Less> applications;
 };
