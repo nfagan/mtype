@@ -11,14 +11,8 @@
 namespace mt {
 
 class TypeVisitor;
-class TypeExprVisitor;
 
 struct TypeHandle : public detail::Handle<100> {
-  friend class TypeVisitor;
-  using Handle::Handle;
-};
-
-struct TypeExprHandle : public detail::Handle<101> {
   friend class TypeVisitor;
   using Handle::Handle;
 };
@@ -35,87 +29,6 @@ struct TypeIdentifier {
 
   int64_t name;
 };
-
-namespace texpr {
-  struct Expr {
-    Expr() = default;
-    virtual ~Expr() = default;
-
-    virtual bool is_terminal(const TypeVisitor& visitor) const {
-      return false;
-    }
-    virtual void accept_const(TypeExprVisitor&) const {
-      //
-    }
-    virtual void accept(TypeExprVisitor&) {
-      //
-    }
-  };
-
-  using BoxedExpr = std::unique_ptr<texpr::Expr>;
-
-  struct TypeReference : public Expr {
-    explicit TypeReference(const TypeHandle& handle) : type_handle(handle) {
-      //
-    }
-
-    bool is_terminal(const TypeVisitor& visitor) const override {
-      return true;
-    }
-
-    void accept(TypeExprVisitor& visitor) override;
-    void accept_const(TypeExprVisitor& visitor) const override;
-
-    TypeHandle type_handle;
-  };
-
-  struct Application : public Expr {
-    enum class Type : uint8_t {
-      unary_operator = 0,
-      binary_operator,
-      function,
-    };
-
-    struct Less {
-      bool operator()(const Application& a, const Application& b) const;
-    };
-
-    Application(BinaryOperator binary_operator, std::vector<TypeHandle>&& args, const TypeHandle& result) :
-    type(Type::binary_operator),
-    binary_operator(binary_operator),
-    arguments(std::move(args)),
-    outputs{result} {
-      //
-    }
-    Application(UnaryOperator unary_operator, std::vector<TypeHandle>&& args, const TypeHandle& result) :
-      type(Type::unary_operator),
-      unary_operator(unary_operator),
-      arguments(std::move(args)),
-      outputs{result} {
-      //
-    }
-    Application(std::vector<TypeHandle>&& args, std::vector<TypeHandle>&& outputs) :
-      type(Type::function), arguments(std::move(args)), outputs(std::move(outputs)) {
-      //
-    }
-    ~Application() override = default;
-
-    void accept(TypeExprVisitor& visitor) override;
-    void accept_const(TypeExprVisitor& visitor) const override;
-
-    bool operator==(const Application& other) const;
-
-    Type type;
-
-    union {
-      BinaryOperator binary_operator;
-      UnaryOperator unary_operator;
-    };
-
-    std::vector<TypeHandle> arguments;
-    std::vector<TypeHandle> outputs;
-  };
-}
 
 namespace types {
   struct Null {
@@ -151,13 +64,103 @@ namespace types {
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Union)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Union)
 
-    std::vector<TypeHandle> types;
+    std::vector<TypeHandle> members;
   };
 
-  struct Function {
-    Function() = default;
-    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Function)
-    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Function)
+
+  struct Tuple {
+    Tuple() = default;
+    Tuple(const TypeHandle& a, const TypeHandle& b) : members{a, b} {
+      //
+    }
+    Tuple(const TypeHandle& a) : members{a} {
+      //
+    }
+    Tuple(std::vector<TypeHandle>&& members) : members(std::move(members)) {
+      //
+    }
+
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Tuple)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Tuple)
+
+    std::vector<TypeHandle> members;
+  };
+
+  struct Abstraction {
+    struct Less {
+      bool operator()(const Abstraction& a, const Abstraction& b) const;
+    };
+
+    enum class Type : uint8_t {
+      unary_operator = 0,
+      binary_operator,
+      function,
+    };
+
+    Abstraction() : type(Type::function) {
+      //
+    }
+
+    Abstraction(BinaryOperator binary_operator, const TypeHandle& lhs, const TypeHandle& rhs, const TypeHandle& result) :
+    type(Type::binary_operator),
+    binary_operator(binary_operator),
+    inputs{lhs, rhs},
+    outputs{result} {
+      //
+    }
+    Abstraction(UnaryOperator unary_operator, const TypeHandle& arg, const TypeHandle& result) :
+    type(Type::unary_operator),
+    unary_operator(unary_operator),
+    inputs{arg},
+    outputs{result} {
+      //
+    }
+    Abstraction(std::vector<TypeHandle>&& args, std::vector<TypeHandle>&& outputs) :
+    type(Type::function), inputs(std::move(args)), outputs(std::move(outputs)) {
+      //
+    }
+
+    Abstraction(const Abstraction& other) :
+    type(other.type), outputs(other.outputs), inputs(other.inputs) {
+      conditional_assign_operator(other);
+    }
+    Abstraction(Abstraction&& other) noexcept :
+    type(other.type), outputs(std::move(other.outputs)), inputs(std::move(other.inputs)) {
+      conditional_assign_operator(other);
+    }
+
+    Abstraction& operator=(const Abstraction& other) {
+      type = other.type;
+      outputs = other.outputs;
+      inputs = other.inputs;
+      conditional_assign_operator(other);
+      return *this;
+    }
+    Abstraction& operator=(Abstraction&& other) noexcept {
+      type = other.type;
+      outputs = std::move(other.outputs);
+      inputs = std::move(other.inputs);
+      conditional_assign_operator(other);
+      return *this;
+    }
+
+    bool operator==(const Abstraction& other) const;
+
+  private:
+    void conditional_assign_operator(const Abstraction& other) {
+      if (other.type == Type::binary_operator) {
+        binary_operator = other.binary_operator;
+      } else if (other.type == Type::unary_operator) {
+        unary_operator = other.unary_operator;
+      }
+    }
+  public:
+    Type type;
+
+    union {
+      BinaryOperator binary_operator;
+      UnaryOperator unary_operator;
+    };
 
     std::vector<TypeHandle> outputs;
     std::vector<TypeHandle> inputs;
@@ -170,7 +173,7 @@ public:
     null,
     variable,
     scalar,
-    function,
+    abstraction,
     union_type
   };
 
@@ -187,8 +190,8 @@ public:
   explicit DebugType(types::Scalar&& scl) : tag(Tag::scalar) {
     new (&scalar) types::Scalar(std::move(scl));
   }
-  explicit DebugType(types::Function&& func) : tag(Tag::function) {
-    new (&function) types::Function(std::move(func));
+  explicit DebugType(types::Abstraction&& func) : tag(Tag::abstraction) {
+    new (&abstraction) types::Abstraction(std::move(func));
   }
   explicit DebugType(types::Union&& un) : tag(Tag::union_type) {
     new (&union_type) types::Union(std::move(un));
@@ -227,18 +230,12 @@ public:
     types::Variable variable;
     types::Scalar scalar;
     types::Union union_type;
-    types::Function function;
+    types::Abstraction abstraction;
   };
 };
 
 const char* to_string(DebugType::Tag tag);
 std::ostream& operator<<(std::ostream& stream, DebugType::Tag tag);
-
-class TypeExprVisitor {
-public:
-  MT_TYPE_VISITOR_METHOD(type_reference, texpr::TypeReference)
-  MT_TYPE_VISITOR_METHOD(application, texpr::Application)
-};
 
 }
 

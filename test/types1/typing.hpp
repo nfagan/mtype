@@ -20,7 +20,7 @@ struct TypeEquation {
   TypeHandle rhs;
 };
 
-class Substitution : public TypeExprVisitor {
+class Substitution {
 public:
   using BoundVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
 public:
@@ -30,7 +30,7 @@ public:
 
   ~Substitution() {
     std::cout << "Num type eqs: " << type_equations.size() << std::endl;
-    std::cout << "Subs size: " << substitution.size() << std::endl;
+    std::cout << "Subs size: " << bound_variables.size() << std::endl;
   }
 
   void push_type_equation(TypeEquation&& eq) {
@@ -41,18 +41,33 @@ public:
 
 private:
   void unify_one(TypeEquation eq);
-  void substitute_function(types::Function& func);
-  void substitute_variable(TypeHandle& var_handle, types::Variable& var);
-  void substitute_dispatch(TypeHandle& handle);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Abstraction& func);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Variable& var);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source);
+
+  [[nodiscard]] TypeHandle substitute_one(types::Variable& var, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Abstraction& func, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
+  [[nodiscard]] TypeHandle substitute_one(const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
+
+  bool simplify(const TypeHandle& lhs, const TypeHandle& rhs);
+  bool simplify(const types::Abstraction& t0, const types::Abstraction& t1);
+  bool simplify(const types::Scalar& t0, const types::Scalar& t1);
+
   DebugType::Tag type_of(const TypeHandle& handle) const;
   void show();
+
+  TypeHandle require_plus_type_handle();
+  void check_push_plus_func(const TypeHandle& source, const types::Abstraction& func);
+  void check_push_func(const TypeHandle& source, const types::Abstraction& func);
 
 private:
   TypeVisitor& visitor;
 
   std::vector<TypeEquation> type_equations;
   BoundVariables bound_variables;
-  std::vector<TypeEquation> substitution;
+
+  TypeHandle plus_type_handle;
+  std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
 };
 
 class TypeVisitor : public TypePreservingVisitor {
@@ -72,6 +87,27 @@ public:
   explicit TypeVisitor(Store& store, const StringRegistry& string_registry) :
   substitution(*this), store(store), string_registry(string_registry), type_variable_ids(0) {
     make_builtin_types();
+  }
+
+  ~TypeVisitor() {
+    const auto num_types = double(types.size());
+
+    std::cout << "Num types: " << num_types << std::endl;
+    std::cout << "Size types: " << double(types.size() * sizeof(DebugType)) / 1024.0 << "kb" << std::endl;
+
+    std::unordered_map<DebugType::Tag, double> counts;
+
+    for (const auto& type : types) {
+      if (counts.count(type.tag) == 0) {
+        counts[type.tag] = 0.0;
+      }
+      counts[type.tag] = counts[type.tag] + 1.0;
+    }
+
+    for (const auto& ct : counts) {
+      std::cout << to_string(ct.first) << ": " << ct.second << " (";
+      std::cout << ct.second/num_types << ")" << std::endl;
+    }
   }
 
   void make_builtin_types() {
@@ -114,6 +150,7 @@ public:
 
   void function_call_expr(const FunctionCallExpr& expr) override {
     assert(false && "Unhandled");
+    //  push tuple of arguments from the function def; mark tuple as r-value.
   }
 
   void anonymous_function_expr(const AnonymousFunctionExpr& expr) override {
@@ -145,36 +182,13 @@ public:
       substitution.push_type_equation(TypeEquation(tvar_rhs, rhs_result));
     }
 
-    std::vector<TypeHandle> arguments;
-    arguments.reserve(2);
-    arguments.push_back(lhs_result);
-    arguments.push_back(rhs_result);
+    const auto output_handle = make_fresh_type_variable_reference();
+    types::Abstraction func_type(expr.op, lhs_result, rhs_result, output_handle);
+    const auto func_handle = make_type();
+    assign(func_handle, DebugType(std::move(func_type)));
+    substitution.push_type_equation(TypeEquation(make_fresh_type_variable_reference(), func_handle));
 
-    texpr::Application app(expr.op, std::move(arguments), TypeHandle());
-    auto app_it = applications.find(app);
-    TypeHandle result_handle;
-
-    if (app_it == applications.end()) {
-      const auto output_handle = make_fresh_type_variable_reference();
-      app.outputs[0] = output_handle;
-
-      result_handle = make_type();
-      types::Function func_type;
-      func_type.inputs = app.arguments;
-      func_type.outputs = app.outputs;
-      assign(result_handle, DebugType(std::move(func_type)));
-      applications.emplace(app, output_handle);
-
-      const auto tvar = make_fresh_type_variable_reference();
-      substitution.push_type_equation(TypeEquation(tvar, result_handle));
-
-      result_handle = output_handle;
-
-    } else {
-      result_handle = app_it->second;
-    }
-
-    push_type_handle(result_handle);
+    push_type_handle(output_handle);
   }
 
   void expr_stmt(const ExprStmt& stmt) override {
@@ -182,6 +196,9 @@ public:
   }
 
   void assignment_stmt(const AssignmentStmt& stmt) override {
+    /*
+     * Grouping expr as assignment -> Tuple of args, with destructuring
+     */
     stmt.of_expr->accept_const(*this);
     auto rhs = pop_type_handle();
 
@@ -198,7 +215,8 @@ public:
     const auto type_handle = make_type();
     bind_type_variable_to_function_def(node.def_handle, type_handle);
 
-    types::Function function_type;
+    std::vector<TypeHandle> function_inputs;
+    std::vector<TypeHandle> function_outputs;
 
     {
       const auto scope_handle = current_scope_handle();
@@ -214,9 +232,9 @@ public:
           const auto variable_def_handle = scope.local_variables.at(input.name);
           const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
 
-          function_type.inputs.push_back(variable_type_handle);
+          function_inputs.push_back(variable_type_handle);
         } else {
-          function_type.inputs.emplace_back();
+          function_inputs.emplace_back();
         }
       }
 
@@ -226,12 +244,13 @@ public:
         const auto variable_def_handle = scope.local_variables.at(output);
         const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
 
-        function_type.outputs.push_back(variable_type_handle);
+        function_outputs.push_back(variable_type_handle);
       }
 
       function_body = def.body.get();
     }
 
+    types::Abstraction function_type(std::move(function_inputs), std::move(function_outputs));
     assign(type_handle, DebugType(std::move(function_type)));
     substitution.push_type_equation(TypeEquation(make_fresh_type_variable_reference(), type_handle));
 
@@ -343,8 +362,6 @@ private:
   TypeHandle double_type_handle;
   TypeHandle string_type_handle;
   TypeHandle char_type_handle;
-
-  std::map<texpr::Application, TypeHandle, texpr::Application::Less> applications;
 };
 
 }

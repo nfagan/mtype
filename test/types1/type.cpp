@@ -5,30 +5,10 @@
 namespace mt {
 
 /*
- * TypeReference
- */
-
-void texpr::TypeReference::accept(TypeExprVisitor& visitor) {
-  visitor.type_reference(*this);
-}
-
-void texpr::TypeReference::accept_const(TypeExprVisitor& visitor) const {
-  visitor.type_reference(*this);
-}
-
-/*
  * Application
  */
 
-void texpr::Application::accept_const(TypeExprVisitor& visitor) const {
-  visitor.application(*this);
-}
-
-void texpr::Application::accept(TypeExprVisitor& visitor) {
-  visitor.application(*this);
-}
-
-bool texpr::Application::operator==(const Application& other) const {
+bool types::Abstraction::operator==(const types::Abstraction& other) const {
   if (type != other.type) {
     return false;
   }
@@ -36,11 +16,11 @@ bool texpr::Application::operator==(const Application& other) const {
       (type == Type::unary_operator && unary_operator != other.unary_operator)) {
     return false;
   }
-  if (arguments.size() != other.arguments.size() || outputs.size() != other.outputs.size()) {
+  if (inputs.size() != other.inputs.size() || outputs.size() != other.outputs.size()) {
     return false;
   }
-  for (int64_t i = 0; i < arguments.size(); i++) {
-    if (arguments[i] != other.arguments[i]) {
+  for (int64_t i = 0; i < inputs.size(); i++) {
+    if (inputs[i] != other.inputs[i]) {
       return false;
     }
   }
@@ -76,7 +56,7 @@ inline int compare_less(const std::vector<T>& a, const std::vector<T>& b) {
 }
 }
 
-bool texpr::Application::Less::operator()(const texpr::Application& a, const texpr::Application& b) const {
+bool types::Abstraction::Less::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
   const auto a_type = static_cast<uint8_t>(a.type);
   const auto b_type = static_cast<uint8_t>(b.type);
 
@@ -102,7 +82,7 @@ bool texpr::Application::Less::operator()(const texpr::Application& a, const tex
     assert(false && "Function type not properly handled.");
   }
 
-  const auto arg_res = compare_less(a.arguments, b.arguments);
+  const auto arg_res = compare_less(a.inputs, b.inputs);
   if (arg_res == -1) {
     return true;
   } else if (arg_res == 1) {
@@ -129,8 +109,8 @@ const char* to_string(DebugType::Tag tag) {
       return "variable";
     case Tag::scalar:
       return "scalar";
-    case Tag::function:
-      return "function";
+    case Tag::abstraction:
+      return "abstraction";
     case Tag::union_type:
       return "union_type";
     default:
@@ -153,8 +133,8 @@ void DebugType::default_construct() noexcept {
     case Tag::scalar:
       new (&scalar) types::Scalar();
       break;
-    case Tag::function:
-      new (&function) types::Function();
+    case Tag::abstraction:
+      new (&abstraction) types::Abstraction();
       break;
     case Tag::union_type:
       new (&union_type) types::Union();
@@ -172,8 +152,8 @@ void DebugType::move_construct(DebugType&& other) noexcept {
     case Tag::scalar:
       new (&scalar) types::Scalar(std::move(other.scalar));
       break;
-    case Tag::function:
-      new (&function) types::Function(std::move(other.function));
+    case Tag::abstraction:
+      new (&abstraction) types::Abstraction(std::move(other.abstraction));
       break;
     case Tag::union_type:
       new (&union_type) types::Union(std::move(other.union_type));
@@ -191,8 +171,8 @@ void DebugType::copy_construct(const DebugType& other) {
     case Tag::scalar:
       new (&scalar) types::Scalar(other.scalar);
       break;
-    case Tag::function:
-      new (&function) types::Function(other.function);
+    case Tag::abstraction:
+      new (&abstraction) types::Abstraction(other.abstraction);
       break;
     case Tag::union_type:
       new (&union_type) types::Union(other.union_type);
@@ -210,8 +190,8 @@ void DebugType::copy_assign(const DebugType& other) {
     case Tag::scalar:
       scalar = other.scalar;
       break;
-    case Tag::function:
-      function = other.function;
+    case Tag::abstraction:
+      abstraction = other.abstraction;
       break;
     case Tag::union_type:
       union_type = other.union_type;
@@ -229,8 +209,8 @@ void DebugType::move_assign(DebugType&& other) {
     case Tag::scalar:
       scalar = std::move(other.scalar);
       break;
-    case Tag::function:
-      function = std::move(other.function);
+    case Tag::abstraction:
+      abstraction = std::move(other.abstraction);
       break;
     case Tag::union_type:
       union_type = std::move(other.union_type);
@@ -248,8 +228,8 @@ DebugType::~DebugType() {
     case Tag::scalar:
       scalar.~Scalar();
       break;
-    case Tag::function:
-      function.~Function();
+    case Tag::abstraction:
+      abstraction.~Abstraction();
       break;
     case Tag::union_type:
       union_type.~Union();
@@ -260,14 +240,12 @@ DebugType::~DebugType() {
 DebugType& DebugType::operator=(const DebugType& other) {
   conditional_default_construct(other.tag);
   copy_assign(other);
-
   return *this;
 }
 
 DebugType& DebugType::operator=(DebugType&& other) noexcept {
   conditional_default_construct(other.tag);
   move_assign(std::move(other));
-
   return *this;
 }
 

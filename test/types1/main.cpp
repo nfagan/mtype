@@ -1,6 +1,5 @@
 #include "mt/mt.hpp"
 #include "typing.hpp"
-#include "TypeExprStringVisitor.hpp"
 #include "util.hpp"
 #include <chrono>
 
@@ -52,9 +51,6 @@ int main(int argc, char** argv) {
 
 //  StringVisitor str_visitor(&str_registry, &store);
 //  std::cout << root_block->accept(str_visitor) << std::endl;
-
-  TypeExprStringVisitor expr_str_visitor(type_visitor);
-  expr_str_visitor.show();
 
   return 0;
 }

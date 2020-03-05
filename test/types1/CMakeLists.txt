@@ -10,8 +10,6 @@ target_sources(${PROJECT_NAME} PRIVATE
         type.cpp
         typing.hpp
         typing.cpp
-        TypeExprStringVisitor.hpp
-        TypeExprStringVisitor.cpp
         util.hpp
         util.cpp
         )
