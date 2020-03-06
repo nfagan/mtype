@@ -150,7 +150,8 @@ public:
 
   void function_call_expr(const FunctionCallExpr& expr) override {
     assert(false && "Unhandled");
-    //  push tuple of arguments from the function def; mark tuple as r-value.
+    //  push tuple of arguments from the function def
+    //  Mark as destructuring; minimum number given by current number of requested arguments.
   }
 
   void anonymous_function_expr(const AnonymousFunctionExpr& expr) override {

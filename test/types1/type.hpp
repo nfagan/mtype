@@ -67,22 +67,29 @@ namespace types {
     std::vector<TypeHandle> members;
   };
 
-
   struct Tuple {
-    Tuple() = default;
-    Tuple(const TypeHandle& a, const TypeHandle& b) : members{a, b} {
+    enum class Direction {
+      structured,
+      destructured
+    };
+
+    Tuple() : direction(Direction::structured) {
       //
     }
-    Tuple(const TypeHandle& a) : members{a} {
+    Tuple(Direction dir, const TypeHandle& a, const TypeHandle& b) : direction(dir), members{a, b} {
       //
     }
-    Tuple(std::vector<TypeHandle>&& members) : members(std::move(members)) {
+    Tuple(Direction dir, const TypeHandle& a) : direction(dir), members{a} {
+      //
+    }
+    Tuple(Direction dir, std::vector<TypeHandle>&& members) : direction(dir), members(std::move(members)) {
       //
     }
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Tuple)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Tuple)
 
+    Direction direction;
     std::vector<TypeHandle> members;
   };
 
@@ -174,7 +181,8 @@ public:
     variable,
     scalar,
     abstraction,
-    union_type
+    union_type,
+    tuple
   };
 
   DebugType() : DebugType(types::Null{}) {
@@ -195,6 +203,9 @@ public:
   }
   explicit DebugType(types::Union&& un) : tag(Tag::union_type) {
     new (&union_type) types::Union(std::move(un));
+  }
+  explicit DebugType(types::Tuple&& tup) : tag(Tag::tuple) {
+    new (&tuple) types::Tuple(std::move(tup));
   }
 
   DebugType(const DebugType& other) : tag(other.tag) {
@@ -231,6 +242,7 @@ public:
     types::Scalar scalar;
     types::Union union_type;
     types::Abstraction abstraction;
+    types::Tuple tuple;
   };
 };
 

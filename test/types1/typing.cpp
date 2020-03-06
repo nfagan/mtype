@@ -201,6 +201,27 @@ void Substitution::unify_one(TypeEquation eq) {
 
 bool Substitution::simplify(const TypeHandle& lhs, const TypeHandle& rhs) {
   /*
+   *  For each element of a destructured tuple, consider the number of outputs that it produces.
+   *  [a, b{:}]: num(a) == 1, num(b{:})
+   *
+   *  Number of outputs must be known at compile time: [a{:}, b{:}] = func1() is only valid
+   *  if a and b are tuples, not lists.
+   *
+   *  Difference between assignment to list / tuple: [a{:}] = deal( 1 );
+   *  and variable [a(1:10), b(1:10)] = 1;
+   *
+   *  function [a, b, c, d] = func1(e)
+   *    a = b = c = d = e = 1;
+   *  end
+   *
+   *  let A = {number, number, number}
+   *  let B = {number}
+   *
+   *  a: A = {1, 2, 3}
+   *  b: B = {1}
+   *
+   *  [a{:}, b{:}] = func1(); //  ok
+   *
    *  func1(func2());
    *    r-value destructured tuple (1:1, func2) = r-value structured tuple (func1)
    *
@@ -210,8 +231,12 @@ bool Substitution::simplify(const TypeHandle& lhs, const TypeHandle& rhs) {
    *  func1(a{:})
    *    r-value structured tuple t1 = r-value destructured tuple a
    *
-   *  [a{:}] = func1()
-   *    list
+   *  [a.b.c{1:2}] = func1()
+   *    destructured list c{1:2} = structured tuple t1
+   *  [a{1:2}, b] = func1()
+   *
+   *  func1(a{:})
+   *  func1([a{:}, b{:}])
    */
   using Tag = DebugType::Tag;
 

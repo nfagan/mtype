@@ -113,6 +113,8 @@ const char* to_string(DebugType::Tag tag) {
       return "abstraction";
     case Tag::union_type:
       return "union_type";
+    case Tag::tuple:
+      return "tuple";
     default:
       assert(false && "Unhandled.");
   }
@@ -139,6 +141,9 @@ void DebugType::default_construct() noexcept {
     case Tag::union_type:
       new (&union_type) types::Union();
       break;
+    case Tag::tuple:
+      new (&tuple) types::Tuple();
+      break;
   }
 }
 
@@ -157,6 +162,9 @@ void DebugType::move_construct(DebugType&& other) noexcept {
       break;
     case Tag::union_type:
       new (&union_type) types::Union(std::move(other.union_type));
+      break;
+    case Tag::tuple:
+      new (&tuple) types::Tuple(std::move(other.tuple));
       break;
   }
 }
@@ -177,6 +185,9 @@ void DebugType::copy_construct(const DebugType& other) {
     case Tag::union_type:
       new (&union_type) types::Union(other.union_type);
       break;
+    case Tag::tuple:
+      new (&tuple) types::Tuple(other.tuple);
+      break;
   }
 }
 
@@ -195,6 +206,9 @@ void DebugType::copy_assign(const DebugType& other) {
       break;
     case Tag::union_type:
       union_type = other.union_type;
+      break;
+    case Tag::tuple:
+      tuple = other.tuple;
       break;
   }
 }
@@ -215,6 +229,9 @@ void DebugType::move_assign(DebugType&& other) {
     case Tag::union_type:
       union_type = std::move(other.union_type);
       break;
+    case Tag::tuple:
+      tuple = std::move(other.tuple);
+      break;
   }
 }
 
@@ -233,6 +250,9 @@ DebugType::~DebugType() {
       break;
     case Tag::union_type:
       union_type.~Union();
+      break;
+    case Tag::tuple:
+      tuple.~Tuple();
       break;
   }
 }
