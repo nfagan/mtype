@@ -65,6 +65,34 @@ std::vector<int64_t> StringRegistry::register_strings(const std::vector<std::str
   return res;
 }
 
+namespace {
+template <typename T>
+std::vector<T> split(const char* str, int64_t len, const Character& delim) {
+  CharacterIterator it(str, len);
+  std::vector<T> result;
+
+  int64_t offset = 0;
+  int64_t index = 0;
+
+  while (it.has_next()) {
+    const auto& c = it.peek();
+
+    if (c == delim) {
+      T slice(str + offset, index - offset);
+      result.emplace_back(slice);
+      offset = index + c.count_units();
+    }
+
+    it.advance();
+    index += c.count_units();
+  }
+
+  result.emplace_back(T(str + offset, len - offset));
+
+  return result;
+}
+}
+
 std::vector<std::string_view> split(std::string_view view, const Character& delim) {
   return split(view.data(), view.size(), delim);
 }
@@ -74,28 +102,11 @@ std::vector<std::string_view> split(const std::string& str, const Character& del
 }
 
 std::vector<std::string_view> split(const char* str, int64_t len, const Character& delim) {
-  CharacterIterator it(str, len);
-  std::vector<std::string_view> result;
+  return split<std::string_view>(str, len, delim);
+}
 
-  int64_t offset = 0;
-  int64_t index = 0;
-
-  while (it.has_next()) {
-    const auto& c = it.peek();
-
-    if (c == delim) {
-      std::string_view view(str + offset, index - offset);
-      result.emplace_back(view);
-      offset = index + c.count_units();
-    }
-
-    it.advance();
-    index += c.count_units();
-  }
-
-  result.emplace_back(std::string_view(str + offset, len - offset));
-
-  return result;
+std::vector<std::string> split_copy(const char *str, int64_t len, const Character& delim) {
+  return split<std::string>(str, len, delim);
 }
 
 std::vector<int64_t> find_character(const char* str, int64_t len, const Character& look_for) {

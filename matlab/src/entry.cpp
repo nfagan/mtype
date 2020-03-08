@@ -90,9 +90,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   if (!parse_res) {
     if (inputs.show_parse_errors) {
-      for (const auto& err : parse_res.error) {
-        err.show();
-      }
+      mt::show_parse_errors(parse_res.error);
     }
     return;
   }

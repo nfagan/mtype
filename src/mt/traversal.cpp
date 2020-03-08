@@ -5,6 +5,28 @@
 namespace mt {
 
 /*
+ * ValueCategoryState
+ */
+
+bool ValueCategoryState::is_lhs() const {
+  assert(!sides.empty() && "Empty sides.");
+  return sides.back();
+}
+
+void ValueCategoryState::push_lhs() {
+  sides.push_back(true);
+}
+
+void ValueCategoryState::push_rhs() {
+  sides.push_back(false);
+}
+
+void ValueCategoryState::pop_side() {
+  assert(!sides.empty() && "No side to pop.");
+  sides.pop_back();
+}
+
+/*
 * ClassDefState
 */
 

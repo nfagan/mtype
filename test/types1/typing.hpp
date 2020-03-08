@@ -43,18 +43,23 @@ private:
   void unify_one(TypeEquation eq);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Abstraction& func);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Variable& var);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Tuple& var);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source);
 
   [[nodiscard]] TypeHandle substitute_one(types::Variable& var, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
   [[nodiscard]] TypeHandle substitute_one(types::Abstraction& func, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Tuple& tup, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
   [[nodiscard]] TypeHandle substitute_one(const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
 
   bool simplify(const TypeHandle& lhs, const TypeHandle& rhs);
   bool simplify(const types::Abstraction& t0, const types::Abstraction& t1);
   bool simplify(const types::Scalar& t0, const types::Scalar& t1);
+  bool simplify(const types::Tuple& t0, const types::Tuple& t1);
 
   DebugType::Tag type_of(const TypeHandle& handle) const;
   void show();
+  void show_type_eqs(const std::vector<TypeEquation>& eq) const;
+  void show_function_type(const types::Abstraction& func) const;
 
   TypeHandle require_plus_type_handle();
   void check_push_plus_func(const TypeHandle& source, const types::Abstraction& func);
@@ -94,6 +99,7 @@ public:
 
     std::cout << "Num types: " << num_types << std::endl;
     std::cout << "Size types: " << double(types.size() * sizeof(DebugType)) / 1024.0 << "kb" << std::endl;
+    std::cout << "Sizeof DebugType: " << sizeof(DebugType) << std::endl;
 
     std::unordered_map<DebugType::Tag, double> counts;
 
@@ -184,7 +190,15 @@ public:
     }
 
     const auto output_handle = make_fresh_type_variable_reference();
-    types::Abstraction func_type(expr.op, lhs_result, rhs_result, output_handle);
+
+    const auto inputs_handle = make_type();
+    const auto outputs_handle = make_type();
+    types::Tuple inputs(types::Tuple::Structuring::structured, lhs_result, rhs_result);
+    types::Tuple outputs(types::Tuple::Structuring::destructured, output_handle);
+    assign(inputs_handle, DebugType(std::move(inputs)));
+    assign(outputs_handle, DebugType(std::move(outputs)));
+
+    types::Abstraction func_type(expr.op, inputs_handle, outputs_handle);
     const auto func_handle = make_type();
     assign(func_handle, DebugType(std::move(func_type)));
     substitution.push_type_equation(TypeEquation(make_fresh_type_variable_reference(), func_handle));
@@ -251,7 +265,15 @@ public:
       function_body = def.body.get();
     }
 
-    types::Abstraction function_type(std::move(function_inputs), std::move(function_outputs));
+    types::Tuple inputs(types::Tuple::Structuring::structured, std::move(function_inputs));
+    types::Tuple outputs(types::Tuple::Structuring::destructured, std::move(function_outputs));
+
+    const auto input_handle = make_type();
+    const auto output_handle = make_type();
+    assign(input_handle, DebugType(std::move(inputs)));
+    assign(output_handle, DebugType(std::move(outputs)));
+
+    types::Abstraction function_type(input_handle, output_handle);
     assign(type_handle, DebugType(std::move(function_type)));
     substitution.push_type_equation(TypeEquation(make_fresh_type_variable_reference(), type_handle));
 

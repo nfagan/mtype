@@ -17,7 +17,7 @@ public:
 
   ~ParseError() = default;
 
-  void show() const;
+  void show(int64_t index = 0) const;
 
 private:
   std::string_view text;

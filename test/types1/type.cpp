@@ -8,6 +8,7 @@ namespace mt {
  * Application
  */
 
+#if 0
 bool types::Abstraction::operator==(const types::Abstraction& other) const {
   if (type != other.type) {
     return false;
@@ -98,6 +99,7 @@ bool types::Abstraction::Less::operator()(const types::Abstraction& a, const typ
 
   return false;
 }
+#endif
 
 const char* to_string(DebugType::Tag tag) {
   using Tag = DebugType::Tag;
@@ -115,6 +117,8 @@ const char* to_string(DebugType::Tag tag) {
       return "union_type";
     case Tag::tuple:
       return "tuple";
+    case Tag::list:
+      return "list";
     default:
       assert(false && "Unhandled.");
   }
@@ -144,6 +148,9 @@ void DebugType::default_construct() noexcept {
     case Tag::tuple:
       new (&tuple) types::Tuple();
       break;
+    case Tag::list:
+      new (&list) types::List();
+      break;
   }
 }
 
@@ -165,6 +172,9 @@ void DebugType::move_construct(DebugType&& other) noexcept {
       break;
     case Tag::tuple:
       new (&tuple) types::Tuple(std::move(other.tuple));
+      break;
+    case Tag::list:
+      new (&list) types::List(std::move(other.list));
       break;
   }
 }
@@ -188,6 +198,9 @@ void DebugType::copy_construct(const DebugType& other) {
     case Tag::tuple:
       new (&tuple) types::Tuple(other.tuple);
       break;
+    case Tag::list:
+      new (&list) types::List(other.list);
+      break;
   }
 }
 
@@ -209,6 +222,9 @@ void DebugType::copy_assign(const DebugType& other) {
       break;
     case Tag::tuple:
       tuple = other.tuple;
+      break;
+    case Tag::list:
+      list = other.list;
       break;
   }
 }
@@ -232,6 +248,9 @@ void DebugType::move_assign(DebugType&& other) {
     case Tag::tuple:
       tuple = std::move(other.tuple);
       break;
+    case Tag::list:
+      list = std::move(other.list);
+      break;
   }
 }
 
@@ -253,6 +272,9 @@ DebugType::~DebugType() {
       break;
     case Tag::tuple:
       tuple.~Tuple();
+      break;
+    case Tag::list:
+      list.~List();
       break;
   }
 }

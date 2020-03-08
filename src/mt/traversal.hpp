@@ -8,6 +8,21 @@ namespace mt {
 class FunctionDefHandle;
 class ClassDefHandle;
 
+class ValueCategoryState {
+public:
+  ValueCategoryState() = default;
+  ~ValueCategoryState() = default;
+
+  void push_lhs();
+  void push_rhs();
+  void pop_side();
+
+  bool is_lhs() const;
+
+private:
+  std::vector<bool> sides;
+};
+
 class FunctionDefState {
   struct EnclosingFunctionStack {
     static void push(FunctionDefState& state, const FunctionDefHandle& handle) {

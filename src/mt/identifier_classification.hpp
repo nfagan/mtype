@@ -259,12 +259,6 @@ private:
   void pop_context();
   void register_new_context();
 
-  void push_lhs();
-  void push_rhs();
-  void pop_expr_side();
-
-  bool is_lhs() const;
-
   IdentifierScope* scope_at(int index);
   const IdentifierScope* scope_at(int index) const;
   IdentifierScope* current_scope();
@@ -319,7 +313,7 @@ private:
   std::vector<std::set<int64_t>> error_identifiers_by_scope;
   int scope_depth;
 
-  std::vector<bool> expr_sides;
+  ValueCategoryState expr_sides;
   ClassDefState class_state;
   FunctionDefState function_state;
 

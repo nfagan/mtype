@@ -67,36 +67,46 @@ namespace types {
     std::vector<TypeHandle> members;
   };
 
+  struct List {
+    List() = default;
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(List)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(List)
+
+    std::vector<TypeHandle> pattern;
+  };
+
   struct Tuple {
-    enum class Direction {
+    enum class Structuring {
       structured,
       destructured
     };
 
-    Tuple() : direction(Direction::structured) {
+    Tuple() : structuring(Structuring::structured) {
       //
     }
-    Tuple(Direction dir, const TypeHandle& a, const TypeHandle& b) : direction(dir), members{a, b} {
+    Tuple(Structuring dir, const TypeHandle& a, const TypeHandle& b) : structuring(dir), members{a, b} {
       //
     }
-    Tuple(Direction dir, const TypeHandle& a) : direction(dir), members{a} {
+    Tuple(Structuring dir, const TypeHandle& a) : structuring(dir), members{a} {
       //
     }
-    Tuple(Direction dir, std::vector<TypeHandle>&& members) : direction(dir), members(std::move(members)) {
+    Tuple(Structuring dir, std::vector<TypeHandle>&& members) : structuring(dir), members(std::move(members)) {
       //
     }
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Tuple)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Tuple)
 
-    Direction direction;
+    Structuring structuring;
     std::vector<TypeHandle> members;
   };
 
   struct Abstraction {
+#if 0
     struct Less {
       bool operator()(const Abstraction& a, const Abstraction& b) const;
     };
+#endif
 
     enum class Type : uint8_t {
       unary_operator = 0,
@@ -108,10 +118,10 @@ namespace types {
       //
     }
 
-    Abstraction(BinaryOperator binary_operator, const TypeHandle& lhs, const TypeHandle& rhs, const TypeHandle& result) :
+    Abstraction(BinaryOperator binary_operator, const TypeHandle& args, const TypeHandle& result) :
     type(Type::binary_operator),
     binary_operator(binary_operator),
-    inputs{lhs, rhs},
+    inputs{args},
     outputs{result} {
       //
     }
@@ -122,8 +132,8 @@ namespace types {
     outputs{result} {
       //
     }
-    Abstraction(std::vector<TypeHandle>&& args, std::vector<TypeHandle>&& outputs) :
-    type(Type::function), inputs(std::move(args)), outputs(std::move(outputs)) {
+    Abstraction(const TypeHandle& inputs, const TypeHandle& outputs) :
+    type(Type::function), inputs(std::move(inputs)), outputs(std::move(outputs)) {
       //
     }
 
@@ -151,7 +161,9 @@ namespace types {
       return *this;
     }
 
+#if 0
     bool operator==(const Abstraction& other) const;
+#endif
 
   private:
     void conditional_assign_operator(const Abstraction& other) {
@@ -169,10 +181,19 @@ namespace types {
       UnaryOperator unary_operator;
     };
 
-    std::vector<TypeHandle> outputs;
-    std::vector<TypeHandle> inputs;
+    TypeHandle outputs;
+    TypeHandle inputs;
   };
 }
+
+/*
+ * DebugType
+ */
+
+#define MT_DEBUG_TYPE_RVALUE_CTOR(type, t, member) \
+  explicit DebugType(type&& v) : tag(t) { \
+    new (&member) type(std::move(v)); \
+  }
 
 class DebugType {
 public:
@@ -182,7 +203,8 @@ public:
     scalar,
     abstraction,
     union_type,
-    tuple
+    tuple,
+    list
   };
 
   DebugType() : DebugType(types::Null{}) {
@@ -192,21 +214,13 @@ public:
   explicit DebugType(types::Null&& null) : tag(Tag::null) {
     //
   }
-  explicit DebugType(types::Variable&& var) : tag(Tag::variable) {
-    new (&variable) types::Variable(std::move(var));
-  }
-  explicit DebugType(types::Scalar&& scl) : tag(Tag::scalar) {
-    new (&scalar) types::Scalar(std::move(scl));
-  }
-  explicit DebugType(types::Abstraction&& func) : tag(Tag::abstraction) {
-    new (&abstraction) types::Abstraction(std::move(func));
-  }
-  explicit DebugType(types::Union&& un) : tag(Tag::union_type) {
-    new (&union_type) types::Union(std::move(un));
-  }
-  explicit DebugType(types::Tuple&& tup) : tag(Tag::tuple) {
-    new (&tuple) types::Tuple(std::move(tup));
-  }
+
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Variable, Tag::variable, variable);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Scalar, Tag::scalar, scalar);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Abstraction, Tag::abstraction, abstraction);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Union, Tag::union_type, union_type);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Tuple, Tag::tuple, tuple);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::List, Tag::list, list);
 
   DebugType(const DebugType& other) : tag(other.tag) {
     copy_construct(other);
@@ -243,6 +257,7 @@ public:
     types::Union union_type;
     types::Abstraction abstraction;
     types::Tuple tuple;
+    types::List list;
   };
 };
 
@@ -251,4 +266,5 @@ std::ostream& operator<<(std::ostream& stream, DebugType::Tag tag);
 
 }
 
+#undef MT_DEBUG_TYPE_RVALUE_CTOR
 #undef MT_TYPE_VISITOR_METHOD

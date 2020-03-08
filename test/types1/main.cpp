@@ -7,7 +7,7 @@ namespace {
 std::string get_source_file_path(int argc, char** argv) {
   if (argc < 2) {
 //    return "/Users/Nick/Documents/MATLAB/repositories/fieldtrip/ft_databrowser.m";
-    return "/Users/Nick/Desktop/X.m";
+    return "/Users/Nick/repositories/cpp/mt/matlab/test/X.m";
   } else {
     return argv[1];
   }

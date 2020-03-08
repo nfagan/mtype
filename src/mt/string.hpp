@@ -37,6 +37,8 @@ std::vector<std::string_view> split(const char* str, int64_t len, const Characte
 std::vector<std::string_view> split(const std::string& str, const Character& delim);
 std::vector<std::string_view> split(std::string_view view, const Character& delim);
 
+std::vector<std::string> split_copy(const char* str, int64_t len, const Character& delim);
+
 std::string ptr_to_hex_string(const void* ptr);
 
 template <typename T>

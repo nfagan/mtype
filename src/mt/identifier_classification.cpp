@@ -323,7 +323,7 @@ IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
   text(text),
   scope_depth(-1) {
   //  Begin on rhs.
-  push_rhs();
+  expr_sides.push_rhs();
   //  Begin in non-superclass method application, etc.
   class_state.push_default_state();
   //  New scope with no parent.
@@ -341,23 +341,6 @@ void IdentifierClassifier::push_context() {
 
 void IdentifierClassifier::pop_context() {
   current_scope()->pop_context();
-}
-
-bool IdentifierClassifier::is_lhs() const {
-  return expr_sides.back();
-}
-
-void IdentifierClassifier::push_lhs() {
-  expr_sides.push_back(true);
-}
-
-void IdentifierClassifier::push_rhs() {
-  expr_sides.push_back(false);
-}
-
-void IdentifierClassifier::pop_expr_side() {
-  assert(!expr_sides.empty() && "No expr side to pop.");
-  expr_sides.pop_back();
 }
 
 void IdentifierClassifier::push_scope(const MatlabScopeHandle& parse_scope_handle) {
@@ -554,7 +537,7 @@ Expr* IdentifierClassifier::presumed_superclass_method_reference_expr(PresumedSu
 }
 
 Expr* IdentifierClassifier::identifier_reference_expr(IdentifierReferenceExpr& expr) {
-  if (is_lhs()) {
+  if (expr_sides.is_lhs()) {
     return identifier_reference_expr_lhs(expr);
 
   } else if (class_state.is_within_superclass_method_application()) {
@@ -572,17 +555,17 @@ Expr* IdentifierClassifier::identifier_reference_expr_lhs(mt::IdentifierReferenc
   auto primary_result = register_variable_assignment(expr.source_token, expr.primary_identifier);
   if (primary_result.was_initialization && !expr.subscripts.empty()) {
     //  Implicit variable initialization of the form e.g. `a.b = 3;`
-    auto warn = make_error_implicit_variable_initialization(expr.source_token);
-    add_warning_if_new_identifier(std::move(warn), expr.primary_identifier);
+    auto err = make_error_implicit_variable_initialization(expr.source_token);
+    add_error_if_new_identifier(std::move(err), expr.primary_identifier);
   }
 
   int64_t subscript_end;
   const auto compound_identifier_components = expr.make_compound_identifier(&subscript_end);
 
   //  Proceed beginning from the first non literal field reference subscript.
-  push_rhs();
+  expr_sides.push_rhs();
   subscripts(expr.subscripts, subscript_end);
-  pop_expr_side();
+  expr_sides.pop_side();
 
   return new VariableReferenceExpr(expr.source_token, primary_result.variable_def_handle,
     expr.primary_identifier, std::move(expr.subscripts), primary_result.was_initialization);
@@ -746,9 +729,9 @@ IfStmt* IdentifierClassifier::if_stmt(IfStmt& stmt) {
 
 AssignmentStmt* IdentifierClassifier::assignment_stmt(AssignmentStmt& stmt) {
   conditional_reset(stmt.of_expr, stmt.of_expr->accept(*this));
-  push_lhs();
+  expr_sides.push_lhs();
   conditional_reset(stmt.to_expr, stmt.to_expr->accept(*this));
-  pop_expr_side();
+  expr_sides.pop_side();
 
   return &stmt;
 }

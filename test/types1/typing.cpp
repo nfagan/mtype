@@ -21,13 +21,20 @@ void show_type_handles(const std::vector<T>& handles, const char* open, const ch
   std::cout << close;
 }
 
-void show_function_type(const types::Abstraction& func) {
-  show_type_handles(func.outputs, "[", "]");
-  std::cout << " = ";
-  show_type_handles(func.inputs, "(", ")");
 }
 
-void show_type_eqs(const TypeVisitor& visitor, const std::vector<TypeEquation>& eqs) {
+void Substitution::show_function_type(const types::Abstraction& func) const {
+  const auto& outputs = visitor.at(func.outputs);
+  assert(outputs.tag == DebugType::Tag::tuple);
+  const auto& inputs = visitor.at(func.inputs);
+  assert(inputs.tag == DebugType::Tag::tuple);
+
+  show_type_handles(outputs.tuple.members, "[", "]");
+  std::cout << " = ";
+  show_type_handles(inputs.tuple.members, "(", ")");
+}
+
+void Substitution::show_type_eqs(const std::vector<TypeEquation>& eqs) const {
   std::cout << "====" << std::endl;
   for (const auto& eq : eqs) {
     const auto& left_type = visitor.at(eq.lhs);
@@ -52,22 +59,33 @@ void show_type_eqs(const TypeVisitor& visitor, const std::vector<TypeEquation>& 
   std::cout << "====" << std::endl;
 }
 
-}
-
 void Substitution::check_push_plus_func(const TypeHandle& source, const types::Abstraction& func) {
-  if (func.inputs.size() == 2 && func.outputs.size() == 1 && registered_funcs.count(source) == 0) {
+  const auto& inputs = visitor.at(func.inputs);
+  const auto& outputs = visitor.at(func.outputs);
+  assert(inputs.tag == DebugType::Tag::tuple && outputs.tag == DebugType::Tag::tuple);
+
+  const auto& input_members = inputs.tuple.members;
+  const auto& output_members = outputs.tuple.members;
+
+  if (input_members.size() == 2 && output_members.size() == 1 && registered_funcs.count(source) == 0) {
     push_type_equation(TypeEquation(source, require_plus_type_handle()));
     registered_funcs[source] = true;
   }
 }
 
-void Substitution::check_push_func(const mt::TypeHandle& source, const mt::types::Abstraction& func) {
-  for (const auto& arg : func.inputs) {
-    if (arg.get_index() != 0) {
+void Substitution::check_push_func(const TypeHandle& source, const types::Abstraction& func) {
+  const auto& inputs = visitor.at(func.inputs);
+  assert(inputs.tag == DebugType::Tag::tuple);
+
+  for (const auto& arg : inputs.tuple.members) {
+    if (type_of(arg) != DebugType::Tag::scalar) {
+      return;
+    } else if (arg.get_index() != 0) {
       std::cout << "Err no such function" << std::endl;
       return;
     }
   }
+
   check_push_plus_func(source, func);
 }
 
@@ -89,23 +107,18 @@ TypeHandle Substitution::apply_to(const TypeHandle& source, mt::types::Variable&
   }
 }
 
+TypeHandle Substitution::apply_to(const TypeHandle& source, types::Tuple& tup) {
+  for (auto& member : tup.members) {
+    member = apply_to(member);
+  }
+  return source;
+}
+
 TypeHandle Substitution::apply_to(const TypeHandle& source, types::Abstraction& func) {
-  bool all_number = true;
+  func.inputs = apply_to(func.inputs);
+  func.outputs = apply_to(func.outputs);
 
-  for (auto& arg : func.inputs) {
-    arg = apply_to(arg);
-    if (arg.get_index() != 0) {
-      all_number = false;
-    }
-  }
-
-  for (auto& out : func.outputs) {
-    out = apply_to(out);
-  }
-
-  if (all_number) {
-    check_push_plus_func(source, func);
-  }
+  check_push_func(source, func);
 
   return source;
 }
@@ -120,6 +133,8 @@ TypeHandle Substitution::apply_to(const TypeHandle& source) {
       return source;
     case DebugType::Tag::abstraction:
       return apply_to(source, type.abstraction);
+    case DebugType::Tag::tuple:
+      return apply_to(source, type.tuple);
     default:
       assert(false);
   }
@@ -135,27 +150,25 @@ TypeHandle Substitution::substitute_one(const TypeHandle& source, const TypeHand
       return source;
     case DebugType::Tag::abstraction:
       return substitute_one(type.abstraction, source, lhs, rhs);
+    case DebugType::Tag::tuple:
+      return substitute_one(type.tuple, source, lhs, rhs);
     default:
       assert(false);
   }
 }
 
 TypeHandle Substitution::substitute_one(types::Abstraction& func, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs) {
-  bool all_scalar = true;
+  func.inputs = substitute_one(func.inputs, lhs, rhs);
+  func.outputs = substitute_one(func.outputs, lhs, rhs);
 
-  for (auto& arg : func.inputs) {
-    arg = substitute_one(arg, lhs, rhs);
-    if (type_of(arg) != DebugType::Tag::scalar) {
-      all_scalar = false;
-    }
-  }
+  check_push_func(source, func);
 
-  for (auto& out: func.outputs) {
-    out = substitute_one(out, lhs, rhs);
-  }
+  return source;
+}
 
-  if (all_scalar) {
-    check_push_func(source, func);
+TypeHandle Substitution::substitute_one(types::Tuple& tup, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs) {
+  for (auto& member : tup.members) {
+    member = substitute_one(member, lhs, rhs);
   }
 
   return source;
@@ -252,6 +265,8 @@ bool Substitution::simplify(const TypeHandle& lhs, const TypeHandle& rhs) {
       return simplify(t0.abstraction, t1.abstraction);
     case Tag::scalar:
       return simplify(t0.scalar, t1.scalar);
+    case Tag::tuple:
+      return simplify(t0.tuple, t1.tuple);
     default:
       assert(false);
   }
@@ -262,23 +277,25 @@ bool Substitution::simplify(const types::Scalar& t0, const types::Scalar& t1) {
 }
 
 bool Substitution::simplify(const types::Abstraction& t0, const types::Abstraction& t1) {
-  if (t0.inputs.size() != t1.inputs.size()) {
-    return false;
-  }
-  if (t0.outputs.size() != t1.outputs.size()) {
+  if (!simplify(t0.inputs, t1.inputs)) {
     return false;
   }
 
-  const int64_t num_inputs = t0.inputs.size();
-  const int64_t num_outputs = t0.outputs.size();
-
-  for (int64_t i = 0; i < num_inputs; i++) {
-    push_type_equation(TypeEquation(t0.inputs[i], t1.inputs[i]));
-  }
-  for (int64_t i = 0; i < num_outputs; i++) {
-    push_type_equation(TypeEquation(t0.outputs[i], t1.outputs[i]));
+  if (!simplify(t0.outputs, t1.outputs)) {
+    return false;
   }
 
+  return true;
+}
+
+bool Substitution::simplify(const types::Tuple& t0, const types::Tuple& t1) {
+  if (t0.members.size() != t1.members.size()) {
+    return false;
+  }
+  const int64_t num_members = t0.members.size();
+  for (int64_t i = 0; i < num_members; i++) {
+    push_type_equation(TypeEquation(t0.members[i], t1.members[i]));
+  }
   return true;
 }
 
@@ -293,7 +310,13 @@ TypeHandle Substitution::require_plus_type_handle() {
 
   const auto& arg = visitor.double_type_handle;
   plus_type_handle = visitor.make_type();
-  types::Abstraction type(BinaryOperator::plus, arg, arg, arg);
+
+  const auto inputs_type_handle = visitor.make_type();
+  const auto outputs_type_handle = visitor.make_type();
+  visitor.assign(inputs_type_handle, DebugType(types::Tuple(types::Tuple::Structuring::structured, arg, arg)));
+  visitor.assign(outputs_type_handle, DebugType(types::Tuple(types::Tuple::Structuring::destructured, arg)));
+
+  types::Abstraction type(BinaryOperator::plus, inputs_type_handle, outputs_type_handle);
   visitor.assign(plus_type_handle, DebugType(std::move(type)));
 
   return plus_type_handle;
