@@ -200,6 +200,7 @@ private:
   ParseError make_error_unrecognized_method_attribute(const Token& at_token) const;
   ParseError make_error_invalid_boolean_attribute_value(const Token& at_token) const;
   ParseError make_error_invalid_access_attribute_value(const Token& at_token) const;
+  ParseError make_error_empty_brace_subscript(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);

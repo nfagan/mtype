@@ -54,6 +54,10 @@ struct Expr : public AstNode {
     return this;
   }
 
+  virtual bool is_grouping_expr() const {
+    return false;
+  }
+
   virtual bool is_literal_field_reference_expr() const {
     return false;
   }
@@ -105,9 +109,9 @@ struct TypeAnnot : public AstNode {
   virtual void accept_const(TypePreservingVisitor&) const override {}
 };
 
-struct Type : public TypeAnnot {
-  Type() = default;
-  ~Type() override = default;
+struct TypeNode : public TypeAnnot {
+  TypeNode() = default;
+  ~TypeNode() override = default;
 
   std::string accept(const StringVisitor& vis) const override = 0;
 };
@@ -116,7 +120,7 @@ using BoxedAstNode = std::unique_ptr<AstNode>;
 using BoxedExpr = std::unique_ptr<Expr>;
 using BoxedStmt = std::unique_ptr<Stmt>;
 using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;
-using BoxedType = std::unique_ptr<Type>;
+using BoxedType = std::unique_ptr<TypeNode>;
 using BoxedBlock = std::unique_ptr<Block>;
 using BoxedRootBlock = std::unique_ptr<RootBlock>;
 

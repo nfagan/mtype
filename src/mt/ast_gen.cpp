@@ -1126,6 +1126,11 @@ Optional<Subscript> AstGenerator::non_period_subscript(const Token& source_token
     return NullOpt{};
   }
 
+  if (method == SubscriptMethod::brace && args.empty()) {
+    add_error(make_error_empty_brace_subscript(source_token));
+    return NullOpt{};
+  }
+
   Subscript subscript_expr(source_token, method, std::move(args));
   return Optional<Subscript>(std::move(subscript_expr));
 }
@@ -2682,6 +2687,10 @@ ParseError AstGenerator::make_error_invalid_boolean_attribute_value(const Token&
 
 ParseError AstGenerator::make_error_invalid_access_attribute_value(const Token& at_token) const {
   return ParseError(text, at_token, "Unrecognized access attribute value.");
+}
+
+ParseError AstGenerator::make_error_empty_brace_subscript(const Token& at_token) const {
+  return ParseError(text, at_token, "`{}` subscripts require arguments.");
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

@@ -4,6 +4,56 @@
 
 namespace mt {
 
+const char* to_string(BinaryOperator op) {
+  switch (op) {
+    case BinaryOperator::plus:
+      return "plus";
+    case BinaryOperator::minus:
+      return "minus";
+    case BinaryOperator::times:
+      return "times";
+    case BinaryOperator::matrix_times:
+      return "matrix_times";
+    case BinaryOperator::right_divide:
+      return "right_divide";
+    case BinaryOperator::left_divide:
+      return "left_divide";
+    case BinaryOperator::matrix_right_divide:
+      return "matrix_right_divide";
+    case BinaryOperator::matrix_left_divide:
+      return "matrix_left_divide";
+    case BinaryOperator::power:
+      return "power";
+    case BinaryOperator::matrix_power:
+      return "matrix_power";
+    case BinaryOperator::op_and:
+      return "op_and";
+    case BinaryOperator::op_or:
+      return "op_or";
+    case BinaryOperator::and_and:
+      return "and_and";
+    case BinaryOperator::or_or:
+      return "or_or";
+    case BinaryOperator::less:
+      return "less";
+    case BinaryOperator::greater:
+      return "greater";
+    case BinaryOperator::less_equal:
+      return "less_equal";
+    case BinaryOperator::greater_equal:
+      return "greater_equal";
+    case BinaryOperator::equal_equal:
+      return "equal_equal";
+    case BinaryOperator::not_equal:
+      return "not_equal";
+    case BinaryOperator::colon:
+      return "colon";
+    default:
+      assert(false && "Unhandled");
+      return "";
+  }
+}
+
 const char* to_string(IdentifierType type) {
   switch (type) {
     case IdentifierType::variable_assignment_or_initialization:

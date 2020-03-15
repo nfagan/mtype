@@ -5,6 +5,25 @@
 namespace mt {
 
 /*
+ * AssignmentSourceState
+ */
+
+void AssignmentSourceState::push_assignment_target_rvalue() {
+  state.push_back(true);
+}
+void AssignmentSourceState::push_non_assignment_target_rvalue() {
+  state.push_back(false);
+}
+void AssignmentSourceState::pop_assignment_target_state() {
+  assert(!state.empty() && "No target state to pop.");
+  state.pop_back();
+}
+bool AssignmentSourceState::is_assignment_target_rvalue() const {
+  assert(!state.empty() && "No target state.");
+  return state.back();
+}
+
+/*
  * ValueCategoryState
  */
 

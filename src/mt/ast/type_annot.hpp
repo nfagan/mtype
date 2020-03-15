@@ -74,7 +74,7 @@ struct TypeBegin : public TypeAnnot {
   std::vector<BoxedTypeAnnot> contents;
 };
 
-struct UnionType : public Type {
+struct UnionType : public TypeNode {
   explicit UnionType(std::vector<BoxedType>&& members) : members(std::move(members)) {
     //
   }
@@ -84,7 +84,7 @@ struct UnionType : public Type {
   std::vector<BoxedType> members;
 };
 
-struct ScalarType : public Type {
+struct ScalarType : public TypeNode {
   ScalarType(const Token& source_token,
              int64_t identifier,
              std::vector<BoxedType>&& arguments) :
@@ -101,7 +101,7 @@ struct ScalarType : public Type {
   std::vector<BoxedType> arguments;
 };
 
-struct FunctionType : public Type {
+struct FunctionType : public TypeNode {
   FunctionType(const Token& source_token,
                std::vector<BoxedType>&& outputs,
                std::vector<BoxedType>&& inputs) :

@@ -4,105 +4,24 @@
 
 namespace mt {
 
-/*
- * Application
- */
-
-#if 0
-bool types::Abstraction::operator==(const types::Abstraction& other) const {
-  if (type != other.type) {
-    return false;
+const char* to_string(types::DestructuredTuple::Usage usage) {
+  switch (usage) {
+    case types::DestructuredTuple::Usage::rvalue:
+      return "rvalue";
+    case types::DestructuredTuple::Usage::lvalue:
+      return "lvalue";
+    case types::DestructuredTuple::Usage::definition_inputs:
+      return "definition_inputs";
+    case types::DestructuredTuple::Usage::definition_outputs:
+      return "definition_outputs";
+    default:
+      assert(false);
+      return "";
   }
-  if ((type == Type::binary_operator && binary_operator != other.binary_operator) ||
-      (type == Type::unary_operator && unary_operator != other.unary_operator)) {
-    return false;
-  }
-  if (inputs.size() != other.inputs.size() || outputs.size() != other.outputs.size()) {
-    return false;
-  }
-  for (int64_t i = 0; i < inputs.size(); i++) {
-    if (inputs[i] != other.inputs[i]) {
-      return false;
-    }
-  }
-  for (int64_t i = 0; i < outputs.size(); i++) {
-    if (outputs[i] != other.outputs[i]) {
-      return false;
-    }
-  }
-  return true;
 }
 
-namespace {
-template <typename T>
-inline int compare_less(const std::vector<T>& a, const std::vector<T>& b) {
-  const int64_t size_a = a.size();
-  const int64_t size_b = b.size();
-
-  if (size_a < size_b) {
-    return -1;
-  } else if (size_a > size_b) {
-    return 1;
-  } else {
-    for (int64_t i = 0; i < size_a; i++) {
-      if (a[i] < b[i]) {
-        return -1;
-      } else if (a[i] > b[i]) {
-        return 1;
-      }
-    }
-  }
-
-  return 0;
-}
-}
-
-bool types::Abstraction::Less::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
-  const auto a_type = static_cast<uint8_t>(a.type);
-  const auto b_type = static_cast<uint8_t>(b.type);
-
-  if (a_type < b_type) {
-    return true;
-  } else if (a_type > b_type) {
-    return false;
-  }
-
-  if (a.type == Type::binary_operator) {
-    if (a.binary_operator < b.binary_operator) {
-      return true;
-    } else if (a.binary_operator > b.binary_operator) {
-      return false;
-    }
-  } else if (a.type == Type::unary_operator) {
-    if (a.unary_operator < b.unary_operator) {
-      return true;
-    } else if (a.unary_operator > b.unary_operator) {
-      return false;
-    }
-  } else {
-    assert(false && "Function type not properly handled.");
-  }
-
-  const auto arg_res = compare_less(a.inputs, b.inputs);
-  if (arg_res == -1) {
-    return true;
-  } else if (arg_res == 1) {
-    return false;
-  }
-
-  const auto output_res = compare_less(a.outputs, b.outputs);
-  if (output_res == -1) {
-    return true;
-  } else if (output_res == 1) {
-    return false;
-  }
-
-  return false;
-}
-#endif
-
-const char* to_string(DebugType::Tag tag) {
-  using Tag = DebugType::Tag;
+const char* to_string(Type::Tag tag) {
+  using Tag = Type::Tag;
 
   switch (tag) {
     case Tag::null:
@@ -117,183 +36,177 @@ const char* to_string(DebugType::Tag tag) {
       return "union_type";
     case Tag::tuple:
       return "tuple";
+    case Tag::destructured_tuple:
+      return "destructured_tuple";
     case Tag::list:
       return "list";
+    case Tag::subscript:
+      return "subscript";
+    case Tag::constant_value:
+      return "constant_value";
     default:
       assert(false && "Unhandled.");
   }
 }
 
-std::ostream& operator<<(std::ostream& stream, DebugType::Tag tag) {
+std::ostream& operator<<(std::ostream& stream, Type::Tag tag) {
   stream << to_string(tag);
   return stream;
 }
 
-void DebugType::default_construct() noexcept {
+#define MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(tg, type, member) \
+  case tg: \
+    new (&member) type(); \
+    break;
+
+void Type::default_construct() noexcept {
   switch (tag) {
     case Tag::null:
       break;
-    case Tag::variable:
-      new (&variable) types::Variable();
-      break;
-    case Tag::scalar:
-      new (&scalar) types::Scalar();
-      break;
-    case Tag::abstraction:
-      new (&abstraction) types::Abstraction();
-      break;
-    case Tag::union_type:
-      new (&union_type) types::Union();
-      break;
-    case Tag::tuple:
-      new (&tuple) types::Tuple();
-      break;
-    case Tag::list:
-      new (&list) types::List();
-      break;
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::variable, types::Variable, variable)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::scalar, types::Scalar, scalar)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::abstraction, types::Abstraction, abstraction)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::union_type, types::Union, union_type)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::tuple, types::Tuple, tuple)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::destructured_tuple, types::DestructuredTuple, destructured_tuple)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::list, types::List, list)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
   }
 }
 
-void DebugType::move_construct(DebugType&& other) noexcept {
+#undef MT_DEBUG_TYPE_DEFAULT_CTOR_CASE
+
+#define MT_DEBUG_TYPE_MOVE_CTOR_CASE(tg, type, member) \
+  case tg: \
+    new (&member) type(std::move(other.member)); \
+    break;
+
+void Type::move_construct(Type&& other) noexcept {
   switch (tag) {
     case Tag::null:
       break;
-    case Tag::variable:
-      new (&variable) types::Variable(std::move(other.variable));
-      break;
-    case Tag::scalar:
-      new (&scalar) types::Scalar(std::move(other.scalar));
-      break;
-    case Tag::abstraction:
-      new (&abstraction) types::Abstraction(std::move(other.abstraction));
-      break;
-    case Tag::union_type:
-      new (&union_type) types::Union(std::move(other.union_type));
-      break;
-    case Tag::tuple:
-      new (&tuple) types::Tuple(std::move(other.tuple));
-      break;
-    case Tag::list:
-      new (&list) types::List(std::move(other.list));
-      break;
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::variable, types::Variable, variable)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::scalar, types::Scalar, scalar)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::abstraction, types::Abstraction, abstraction)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::union_type, types::Union, union_type)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::tuple, types::Tuple, tuple)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::destructured_tuple, types::DestructuredTuple, destructured_tuple)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::list, types::List, list)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
   }
 }
 
-void DebugType::copy_construct(const DebugType& other) {
+#undef MT_DEBUG_TYPE_MOVE_CTOR_CASE
+
+#define MT_DEBUG_TYPE_COPY_CTOR_CASE(tg, type, member) \
+  case tg: \
+    new (&member) type(other.member); \
+    break;
+
+void Type::copy_construct(const Type& other) {
   switch (tag) {
     case Tag::null:
       break;
-    case Tag::variable:
-      new (&variable) types::Variable(other.variable);
-      break;
-    case Tag::scalar:
-      new (&scalar) types::Scalar(other.scalar);
-      break;
-    case Tag::abstraction:
-      new (&abstraction) types::Abstraction(other.abstraction);
-      break;
-    case Tag::union_type:
-      new (&union_type) types::Union(other.union_type);
-      break;
-    case Tag::tuple:
-      new (&tuple) types::Tuple(other.tuple);
-      break;
-    case Tag::list:
-      new (&list) types::List(other.list);
-      break;
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::variable, types::Variable, variable)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::scalar, types::Scalar, scalar)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::abstraction, types::Abstraction, abstraction)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::union_type, types::Union, union_type)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::tuple, types::Tuple, tuple)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::destructured_tuple, types::DestructuredTuple, destructured_tuple)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::list, types::List, list)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
   }
 }
 
-void DebugType::copy_assign(const DebugType& other) {
+#undef MT_DEBUG_TYPE_COPY_CTOR_CASE
+
+#define MT_DEBUG_TYPE_COPY_ASSIGN_CASE(tg, member) \
+  case tg: \
+    member = other.member; \
+    break;
+
+void Type::copy_assign(const Type& other) {
   switch (tag) {
     case Tag::null:
       break;
-    case Tag::variable:
-      variable = other.variable;
-      break;
-    case Tag::scalar:
-      scalar = other.scalar;
-      break;
-    case Tag::abstraction:
-      abstraction = other.abstraction;
-      break;
-    case Tag::union_type:
-      union_type = other.union_type;
-      break;
-    case Tag::tuple:
-      tuple = other.tuple;
-      break;
-    case Tag::list:
-      list = other.list;
-      break;
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::variable, variable)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::scalar, scalar)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::abstraction, abstraction)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::union_type, union_type)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::tuple, tuple)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::destructured_tuple, destructured_tuple)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::list, list)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::subscript, subscript)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::constant_value, constant_value)
   }
 }
 
-void DebugType::move_assign(DebugType&& other) {
+#undef MT_DEBUG_TYPE_COPY_ASSIGN_CASE
+
+#define MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(tg, member) \
+  case tg: \
+    member = std::move(other.member); \
+    break;
+
+void Type::move_assign(Type&& other) {
   switch (tag) {
     case Tag::null:
       break;
-    case Tag::variable:
-      variable = std::move(other.variable);
-      break;
-    case Tag::scalar:
-      scalar = std::move(other.scalar);
-      break;
-    case Tag::abstraction:
-      abstraction = std::move(other.abstraction);
-      break;
-    case Tag::union_type:
-      union_type = std::move(other.union_type);
-      break;
-    case Tag::tuple:
-      tuple = std::move(other.tuple);
-      break;
-    case Tag::list:
-      list = std::move(other.list);
-      break;
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::variable, variable)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::scalar, scalar)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::abstraction, abstraction)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::union_type, union_type)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::tuple, tuple)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::destructured_tuple, destructured_tuple)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::list, list)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::subscript, subscript)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::constant_value, constant_value)
   }
 }
 
-DebugType::~DebugType() {
+#undef MT_DEBUG_TYPE_MOVE_ASSIGN_CASE
+
+#define MT_DEBUG_TYPE_DTOR_CASE(tg, member, name) \
+  case tg: \
+    member.~name(); \
+    break;
+
+Type::~Type() {
   switch (tag) {
     case Tag::null:
       break;
-    case Tag::variable:
-      variable.~Variable();
-      break;
-    case Tag::scalar:
-      scalar.~Scalar();
-      break;
-    case Tag::abstraction:
-      abstraction.~Abstraction();
-      break;
-    case Tag::union_type:
-      union_type.~Union();
-      break;
-    case Tag::tuple:
-      tuple.~Tuple();
-      break;
-    case Tag::list:
-      list.~List();
-      break;
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::variable, variable, Variable)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::scalar, scalar, Scalar)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::abstraction, abstraction, Abstraction)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::union_type, union_type, Union)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::tuple, tuple, Tuple)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::destructured_tuple, destructured_tuple, DestructuredTuple)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::list, list, List)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::subscript, subscript, Subscript)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::constant_value, constant_value, ConstantValue)
   }
 }
 
-DebugType& DebugType::operator=(const DebugType& other) {
+#undef MT_DEBUG_TYPE_DTOR_CASE
+
+Type& Type::operator=(const Type& other) {
   conditional_default_construct(other.tag);
   copy_assign(other);
   return *this;
 }
 
-DebugType& DebugType::operator=(DebugType&& other) noexcept {
+Type& Type::operator=(Type&& other) noexcept {
   conditional_default_construct(other.tag);
   move_assign(std::move(other));
   return *this;
 }
 
-void DebugType::conditional_default_construct(DebugType::Tag other_type) noexcept {
+void Type::conditional_default_construct(Type::Tag other_type) noexcept {
   if (tag != other_type) {
-    this->~DebugType();
+    this->~Type();
     tag = other_type;
     default_construct();
   }

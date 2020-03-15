@@ -39,7 +39,7 @@ enum class ControlFlowManipulator : uint8_t {
 };
 
 enum class SubscriptMethod : uint8_t {
-  parens,
+  parens = 0,
   brace,
   period,
   unknown
@@ -115,5 +115,6 @@ OperatorFixity fixity(BinaryOperator op);
 int precedence(BinaryOperator op);
 
 const char* to_string(IdentifierType type);
+const char* to_string(BinaryOperator op);
 
 }

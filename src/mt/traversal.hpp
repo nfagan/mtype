@@ -8,11 +8,19 @@ namespace mt {
 class FunctionDefHandle;
 class ClassDefHandle;
 
+class AssignmentSourceState {
+public:
+  void push_assignment_target_rvalue();
+  void push_non_assignment_target_rvalue();
+  void pop_assignment_target_state();
+  bool is_assignment_target_rvalue() const;
+
+private:
+  std::vector<bool> state;
+};
+
 class ValueCategoryState {
 public:
-  ValueCategoryState() = default;
-  ~ValueCategoryState() = default;
-
   void push_lhs();
   void push_rhs();
   void pop_side();

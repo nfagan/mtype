@@ -291,7 +291,9 @@ bool GroupingExpr::is_valid_assignment_target() const {
   }
 
   return std::all_of(components.cbegin(), components.cend(), [](const auto& arg) {
-    return arg.delimiter == TokenType::comma && arg.expr->is_valid_assignment_target();
+    return arg.delimiter == TokenType::comma &&
+      arg.expr->is_valid_assignment_target() &&
+      !arg.expr->is_grouping_expr();
   });
 }
 

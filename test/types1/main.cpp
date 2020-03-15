@@ -1,5 +1,6 @@
 #include "mt/mt.hpp"
 #include "typing.hpp"
+#include "test_cases.hpp"
 #include "util.hpp"
 #include <chrono>
 
@@ -16,8 +17,6 @@ std::string get_source_file_path(int argc, char** argv) {
 
 int main(int argc, char** argv) {
   using namespace mt;
-
-  auto t0 = std::chrono::high_resolution_clock::now();
 
   const auto file_path = get_source_file_path(argc, argv);
   const auto scan_result = scan_file(file_path);
@@ -41,6 +40,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  auto t0 = std::chrono::high_resolution_clock::now();
+
   TypeVisitor type_visitor(store, str_registry);
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
   root_block->accept_const(type_visitor);
@@ -48,6 +49,8 @@ int main(int argc, char** argv) {
   auto t1 = std::chrono::high_resolution_clock::now();
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
+
+  mt::run_all(type_visitor);
 
 //  StringVisitor str_visitor(&str_registry, &store);
 //  std::cout << root_block->accept(str_visitor) << std::endl;

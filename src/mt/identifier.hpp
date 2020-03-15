@@ -25,8 +25,16 @@ public:
     //
   }
 
-  bool operator==(const MatlabIdentifier& other) const {
-    return name == other.name;
+  friend bool operator==(const MatlabIdentifier& a, const MatlabIdentifier& b) {
+    return a.name == b.name;
+  }
+
+  friend bool operator!=(const MatlabIdentifier& a, const MatlabIdentifier& b) {
+    return a.name != b.name;
+  }
+
+  friend bool operator<(const MatlabIdentifier& a, const MatlabIdentifier& b) {
+    return a.name < b.name;
   }
 
   bool is_valid() const {

@@ -306,6 +306,9 @@ struct GroupingExpr : public Expr {
   }
 
   bool is_valid_assignment_target() const override;
+  bool is_grouping_expr() const override {
+    return true;
+  }
 
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;

@@ -2,6 +2,8 @@
 
 #include "mt/mt.hpp"
 #include "type.hpp"
+#include "unification.hpp"
+#include "type_store.hpp"
 #include <cassert>
 #include <memory>
 #include <set>
@@ -9,74 +11,8 @@
 
 namespace mt {
 
-class TypeVisitor;
-
-struct TypeEquation {
-  TypeEquation(const TypeHandle& lhs, const TypeHandle& rhs) : lhs(lhs), rhs(rhs) {
-    //
-  }
-
-  TypeHandle lhs;
-  TypeHandle rhs;
-};
-
-class Substitution {
-public:
-  using BoundVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
-public:
-  explicit Substitution(TypeVisitor& visitor) : visitor(visitor) {
-    //
-  }
-
-  ~Substitution() {
-    std::cout << "Num type eqs: " << type_equations.size() << std::endl;
-    std::cout << "Subs size: " << bound_variables.size() << std::endl;
-  }
-
-  void push_type_equation(TypeEquation&& eq) {
-    type_equations.emplace_back(std::move(eq));
-  }
-
-  void unify();
-
-private:
-  void unify_one(TypeEquation eq);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Abstraction& func);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Variable& var);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Tuple& var);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source);
-
-  [[nodiscard]] TypeHandle substitute_one(types::Variable& var, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::Abstraction& func, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::Tuple& tup, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-
-  bool simplify(const TypeHandle& lhs, const TypeHandle& rhs);
-  bool simplify(const types::Abstraction& t0, const types::Abstraction& t1);
-  bool simplify(const types::Scalar& t0, const types::Scalar& t1);
-  bool simplify(const types::Tuple& t0, const types::Tuple& t1);
-
-  DebugType::Tag type_of(const TypeHandle& handle) const;
-  void show();
-  void show_type_eqs(const std::vector<TypeEquation>& eq) const;
-  void show_function_type(const types::Abstraction& func) const;
-
-  TypeHandle require_plus_type_handle();
-  void check_push_plus_func(const TypeHandle& source, const types::Abstraction& func);
-  void check_push_func(const TypeHandle& source, const types::Abstraction& func);
-
-private:
-  TypeVisitor& visitor;
-
-  std::vector<TypeEquation> type_equations;
-  BoundVariables bound_variables;
-
-  TypeHandle plus_type_handle;
-  std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
-};
-
 class TypeVisitor : public TypePreservingVisitor {
-  friend class Substitution;
+  friend class Unifier;
 private:
   struct ScopeStack {
     static void push(TypeVisitor& vis, const MatlabScopeHandle& handle) {
@@ -89,48 +25,43 @@ private:
   using MatlabScopeHelper = ScopeHelper<TypeVisitor, ScopeStack>;
 
 public:
-  explicit TypeVisitor(Store& store, const StringRegistry& string_registry) :
-  substitution(*this), store(store), string_registry(string_registry), type_variable_ids(0) {
-    make_builtin_types();
+  explicit TypeVisitor(Store& store, StringRegistry& string_registry) :
+    unifier(type_store, string_registry), store(store), string_registry(string_registry) {
+    //  Reserve space
+    type_store.reserve(10000);
+
+    type_store.make_builtin_types();
+    assignment_state.push_non_assignment_target_rvalue();
+    value_category_state.push_rhs();
   }
 
   ~TypeVisitor() {
-    const auto num_types = double(types.size());
-
-    std::cout << "Num types: " << num_types << std::endl;
-    std::cout << "Size types: " << double(types.size() * sizeof(DebugType)) / 1024.0 << "kb" << std::endl;
-    std::cout << "Sizeof DebugType: " << sizeof(DebugType) << std::endl;
-
-    std::unordered_map<DebugType::Tag, double> counts;
-
-    for (const auto& type : types) {
-      if (counts.count(type.tag) == 0) {
-        counts[type.tag] = 0.0;
-      }
-      counts[type.tag] = counts[type.tag] + 1.0;
-    }
-
-    for (const auto& ct : counts) {
-      std::cout << to_string(ct.first) << ": " << ct.second << " (";
-      std::cout << ct.second/num_types << ")" << std::endl;
-    }
-  }
-
-  void make_builtin_types() {
-    double_type_handle = make_type();
-    string_type_handle = make_type();
-    char_type_handle = make_type();
-
-    assign(double_type_handle, DebugType(types::Scalar(make_type_identifier())));
-    assign(string_type_handle, DebugType(types::Scalar(make_type_identifier())));
-    assign(char_type_handle, DebugType(types::Scalar(make_type_identifier())));
+//    const auto num_types = double(types.size());
+//
+//    std::cout << "Num types: " << num_types << std::endl;
+//    std::cout << "Size types: " << double(types.size() * sizeof(Type)) / 1024.0 << "kb" << std::endl;
+//    std::cout << "Sizeof DebugType: " << sizeof(Type) << std::endl;
+//
+//    std::unordered_map<Type::Tag, double> counts;
+//
+//    for (const auto& type : types) {
+//      if (counts.count(type.tag) == 0) {
+//        counts[type.tag] = 0.0;
+//      }
+//      counts[type.tag] = counts[type.tag] + 1.0;
+//    }
+//
+//    for (const auto& ct : counts) {
+//      std::cout << to_string(ct.first) << ": " << ct.second << " (";
+//      std::cout << ct.second/num_types << ")" << std::endl;
+//    }
   }
 
   void root_block(const RootBlock& block) override {
     MatlabScopeHelper scope_helper(*this, block.scope_handle);
     block.block->accept_const(*this);
 
-    substitution.unify();
+    unifier.unify();
   }
 
   void block(const Block& block) override {
@@ -140,24 +71,60 @@ public:
   }
 
   void number_literal_expr(const NumberLiteralExpr& expr) override {
-    assert(double_type_handle.is_valid());
-    push_type_handle(double_type_handle);
+    assert(type_store.double_type_handle.is_valid());
+    push_type_handle(type_store.double_type_handle);
   }
 
   void char_literal_expr(const CharLiteralExpr& expr) override {
-    assert(char_type_handle.is_valid());
-    push_type_handle(char_type_handle);
+    assert(type_store.char_type_handle.is_valid());
+    push_type_handle(type_store.char_type_handle);
   }
 
   void string_literal_expr(const StringLiteralExpr& expr) override {
-    assert(string_type_handle.is_valid());
-    push_type_handle(string_type_handle);
+    assert(type_store.string_type_handle.is_valid());
+    push_type_handle(type_store.string_type_handle);
+  }
+
+  void literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) override {
+    assert(type_store.char_type_handle.is_valid());
+    push_type_handle(type_store.char_type_handle);
   }
 
   void function_call_expr(const FunctionCallExpr& expr) override {
-    assert(false && "Unhandled");
-    //  push tuple of arguments from the function def
-    //  Mark as destructuring; minimum number given by current number of requested arguments.
+    using types::DestructuredTuple;
+    using types::Abstraction;
+    using Use = DestructuredTuple::Usage;
+
+    std::vector<TypeHandle> members;
+    members.reserve(expr.arguments.size());
+
+    for (const auto& arg : expr.arguments) {
+      auto tvar = type_store.make_fresh_type_variable_reference();
+      push_type_handle(tvar);
+      arg->accept_const(*this);
+      auto result_var = pop_type_handle();
+
+      unifier.push_type_equation(TypeEquation(tvar, result_var));
+      members.push_back(result_var);
+    }
+
+    auto args_type = type_store.make_type();
+    auto func_type = type_store.make_type();
+    auto result_type = type_store.make_fresh_type_variable_reference();
+
+    DestructuredTuple tup(Use::rvalue, std::move(members));
+    type_store.assign(args_type, Type(std::move(tup)));
+
+    MatlabIdentifier function_name;
+    {
+      Store::ReadConst reader(store);
+      function_name = reader.at(expr.reference_handle).name;
+    }
+
+    type_store.assign(func_type, Type(Abstraction(function_name, args_type, result_type)));
+    unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), func_type));
+
+    push_type_handle(result_type);
   }
 
   void anonymous_function_expr(const AnonymousFunctionExpr& expr) override {
@@ -165,43 +132,87 @@ public:
   }
 
   void variable_reference_expr(const VariableReferenceExpr& expr) override {
-    assert(expr.subscripts.empty() && "Subscripts not yet handled.");
+    using mt::types::Subscript;
+    using mt::types::DestructuredTuple;
+    using Use = DestructuredTuple::Usage;
+
+//    assert(expr.subscripts.empty() && "Subscripts not yet handled.");
     const auto variable_type_handle = require_bound_type_variable(expr.def_handle);
-    push_type_handle(variable_type_handle);
+    const auto usage = value_category_state.is_lhs() ? Use::lvalue : Use::rvalue;
+
+    if (expr.subscripts.empty()) {
+      //  a = b; y = 1 + 2;
+      auto tup_handle = type_store.make_type();
+      type_store.assign(tup_handle, Type(DestructuredTuple(usage, variable_type_handle)));
+      push_type_handle(tup_handle);
+
+    } else {
+      std::vector<Subscript::Sub> subscripts;
+      subscripts.reserve(expr.subscripts.size());
+
+      value_category_state.push_rhs();
+
+      for (const auto& sub : expr.subscripts) {
+        auto method = sub.method;
+        std::vector<TypeHandle> args;
+        args.reserve(sub.arguments.size());
+
+        for (const auto& arg_expr : sub.arguments) {
+          auto var_handle = type_store.make_fresh_type_variable_reference();
+          push_type_handle(var_handle);
+          arg_expr->accept_const(*this);
+          auto res_handle = pop_type_handle();
+          args.push_back(res_handle);
+
+          unifier.push_type_equation(TypeEquation(var_handle, res_handle));
+        }
+
+        subscripts.emplace_back(Subscript::Sub(method, std::move(args)));
+      }
+
+      value_category_state.pop_side();
+
+      auto sub_type = type_store.make_type();
+      auto outputs_type = type_store.make_fresh_type_variable_reference();
+
+      type_store.assign(sub_type, Type(Subscript(variable_type_handle, std::move(subscripts), outputs_type)));
+      unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), sub_type));
+
+      push_type_handle(outputs_type);
+    }
   }
 
   void binary_operator_expr(const BinaryOperatorExpr& expr) override {
-    auto tvar_lhs = make_fresh_type_variable_reference();
+    using namespace mt::types;
+
+    auto tvar_lhs = type_store.make_fresh_type_variable_reference();
     push_type_handle(tvar_lhs);
     expr.left->accept_const(*this);
     auto lhs_result = pop_type_handle();
 
     if (variables.count(lhs_result) == 0) {
-      substitution.push_type_equation(TypeEquation(tvar_lhs, lhs_result));
+      unifier.push_type_equation(TypeEquation(tvar_lhs, lhs_result));
     }
 
-    auto tvar_rhs = make_fresh_type_variable_reference();
+    auto tvar_rhs = type_store.make_fresh_type_variable_reference();
     push_type_handle(tvar_rhs);
     expr.right->accept_const(*this);
     auto rhs_result = pop_type_handle();
 
     if (variables.count(rhs_result) == 0) {
-      substitution.push_type_equation(TypeEquation(tvar_rhs, rhs_result));
+      unifier.push_type_equation(TypeEquation(tvar_rhs, rhs_result));
     }
 
-    const auto output_handle = make_fresh_type_variable_reference();
+    const auto output_handle = type_store.make_fresh_type_variable_reference();
+    const auto inputs_handle = type_store.make_type();
 
-    const auto inputs_handle = make_type();
-    const auto outputs_handle = make_type();
-    types::Tuple inputs(types::Tuple::Structuring::structured, lhs_result, rhs_result);
-    types::Tuple outputs(types::Tuple::Structuring::destructured, output_handle);
-    assign(inputs_handle, DebugType(std::move(inputs)));
-    assign(outputs_handle, DebugType(std::move(outputs)));
+    type_store.assign(inputs_handle,
+      Type(DestructuredTuple(DestructuredTuple::Usage::rvalue, lhs_result, rhs_result)));
 
-    types::Abstraction func_type(expr.op, inputs_handle, outputs_handle);
-    const auto func_handle = make_type();
-    assign(func_handle, DebugType(std::move(func_type)));
-    substitution.push_type_equation(TypeEquation(make_fresh_type_variable_reference(), func_handle));
+    types::Abstraction func_type(expr.op, inputs_handle, output_handle);
+    const auto func_handle = type_store.make_type();
+    type_store.assign(func_handle, Type(std::move(func_type)));
+    unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), func_handle));
 
     push_type_handle(output_handle);
   }
@@ -214,24 +225,93 @@ public:
     /*
      * Grouping expr as assignment -> Tuple of args, with destructuring
      */
+    assignment_state.push_assignment_target_rvalue();
     stmt.of_expr->accept_const(*this);
+    assignment_state.pop_assignment_target_state();
     auto rhs = pop_type_handle();
 
+    value_category_state.push_lhs();
     stmt.to_expr->accept_const(*this);
+    value_category_state.pop_side();
     auto lhs = pop_type_handle();
 
-    substitution.push_type_equation(TypeEquation(lhs, rhs));
+    unifier.push_type_equation(TypeEquation(lhs, rhs));
+  }
+
+  void grouping_expr(const GroupingExpr& expr) override {
+    if (expr.method == GroupingMethod::brace) {
+      assert(!value_category_state.is_lhs());
+      brace_grouping_expr_rhs(expr);
+
+    } else if (expr.method == GroupingMethod::bracket && value_category_state.is_lhs()) {
+      bracket_grouping_expr_lhs(expr);
+
+    } else {
+      assert(false && "Unhandled grouping expr.");
+    }
+  }
+
+  void bracket_grouping_expr_lhs(const GroupingExpr& expr) {
+    using types::DestructuredTuple;
+    using Use = DestructuredTuple::Usage;
+
+    std::vector<TypeHandle> members;
+    members.reserve(expr.components.size());
+
+    for (const auto& component : expr.components) {
+      auto tvar = type_store.make_fresh_type_variable_reference();
+      push_type_handle(tvar);
+      component.expr->accept_const(*this);
+      auto res = pop_type_handle();
+
+      unifier.push_type_equation(TypeEquation(tvar, res));
+      members.push_back(res);
+    }
+
+    auto tup_type = type_store.make_type();
+    type_store.assign(tup_type, Type(DestructuredTuple(Use::lvalue, std::move(members))));
+    push_type_handle(tup_type);
+  }
+
+  void brace_grouping_expr_rhs(const GroupingExpr& expr) {
+    using types::List;
+    using types::Tuple;
+
+    List list;
+    list.pattern.reserve(expr.components.size());
+
+    for (const auto& component : expr.components) {
+      auto tvar = type_store.make_fresh_type_variable_reference();
+      push_type_handle(tvar);
+      component.expr->accept_const(*this);
+      auto res = pop_type_handle();
+
+      unifier.push_type_equation(TypeEquation(tvar, res));
+      list.pattern.push_back(res);
+    }
+
+    auto list_handle = type_store.make_type();
+    auto tuple_handle = type_store.make_type();
+
+    type_store.assign(list_handle, Type(std::move(list)));
+    type_store.assign(tuple_handle, Type(Tuple(list_handle)));
+
+    push_type_handle(tuple_handle);
   }
 
   void function_def_node(const FunctionDefNode& node) override {
+    using namespace mt::types;
+
     const Block* function_body = nullptr;
     MatlabScopeHelper scope_helper(*this, node.scope_handle);
 
-    const auto type_handle = make_type();
+    const auto type_handle = type_store.make_type();
     bind_type_variable_to_function_def(node.def_handle, type_handle);
 
     std::vector<TypeHandle> function_inputs;
     std::vector<TypeHandle> function_outputs;
+
+    MatlabIdentifier function_name;
 
     {
       const auto scope_handle = current_scope_handle();
@@ -239,6 +319,7 @@ public:
       Store::ReadConst reader(store);
       const auto& def = reader.at(node.def_handle);
       const auto& scope = reader.at(scope_handle);
+      function_name = def.header.name;
 
       for (const auto& input : def.header.inputs) {
         if (!input.is_ignored) {
@@ -265,31 +346,28 @@ public:
       function_body = def.body.get();
     }
 
-    types::Tuple inputs(types::Tuple::Structuring::structured, std::move(function_inputs));
-    types::Tuple outputs(types::Tuple::Structuring::destructured, std::move(function_outputs));
+    const auto input_handle = type_store.make_type();
+    const auto output_handle = type_store.make_type();
 
-    const auto input_handle = make_type();
-    const auto output_handle = make_type();
-    assign(input_handle, DebugType(std::move(inputs)));
-    assign(output_handle, DebugType(std::move(outputs)));
+    type_store.assign(input_handle,
+      Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, std::move(function_inputs))));
+    type_store.assign(output_handle,
+      Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(function_outputs))));
 
-    types::Abstraction function_type(input_handle, output_handle);
-    assign(type_handle, DebugType(std::move(function_type)));
-    substitution.push_type_equation(TypeEquation(make_fresh_type_variable_reference(), type_handle));
+    type_store.assign(type_handle, Type(Abstraction(function_name, input_handle, output_handle)));
+    unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), type_handle));
 
     if (function_body) {
       function_body->accept_const(*this);
     }
   }
 
-  const DebugType& at(const TypeHandle& handle) const {
-    assert(handle.is_valid() && handle.get_index() < types.size());
-    return types[handle.get_index()];
+  const Type& at(const TypeHandle& handle) const {
+    return type_store.at(handle);
   }
 
-  DebugType& at(const TypeHandle& handle) {
-    assert(handle.is_valid() && handle.get_index() < types.size());
-    return types[handle.get_index()];
+  Type& at(const TypeHandle& handle) {
+    return type_store.at(handle);
   }
 
 private:
@@ -302,8 +380,8 @@ private:
       return variable_type_handles.at(variable_def_handle);
     }
 
-    const auto variable_type_handle = make_type();
-    assign(variable_type_handle, DebugType(make_type_variable()));
+    const auto variable_type_handle = type_store.make_type();
+    type_store.assign(variable_type_handle, Type(type_store.make_type_variable()));
     bind_type_variable_to_variable_def(variable_def_handle, variable_type_handle);
 
     return variable_type_handle;
@@ -329,30 +407,6 @@ private:
     return scope_handles.back();
   }
 
-  TypeHandle make_type() {
-    types.emplace_back();
-    return TypeHandle(types.size() - 1);
-  }
-
-  TypeHandle make_fresh_type_variable_reference() {
-    auto handle = make_type();
-    assign(handle, DebugType(make_type_variable()));
-    return handle;
-  }
-
-  types::Variable make_type_variable() {
-    return types::Variable(make_type_identifier());
-  }
-
-  TypeIdentifier make_type_identifier() {
-    return TypeIdentifier(type_variable_ids++);
-  }
-
-  void assign(const TypeHandle& at, DebugType&& type) {
-    assert(at.is_valid() && at.get_index() < types.size());
-    types[at.get_index()] = std::move(type);
-  }
-
   void push_type_handle(const TypeHandle& handle) {
     type_handles.push_back(handle);
   }
@@ -364,27 +418,25 @@ private:
     return handle;
   }
 public:
-  Substitution substitution;
+  Unifier unifier;
 
 private:
   Store& store;
+  TypeStore type_store;
   const StringRegistry& string_registry;
 
+  AssignmentSourceState assignment_state;
+  ValueCategoryState value_category_state;
+
   std::vector<MatlabScopeHandle> scope_handles;
-  int64_t type_variable_ids;
 
   std::unordered_map<VariableDefHandle, TypeHandle, VariableDefHandle::Hash> variable_type_handles;
   std::unordered_map<TypeHandle, VariableDefHandle, TypeHandle::Hash> variables;
 
   std::unordered_map<FunctionDefHandle, TypeHandle, FunctionDefHandle::Hash> function_type_handles;
   std::unordered_map<TypeHandle, FunctionDefHandle, TypeHandle::Hash> functions;
-  std::vector<DebugType> types;
 
   std::vector<TypeHandle> type_handles;
-
-  TypeHandle double_type_handle;
-  TypeHandle string_type_handle;
-  TypeHandle char_type_handle;
 };
 
 }
