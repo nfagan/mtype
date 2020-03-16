@@ -189,9 +189,21 @@ namespace types {
       return usage == Usage::definition_inputs;
     }
 
+    bool is_definition_usage() const {
+      return is_outputs() || is_inputs();
+    }
+
+    bool is_value_usage() const {
+      return is_lvalue() || is_rvalue();
+    }
+
     static bool mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b) {
       return (a.is_inputs() && b.is_outputs()) || (a.is_outputs() && b.is_inputs());
-    };
+    }
+
+    int64_t size() const {
+      return members.size();
+    }
 
     Usage usage;
     std::vector<TypeHandle> members;

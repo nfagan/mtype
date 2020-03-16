@@ -46,11 +46,11 @@ int main(int argc, char** argv) {
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
   root_block->accept_const(type_visitor);
 
+  mt::run_all();
+
   auto t1 = std::chrono::high_resolution_clock::now();
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
-
-  mt::run_all(type_visitor);
 
 //  StringVisitor str_visitor(&str_registry, &store);
 //  std::cout << root_block->accept(str_visitor) << std::endl;

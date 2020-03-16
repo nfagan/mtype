@@ -2,8 +2,6 @@
 
 namespace mt {
 
-class TypeVisitor;
-
-void run_all(const TypeVisitor& visitor);
+void run_all();
 
 }
