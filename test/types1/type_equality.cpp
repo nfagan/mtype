@@ -104,7 +104,10 @@ bool TypeEquality::equivalence_expanding_members(const types::DestructuredTuple&
     }
   }
 
-  if (a.is_outputs() && b.is_value_usage()) {
+  if (ia == num_a && ib == num_b) {
+    return true;
+
+  } else if (a.is_outputs() && b.is_value_usage()) {
     return ib == num_b && ia == num_b;
 
   } else if (b.is_outputs() && a.is_value_usage()) {
@@ -112,7 +115,7 @@ bool TypeEquality::equivalence_expanding_members(const types::DestructuredTuple&
 
   } else {
 //    std::cout << "ia: " << ia << "; ib: " << ib << "; num a: " << num_a << "; num_b: " << num_b << std::endl;
-    return ia == num_a && ib == num_b;
+    return false;
   }
 }
 
@@ -175,7 +178,7 @@ bool TypeEquality::equivalence_subrecurse_tuple(const types::DestructuredTuple& 
   int64_t expect_match = num_sub_a;
 
   if (a.is_value_usage() && sub_a.is_outputs()) {
-    expect_match = a.size();
+    expect_match = 1;
   }
 
   bool success = true;
@@ -200,7 +203,7 @@ bool TypeEquality::equivalence_subrecurse_list(const types::List& a, int64_t* ia
 
     int64_t expect_num_b = num_b;
     if (b.is_value_usage() && sub_b.is_outputs()) {
-      expect_num_b = b.size();
+      expect_num_b = 1;
     }
 
     int64_t ib = 0;

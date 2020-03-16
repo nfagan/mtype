@@ -48,6 +48,7 @@ public:
 
 private:
   void unify_one(TypeEquation eq);
+
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Abstraction& func);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Variable& var);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Tuple& tup);
@@ -79,19 +80,19 @@ private:
   bool simplify_different_types(const types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& rhs);
 
   bool simplify_match_arguments(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1);
-  bool simplify_different_usage(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1);
-  bool simplify_match_num_rhs(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1);
+  bool simplify_expanding_members(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1);
+  bool simplify_recurse_tuple(const types::DestructuredTuple& a, const types::DestructuredTuple& b, int64_t* ia, int64_t* ib);
+  bool simplify_subrecurse_tuple(const types::DestructuredTuple& a, const types::DestructuredTuple& b,
+                                 const types::DestructuredTuple& sub_a, int64_t* ia, int64_t* ib);
 
-  bool simplify_match_destructured_tuple(const types::DestructuredTuple& t0,
-    const std::vector<TypeHandle>& b, int64_t ib, int64_t* num_incr);
-  bool simplify_match_list(const TypeHandle& t0, const std::vector<TypeHandle>& b, int64_t ib, int64_t* num_incr);
+  bool match_list(const types::List& a, const types::DestructuredTuple& b, int64_t ib, int64_t* num_incr_b);
+  bool simplify_subrecurse_list(const types::List& a, int64_t* ia, const types::DestructuredTuple& b, const TypeHandle& mem_b);
 
   Type::Tag type_of(const TypeHandle& handle) const;
   void show();
 
   void maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub);
   bool maybe_unify_known_subscript_type(const TypeHandle& source, types::Subscript& sub);
-  bool maybe_unify_subscript_double_principal_argument(const TypeHandle& source, types::Subscript& sub);
   bool maybe_unify_subscript_tuple_principal_argument(const TypeHandle& source, types::Subscript& sub);
 
   void check_push_func(const TypeHandle& source, const types::Abstraction& func);
@@ -104,7 +105,6 @@ private:
 
   bool is_structured_tuple_type(const TypeHandle& handle) const;
   bool is_known_subscript_type(const TypeHandle& handle) const;
-  bool is_recursive_destructured_tuple(const TypeHandle& handle) const;
 
   void flatten_destructured_tuple(const types::DestructuredTuple& source, std::vector<TypeHandle>& into) const;
 

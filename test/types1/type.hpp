@@ -75,6 +75,16 @@ namespace types {
     TypeIdentifier identifier;
   };
 
+  struct Scheme {
+    TypeHandle type;
+    std::vector<TypeHandle> parameters;
+  };
+
+  struct Instance {
+    TypeHandle scheme;
+    std::vector<TypeHandle> arguments;
+  };
+
   struct Scalar {
     Scalar() = default;
     explicit Scalar(const TypeIdentifier& id) : identifier(id) {
@@ -84,7 +94,6 @@ namespace types {
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Scalar)
 
     TypeIdentifier identifier;
-    std::vector<TypeHandle> arguments;
   };
 
   struct Union {

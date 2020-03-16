@@ -7,6 +7,10 @@
 #define MT_SHOW_ERROR(msg) \
   std::cout << "FAIL: " << msg << std::endl
 
+#define MT_SHOW_ERROR_PRINT2(msg, a, b) \
+  std::cout << "FAIL: " << msg << std::endl; \
+  DebugTypePrinter(store, str_registry).show2((a), (b));
+
 namespace mt {
 
 void test_equivalence_debug() {
@@ -31,7 +35,11 @@ void test_equivalence_debug() {
   auto rec_tup4 = store.make_destructured_tuple(Use::rvalue, tup4);
   auto empty_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{});
   auto out_tup = store.make_destructured_tuple(Use::definition_outputs, std::vector<TypeHandle>{c_handle, d_handle});
+  auto out_tup2 = store.make_destructured_tuple(Use::definition_outputs, std::vector<TypeHandle>{d_handle, c_handle});
   auto wrap_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{out_tup});
+
+  auto wrap_out_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{out_tup, c_handle});
+  auto match_in_tup = store.make_destructured_tuple(Use::definition_inputs, std::vector<TypeHandle>{c_handle, c_handle});
 
   auto mixed_wrap_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{tup, d_handle, tup2});
   auto flat_mixed_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, d_handle, d_handle, c_handle});
@@ -50,6 +58,12 @@ void test_equivalence_debug() {
 
   auto mixed_rec_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, rec_tup, d_handle});
   auto flat_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, d_handle, d_handle});
+
+  // {list[tp<r>[scl(0)], scl(0), tp<out>[scl(0), scl(2)]]}
+  auto mixed_list1 = store.make_list(types::List::Usage::definition, std::vector<TypeHandle>{rec_tup4, d_handle, out_tup2});
+  auto test_list1 = store.make_list(types::List::Usage::definition, std::vector<TypeHandle>{d_handle, d_handle, d_handle});
+  auto wrap_list1 = store.make_destructured_tuple(Use::definition_inputs, test_list1);
+  auto wrap_list2 = store.make_destructured_tuple(Use::rvalue, mixed_list1);
 
   if (!eq.equivalence(mixed_wrap_tup, flat_mixed_tup)) {
     MT_SHOW_ERROR("Flattened type sequence not equal equivalent nested sequence.");
@@ -113,6 +127,15 @@ void test_equivalence_debug() {
   }
   if (!eq.equivalence(input_tup, match_input_tup)) {
     MT_SHOW_ERROR("Failed to match input tuple with nested equiv r value tuple.");
+  }
+  if (!eq.equivalence(match_in_tup, wrap_out_tup)) {
+    MT_SHOW_ERROR_PRINT2("Failed to match: ", match_in_tup, wrap_out_tup)
+  }
+  if (!eq.equivalence(mixed_list1, test_list1)) {
+    MT_SHOW_ERROR_PRINT2("Failed to match: ", mixed_list1, test_list1)
+  }
+  if (!eq.equivalence(wrap_list1, wrap_list2)) {
+    MT_SHOW_ERROR_PRINT2("Failed to match: ", wrap_list1, wrap_list2)
   }
 }
 

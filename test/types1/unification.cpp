@@ -4,19 +4,6 @@
 
 namespace mt {
 
-bool Unifier::is_recursive_destructured_tuple(const TypeHandle& handle) const {
-  if (type_of(handle) != Type::Tag::destructured_tuple) {
-    return false;
-  }
-  const auto& tup = store.at(handle).destructured_tuple;
-  for (const auto& mem : tup.members) {
-    if (type_of(mem) == Type::Tag::destructured_tuple) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool Unifier::is_known_subscript_type(const TypeHandle& handle) const {
   return types_with_known_subscripts.count(handle) > 0;
 }
@@ -334,6 +321,10 @@ bool Unifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rhs) 
       return simplify(t0.tuple, t1.tuple);
     case Tag::destructured_tuple:
       return simplify(t0.destructured_tuple, t1.destructured_tuple);
+    case Tag::variable: {
+      push_type_equation(TypeEquation(lhs, rhs));
+      return true;
+    }
     default:
       std::cout << "Unhandled same types for simplify: " << std::endl;
       type_printer().show2(lhs, rhs);
@@ -363,8 +354,9 @@ bool Unifier::simplify_different_types(const TypeHandle& lhs, const TypeHandle& 
     return simplify_different_types(store.at(rhs).destructured_tuple, rhs, lhs);
 
   } else {
+    type_printer().show2(lhs, rhs);
+    std::cout << std::endl;
     assert(false);
-    std::cout << "Cannot simplify: " << type_of(lhs) << ", " << type_of(rhs) << std::endl;
     return false;
   }
 }
@@ -399,12 +391,8 @@ bool Unifier::simplify_match_arguments(const types::DestructuredTuple& t0, const
   return simplify(t0.members, t1.members);
 }
 
-bool Unifier::simplify_different_usage(const types::DestructuredTuple& a, const types::DestructuredTuple& b) {
-  using Tag = Type::Tag;
-  using Use = types::DestructuredTuple::Usage;
-
-  assert(!types::DestructuredTuple::mismatching_definition_usages(a, b));
-
+bool Unifier::simplify_expanding_members(const types::DestructuredTuple& a,
+                                         const types::DestructuredTuple& b) {
   const int64_t num_a = a.members.size();
   const int64_t num_b = b.members.size();
 
@@ -412,166 +400,152 @@ bool Unifier::simplify_different_usage(const types::DestructuredTuple& a, const 
   int64_t ib = 0;
 
   while (ia < num_a && ib < num_b) {
-    const auto& mem_a = a.members[ia];
-    const auto& mem_b = b.members[ib];
-
-    const auto& va = store.at(mem_a);
-    const auto& vb = store.at(mem_b);
-
-    const auto ta = va.tag;
-    const auto tb = vb.tag;
-
-    bool res;
-    int64_t num_incr_a = 1;
-    int64_t num_incr_b = 1;
-
-    if (ta == tb) {
-      if (ta == Type::Tag::variable) {
-        push_type_equation(TypeEquation(mem_a, mem_b));
-        res = true;
-      } else {
-        res = simplify_same_types(mem_a, mem_b);
-      }
-
-    } else if (va.is_list()) {
-      res = simplify_match_list(mem_a, b.members, ib, &num_incr_b);
-
-    } else if (vb.is_list()) {
-      res = simplify_match_list(mem_b, a.members, ia, &num_incr_a);
-
-    } else {
-      res = simplify(mem_a, mem_b);
-    }
-
+    bool res = simplify_recurse_tuple(a, b, &ia, &ib);
     if (!res) {
-      type_printer().show2(mem_a, mem_b);
-      std::cout << std::endl;
-      std::cout << "---" << std::endl;
       return false;
     }
-
-    ia += num_incr_a;
-    ib += num_incr_b;
   }
 
   if (ia == num_a && ib == num_b) {
     return true;
-  }
 
-  if (a.is_outputs()) {
-    bool res = ib == num_b && ia == num_b;
-    if (!res) {
-      std::cout << "ERROR: Too many outputs requested." << std::endl;
-    }
-    return res;
+  } else if (a.is_outputs() && b.is_value_usage()) {
+    return ib == num_b && ia == num_b;
 
-  } else if (b.is_outputs()) {
-    bool res = ia == num_a && ib == num_a;
-    if (!res) {
-      std::cout << "ERROR: Too many outputs requested." << std::endl;
-    }
-    return res;
+  } else if (b.is_outputs() && a.is_value_usage()) {
+//    std::cout << "ia: " << ia << "; ib: " << ib << "; num a: " << num_a << "; num_b: " << num_b << std::endl;
+//    assert(ia == num_a && ib == num_a);
+    return ia == num_a && ib == num_a;
 
   } else {
-    std::cout << "Mismatching num: " << std::endl;
-    type_printer().show2(a, b);
-    std::cout << std::endl;
-    assert(false);
     return false;
   }
 }
 
-bool Unifier::simplify_match_list(const TypeHandle& a,
-                                  const std::vector<TypeHandle>& b,
-                                  int64_t ib, int64_t* num_incr) {
-  assert(ib < b.size());
+bool Unifier::simplify_recurse_tuple(const types::DestructuredTuple& a,
+                                     const types::DestructuredTuple& b,
+                                     int64_t* ia, int64_t* ib) {
+  assert(*ia < a.size() && *ib < b.size());
 
-  int64_t ia = 0;
-  const int64_t num_a = store.at(a).list.size();
-  const int64_t num_b = b.size();
-  const int64_t b0 = ib;
+  const auto& mem_a = a.members[*ia];
+  const auto& mem_b = b.members[*ib];
 
-  while (ia < num_a && ib < num_b) {
-    assert(ib < b.size());
+  const auto& va = store.at(mem_a);
+  const auto& vb = store.at(mem_b);
 
-    const auto& pat_a = store.at(a).list.pattern[ia];
-    const auto& mem_b = b[ib];
-
-    if (simplify(pat_a, mem_b)) {
-      ia = (ia + 1) % num_a;
-      ib++;
-
-    } else {
-      break;
+  if (va.is_list() && !vb.is_list()) {
+    if (b.is_definition_usage()) {
+      return false;
     }
-  }
 
-  //  True if all pattern members of `a` were visited.
-  const bool match = num_a == 0 || (ia == 0 && ib > b0);
+    const auto& list_a = va.list;
+    int64_t num_incr_b = 0;
+    bool success = match_list(list_a, b, *ib, &num_incr_b);
+    *ib += num_incr_b;
+    (*ia)++;
+    return success;
 
-  if (match) {
-    *num_incr = (ib - b0);
-  }
-
-  return match;
-}
-
-bool Unifier::simplify_match_destructured_tuple(const mt::types::DestructuredTuple& a,
-                                                const std::vector<TypeHandle>& b,
-                                                int64_t ib, int64_t* num_incr) {
-  assert(ib < b.size());
-
-  int64_t ia = 0;
-  const int64_t num_a = a.members.size();
-  const int64_t num_b = b.size();
-  const int64_t b0 = ib;
-
-  while (ia < num_a && ib < num_b) {
-    const auto& mem_a = a.members[ia];
-    const auto& mem_b = b[ib];
-
-    if (simplify(mem_a, mem_b)) {
-      ia++;
-      ib++;
-    } else {
-      break;
+  } else if (vb.is_list() && !va.is_list()) {
+    if (a.is_definition_usage()) {
+      return false;
     }
-  }
 
-  //  True if all pattern members of `a` were visited.
-  const bool match = ia == num_a;
+    const auto& list_b = vb.list;
+    int64_t num_incr_a = 0;
+    bool success = match_list(list_b, a, *ia, &num_incr_a);
+    *ia += num_incr_a;
+    (*ib)++;
+    return success;
 
-  if (match) {
-    *num_incr = (ib - b0);
-  }
+  } else if (va.is_destructured_tuple()) {
+    return simplify_subrecurse_tuple(a, b, va.destructured_tuple, ia, ib);
 
-  return match;
-}
-
-bool Unifier::simplify_match_num_rhs(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1) {
-  assert(t1.usage != types::DestructuredTuple::Usage::definition_inputs);
-
-  const int64_t num_def = t0.members.size();
-  const int64_t num_match = t1.members.size();
-
-  if (num_def < num_match) {
-    std::cout << "ERROR: More outputs requested than can be provided by definition: " << std::endl;
-    type_printer().show2(t0, t1);
-    std::cout << std::endl;
-    assert(false);
-    return false;
+  } else if (vb.is_destructured_tuple()) {
+    return simplify_subrecurse_tuple(b, a, vb.destructured_tuple, ib, ia);
 
   } else {
-    push_type_equations(t0.members, t1.members, num_match);
-    return true;
+    (*ia)++;
+    (*ib)++;
+
+    return simplify(mem_a, mem_b);
   }
+}
+
+bool Unifier::simplify_subrecurse_tuple(const types::DestructuredTuple& a,
+                                        const types::DestructuredTuple& b,
+                                        const types::DestructuredTuple& sub_a,
+                                        int64_t* ia, int64_t* ib) {
+  int64_t ia_child = 0;
+  const int64_t num_sub_a = sub_a.size();
+  int64_t expect_match = num_sub_a;
+
+  if (a.is_value_usage() && sub_a.is_outputs()) {
+    expect_match = 1;
+  }
+
+  bool success = true;
+
+  while (success && ia_child < expect_match && ia_child < num_sub_a && *ib < b.size()) {
+    success = simplify_recurse_tuple(sub_a, b, &ia_child, ib);
+  }
+
+  (*ia)++;
+
+  return success && ia_child == expect_match;
+}
+
+bool Unifier::simplify_subrecurse_list(const types::List& a, int64_t* ia,
+                                       const types::DestructuredTuple& b, const TypeHandle& mem_b) {
+
+  const auto& mem_a = a.pattern[*ia];
+
+  if (type_of(mem_b) == Type::Tag::destructured_tuple) {
+    const auto& sub_b = store.at(mem_b).destructured_tuple;
+    const int64_t num_b = sub_b.size();
+
+    int64_t expect_num_b = num_b;
+    if (b.is_value_usage() && sub_b.is_outputs()) {
+      expect_num_b = 1;
+    }
+
+    int64_t ib = 0;
+    bool success = true;
+
+    while (success && ib < expect_num_b && ib < num_b) {
+      success = simplify_subrecurse_list(a, ia, sub_b, sub_b.members[ib++]);
+    }
+
+    return success && ib == expect_num_b;
+
+  } else {
+    *ia = (*ia + 1) % a.size();
+    return simplify(mem_a, mem_b);
+  }
+}
+
+bool Unifier::match_list(const types::List& a, const types::DestructuredTuple& b, int64_t ib, int64_t* num_incr_b) {
+  int64_t ia = 0;
+  const int64_t num_a = a.size();
+  const int64_t num_b = b.size();
+  bool success = true;
+
+  while (success && ia < num_a && ib < num_b) {
+    success = simplify_subrecurse_list(a, &ia, b, b.members[ib++]);
+    (*num_incr_b)++;
+  }
+
+  return success && (num_a == 0 || (ia == 0 && ib == num_b));
 }
 
 bool Unifier::simplify(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1) {
-  if (t0.usage == t1.usage) {
+  if (types::DestructuredTuple::mismatching_definition_usages(t0, t1)) {
+    return false;
+
+  } else if (t0.is_definition_usage() && t0.usage == t1.usage) {
     return simplify_match_arguments(t0, t1);
+
   } else {
-    return simplify_different_usage(t0, t1);
+    return simplify_expanding_members(t0, t1);
   }
 }
 
@@ -758,9 +732,9 @@ void Unifier::make_fileparts() {
   std::vector<TypeHandle> outputs{char_handle, double_handle, double_handle};
 
   store.assign(args_type,
-               Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, char_handle, double_handle)));
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, char_handle, double_handle)));
   store.assign(result_type,
-               Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(outputs))));
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(outputs))));
 
   store.assign(func_type, Type(std::move(func)));
 
