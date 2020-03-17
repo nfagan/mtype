@@ -14,7 +14,7 @@ public:
     types.reserve(cap);
   }
 
-  const std::vector<Type>& get_types() const {
+  [[nodiscard]] const std::vector<Type>& get_types() const {
     return types;
   }
 
@@ -69,6 +69,19 @@ public:
   }
 
   void assign(const TypeHandle& at, Type&& type);
+
+  std::unordered_map<Type::Tag, double> type_distribution() const {
+    std::unordered_map<Type::Tag, double> counts;
+
+    for (const auto& type : types) {
+      if (counts.count(type.tag) == 0) {
+        counts[type.tag] = 0.0;
+      }
+      counts[type.tag] = counts[type.tag] + 1.0;
+    }
+
+    return counts;
+  }
 
 private:
   std::vector<Type> types;

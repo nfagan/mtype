@@ -44,7 +44,7 @@ void test_equivalence_debug() {
   auto mixed_wrap_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{tup, d_handle, tup2});
   auto flat_mixed_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, d_handle, d_handle, c_handle});
 
-  auto list1 = store.make_list(types::List::Usage::definition, std::vector<TypeHandle>{c_handle, d_handle});
+  auto list1 = store.make_list(std::vector<TypeHandle>{c_handle, d_handle});
   auto tup_list1 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{list1});
   auto tup_match_list1 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{c_handle, d_handle});
   auto rec_tup_match_list1 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{tup_match_list1, tup_match_list1});
@@ -60,8 +60,8 @@ void test_equivalence_debug() {
   auto flat_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, d_handle, d_handle});
 
   // {list[tp<r>[scl(0)], scl(0), tp<out>[scl(0), scl(2)]]}
-  auto mixed_list1 = store.make_list(types::List::Usage::definition, std::vector<TypeHandle>{rec_tup4, d_handle, out_tup2});
-  auto test_list1 = store.make_list(types::List::Usage::definition, std::vector<TypeHandle>{d_handle, d_handle, d_handle});
+  auto mixed_list1 = store.make_list(std::vector<TypeHandle>{rec_tup4, d_handle, out_tup2});
+  auto test_list1 = store.make_list(std::vector<TypeHandle>{d_handle, d_handle, d_handle});
   auto wrap_list1 = store.make_destructured_tuple(Use::definition_inputs, test_list1);
   auto wrap_list2 = store.make_destructured_tuple(Use::rvalue, mixed_list1);
 
@@ -157,11 +157,11 @@ void test_equivalence() {
   auto rec_tup = store.make_destructured_tuple(Use::rvalue, tup);
   auto mult_double_tup = store.make_destructured_tuple(Use::rvalue, d_handle, d_handle);
   auto mult_rec_double_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, rec_tup});
-  auto list_double = store.make_list(types::List::Usage::definition, d_handle);
+  auto list_double = store.make_list(d_handle);
   auto tup_list_double_rvalue = store.make_destructured_tuple(Use::rvalue, list_double);
   auto tup_list_double_lvalue = store.make_destructured_tuple(Use::lvalue, list_double);
 
-  auto list_pattern = store.make_list(types::List::Usage::definition, std::vector<TypeHandle>{d_handle, d_handle, c_handle});
+  auto list_pattern = store.make_list(std::vector<TypeHandle>{d_handle, d_handle, c_handle});
   auto tup_list_pattern = store.make_destructured_tuple(Use::rvalue, list_pattern);
   auto tup_match_pattern = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{d_handle, d_handle, c_handle});
   auto tup_wrong_pattern = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{d_handle, d_handle, c_handle, d_handle});

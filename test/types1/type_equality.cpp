@@ -71,7 +71,7 @@ bool TypeEquality::equivalence(const types::Scalar& a, const types::Scalar& b) c
 }
 
 bool TypeEquality::equivalence(const types::List& a, const types::List& b) const {
-  return a.usage == b.usage && element_wise_equivalence(a.pattern, b.pattern);
+  return element_wise_equivalence(a.pattern, b.pattern);
 }
 
 bool TypeEquality::equivalence(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const {
@@ -135,10 +135,7 @@ bool TypeEquality::equivalence_recurse_tuple(const types::DestructuredTuple& a,
       return false;
     }
 
-    const auto& list_a = va.list;
-    int64_t num_incr_b = 0;
-    bool success = match_list(list_a, b, *ib, &num_incr_b);
-    *ib += num_incr_b;
+    bool success = match_list(va.list, b, ib);
     (*ia)++;
     return success;
 
@@ -147,10 +144,7 @@ bool TypeEquality::equivalence_recurse_tuple(const types::DestructuredTuple& a,
       return false;
     }
 
-    const auto& list_b = vb.list;
-    int64_t num_incr_a = 0;
-    bool success = match_list(list_b, a, *ia, &num_incr_a);
-    *ia += num_incr_a;
+    bool success = match_list(vb.list, a, ia);
     (*ib)++;
     return success;
 
@@ -221,18 +215,15 @@ bool TypeEquality::equivalence_subrecurse_list(const types::List& a, int64_t* ia
   }
 }
 
-bool TypeEquality::match_list(const types::List& a, const types::DestructuredTuple& b, int64_t ib, int64_t* num_incr_b) const {
+bool TypeEquality::match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib) const {
   int64_t ia = 0;
-  const int64_t num_a = a.size();
-  const int64_t num_b = b.size();
   bool success = true;
 
-  while (success && ia < num_a && ib < num_b) {
-    success = equivalence_subrecurse_list(a, &ia, b, b.members[ib++]);
-    (*num_incr_b)++;
+  while (success && ia < a.size() && *ib < b.size()) {
+    success = equivalence_subrecurse_list(a, &ia, b, b.members[(*ib)++]);
   }
 
-  return success && (num_a == 0 || (ia == 0 && ib == num_b));
+  return success && (a.size() == 0 || (ia == 0 && *ib == b.size()));
 }
 
 bool TypeEquality::equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const {

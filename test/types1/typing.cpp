@@ -2,6 +2,69 @@
 
 namespace mt {
 
+void TypeVisitor::function_def_node(const FunctionDefNode& node) {
+  using namespace mt::types;
+
+  const Block* function_body = nullptr;
+  MatlabScopeHelper scope_helper(*this, node.scope_handle);
+
+  const auto type_handle = type_store.make_type();
+  bind_type_variable_to_function_def(node.def_handle, type_handle);
+
+  std::vector<TypeHandle> function_inputs;
+  std::vector<TypeHandle> function_outputs;
+
+  MatlabIdentifier function_name;
+
+  {
+    const auto scope_handle = current_scope_handle();
+
+    Store::ReadConst reader(store);
+    const auto& def = reader.at(node.def_handle);
+    const auto& scope = reader.at(scope_handle);
+    function_name = def.header.name;
+
+    for (const auto& input : def.header.inputs) {
+      if (!input.is_ignored) {
+        assert(input.name.full_name() >= 0);
+
+        const auto variable_def_handle = scope.local_variables.at(input.name);
+        const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
+
+        function_inputs.push_back(variable_type_handle);
+      } else {
+        function_inputs.emplace_back();
+      }
+    }
+
+    for (const auto& output : def.header.outputs) {
+      assert(output.full_name() >= 0);
+
+      const auto variable_def_handle = scope.local_variables.at(output);
+      const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
+
+      function_outputs.push_back(variable_type_handle);
+    }
+
+    function_body = def.body.get();
+  }
+
+  const auto input_handle = type_store.make_type();
+  const auto output_handle = type_store.make_type();
+
+  type_store.assign(input_handle,
+                    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, std::move(function_inputs))));
+  type_store.assign(output_handle,
+                    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(function_outputs))));
+
+  type_store.assign(type_handle, Type(Abstraction(function_name, input_handle, output_handle)));
+  unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), type_handle));
+
+  if (function_body) {
+    function_body->accept_const(*this);
+  }
+}
+
 void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   using types::DestructuredTuple;
   using types::Abstraction;
@@ -44,7 +107,6 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
   using mt::types::DestructuredTuple;
   using Use = DestructuredTuple::Usage;
 
-//    assert(expr.subscripts.empty() && "Subscripts not yet handled.");
   const auto variable_type_handle = require_bound_type_variable(expr.def_handle);
   const auto usage = value_category_state.is_lhs() ? Use::lvalue : Use::rvalue;
 

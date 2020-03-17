@@ -28,6 +28,10 @@ struct TypeIdentifier {
     //
   }
 
+  friend bool operator==(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name == b.name;
+  }
+
   int64_t name;
 };
 
@@ -105,21 +109,13 @@ namespace types {
   };
 
   struct List {
-    enum class Usage : uint8_t {
-      lvalue,
-      rvalue,
-      definition
-    };
+    List() = default;
 
-    List() : usage(Usage::definition) {
+    explicit List(const TypeHandle& arg) : pattern{arg} {
       //
     }
 
-    List(Usage usage, const TypeHandle& arg) : usage(usage), pattern{arg} {
-      //
-    }
-
-    List(Usage usage, std::vector<TypeHandle>&& pattern) : usage(usage), pattern(std::move(pattern)) {
+    explicit List(std::vector<TypeHandle>&& pattern) : pattern(std::move(pattern)) {
       //
     }
 
@@ -130,7 +126,6 @@ namespace types {
       return pattern.size();
     }
 
-    Usage usage;
     std::vector<TypeHandle> pattern;
   };
 
@@ -258,7 +253,7 @@ namespace types {
       //
     }
     Abstraction(MatlabIdentifier name, const TypeHandle& inputs, const TypeHandle& outputs) :
-    type(Type::function), name(name), inputs(std::move(inputs)), outputs(std::move(outputs)) {
+    type(Type::function), name(name), inputs(inputs), outputs(outputs) {
       //
     }
 
@@ -267,7 +262,7 @@ namespace types {
       conditional_assign_operator(other);
     }
     Abstraction(Abstraction&& other) noexcept :
-    type(other.type), outputs(std::move(other.outputs)), inputs(std::move(other.inputs)) {
+    type(other.type), outputs(other.outputs), inputs(other.inputs) {
       conditional_assign_operator(other);
     }
 
@@ -281,8 +276,8 @@ namespace types {
 
     Abstraction& operator=(Abstraction&& other) noexcept {
       type = other.type;
-      outputs = std::move(other.outputs);
-      inputs = std::move(other.inputs);
+      outputs = other.outputs;
+      inputs = other.inputs;
       conditional_assign_operator(other);
       return *this;
     }

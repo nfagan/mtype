@@ -48,7 +48,7 @@ private:
   bool equivalence(const types::List& a, const types::List& b) const;
 
   bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const;
-  bool match_list(const types::List& a, const types::DestructuredTuple& b, int64_t ib, int64_t* num_incr_b) const;
+  bool match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib) const;
 
   bool equivalence_same_definition_usage(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const;
   bool equivalence_expanding_members(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const;

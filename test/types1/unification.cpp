@@ -372,23 +372,18 @@ bool Unifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs) {
 bool Unifier::simplify_different_types(const types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& rhs) {
   using Use = types::DestructuredTuple::Usage;
 
-  auto t = store.make_type();
-  store.assign(t, Type(types::DestructuredTuple(Use::rvalue, rhs)));
+  auto t = store.make_destructured_tuple(Use::rvalue, rhs);
   push_type_equation(TypeEquation(source, t));
 
   return true;
 }
 
 bool Unifier::simplify(const types::Scalar& t0, const types::Scalar& t1) {
-  return t0.identifier.name == t1.identifier.name;
+  return t0.identifier == t1.identifier;
 }
 
 bool Unifier::simplify(const types::Abstraction& t0, const types::Abstraction& t1) {
   return simplify(t0.inputs, t1.inputs) && simplify(t0.outputs, t1.outputs);
-}
-
-bool Unifier::simplify_match_arguments(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1) {
-  return simplify(t0.members, t1.members);
 }
 
 bool Unifier::simplify_expanding_members(const types::DestructuredTuple& a,
@@ -414,7 +409,6 @@ bool Unifier::simplify_expanding_members(const types::DestructuredTuple& a,
 
   } else if (b.is_outputs() && a.is_value_usage()) {
 //    std::cout << "ia: " << ia << "; ib: " << ib << "; num a: " << num_a << "; num_b: " << num_b << std::endl;
-//    assert(ia == num_a && ib == num_a);
     return ia == num_a && ib == num_a;
 
   } else {
@@ -438,10 +432,7 @@ bool Unifier::simplify_recurse_tuple(const types::DestructuredTuple& a,
       return false;
     }
 
-    const auto& list_a = va.list;
-    int64_t num_incr_b = 0;
-    bool success = match_list(list_a, b, *ib, &num_incr_b);
-    *ib += num_incr_b;
+    bool success = match_list(va.list, b, ib);
     (*ia)++;
     return success;
 
@@ -450,10 +441,7 @@ bool Unifier::simplify_recurse_tuple(const types::DestructuredTuple& a,
       return false;
     }
 
-    const auto& list_b = vb.list;
-    int64_t num_incr_a = 0;
-    bool success = match_list(list_b, a, *ia, &num_incr_a);
-    *ia += num_incr_a;
+    bool success = match_list(vb.list, a, ia);
     (*ib)++;
     return success;
 
@@ -523,18 +511,15 @@ bool Unifier::simplify_subrecurse_list(const types::List& a, int64_t* ia,
   }
 }
 
-bool Unifier::match_list(const types::List& a, const types::DestructuredTuple& b, int64_t ib, int64_t* num_incr_b) {
+bool Unifier::match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib) {
   int64_t ia = 0;
-  const int64_t num_a = a.size();
-  const int64_t num_b = b.size();
   bool success = true;
 
-  while (success && ia < num_a && ib < num_b) {
-    success = simplify_subrecurse_list(a, &ia, b, b.members[ib++]);
-    (*num_incr_b)++;
+  while (success && ia < a.size() && *ib < b.size()) {
+    success = simplify_subrecurse_list(a, &ia, b, b.members[(*ib)++]);
   }
 
-  return success && (num_a == 0 || (ia == 0 && ib == num_b));
+  return success && (a.size() == 0 || (ia == 0 && *ib == b.size()));
 }
 
 bool Unifier::simplify(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1) {
@@ -542,7 +527,7 @@ bool Unifier::simplify(const types::DestructuredTuple& t0, const types::Destruct
     return false;
 
   } else if (t0.is_definition_usage() && t0.usage == t1.usage) {
-    return simplify_match_arguments(t0, t1);
+    return simplify(t0.members, t1.members);
 
   } else {
     return simplify_expanding_members(t0, t1);
@@ -603,8 +588,6 @@ bool Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::
   args.insert(args.begin(), sub.principal_argument);
 
   DestructuredTuple tup(DestructuredTuple::Usage::rvalue, std::move(args));
-//  flatten_destructured_tuple(tup, into);
-//  tup.members = std::move(into);
 
   auto tup_type = store.make_type();
   store.assign(tup_type, Type(std::move(tup)));
@@ -764,8 +747,7 @@ void Unifier::make_list_outputs_type() {
   std::vector<TypeHandle> outputs{double_handle, list_type};
   std::vector<TypeHandle> list_pattern{char_handle, double_handle};
 
-  store.assign(list_type,
-    Type(List(List::Usage::definition, std::move(list_pattern))));
+  store.assign(list_type, Type(List(std::move(list_pattern))));
   store.assign(args_type,
     Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle)));
   store.assign(result_type,
@@ -794,7 +776,7 @@ void Unifier::make_subscript_references() {
     std::vector<TypeHandle> list_types{store.double_type_handle};
 
     //  T(list<double>) -> T
-    store.assign(list_type, Type(List(List::Usage::definition, std::move(list_types))));
+    store.assign(list_type, Type(List(std::move(list_types))));
     store.assign(args_type,
       Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, referent_type_handle, list_type)));
     store.assign(result_type,
@@ -805,6 +787,8 @@ void Unifier::make_subscript_references() {
     function_types[ref_copy] = func_type;
     types_with_known_subscripts.insert(referent_type_handle);
   }
+
+  //  {T}{list<double>} -> list<T>
 }
 
 void Unifier::make_binary_operators() {
