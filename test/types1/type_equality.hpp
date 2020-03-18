@@ -49,6 +49,7 @@ private:
   bool equivalence(const types::Tuple& a, const types::Tuple& b) const;
 
   bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const;
+  bool equivalence_different_types(const types::List& a, const TypeHandle& b) const;
   bool match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib) const;
 
   bool equivalence_same_definition_usage(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const;
@@ -63,6 +64,9 @@ private:
                                     int64_t* ib) const;
   bool equivalence_subrecurse_list(const types::List& a, int64_t* ia,
     const types::DestructuredTuple& b, const TypeHandle& mem_b) const;
+
+  bool equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,
+    int64_t num_a, int64_t num_b) const;
 
   DebugTypePrinter type_printer() const;
 

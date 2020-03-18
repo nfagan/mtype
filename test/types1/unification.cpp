@@ -462,7 +462,6 @@ bool Unifier::simplify_expanding_members(const types::DestructuredTuple& a,
     return ib == num_b && ia == num_b;
 
   } else if (b.is_outputs() && a.is_value_usage()) {
-//    std::cout << "ia: " << ia << "; ib: " << ib << "; num a: " << num_a << "; num_b: " << num_b << std::endl;
     return ia == num_a && ib == num_a;
 
   } else {
@@ -601,6 +600,7 @@ bool Unifier::simplify(const types::List& t0, const types::List& t1) {
   for (int64_t i = 0; i < sz; i++) {
     const auto& mem_a = t0.pattern[i % num_a];
     const auto& mem_b = t1.pattern[i % num_b];
+
     push_type_equation(TypeEquation(mem_a, mem_b));
   }
 
@@ -663,8 +663,7 @@ bool Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::
     const auto& func = store.at(func_it->second);
 
     if (func.is_abstraction()) {
-      const auto& func_outputs = func.abstraction.outputs;
-      push_type_equation(TypeEquation(sub.outputs, func_outputs));
+      push_type_equation(TypeEquation(sub.outputs, func.abstraction.outputs));
 
     } else {
       assert(func.tag == Type::Tag::scheme);
@@ -727,6 +726,8 @@ void Unifier::make_free_functions() {
   make_min();
   make_fileparts();
   make_list_outputs_type();
+  make_list_inputs_type();
+  make_list_outputs_type2();
 }
 
 void Unifier::make_min() {
@@ -785,6 +786,31 @@ void Unifier::make_fileparts() {
   function_types[func_copy] = func_type;
 }
 
+void Unifier::make_list_inputs_type() {
+  using types::DestructuredTuple;
+  using types::Abstraction;
+  using types::List;
+
+  const auto args_type = store.make_type();
+  const auto result_type = store.make_type();
+  const auto func_type = store.make_type();
+  const auto& double_handle = store.double_type_handle;
+  const auto list_type = store.make_list(double_handle);
+
+  const auto ident = MatlabIdentifier(string_registry.register_string("in_list"));
+
+  Abstraction func(ident, args_type, result_type);
+  auto func_copy = func;
+
+  store.assign(args_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, TypeHandles{double_handle, list_type})));
+  store.assign(result_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, double_handle)));
+  store.assign(func_type, Type(std::move(func)));
+
+  function_types[func_copy] = func_type;
+}
+
 void Unifier::make_list_outputs_type() {
   using types::DestructuredTuple;
   using types::Abstraction;
@@ -813,6 +839,39 @@ void Unifier::make_list_outputs_type() {
     Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle)));
   store.assign(result_type,
     Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(outputs))));
+  store.assign(func_type, Type(std::move(func)));
+
+  function_types[func_copy] = func_type;
+}
+
+void Unifier::make_list_outputs_type2() {
+  using types::DestructuredTuple;
+  using types::Abstraction;
+  using types::List;
+
+  const auto args_type = store.make_type();
+  const auto result_type = store.make_type();
+  const auto func_type = store.make_type();
+
+  const auto& double_handle = store.double_type_handle;
+  const auto& char_handle = store.char_type_handle;
+  const auto& string_handle = store.string_type_handle;
+
+  const auto name = std::string("list_dt_out");
+  const auto ident = MatlabIdentifier(string_registry.register_string(name));
+
+  Abstraction func(ident, args_type, result_type);
+  auto func_copy = func;
+
+//  auto list_type = store.make_list(store.make_destructured_tuple(DestructuredTuple::Usage::rvalue,
+//    TypeHandles{double_handle, char_handle}));
+  auto list_type = store.make_destructured_tuple(DestructuredTuple::Usage::rvalue,
+    TypeHandles{double_handle, char_handle});
+
+  store.assign(args_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle)));
+  store.assign(result_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, list_type)));
   store.assign(func_type, Type(std::move(func)));
 
   function_types[func_copy] = func_type;

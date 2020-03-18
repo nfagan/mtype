@@ -59,11 +59,16 @@ void test_equivalence_debug() {
   auto mixed_rec_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, rec_tup, d_handle});
   auto flat_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, d_handle, d_handle});
 
-  // {list[tp<r>[scl(0)], scl(0), tp<out>[scl(0), scl(2)]]}
+  // list[dt-r[dt-r[s0]], s0, dt-o[s0, s2]]
   auto mixed_list1 = store.make_list(std::vector<TypeHandle>{rec_tup4, d_handle, out_tup2});
   auto test_list1 = store.make_list(std::vector<TypeHandle>{d_handle, d_handle, d_handle});
   auto wrap_list1 = store.make_destructured_tuple(Use::definition_inputs, test_list1);
   auto wrap_list2 = store.make_destructured_tuple(Use::rvalue, mixed_list1);
+
+  auto list_double = store.make_list(d_handle);
+  auto out1 = store.make_destructured_tuple(Use::definition_outputs, store.make_list(d_handle));
+  auto wrap_out1 = store.make_destructured_tuple(Use::rvalue, out1);
+  auto wrap_in_list = store.make_destructured_tuple(Use::definition_inputs, list_double);
 
   if (!eq.equivalence(mixed_wrap_tup, flat_mixed_tup)) {
     MT_SHOW_ERROR("Flattened type sequence not equal equivalent nested sequence.");
@@ -136,6 +141,9 @@ void test_equivalence_debug() {
   }
   if (!eq.equivalence(wrap_list1, wrap_list2)) {
     MT_SHOW_ERROR_PRINT2("Failed to match: ", wrap_list1, wrap_list2)
+  }
+  if (!eq.equivalence(wrap_out1, wrap_in_list)) {
+    MT_SHOW_ERROR_PRINT2("Failed to match: ", wrap_out1, wrap_in_list)
   }
 }
 

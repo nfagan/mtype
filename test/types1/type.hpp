@@ -18,6 +18,8 @@ struct TypeHandle : public detail::Handle<100> {
   using Handle::Handle;
 };
 
+using TypeHandles = std::vector<TypeHandle>;
+
 struct Type;
 struct TypeIdentifier {
   TypeIdentifier() : TypeIdentifier(-1) {

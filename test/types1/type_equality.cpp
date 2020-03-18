@@ -70,8 +70,13 @@ bool TypeEquality::equivalence_different_types(const TypeHandle& a, const TypeHa
   } else if (value_b.is_destructured_tuple()) {
     return equivalence_different_types(value_b.destructured_tuple, a);
 
+  } else if (value_a.is_list()) {
+    return equivalence_different_types(value_a.list, b);
+
+  } else if (value_b.is_list()) {
+    return equivalence_different_types(value_b.list, a);
+
   } else {
-//    std::cout << "Non equivalent: " << value_a.tag << ", " << value_b.tag << std::endl;
     return false;
   }
 }
@@ -80,8 +85,68 @@ bool TypeEquality::equivalence(const types::Scalar& a, const types::Scalar& b) c
   return a.identifier.name == b.identifier.name;
 }
 
+bool TypeEquality::equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,
+  int64_t num_a, int64_t num_b) const {
+
+  if (*ia == num_a) {
+    return *ib == num_b;
+
+  } else if (*ib == num_b) {
+    return *ia == num_a;
+
+  } else {
+    assert(*ia < a.size() && *ib < b.size());
+    assert(num_a <= a.size() && num_b <= b.size());
+  }
+
+  const auto& mem_a = a[*ia];
+  const auto& mem_b = b[*ib];
+
+  const auto& va = store.at(mem_a);
+  const auto& vb = store.at(mem_b);
+
+  if (va.is_list()) {
+    int64_t new_ia = 0;
+    bool success = equivalence_list(va.list.pattern, b, &new_ia, ib, va.list.size(), num_b);
+    (*ia)++;
+    return success;
+
+  } else if (vb.is_list()) {
+    int64_t new_ib = 0;
+    bool success = equivalence_list(a, vb.list.pattern, ia, &new_ib, num_a, vb.list.size());
+    (*ib)++;
+    return success;
+
+  } else if (va.is_destructured_tuple()) {
+    const auto& tup_a = va.destructured_tuple;
+    const int64_t use_num_a = tup_a.is_outputs() ? std::min(int64_t(1), tup_a.size()) : tup_a.size();
+
+    int64_t new_ia = 0;
+    bool success = equivalence_list(tup_a.members, b, &new_ia, ib, use_num_a, num_b);
+    (*ia)++;
+    return success;
+
+  } else if (vb.is_destructured_tuple()) {
+    const auto& tup_b = vb.destructured_tuple;
+    const int64_t use_num_b = tup_b.is_outputs() ? std::min(int64_t(1), tup_b.size()) : tup_b.size();
+
+    int64_t new_ib = 0;
+    bool success = equivalence_list(a, tup_b.members, ia, &new_ib, num_a, use_num_b);
+    (*ib)++;
+    return success;
+
+  } else {
+    (*ia)++;
+    (*ib)++;
+
+    return equivalence(mem_a, mem_b);
+  }
+}
+
 bool TypeEquality::equivalence(const types::List& a, const types::List& b) const {
-  return element_wise_equivalence(a.pattern, b.pattern);
+  int64_t ia = 0;
+  int64_t ib = 0;
+  return equivalence_list(a.pattern, b.pattern, &ia, &ib, a.size(), b.size());
 }
 
 bool TypeEquality::equivalence(const types::Tuple& a, const types::Tuple& b) const {
@@ -244,6 +309,10 @@ bool TypeEquality::equivalence_different_types(const types::DestructuredTuple& a
   return a.size() == 1 && equivalence(a.members[0], b);
 }
 
+bool TypeEquality::equivalence_different_types(const types::List& a, const TypeHandle& b) const {
+  return a.size() == 1 && equivalence(a.pattern[0], b);
+}
+
 bool TypeEquality::TypeEquivalenceComparator::equivalence(const TypeHandle& a, const TypeHandle& b) const {
   return type_eq.equivalence(a, b);
 }
@@ -285,25 +354,6 @@ bool TypeEquality::ArgumentComparator::operator()(const types::Abstraction& a, c
   const auto& tup_b = args_b.destructured_tuple;
 
   return !type_eq.equivalence(tup_a, tup_b);
-
-//  //  Important -- allow for type equivalence first.
-//  if (type_eq.equivalence(tup_a, tup_b)) {
-//    return false;
-//  }
-//
-//  if (tup_a.members.size() != tup_b.members.size()) {
-//    return tup_a.members.size() < tup_b.members.size();
-//  }
-//
-//  const int64_t num_members = tup_a.members.size();
-//
-//  for (int64_t i = 0; i < num_members; i++) {
-//    if (!type_eq.equivalence(tup_a.members[i], tup_b.members[i])) {
-//      return tup_a.members[i] < tup_b.members[i];
-//    }
-//  }
-//
-//  return false;
 }
 
 }

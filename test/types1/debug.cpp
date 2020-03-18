@@ -90,7 +90,7 @@ void DebugTypePrinter::show(const types::Abstraction& abstr) const {
 }
 
 void DebugTypePrinter::show(const types::DestructuredTuple& tup) const {
-  std::cout << "tp-" << tuple_usage_shorthand(tup.usage) << "[";
+  std::cout << "dt-" << tuple_usage_shorthand(tup.usage) << "[";
   show(tup.members, ", ");
   std::cout << "]";
 }
