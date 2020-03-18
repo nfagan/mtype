@@ -1,38 +1,25 @@
-function [a, b, c, d, x, y, z] = X()
+function [z0, bb, x, z2, y, a1, a0] = X()
 
-c = 1;
-aa = c(c, c, c, c);
+z0 = {1, min(1, "c"), lists(1)};
+bb = {1};
+b = {1, 'c', 2};
+a = 3;
+[x] = a(1);
+z = {a, min(x, "c"), a, 1};
 
-d = c(c(c), min(min(c, "c"), "c"), c(c(c)));
-z = min( min(1, "c"), "c" );
+z2 = z0;
 
-y = 1;
-[a, x, y] = lists( y );
+[z0{min(x, "c"), 1}] = z{a};
+x(1) = z{1};
+[y, y0, y1, y2] = z{1};
 
-% b = {a, 1, min(c, "c")};
-b = {a, 1, min(c, "c")};
-zz = b{c};
+a0 = {1, fileparts('c', 1)};
+a1 = {min(1, "c"), 'c'};
+a2 = a1;
 
-another = aa(1);
+[a1{1}, a2{1}] = a0{1};
+% a1 = a0;
+
+% [a1{1, 2, 3}] = a0{1, 2, 3};
 
 end
-
-% function aa = another(y)
-% 
-% a = 1;
-% [xx, yy] = min( a, "c" );
-% 
-% [aa(aa), x, y] = lists( a );
-% y = aa;
-% 
-% b = 2;
-% [a{:}, b{:}] = match_lists( b, a );
-% 
-% % aa = 'c';
-% 
-% % xx = 'c';
-% 
-% % func( func2() );  % r-value tuple containing function outputs
-% % 
-% 
-% end

@@ -44,6 +44,8 @@ const char* to_string(Type::Tag tag) {
       return "subscript";
     case Tag::constant_value:
       return "constant_value";
+    case Tag::scheme:
+      return "scheme";
     default:
       assert(false && "Unhandled.");
   }
@@ -72,6 +74,7 @@ void Type::default_construct() noexcept {
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::list, types::List, list)
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
   }
 }
 
@@ -95,6 +98,7 @@ void Type::move_construct(Type&& other) noexcept {
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::list, types::List, list)
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
   }
 }
 
@@ -118,6 +122,7 @@ void Type::copy_construct(const Type& other) {
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::list, types::List, list)
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
   }
 }
 
@@ -141,6 +146,7 @@ void Type::copy_assign(const Type& other) {
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::list, list)
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::subscript, subscript)
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::constant_value, constant_value)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::scheme, scheme)
   }
 }
 
@@ -164,6 +170,7 @@ void Type::move_assign(Type&& other) {
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::list, list)
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::subscript, subscript)
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::constant_value, constant_value)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::scheme, scheme)
   }
 }
 
@@ -187,6 +194,7 @@ Type::~Type() {
     MT_DEBUG_TYPE_DTOR_CASE(Tag::list, list, List)
     MT_DEBUG_TYPE_DTOR_CASE(Tag::subscript, subscript, Subscript)
     MT_DEBUG_TYPE_DTOR_CASE(Tag::constant_value, constant_value, ConstantValue)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::scheme, scheme, Scheme)
   }
 }
 

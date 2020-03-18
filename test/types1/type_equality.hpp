@@ -46,6 +46,7 @@ private:
   bool equivalence(const types::Scalar& a, const types::Scalar& b) const;
   bool equivalence(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const;
   bool equivalence(const types::List& a, const types::List& b) const;
+  bool equivalence(const types::Tuple& a, const types::Tuple& b) const;
 
   bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const;
   bool match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib) const;

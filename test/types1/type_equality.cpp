@@ -45,7 +45,13 @@ bool TypeEquality::equivalence_same_types(const TypeHandle& a, const TypeHandle&
       return equivalence(value_a.destructured_tuple, value_b.destructured_tuple);
     case Type::Tag::list:
       return equivalence(value_a.list, value_b.list);
+    case Type::Tag::tuple:
+      return equivalence(value_a.tuple, value_b.tuple);
+    case Type::Tag::variable:
+      return true;
     default:
+      type_printer().show2(a, b);
+      std::cout << std::endl;
       assert(false && "Unhandled type equivalence.");
   }
 }
@@ -53,6 +59,10 @@ bool TypeEquality::equivalence_same_types(const TypeHandle& a, const TypeHandle&
 bool TypeEquality::equivalence_different_types(const TypeHandle& a, const TypeHandle& b) const {
   const auto& value_a = store.at(a);
   const auto& value_b = store.at(b);
+
+  if (value_a.is_variable() || value_b.is_variable()) {
+    return true;
+  }
 
   if (value_a.is_destructured_tuple()) {
     return equivalence_different_types(value_a.destructured_tuple, b);
@@ -72,6 +82,10 @@ bool TypeEquality::equivalence(const types::Scalar& a, const types::Scalar& b) c
 
 bool TypeEquality::equivalence(const types::List& a, const types::List& b) const {
   return element_wise_equivalence(a.pattern, b.pattern);
+}
+
+bool TypeEquality::equivalence(const types::Tuple& a, const types::Tuple& b) const {
+  return element_wise_equivalence(a.members, b.members);
 }
 
 bool TypeEquality::equivalence(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const {
@@ -270,24 +284,26 @@ bool TypeEquality::ArgumentComparator::operator()(const types::Abstraction& a, c
   const auto& tup_a = args_a.destructured_tuple;
   const auto& tup_b = args_b.destructured_tuple;
 
-  //  Important -- allow for type equivalence first.
-  if (type_eq.equivalence(tup_a, tup_b)) {
-    return false;
-  }
+  return !type_eq.equivalence(tup_a, tup_b);
 
-  if (tup_a.members.size() != tup_b.members.size()) {
-    return tup_a.members.size() < tup_b.members.size();
-  }
-
-  const int64_t num_members = tup_a.members.size();
-
-  for (int64_t i = 0; i < num_members; i++) {
-    if (!type_eq.equivalence(tup_a.members[i], tup_b.members[i])) {
-      return tup_a.members[i] < tup_b.members[i];
-    }
-  }
-
-  return false;
+//  //  Important -- allow for type equivalence first.
+//  if (type_eq.equivalence(tup_a, tup_b)) {
+//    return false;
+//  }
+//
+//  if (tup_a.members.size() != tup_b.members.size()) {
+//    return tup_a.members.size() < tup_b.members.size();
+//  }
+//
+//  const int64_t num_members = tup_a.members.size();
+//
+//  for (int64_t i = 0; i < num_members; i++) {
+//    if (!type_eq.equivalence(tup_a.members[i], tup_b.members[i])) {
+//      return tup_a.members[i] < tup_b.members[i];
+//    }
+//  }
+//
+//  return false;
 }
 
 }

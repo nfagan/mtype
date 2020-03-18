@@ -1,17 +1,9 @@
 #include "StringVisitor.hpp"
+#include "../display.hpp"
 #include <algorithm>
 #include <cassert>
 
 namespace mt {
-
-namespace terminal_colors {
-  const char* const red = "\x1B[31m";
-  const char* const green = "\x1B[32m";
-  const char* const yellow = "\x1B[33m";
-  const char* const blue = "\x1B[34m";
-  const char* const dflt = "\x1B[0m";
-  std::array<const char*, 5> all = {{red, green, yellow, blue, dflt}};
-}
 
 void StringVisitor::enter_block() const {
   tab_depth++;
@@ -44,6 +36,8 @@ void StringVisitor::maybe_colorize(std::string& str, TokenType type) const {
 
 void StringVisitor::maybe_colorize(std::string& str, int color_code_index) const {
   using namespace terminal_colors;
+
+  const auto all = all_colors();
   const char* color_code = dflt;
   if (color_code_index >= 0 && color_code_index < int(all.size())) {
     color_code = all[color_code_index];

@@ -1,17 +1,22 @@
 #include "unification.hpp"
 #include "typing.hpp"
 #include "debug.hpp"
+#include <algorithm>
+
+#define MT_SHOW1(msg, a) \
+  std::cout << (msg); \
+  type_printer().show((a)); \
+  std::cout << std::endl
+
+#define MT_SHOW2(msg, a, b) \
+  std::cout << (msg) << std::endl; \
+  type_printer().show2((a), (b)); \
+  std::cout << std::endl
 
 namespace mt {
 
 bool Unifier::is_known_subscript_type(const TypeHandle& handle) const {
-  return types_with_known_subscripts.count(handle) > 0;
-}
-
-bool Unifier::is_structured_tuple_type(const mt::TypeHandle& handle) const {
-  assert(handle.is_valid());
-  const auto& t = store.at(handle);
-  return t.tag == Type::Tag::tuple;
+  return is_concrete_argument(handle) && types_with_known_subscripts.count(handle) > 0;
 }
 
 void Unifier::flatten_destructured_tuple(const types::DestructuredTuple& source, std::vector<TypeHandle>& into) const {
@@ -72,6 +77,7 @@ void Unifier::check_push_func(const TypeHandle& source, const types::Abstraction
 
   auto func_it = function_types.find(func);
   if (func_it != function_types.end()) {
+    assert(type_of(func_it->second) == Type::Tag::abstraction);
     push_type_equation(TypeEquation(source, func_it->second));
 
   } else {
@@ -154,7 +160,8 @@ TypeHandle Unifier::apply_to(const TypeHandle& source) {
     case Type::Tag::list:
       return apply_to(source, type.list);
     default:
-      assert(false && "Unhandled.");
+      MT_SHOW1("Unhandled apply to: ", source);
+      assert(false);
   }
 }
 
@@ -237,13 +244,41 @@ TypeHandle Unifier::substitute_one(types::Subscript& sub, const TypeHandle& sour
   return source;
 }
 
+void Unifier::flatten_list(const TypeHandle& source, std::vector<TypeHandle>& into) const {
+  const auto& mem = store.at(source);
+
+  switch (mem.tag) {
+    case Type::Tag::list: {
+      auto sz = mem.list.size();
+      for (int64_t i = 0; i < sz; i++) {
+        flatten_list(mem.list.pattern[i], into);
+      }
+      break;
+    }
+    case Type::Tag::destructured_tuple: {
+      const auto& tup = mem.destructured_tuple;
+      const auto sz = tup.is_outputs() ? std::min(int64_t(1), tup.size()) : tup.size();
+      for (int64_t i = 0; i < sz; i++) {
+        flatten_list(tup.members[i], into);
+      }
+      break;
+    }
+    default:
+      into.push_back(source);
+  }
+}
+
 TypeHandle Unifier::substitute_one(types::List& list, const TypeHandle& source,
                                    const TypeHandle& lhs, const TypeHandle& rhs) {
+  std::vector<TypeHandle> flattened;
+  flatten_list(source, flattened);
+  std::swap(list.pattern, flattened);
+
   TypeHandle last;
   int64_t remove_from = 1;
   int64_t num_remove = 0;
 
-  for (int64_t i = 0; i < list.pattern.size(); i++) {
+  for (int64_t i = 0; i < list.size(); i++) {
     auto& element = list.pattern[i];
     element = substitute_one(element, lhs, rhs);
     assert(element.is_valid());
@@ -280,11 +315,10 @@ void Unifier::unify_one(TypeEquation eq) {
     bool success = simplify(eq.lhs, eq.rhs);
 
     if (!success) {
-      type_printer().show2(eq.lhs, eq.rhs);
-      std::cout << std::endl;
+      MT_SHOW2("Failed to simplify: ", eq.lhs, eq.rhs);
+      assert(false);
     }
 
-    assert(success && "Failed to simplify.");
     return;
 
   } else if (lhs_type != Tag::variable) {
@@ -321,14 +355,14 @@ bool Unifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rhs) 
       return simplify(t0.tuple, t1.tuple);
     case Tag::destructured_tuple:
       return simplify(t0.destructured_tuple, t1.destructured_tuple);
+    case Tag::list:
+      return simplify(t0.list, t1.list);
     case Tag::variable: {
       push_type_equation(TypeEquation(lhs, rhs));
       return true;
     }
     default:
-      std::cout << "Unhandled same types for simplify: " << std::endl;
-      type_printer().show2(lhs, rhs);
-      std::cout << std::endl;
+      MT_SHOW2("Unhandled same types for simplify: ", lhs, rhs);
       assert(false);
   }
 }
@@ -353,9 +387,14 @@ bool Unifier::simplify_different_types(const TypeHandle& lhs, const TypeHandle& 
   } else if (rhs_type == Tag::destructured_tuple) {
     return simplify_different_types(store.at(rhs).destructured_tuple, rhs, lhs);
 
+  } else if (lhs_type == Tag::list) {
+    return simplify_different_types(store.at(lhs).list, lhs, rhs);
+
+  } else if (rhs_type == Tag::list) {
+    return simplify_different_types(store.at(rhs).list, rhs, lhs);
+
   } else {
-    type_printer().show2(lhs, rhs);
-    std::cout << std::endl;
+    MT_SHOW2("Unhandled simplify for diff types: ", lhs, rhs);
     assert(false);
     return false;
   }
@@ -367,6 +406,21 @@ bool Unifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs) {
   } else {
     return simplify_different_types(lhs, rhs);
   }
+}
+
+bool Unifier::simplify_different_types(const types::List& list, const TypeHandle& source, const TypeHandle& rhs) {
+  const auto& rhs_member = store.at(rhs);
+  if (rhs_member.is_scalar()) {
+    for (const auto& el : list.pattern) {
+      push_type_equation(TypeEquation(el, rhs));
+    }
+    return true;
+  }
+
+  MT_SHOW2("Cannot simplify list with non-scalar type.", source, rhs);
+  assert(false);
+
+  return false;
 }
 
 bool Unifier::simplify_different_types(const types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& rhs) {
@@ -534,6 +588,25 @@ bool Unifier::simplify(const types::DestructuredTuple& t0, const types::Destruct
   }
 }
 
+bool Unifier::simplify(const types::List& t0, const types::List& t1) {
+  const int64_t num_a = t0.size();
+  const int64_t num_b = t1.size();
+  const int64_t sz = std::max(num_a, num_b);
+
+  if ((num_a == 0 || num_b == 0) && sz > 0) {
+    //  Empty list with non-empty list.
+    return false;
+  }
+
+  for (int64_t i = 0; i < sz; i++) {
+    const auto& mem_a = t0.pattern[i % num_a];
+    const auto& mem_b = t1.pattern[i % num_b];
+    push_type_equation(TypeEquation(mem_a, mem_b));
+  }
+
+  return true;
+}
+
 bool Unifier::simplify(const types::Tuple& t0, const types::Tuple& t1) {
   return simplify(t0.members, t1.members);
 }
@@ -551,14 +624,8 @@ void Unifier::maybe_unify_subscript(const TypeHandle& source, types::Subscript& 
   if (is_known_subscript_type(sub.principal_argument)) {
     maybe_unify_known_subscript_type(source, sub);
 
-  } else if (is_structured_tuple_type(sub.principal_argument)) {
-    bool res = maybe_unify_subscript_tuple_principal_argument(source, sub);
-    assert(res && "Failed to unify tuple primary subscript.");
-
   } else if (type_of(sub.principal_argument) != Type::Tag::variable) {
-    std::cout << "Principal arg: ";
-    type_printer().show(sub.principal_argument);
-    std::cout << std::endl;
+    MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
     assert(false);
   }
 }
@@ -577,9 +644,6 @@ bool Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::
   assert(!sub0.arguments.empty());
 
   if (!are_concrete_arguments(sub0.arguments)) {
-//    std::cout << "Non concrete: ";
-//    type_printer().show(source);
-//    std::cout << std::endl;
     return true;
   }
 
@@ -595,11 +659,23 @@ bool Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::
 
   auto func_it = function_types.find(abstraction);
   if (func_it != function_types.end()) {
+//    MT_SHOW1("OK: found subscript signature: ", tup_type);
     const auto& func = store.at(func_it->second);
-    assert(func.tag == Type::Tag::abstraction);
 
-    const auto& func_outputs = func.abstraction.outputs;
-    push_type_equation(TypeEquation(sub.outputs, func_outputs));
+    if (func.is_abstraction()) {
+      const auto& func_outputs = func.abstraction.outputs;
+      push_type_equation(TypeEquation(sub.outputs, func_outputs));
+
+    } else {
+      assert(func.tag == Type::Tag::scheme);
+      const auto& func_scheme = func.scheme;
+      const auto new_abstr_handle = instantiation.instantiate(func_scheme);
+      const auto& func_ref = store.at(new_abstr_handle);
+      assert(func_ref.is_abstraction());
+
+      push_type_equation(TypeEquation(sub.outputs, func_ref.abstraction.outputs));
+      push_type_equation(TypeEquation(tup_type, func_ref.abstraction.inputs));
+    }
 
     if (sub.subscripts.size() > 1) {
       auto result_type = store.make_fresh_type_variable_reference();
@@ -616,26 +692,11 @@ bool Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::
     return true;
 
   } else {
-    std::cout << "ERROR: no such subscript signature: ";
-    type_printer().show(tup_type);
-    std::cout << std::endl;
-
+    MT_SHOW1("ERROR: no such subscript signature: ", tup_type);
     registered_funcs[source] = true;
 
     return false;
   }
-}
-
-bool Unifier::maybe_unify_subscript_tuple_principal_argument(const TypeHandle& source, types::Subscript& sub) {
-  assert(sub.subscripts.size() == 1 && "Expected only 1 subscript.");
-  const auto& sub0 = sub.subscripts[0];
-  assert(sub0.method == SubscriptMethod::brace && "Only brace subscripts handled.");
-
-  if (are_concrete_arguments(sub0.arguments)) {
-    std::cout << "Concrete" << std::endl;
-  }
-
-  return true;
 }
 
 Type::Tag Unifier::type_of(const mt::TypeHandle& handle) const {
@@ -758,6 +819,11 @@ void Unifier::make_list_outputs_type() {
 }
 
 void Unifier::make_subscript_references() {
+  make_builtin_parens_subscript_references();
+  make_builtin_brace_subscript_reference();
+}
+
+void Unifier::make_builtin_parens_subscript_references() {
   using types::DestructuredTuple;
   using types::Abstraction;
   using types::List;
@@ -787,8 +853,47 @@ void Unifier::make_subscript_references() {
     function_types[ref_copy] = func_type;
     types_with_known_subscripts.insert(referent_type_handle);
   }
+}
 
-  //  {T}{list<double>} -> list<T>
+void Unifier::make_builtin_brace_subscript_reference() {
+  using types::DestructuredTuple;
+  using types::Abstraction;
+  using types::List;
+
+  auto func_scheme = store.make_type();
+  auto ref_var = store.make_fresh_type_variable_reference();
+  auto tup_type = store.make_type();
+
+  types::Scheme scheme;
+
+  //  {T}
+  store.assign(tup_type, Type(types::Tuple(ref_var)));
+
+  const auto args_type = store.make_type();
+  const auto list_subs_type = store.make_type();
+  const auto list_result_type = store.make_type();
+  const auto result_type = store.make_type();
+  const auto func_type = store.make_type();
+
+  types::Abstraction ref(SubscriptMethod::brace, args_type, result_type);
+  auto ref_copy = ref;
+
+  store.assign(list_subs_type, Type(List(store.double_type_handle)));  //  list<double>
+  store.assign(list_result_type, Type(List(ref_var)));  //  list<T>
+
+  store.assign(args_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, tup_type, list_subs_type)));
+  store.assign(result_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, list_result_type)));
+
+  scheme.type = func_type;
+  scheme.parameters.push_back(ref_var);
+
+  store.assign(func_type, Type(std::move(ref)));
+  store.assign(func_scheme, Type(std::move(scheme)));
+
+  function_types[ref_copy] = func_scheme;
+  types_with_known_subscripts.insert(tup_type);
 }
 
 void Unifier::make_binary_operators() {

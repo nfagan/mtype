@@ -53,9 +53,9 @@ void TypeVisitor::function_def_node(const FunctionDefNode& node) {
   const auto output_handle = type_store.make_type();
 
   type_store.assign(input_handle,
-                    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, std::move(function_inputs))));
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, std::move(function_inputs))));
   type_store.assign(output_handle,
-                    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(function_outputs))));
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(function_outputs))));
 
   type_store.assign(type_handle, Type(Abstraction(function_name, input_handle, output_handle)));
   unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), type_handle));

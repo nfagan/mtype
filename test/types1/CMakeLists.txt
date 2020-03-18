@@ -8,6 +8,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         main.cpp
         debug.hpp
         debug.cpp
+        instance.hpp
+        instance.cpp
         test_cases.hpp
         test_cases.cpp
         type.hpp

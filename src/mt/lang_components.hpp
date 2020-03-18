@@ -117,4 +117,6 @@ int precedence(BinaryOperator op);
 const char* to_string(IdentifierType type);
 const char* to_string(BinaryOperator op);
 
+const char* to_symbol(SubscriptMethod method);
+
 }

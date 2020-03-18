@@ -1,5 +1,6 @@
 #include "debug.hpp"
-#include "typing.hpp"
+#include "mt/display.hpp"
+#include <cassert>
 
 namespace mt {
 
@@ -8,15 +9,16 @@ namespace {
 const char* tuple_usage_shorthand(types::DestructuredTuple::Usage usage) {
   switch (usage) {
     case types::DestructuredTuple::Usage::definition_inputs:
-      return "in";
+      return "i";
     case types::DestructuredTuple::Usage::definition_outputs:
-      return "out";
+      return "o";
     case types::DestructuredTuple::Usage::rvalue:
       return "r";
     case types::DestructuredTuple::Usage::lvalue:
       return "l";
     default:
       assert(false && "Unhandled.");
+      return "";
   }
 }
 
@@ -47,6 +49,9 @@ void DebugTypePrinter::show(const Type& t) const {
     case Tag::subscript:
       show(t.subscript);
       break;
+    case Tag::scheme:
+      show(t.scheme);
+      break;
     default:
       assert(false && "Unhandled.");
   }
@@ -57,17 +62,17 @@ void DebugTypePrinter::show(const TypeHandle& handle) const {
 }
 
 void DebugTypePrinter::show(const types::Scalar& scl) const {
-  std::cout << "scl(" << scl.identifier.name << ")";
+  std::cout << color(terminal_colors::green) << "s" << scl.identifier.name << color(terminal_colors::dflt);
 }
 
 void DebugTypePrinter::show(const types::Variable& var) const {
-  std::cout << "T" << var.identifier.name;
+  std::cout << color(terminal_colors::red) << "T" << var.identifier.name << color(terminal_colors::dflt);
 }
 
 void DebugTypePrinter::show(const types::Abstraction& abstr) const {
   std::cout << "[";
   show(abstr.outputs);
-  std::cout << "] = ";
+  std::cout << "] = " << color(terminal_colors::yellow);
 
   if (abstr.is_function()) {
     std::cout << string_registry.at(abstr.name.full_name());
@@ -76,16 +81,16 @@ void DebugTypePrinter::show(const types::Abstraction& abstr) const {
     std::cout << to_string(abstr.binary_operator);
 
   } else if (abstr.type == types::Abstraction::Type::subscript_reference) {
-    std::cout << ".";
+    std::cout << to_symbol(abstr.subscript_method);
   }
 
-  std::cout << "(";
+  std::cout << color(terminal_colors::dflt) << "(";
   show(abstr.inputs);
   std::cout << ")";
 }
 
 void DebugTypePrinter::show(const types::DestructuredTuple& tup) const {
-  std::cout << "tp<" << tuple_usage_shorthand(tup.usage) << ">[";
+  std::cout << "tp-" << tuple_usage_shorthand(tup.usage) << "[";
   show(tup.members, ", ");
   std::cout << "]";
 }
@@ -100,7 +105,7 @@ void DebugTypePrinter::show(const std::vector<TypeHandle>& handles, const char* 
   for (int64_t i = 0; i < handles.size(); i++) {
     show(handles[i]);
     if (i < handles.size()-1) {
-      std::cout << ", ";
+      std::cout << delim;
     }
   }
 }
@@ -120,6 +125,17 @@ void DebugTypePrinter::show(const types::Subscript& subscript) const {
   }
   std::cout << ")) -> ";
   show(subscript.outputs);
+}
+
+void DebugTypePrinter::show(const types::Scheme& scheme) const {
+  std::cout << "given<";
+  show(scheme.parameters, ", ");
+  std::cout << ">";
+  show(scheme.type);
+}
+
+const char* DebugTypePrinter::color(const char* color_code) const {
+  return colorize ? color_code : "";
 }
 
 }

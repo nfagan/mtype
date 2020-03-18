@@ -11,6 +11,8 @@ set(sources
         character_traits.hpp
         definitions.hpp
         definitions.cpp
+        display.hpp
+        display.cpp
         error.hpp
         error.cpp
         file_resolution.hpp

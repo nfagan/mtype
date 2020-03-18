@@ -4,6 +4,20 @@
 
 namespace mt {
 
+const char* to_symbol(SubscriptMethod method) {
+  switch (method) {
+    case SubscriptMethod::parens:
+      return "()";
+    case SubscriptMethod::brace:
+      return "{}";
+    case SubscriptMethod::period:
+      return ".";
+    default:
+      assert(false && "Unhandled");
+      return "";
+  }
+}
+
 const char* to_string(BinaryOperator op) {
   switch (op) {
     case BinaryOperator::plus:

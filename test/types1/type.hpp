@@ -80,14 +80,19 @@ namespace types {
   };
 
   struct Scheme {
+    Scheme() = default;
+
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Scheme)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Scheme)
+
     TypeHandle type;
     std::vector<TypeHandle> parameters;
   };
 
-  struct Instance {
-    TypeHandle scheme;
-    std::vector<TypeHandle> arguments;
-  };
+//  struct Instance {
+//    TypeHandle scheme;
+//    std::vector<TypeHandle> arguments;
+//  };
 
   struct Scalar {
     Scalar() = default;
@@ -290,6 +295,13 @@ namespace types {
       return type == Type::binary_operator;
     }
 
+    static Abstraction clone(const Abstraction& a, const TypeHandle& inputs, const TypeHandle& outputs) {
+      auto b = a;
+      b.inputs = inputs;
+      b.outputs = outputs;
+      return b;
+    }
+
   private:
     void conditional_assign_operator(const Abstraction& other) {
       if (other.type == Type::binary_operator) {
@@ -341,7 +353,8 @@ public:
     destructured_tuple,
     list,
     subscript,
-    constant_value
+    constant_value,
+    scheme
   };
 
   Type() : Type(types::Null{}) {
@@ -361,6 +374,7 @@ public:
   MT_DEBUG_TYPE_RVALUE_CTOR(types::List, Tag::list, list);
   MT_DEBUG_TYPE_RVALUE_CTOR(types::Subscript, Tag::subscript, subscript);
   MT_DEBUG_TYPE_RVALUE_CTOR(types::ConstantValue, Tag::constant_value, constant_value);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Scheme, Tag::scheme, scheme);
 
   Type(const Type& other) : tag(other.tag) {
     copy_construct(other);
@@ -375,6 +389,10 @@ public:
 
   ~Type();
 
+  [[nodiscard]] bool is_scalar() const {
+    return tag == Tag::scalar;
+  }
+
   [[nodiscard]] bool is_variable() const {
     return tag == Tag::variable;
   }
@@ -385,6 +403,10 @@ public:
 
   [[nodiscard]] bool is_list() const {
     return tag == Tag::list;
+  }
+
+  [[nodiscard]] bool is_abstraction() const {
+    return tag == Tag::abstraction;
   }
 
 private:
@@ -409,6 +431,7 @@ public:
     types::List list;
     types::Subscript subscript;
     types::ConstantValue constant_value;
+    types::Scheme scheme;
   };
 };
 

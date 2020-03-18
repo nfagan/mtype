@@ -4,6 +4,7 @@
 #include "type.hpp"
 #include "type_equality.hpp"
 #include "type_store.hpp"
+#include "instance.hpp"
 #include <map>
 
 namespace mt {
@@ -42,7 +43,8 @@ public:
   arg_comparator(type_eq),
   type_equiv_comparator(type_eq),
   function_types(arg_comparator),
-  types_with_known_subscripts(type_equiv_comparator) {
+  types_with_known_subscripts(type_equiv_comparator),
+  instantiation(store) {
     //
   }
 
@@ -86,8 +88,10 @@ private:
   bool simplify(const types::Scalar& t0, const types::Scalar& t1);
   bool simplify(const types::Tuple& t0, const types::Tuple& t1);
   bool simplify(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1);
+  bool simplify(const types::List& t0, const types::List& t1);
   bool simplify(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1);
 
+  bool simplify_different_types(const types::List& list, const TypeHandle& source, const TypeHandle& rhs);
   bool simplify_different_types(const types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& rhs);
 
   bool simplify_expanding_members(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1);
@@ -103,7 +107,6 @@ private:
 
   void maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub);
   bool maybe_unify_known_subscript_type(const TypeHandle& source, types::Subscript& sub);
-  bool maybe_unify_subscript_tuple_principal_argument(const TypeHandle& source, types::Subscript& sub);
 
   void check_push_func(const TypeHandle& source, const types::Abstraction& func);
   void push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num);
@@ -113,14 +116,16 @@ private:
   bool is_concrete_argument(const TypeHandle& arg) const;
   bool are_concrete_arguments(const std::vector<TypeHandle>& args) const;
 
-  bool is_structured_tuple_type(const TypeHandle& handle) const;
   bool is_known_subscript_type(const TypeHandle& handle) const;
 
   void flatten_destructured_tuple(const types::DestructuredTuple& source, std::vector<TypeHandle>& into) const;
+  void flatten_list(const TypeHandle& source, std::vector<TypeHandle>& into) const;
 
   void make_known_types();
   void make_binary_operators();
   void make_subscript_references();
+  void make_builtin_parens_subscript_references();
+  void make_builtin_brace_subscript_reference();
   void make_free_functions();
   void make_min();
   void make_fileparts();
@@ -141,6 +146,8 @@ private:
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
   std::map<types::Abstraction, TypeHandle, TypeEquality::ArgumentComparator> function_types;
   std::set<TypeHandle, TypeEquality::TypeEquivalenceComparator> types_with_known_subscripts;
+
+  Instantiation instantiation;
 };
 
 }
