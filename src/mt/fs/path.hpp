@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <iostream>
+#include "../utility.hpp"
 
 namespace mt {
 
@@ -12,6 +14,8 @@ public:
   }
 
   ~FilePath() = default;
+  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(FilePath)
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(FilePath)
 
   bool empty() const {
     return component.empty();
@@ -23,6 +27,10 @@ public:
 
   const std::string& str() const {
     return component;
+  }
+
+  inline friend std::ostream& operator<<(std::ostream& stream, const FilePath& file_path) {
+    return stream << file_path.component;
   }
 
 private:

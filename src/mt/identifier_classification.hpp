@@ -13,6 +13,7 @@
 namespace mt {
 
 class StringRegistry;
+class CodeFileDescriptor;
 
 /*
  * VariableAssignmentContext
@@ -206,6 +207,7 @@ class IdentifierClassifier {
 public:
   IdentifierClassifier(StringRegistry* string_registry,
                        Store* store,
+                       const CodeFileDescriptor* file_descriptor,
                        std::string_view text);
   ~IdentifierClassifier() = default;
 
@@ -307,6 +309,7 @@ private:
 private:
   StringRegistry* string_registry;
   Store* store;
+  const CodeFileDescriptor* file_descriptor;
   std::string_view text;
 
   std::vector<IdentifierScope> scopes;

@@ -4,13 +4,14 @@
 namespace mt {
 
 FileParseResult parse_file(const std::vector<Token>& tokens, std::string_view contents, AstGenerator::ParseInputs& inputs) {
-  mt::AstGenerator ast_gen;
+  AstGenerator ast_gen(inputs.file_descriptor);
+
   auto parse_result = ast_gen.parse(tokens, contents, inputs);
   if (!parse_result) {
     return make_error<FileParseError, FileParseSuccess>(std::move(parse_result.error));
   }
 
-  mt::IdentifierClassifier classifier(inputs.string_registry, inputs.store, contents);
+  IdentifierClassifier classifier(inputs.string_registry, inputs.store, inputs.file_descriptor, contents);
 
   auto root_block = std::move(parse_result.value);
   classifier.transform_root(root_block);
@@ -54,6 +55,7 @@ FileScanResult scan_file(const std::string& file_path) {
   FileScanResult success;
   swap(success.value.scan_info, scan_info);
   swap(success.value.file_contents, contents);
+  success.value.file_descriptor = CodeFileDescriptor(FilePath(file_path));
 
   return success;
 }

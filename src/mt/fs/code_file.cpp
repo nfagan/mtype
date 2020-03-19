@@ -46,8 +46,4 @@ CodeFileType code_file_type_from_root_block(const RootBlock& root) {
   }
 }
 
-bool CodeFilePath::represents_anonymous_code() const {
-  return file_path.empty();
-}
-
 }

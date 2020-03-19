@@ -4,6 +4,7 @@
 #include "text.hpp"
 #include "display.hpp"
 #include "keyword.hpp"
+#include "fs/code_file.hpp"
 #include <cassert>
 
 namespace mt {
@@ -69,14 +70,20 @@ void ShowParseErrors::show(const ParseError& err, int64_t index) {
     const auto transformed = err.make_message(is_rich_text);
     const auto start = err.is_null_token() ? 0 : err.at_token.lexeme.data() - err.text.data();
 
-    std::cout << stylize(style::underline) << index;
+    std::cout << stylize(style::bold) << index;
+
+    if (err.descriptor) {
+      std::cout << ". " << err.descriptor->file_path << " ";
+    } else {
+      std::cout << ". <anonymous> ";
+    }
 
     if (row_col_indices) {
       auto new_line_res = row_col_indices->line_info(start);
       auto row = new_line_res ? new_line_res.value().row : -1;
       auto col = new_line_res ? new_line_res.value().column : -1;
 
-      std::cout << "@" << row << ":" << col << "";
+      std::cout << "" << row << ":" << col << "";
     }
 
     std::cout << stylize(style::dflt) << std::endl << std::endl;

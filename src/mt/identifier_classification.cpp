@@ -317,9 +317,11 @@ IdentifierScope* IdentifierScope::parent() {
 
 IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
                                            Store* store,
+                                           const CodeFileDescriptor* file_descriptor,
                                            std::string_view text) :
   string_registry(string_registry),
   store(store),
+  file_descriptor(file_descriptor),
   text(text),
   scope_depth(-1) {
   //  Begin on rhs.
@@ -918,7 +920,7 @@ ParseError IdentifierClassifier::make_error_assignment_to_non_variable(const Tok
   std::string msg = "The usage of `" + identifier_str + "` as a variable assignment target ";
   msg += "is inconsistent with its previous usage as a `" + type_str + "`.";
 
-  return ParseError(text, at_token, msg);
+  return ParseError(text, at_token, msg, file_descriptor);
 }
 
 ParseError IdentifierClassifier::make_error_variable_referenced_before_assignment(const Token& at_token,
@@ -928,15 +930,16 @@ ParseError IdentifierClassifier::make_error_variable_referenced_before_assignmen
   std::string msg = "The identifier `" + identifier_str + "`, apparently a variable, might be ";
   msg += "referenced before it is explicitly assigned a value.";
 
-  return ParseError(text, at_token, msg);
+  return ParseError(text, at_token, msg, file_descriptor);
 }
 
 ParseError IdentifierClassifier::make_error_implicit_variable_initialization(const mt::Token& at_token) {
-  return ParseError(text, at_token, "Variables cannot be implicitly initialized with subscripts.");
+  return ParseError(text, at_token,
+    "Variables cannot be implicitly initialized with subscripts.", file_descriptor);
 }
 
 ParseError IdentifierClassifier::make_error_invalid_function_call_expr(const Token& at_token) {
-  return ParseError(text, at_token, "Functions cannot be `.` or `{}` referenced.");
+  return ParseError(text, at_token, "Functions cannot be `.` or `{}` referenced.", file_descriptor);
 }
 
 ParseError IdentifierClassifier::make_error_function_reference_to_non_function(const Token& at_token,
@@ -948,19 +951,19 @@ ParseError IdentifierClassifier::make_error_function_reference_to_non_function(c
   std::string msg = "The usage of `" + identifier_str + "` as a function reference ";
   msg += "is inconsistent with its previous usage as a `" + type_str + "`.";
 
-  return ParseError(text, at_token, msg);
+  return ParseError(text, at_token, msg, file_descriptor);
 }
 
 ParseError IdentifierClassifier::make_error_shadowed_import(const Token& at_token, IdentifierType present_type) {
   auto type_str = std::string(to_string(present_type));
   std::string msg = "Import is shadowed by identifier of type `" + type_str + "`.";
-  return ParseError(text, at_token, msg);
+  return ParseError(text, at_token, msg, file_descriptor);
 }
 
 ParseError IdentifierClassifier::make_error_pre_declared_qualified_variable(const Token& at_token, const MatlabIdentifier& identifier) {
   auto identifier_str = string_registry->at(identifier.full_name());
   std::string msg = "The declaration of identifier `" + identifier_str + "` must precede its initialization.";
-  return ParseError(text, at_token, msg);
+  return ParseError(text, at_token, msg, file_descriptor);
 }
 
 }

@@ -28,10 +28,12 @@ int main(int argc, char** argv) {
   auto& scan_info = scan_result.value.scan_info;
   const auto& tokens = scan_info.tokens;
   const auto& contents = scan_result.value.file_contents;
+  const auto& file_descriptor = scan_result.value.file_descriptor;
 
   Store store;
   StringRegistry str_registry;
-  AstGenerator::ParseInputs parse_inputs(&str_registry, &store, scan_info.functions_are_end_terminated);
+  AstGenerator::ParseInputs parse_inputs(&str_registry, &store,
+                                         &file_descriptor, scan_info.functions_are_end_terminated);
 
   auto parse_result = parse_file(tokens, contents, parse_inputs);
   if (!parse_result) {

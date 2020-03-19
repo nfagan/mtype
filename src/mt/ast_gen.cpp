@@ -2603,94 +2603,96 @@ void AstGenerator::add_error(mt::ParseError&& err) {
 
 ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const mt::Token& at_token) const {
   const char* msg = "`()` indexing must appear last in an index expression.";
-  return ParseError(text, at_token, msg);
+  return ParseError(text, at_token, msg, file_descriptor);
 }
 
 ParseError AstGenerator::make_error_invalid_expr_token(const mt::Token& at_token) const {
   const auto type_name = "`" + std::string(to_string(at_token.type)) + "`";
   const auto message = std::string("Token ") + type_name + " is not permitted in expressions.";
-  return ParseError(text, at_token, message);
+  return ParseError(text, at_token, message, file_descriptor);
 }
 
 ParseError AstGenerator::make_error_incomplete_expr(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Expression is incomplete.");
+  return ParseError(text, at_token, "Expression is incomplete.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "The expression on the left is not a valid target for assignment.");
+  return ParseError(text, at_token, "The expression on the left is not a valid target for assignment.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Expected an expression on the left hand side.");
+  return ParseError(text, at_token, "Expected an expression on the left hand side.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_multiple_exprs_in_parens_grouping_expr(const mt::Token& at_token) const {
   return ParseError(text, at_token,
-    "`()` grouping expressions cannot contain multiple sub-expressions or span multiple lines.");
+    "`()` grouping expressions cannot contain multiple sub-expressions or span multiple lines.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate `otherwise` in `switch` statement.");
+  return ParseError(text, at_token, "Duplicate `otherwise` in `switch` statement.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_expected_non_empty_type_variable_identifiers(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Expected a non-empty list of identifiers.");
+  return ParseError(text, at_token, "Expected a non-empty list of identifiers.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_duplicate_input_parameter_in_expr(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Anonymous function contains a duplicate input parameter identifier.");
+  return ParseError(text, at_token,
+    "Anonymous function contains a duplicate input parameter identifier.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_loop_control_flow_manipulator_outside_loop(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "A `break` or `continue` statement cannot appear outside a loop statement.");
+  return ParseError(text, at_token,
+    "A `break` or `continue` statement cannot appear outside a loop statement.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_invalid_function_def_location(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "A `function` definition cannot appear here.");
+  return ParseError(text, at_token, "A `function` definition cannot appear here.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_duplicate_local_function(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate local function.");
+  return ParseError(text, at_token, "Duplicate local function.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_incomplete_import_stmt(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "An `import` statement must include a compound identifier.");
+  return ParseError(text, at_token, "An `import` statement must include a compound identifier.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_invalid_period_qualified_function_def(const Token& at_token) const {
-  return ParseError(text, at_token, "A period-qualified `function` is invalid here.");
+  return ParseError(text, at_token, "A period-qualified `function` is invalid here.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_duplicate_class_property(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate property.");
+  return ParseError(text, at_token, "Duplicate property.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_duplicate_method(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate method.");
+  return ParseError(text, at_token, "Duplicate method.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_duplicate_class_def(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate class definition.");
+  return ParseError(text, at_token, "Duplicate class definition.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_invalid_superclass_method_reference_expr(const Token& at_token) const {
-  return ParseError(text, at_token, "Invalid superclass method reference.");
+  return ParseError(text, at_token, "Invalid superclass method reference.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_unrecognized_method_attribute(const Token& at_token) const {
-  return ParseError(text, at_token, "Unrecognized method attribute.");
+  return ParseError(text, at_token, "Unrecognized method attribute.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_invalid_boolean_attribute_value(const Token& at_token) const {
-  return ParseError(text, at_token, "Expected attribute value to be one of `true` or `false`.");
+  return ParseError(text, at_token, "Expected attribute value to be one of `true` or `false`.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_invalid_access_attribute_value(const Token& at_token) const {
-  return ParseError(text, at_token, "Unrecognized access attribute value.");
+  return ParseError(text, at_token, "Unrecognized access attribute value.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_empty_brace_subscript(const Token& at_token) const {
-  return ParseError(text, at_token, "`{}` subscripts require arguments.");
+  return ParseError(text, at_token, "`{}` subscripts require arguments.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,
@@ -2706,7 +2708,7 @@ ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_toke
   std::string message = "Expected to receive one of these types: \n\n" + expected_str;
   message += (std::string("\n\nInstead, received: `") + to_string(at_token.type) + "`.");
 
-  return ParseError(text, at_token, std::move(message));
+  return ParseError(text, at_token, std::move(message), file_descriptor);
 }
 
 }

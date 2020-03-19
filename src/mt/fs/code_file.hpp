@@ -30,22 +30,13 @@ class CodeDirectory {
 //  CodeDirectoryHandle parent;
 };
 
-class CodeFilePath {
+class CodeFileDescriptor {
 public:
-  CodeFilePath() = default;
-  CodeFilePath(const FilePath& path) : file_path(path) {
+  explicit CodeFileDescriptor(FilePath file_path) :
+  file_type(CodeFileType::none), file_path(std::move(file_path)) {
     //
   }
 
-  ~CodeFilePath() = default;
-
-  bool represents_anonymous_code() const;
-
-private:
-  FilePath file_path;
-};
-
-class CodeFileDescriptor {
   CodeFileDescriptor() : file_type(CodeFileType::none) {
     //
   }
@@ -53,9 +44,6 @@ class CodeFileDescriptor {
 
 public:
   CodeFileType file_type;
-
-private:
-  CodeFilePath file_path;
-  //  CodeDirectoryHandle parent_directory_handle;
+  FilePath file_path;
 };
 }

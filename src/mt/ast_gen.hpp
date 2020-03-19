@@ -14,6 +14,7 @@
 namespace mt {
 
 class StringRegistry;
+class CodeFileDescriptor;
 
 /*
  * BlockDepths
@@ -49,20 +50,27 @@ public:
   struct ParseInputs {
     ParseInputs(StringRegistry* string_registry,
                 Store* store,
+                const CodeFileDescriptor* file_descriptor,
                 bool functions_are_end_terminated) :
                 string_registry(string_registry),
                 store(store),
-                functions_are_end_terminated(functions_are_end_terminated) {
+                file_descriptor(file_descriptor),
+                functions_are_end_terminated(functions_are_end_terminated){
       //
     }
 
     StringRegistry* string_registry;
     Store* store;
+    const CodeFileDescriptor* file_descriptor;
     bool functions_are_end_terminated;
   };
 
 public:
-  AstGenerator() : string_registry(nullptr), is_end_terminated_function(true) {
+  AstGenerator() : AstGenerator(nullptr) {
+    //
+  }
+  explicit AstGenerator(const CodeFileDescriptor* file_descriptor) :
+  string_registry(nullptr), store(nullptr), file_descriptor(file_descriptor), is_end_terminated_function(true) {
     //
   }
 
@@ -235,6 +243,7 @@ private:
   std::string_view text;
   StringRegistry* string_registry;
   Store* store;
+  const CodeFileDescriptor* file_descriptor;
   BlockDepths block_depths;
   ClassDefState class_state;
 

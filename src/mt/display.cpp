@@ -12,6 +12,9 @@ namespace style {
   const char* const cyan = "\x1B[36m";
   const char* const dflt = "\x1B[0m";
   const char* const underline = "\x1B[4m";
+  const char* const bold = "\x1B[1m";
+  const char* const italic = "\x1B[3m";
+  const char* const faint = "\x1B[2m";
 
   std::array<const char*, 7> all_colors() {
     return {{red, green, yellow, blue, magenta, cyan, dflt}};

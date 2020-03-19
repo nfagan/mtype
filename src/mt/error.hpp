@@ -7,14 +7,21 @@
 namespace mt {
 
 class TextRowColumnIndices;
+class CodeFileDescriptor;
 
 class ParseError {
   friend class ShowParseErrors;
 public:
-  ParseError() = default;
+  ParseError() : descriptor(nullptr) {
+    //
+  }
 
-  ParseError(std::string_view text, const Token& at_token, std::string message) :
-    text(text), at_token(at_token), message(std::move(message)) {
+  ParseError(std::string_view text, const Token& at_token, std::string message) : ParseError(text, at_token, message, nullptr) {
+    //
+  }
+
+  ParseError(std::string_view text, const Token& at_token, std::string message, const CodeFileDescriptor* descriptor) :
+    text(text), at_token(at_token), message(std::move(message)), descriptor(descriptor) {
     //
   }
 
@@ -28,6 +35,7 @@ private:
   std::string_view text;
   Token at_token;
   std::string message;
+  const CodeFileDescriptor* descriptor;
 };
 
 using ParseErrors = std::vector<ParseError>;

@@ -29,6 +29,7 @@ struct FileScanError {
 
 struct FileScanSuccess {
   std::string file_contents;
+  CodeFileDescriptor file_descriptor;
   ScanInfo scan_info;
 };
 
