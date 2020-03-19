@@ -69,6 +69,7 @@ private:
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::DestructuredTuple& tup);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Subscript& sub);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::List& list);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Assignment& assignment);
   [[nodiscard]] TypeHandle apply_to(const TypeHandle& source);
   void apply_to(std::vector<TypeHandle>& sources);
 
@@ -78,6 +79,7 @@ private:
   [[nodiscard]] TypeHandle substitute_one(types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
   [[nodiscard]] TypeHandle substitute_one(types::Subscript& sub, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
   [[nodiscard]] TypeHandle substitute_one(types::List& list, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Assignment& assignment, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
   [[nodiscard]] TypeHandle substitute_one(const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
   void substitute_one(std::vector<TypeHandle>& sources, const TypeHandle& lhs, const TypeHandle& rhs);
 
@@ -109,6 +111,7 @@ private:
   void maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub);
   bool maybe_unify_known_subscript_type(const TypeHandle& source, types::Subscript& sub);
 
+  void check_assignment(const TypeHandle& source, const types::Assignment& assignment);
   void check_push_func(const TypeHandle& source, const types::Abstraction& func);
   void push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num);
 
@@ -125,6 +128,7 @@ private:
   void make_known_types();
   void make_binary_operators();
   void make_subscript_references();
+  void make_concatenations();
   void make_builtin_parens_subscript_references();
   void make_builtin_brace_subscript_reference();
   void make_free_functions();
@@ -147,6 +151,7 @@ private:
   TypeEquality::ArgumentComparator arg_comparator;
   TypeEquality::TypeEquivalenceComparator type_equiv_comparator;
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
+  std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_assignments;
   std::map<types::Abstraction, TypeHandle, TypeEquality::ArgumentComparator> function_types;
   std::set<TypeHandle, TypeEquality::TypeEquivalenceComparator> types_with_known_subscripts;
 

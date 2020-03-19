@@ -27,14 +27,14 @@ y1 = in_list( min(1, "c"), out_list(1), 1, 1 );
 d = {1};
 a = {1};
 
-% xx = zz@(a, b, c) 1;
-% if (true )
-% end
-% xx = zz@(a, b, c) 1;
-
-% [x2, x3] = list_dt_out( 1 );
-
 % In an assignment a = b, where b resolves to a list<T>, and a is a variable,
 % a resolves to T.
   
+end
+
+function [z] = another()
+
+z = {1};
+x3 = z{1};
+
 end

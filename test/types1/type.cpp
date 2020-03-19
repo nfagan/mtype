@@ -46,6 +46,8 @@ const char* to_string(Type::Tag tag) {
       return "constant_value";
     case Tag::scheme:
       return "scheme";
+    case Tag::assignment:
+      return "assignment";
     default:
       assert(false && "Unhandled.");
   }
@@ -75,6 +77,7 @@ void Type::default_construct() noexcept {
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::assignment, types::Assignment, assignment)
   }
 }
 
@@ -99,6 +102,7 @@ void Type::move_construct(Type&& other) noexcept {
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::assignment, types::Assignment, assignment)
   }
 }
 
@@ -123,6 +127,7 @@ void Type::copy_construct(const Type& other) {
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::subscript, types::Subscript, subscript)
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::assignment, types::Assignment, assignment)
   }
 }
 
@@ -147,6 +152,7 @@ void Type::copy_assign(const Type& other) {
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::subscript, subscript)
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::constant_value, constant_value)
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::scheme, scheme)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::assignment, assignment)
   }
 }
 
@@ -171,6 +177,7 @@ void Type::move_assign(Type&& other) {
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::subscript, subscript)
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::constant_value, constant_value)
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::scheme, scheme)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::assignment, assignment)
   }
 }
 
@@ -195,6 +202,7 @@ Type::~Type() {
     MT_DEBUG_TYPE_DTOR_CASE(Tag::subscript, subscript, Subscript)
     MT_DEBUG_TYPE_DTOR_CASE(Tag::constant_value, constant_value, ConstantValue)
     MT_DEBUG_TYPE_DTOR_CASE(Tag::scheme, scheme, Scheme)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::assignment, assignment, Assignment)
   }
 }
 

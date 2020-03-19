@@ -52,6 +52,9 @@ void DebugTypePrinter::show(const Type& t) const {
     case Tag::scheme:
       show(t.scheme);
       break;
+    case Tag::assignment:
+      show(t.assignment);
+      break;
     default:
       assert(false && "Unhandled.");
   }
@@ -82,6 +85,9 @@ void DebugTypePrinter::show(const types::Abstraction& abstr) const {
 
   } else if (abstr.type == types::Abstraction::Type::subscript_reference) {
     std::cout << to_symbol(abstr.subscript_method);
+
+  } else if (abstr.type == types::Abstraction::Type::concatenation) {
+    std::cout << to_symbol(abstr.concatenation_direction);
   }
 
   std::cout << dflt_color() << "(";
@@ -133,6 +139,12 @@ void DebugTypePrinter::show(const types::Scheme& scheme) const {
   show(scheme.parameters, ", ");
   std::cout << ">";
   show(scheme.type);
+}
+
+void DebugTypePrinter::show(const types::Assignment& assignment) const {
+  show(assignment.lhs);
+  std::cout << " = ";
+  show(assignment.rhs);
 }
 
 const char* DebugTypePrinter::color(const char* color_code) const {

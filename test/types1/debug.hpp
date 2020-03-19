@@ -24,6 +24,7 @@ public:
   void show(const types::List& list) const;
   void show(const types::Subscript& subscript) const;
   void show(const types::Scheme& scheme) const;
+  void show(const types::Assignment& assignment) const;
   void show(const std::vector<TypeHandle>& handles, const char* delim) const;
 
   template <typename T, typename U>

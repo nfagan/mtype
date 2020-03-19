@@ -91,11 +91,6 @@ namespace types {
     std::vector<TypeHandle> parameters;
   };
 
-//  struct Instance {
-//    TypeHandle scheme;
-//    std::vector<TypeHandle> arguments;
-//  };
-
   struct Scalar {
     Scalar() = default;
     explicit Scalar(const TypeIdentifier& id) : identifier(id) {
@@ -235,12 +230,25 @@ namespace types {
     std::vector<TypeHandle> members;
   };
 
+  struct Assignment {
+    Assignment() = default;
+    Assignment(const TypeHandle& lhs, const TypeHandle& rhs) : lhs(lhs), rhs(rhs) {
+      //
+    }
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Assignment)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Assignment)
+
+    TypeHandle lhs;
+    TypeHandle rhs;
+  };
+
   struct Abstraction {
     enum class Type : uint8_t {
       unary_operator = 0,
       binary_operator,
       subscript_reference,
       function,
+      concatenation
     };
 
     Abstraction() : type(Type::function) {
@@ -261,6 +269,10 @@ namespace types {
     }
     Abstraction(MatlabIdentifier name, const TypeHandle& inputs, const TypeHandle& outputs) :
     type(Type::function), name(name), inputs(inputs), outputs(outputs) {
+      //
+    }
+    Abstraction(ConcatenationDirection dir, const TypeHandle& inputs, const TypeHandle& outputs) :
+      type(Type::concatenation), concatenation_direction(dir), inputs(inputs), outputs(outputs) {
       //
     }
 
@@ -317,6 +329,9 @@ namespace types {
 
       } else if (other.type == Type::function) {
         name = other.name;
+
+      } else if (other.type == Type::concatenation) {
+        concatenation_direction = other.concatenation_direction;
       }
     }
   public:
@@ -327,6 +342,7 @@ namespace types {
       UnaryOperator unary_operator;
       SubscriptMethod subscript_method;
       MatlabIdentifier name;
+      ConcatenationDirection concatenation_direction;
     };
 
     TypeHandle outputs;
@@ -356,7 +372,8 @@ public:
     list,
     subscript,
     constant_value,
-    scheme
+    scheme,
+    assignment
   };
 
   Type() : Type(types::Null{}) {
@@ -377,6 +394,7 @@ public:
   MT_DEBUG_TYPE_RVALUE_CTOR(types::Subscript, Tag::subscript, subscript);
   MT_DEBUG_TYPE_RVALUE_CTOR(types::ConstantValue, Tag::constant_value, constant_value);
   MT_DEBUG_TYPE_RVALUE_CTOR(types::Scheme, Tag::scheme, scheme);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Assignment, Tag::assignment, assignment);
 
   Type(const Type& other) : tag(other.tag) {
     copy_construct(other);
@@ -395,6 +413,10 @@ public:
     return tag == Tag::scalar;
   }
 
+  [[nodiscard]] bool is_tuple() const {
+    return tag == Tag::tuple;
+  }
+
   [[nodiscard]] bool is_variable() const {
     return tag == Tag::variable;
   }
@@ -409,6 +431,10 @@ public:
 
   [[nodiscard]] bool is_abstraction() const {
     return tag == Tag::abstraction;
+  }
+
+  [[nodiscard]] bool is_scheme() const {
+    return tag == Tag::scheme;
   }
 
 private:
@@ -434,6 +460,7 @@ public:
     types::Subscript subscript;
     types::ConstantValue constant_value;
     types::Scheme scheme;
+    types::Assignment assignment;
   };
 };
 

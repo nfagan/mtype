@@ -4,6 +4,18 @@
 
 namespace mt {
 
+const char* to_symbol(ConcatenationDirection dir) {
+  switch (dir) {
+    case ConcatenationDirection::vertical:
+      return "[;]";
+    case ConcatenationDirection::horizontal:
+      return "[,]";
+    default:
+      assert(false && "Unhandled");
+      return "";
+  }
+}
+
 const char* to_symbol(SubscriptMethod method) {
   switch (method) {
     case SubscriptMethod::parens:
@@ -284,6 +296,18 @@ BinaryOperator binary_operator_from_token_type(TokenType type) {
       return BinaryOperator::colon;
     default:
       return BinaryOperator::unknown;
+  }
+}
+
+ConcatenationDirection concatenation_direction_from_token_type(TokenType type) {
+  switch (type) {
+    case TokenType::comma:
+      return ConcatenationDirection::horizontal;
+    case TokenType::semicolon:
+      return ConcatenationDirection::vertical;
+    default:
+      assert(false && "Unhandled.");
+      return ConcatenationDirection::horizontal;
   }
 }
 

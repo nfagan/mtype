@@ -344,6 +344,9 @@ bool TypeEquality::ArgumentComparator::operator()(const types::Abstraction& a, c
 
   } else if (a.type == Type::function && a.name != b.name) {
     return a.name < b.name;
+
+  } else if (a.type == Type::concatenation && a.concatenation_direction != b.concatenation_direction) {
+    return a.concatenation_direction < b.concatenation_direction;
   }
 
   const auto& args_a = type_eq.store.at(a.inputs);

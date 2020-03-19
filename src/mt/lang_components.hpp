@@ -4,6 +4,11 @@
 
 namespace mt {
 
+enum class ConcatenationDirection : uint8_t {
+  vertical = 0,
+  horizontal
+};
+
 enum class AccessType : uint8_t {
   public_access,
   private_access,
@@ -96,6 +101,7 @@ inline bool operator<(BinaryOperator a, BinaryOperator b) {
   return static_cast<unsigned int>(a) < static_cast<unsigned int>(b);
 }
 
+ConcatenationDirection concatenation_direction_from_token_type(TokenType type);
 BinaryOperator binary_operator_from_token_type(TokenType type);
 UnaryOperator unary_operator_from_token_type(TokenType type);
 GroupingMethod grouping_method_from_token_type(TokenType type);
@@ -118,5 +124,6 @@ const char* to_string(IdentifierType type);
 const char* to_string(BinaryOperator op);
 
 const char* to_symbol(SubscriptMethod method);
+const char* to_symbol(ConcatenationDirection dir);
 
 }

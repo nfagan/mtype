@@ -84,87 +84,13 @@ public:
     assert(false && "Unhandled.");
   }
 
-  void expr_stmt(const ExprStmt& stmt) override {
-    stmt.expr->accept_const(*this);
-  }
+  void grouping_expr(const GroupingExpr& expr) override;
+  void bracket_grouping_expr_lhs(const GroupingExpr& expr);
+  void bracket_grouping_expr_rhs(const GroupingExpr& expr);
+  void brace_grouping_expr_rhs(const GroupingExpr& expr);
 
-  void assignment_stmt(const AssignmentStmt& stmt) override {
-    /*
-     * Grouping expr as assignment -> Tuple of args, with destructuring
-     */
-    assignment_state.push_assignment_target_rvalue();
-    stmt.of_expr->accept_const(*this);
-    assignment_state.pop_assignment_target_state();
-    auto rhs = pop_type_handle();
-
-    value_category_state.push_lhs();
-    stmt.to_expr->accept_const(*this);
-    value_category_state.pop_side();
-    auto lhs = pop_type_handle();
-
-    unifier.push_type_equation(TypeEquation(lhs, rhs));
-  }
-
-  void grouping_expr(const GroupingExpr& expr) override {
-    if (expr.method == GroupingMethod::brace) {
-      assert(!value_category_state.is_lhs());
-      brace_grouping_expr_rhs(expr);
-
-    } else if (expr.method == GroupingMethod::bracket && value_category_state.is_lhs()) {
-      bracket_grouping_expr_lhs(expr);
-
-    } else {
-      assert(false && "Unhandled grouping expr.");
-    }
-  }
-
-  void bracket_grouping_expr_lhs(const GroupingExpr& expr) {
-    using types::DestructuredTuple;
-    using Use = DestructuredTuple::Usage;
-
-    std::vector<TypeHandle> members;
-    members.reserve(expr.components.size());
-
-    for (const auto& component : expr.components) {
-      auto tvar = type_store.make_fresh_type_variable_reference();
-      push_type_handle(tvar);
-      component.expr->accept_const(*this);
-      auto res = pop_type_handle();
-
-      unifier.push_type_equation(TypeEquation(tvar, res));
-      members.push_back(res);
-    }
-
-    auto tup_type = type_store.make_type();
-    type_store.assign(tup_type, Type(DestructuredTuple(Use::lvalue, std::move(members))));
-    push_type_handle(tup_type);
-  }
-
-  void brace_grouping_expr_rhs(const GroupingExpr& expr) {
-    using types::List;
-    using types::Tuple;
-
-    List list;
-    list.pattern.reserve(expr.components.size());
-
-    for (const auto& component : expr.components) {
-      auto tvar = type_store.make_fresh_type_variable_reference();
-      push_type_handle(tvar);
-      component.expr->accept_const(*this);
-      auto res = pop_type_handle();
-
-      unifier.push_type_equation(TypeEquation(tvar, res));
-      list.pattern.push_back(res);
-    }
-
-    auto list_handle = type_store.make_type();
-    auto tuple_handle = type_store.make_type();
-
-    type_store.assign(list_handle, Type(std::move(list)));
-    type_store.assign(tuple_handle, Type(Tuple(list_handle)));
-
-    push_type_handle(tuple_handle);
-  }
+  void expr_stmt(const ExprStmt& stmt) override;
+  void assignment_stmt(const AssignmentStmt& stmt) override;
 
   void function_def_node(const FunctionDefNode& node) override;
 

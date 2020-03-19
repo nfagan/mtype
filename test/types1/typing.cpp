@@ -63,7 +63,8 @@ void TypeVisitor::function_def_node(const FunctionDefNode& node) {
 
         function_inputs.push_back(variable_type_handle);
       } else {
-        function_inputs.emplace_back();
+        //  @TODO: Change this type to Top
+        function_inputs.push_back(type_store.make_fresh_type_variable_reference());
       }
     }
 
@@ -94,6 +95,10 @@ void TypeVisitor::function_def_node(const FunctionDefNode& node) {
     function_body->accept_const(*this);
   }
 }
+
+/*
+ * Expr
+ */
 
 void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   using types::DestructuredTuple;
@@ -215,6 +220,130 @@ void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
   unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), func_handle));
 
   push_type_handle(output_handle);
+}
+
+void TypeVisitor::grouping_expr(const GroupingExpr& expr) {
+  if (expr.method == GroupingMethod::brace) {
+    assert(!value_category_state.is_lhs());
+    brace_grouping_expr_rhs(expr);
+
+  } else if (expr.method == GroupingMethod::bracket) {
+    if (value_category_state.is_lhs()) {
+      bracket_grouping_expr_lhs(expr);
+    } else {
+      bracket_grouping_expr_rhs(expr);
+    }
+
+  } else {
+    assert(false && "Unhandled grouping expr.");
+  }
+}
+
+void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
+  using types::DestructuredTuple;
+  using Use = DestructuredTuple::Usage;
+
+  std::vector<TypeHandle> members;
+  members.reserve(expr.components.size());
+
+  for (const auto& component : expr.components) {
+    auto tvar = type_store.make_fresh_type_variable_reference();
+    push_type_handle(tvar);
+    component.expr->accept_const(*this);
+    auto res = pop_type_handle();
+
+    unifier.push_type_equation(TypeEquation(tvar, res));
+    members.push_back(res);
+  }
+
+  auto tup_type = type_store.make_type();
+  type_store.assign(tup_type, Type(DestructuredTuple(Use::lvalue, std::move(members))));
+  push_type_handle(tup_type);
+}
+
+void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
+  auto last_dir = ConcatenationDirection::vertical;
+  std::vector<TypeHandles> arg_handles;
+  std::vector<TypeHandle> result_handles;
+
+  arg_handles.emplace_back();
+  result_handles.push_back(type_store.make_fresh_type_variable_reference());
+
+  for (int64_t i = 0; i < expr.components.size(); i++) {
+    const auto& component = expr.components[i];
+    auto tvar = type_store.make_fresh_type_variable_reference();
+    push_type_handle(tvar);
+    component.expr->accept_const(*this);
+    auto res = pop_type_handle();
+
+    const auto current_dir = concatenation_direction_from_token_type(component.delimiter);
+
+    if (i == 0 || last_dir == current_dir) {
+      arg_handles.back().push_back(res);
+    } else {
+      assert(false && "Unhandled.");
+    }
+
+    last_dir = current_dir;
+  }
+
+  auto args = std::move(arg_handles.back());
+  auto result_handle = result_handles.back();
+  auto tup = type_store.make_destructured_tuple(types::DestructuredTuple::Usage::rvalue, std::move(args));
+  auto abstr = type_store.make_abstraction(last_dir, tup, result_handle);
+
+  unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), abstr));
+  push_type_handle(result_handle);
+}
+
+void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
+  using types::List;
+  using types::Tuple;
+
+  List list;
+  list.pattern.reserve(expr.components.size());
+
+  for (const auto& component : expr.components) {
+    auto tvar = type_store.make_fresh_type_variable_reference();
+    push_type_handle(tvar);
+    component.expr->accept_const(*this);
+    auto res = pop_type_handle();
+
+    unifier.push_type_equation(TypeEquation(tvar, res));
+    list.pattern.push_back(res);
+  }
+
+  auto list_handle = type_store.make_type();
+  auto tuple_handle = type_store.make_type();
+
+  type_store.assign(list_handle, Type(std::move(list)));
+  type_store.assign(tuple_handle, Type(Tuple(list_handle)));
+
+  push_type_handle(tuple_handle);
+}
+
+/*
+ * Stmt
+ */
+
+void TypeVisitor::expr_stmt(const ExprStmt& stmt) {
+  stmt.expr->accept_const(*this);
+}
+
+void TypeVisitor::assignment_stmt(const AssignmentStmt& stmt) {
+  assignment_state.push_assignment_target_rvalue();
+  stmt.of_expr->accept_const(*this);
+  assignment_state.pop_assignment_target_state();
+  auto rhs = pop_type_handle();
+
+  value_category_state.push_lhs();
+  stmt.to_expr->accept_const(*this);
+  value_category_state.pop_side();
+  auto lhs = pop_type_handle();
+
+  const auto assignment = type_store.make_assignment(lhs, rhs);
+  const auto assignment_var = type_store.make_fresh_type_variable_reference();
+  unifier.push_type_equation(TypeEquation(assignment_var, assignment));
 }
 
 }

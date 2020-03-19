@@ -77,8 +77,18 @@ void Unifier::check_push_func(const TypeHandle& source, const types::Abstraction
 
   auto func_it = function_types.find(func);
   if (func_it != function_types.end()) {
-    assert(type_of(func_it->second) == Type::Tag::abstraction);
-    push_type_equation(TypeEquation(source, func_it->second));
+    const auto& func_ref = store.at(func_it->second);
+
+    if (func_ref.is_abstraction()) {
+      push_type_equation(TypeEquation(source, func_it->second));
+
+    } else {
+      assert(func_ref.is_scheme());
+      const auto& func_scheme = func_ref.scheme;
+      const auto new_abstr_handle = instantiation.instantiate(func_scheme);
+      assert(type_of(new_abstr_handle) == Type::Tag::abstraction);
+      push_type_equation(TypeEquation(source, new_abstr_handle));
+    }
 
   } else {
     std::cout << "ERROR: no such function: ";
@@ -87,6 +97,17 @@ void Unifier::check_push_func(const TypeHandle& source, const types::Abstraction
   }
 
   registered_funcs[source] = true;
+}
+
+void Unifier::check_assignment(const TypeHandle& source, const types::Assignment& assignment) {
+  if (registered_assignments.count(source) > 0) {
+    return;
+  }
+
+  if (is_concrete_argument(assignment.rhs)) {
+    push_type_equation(TypeEquation(assignment.lhs, assignment.rhs));
+    registered_assignments[source] = true;
+  }
 }
 
 Optional<TypeHandle> Unifier::bound_type(const TypeHandle& for_type) const {
@@ -149,6 +170,15 @@ TypeHandle Unifier::apply_to(const TypeHandle& source, types::List& list) {
   return source;
 }
 
+TypeHandle Unifier::apply_to(const TypeHandle& source, types::Assignment& assignment) {
+  assignment.lhs = apply_to(assignment.lhs);
+  assignment.rhs = apply_to(assignment.rhs);
+
+  check_assignment(source, assignment);
+
+  return source;
+}
+
 TypeHandle Unifier::apply_to(const TypeHandle& source) {
   auto& type = store.at(source);
 
@@ -167,6 +197,8 @@ TypeHandle Unifier::apply_to(const TypeHandle& source) {
       return apply_to(source, type.subscript);
     case Type::Tag::list:
       return apply_to(source, type.list);
+    case Type::Tag::assignment:
+      return apply_to(source, type.assignment);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -198,7 +230,10 @@ TypeHandle Unifier::substitute_one(const TypeHandle& source, const TypeHandle& l
       return substitute_one(type.subscript, source, lhs, rhs);
     case Type::Tag::list:
       return substitute_one(type.list, source, lhs, rhs);
+    case Type::Tag::assignment:
+      return substitute_one(type.assignment, source, lhs, rhs);
     default:
+      MT_SHOW1("Unhandled: ", source);
       assert(false);
       return source;
   }
@@ -208,6 +243,16 @@ void Unifier::substitute_one(std::vector<TypeHandle>& sources, const TypeHandle&
   for (auto& source : sources) {
     source = substitute_one(source, lhs, rhs);
   }
+}
+
+TypeHandle Unifier::substitute_one(types::Assignment& assignment, const TypeHandle& source,
+                                     const TypeHandle& lhs, const TypeHandle& rhs) {
+  assignment.rhs = substitute_one(assignment.rhs, lhs, rhs);
+  assignment.lhs = substitute_one(assignment.lhs, lhs, rhs);
+
+  check_assignment(source, assignment);
+
+  return source;
 }
 
 TypeHandle Unifier::substitute_one(types::Abstraction& func, const TypeHandle& source,
@@ -731,6 +776,7 @@ void Unifier::make_known_types() {
   make_subscript_references();
   make_binary_operators();
   make_free_functions();
+  make_concatenations();
 }
 
 void Unifier::make_free_functions() {
@@ -961,6 +1007,39 @@ void Unifier::make_builtin_brace_subscript_reference() {
 
   function_types[ref_copy] = func_scheme;
   types_with_known_subscripts.insert(tup_type);
+}
+
+void Unifier::make_concatenations() {
+  using types::DestructuredTuple;
+  using types::Abstraction;
+  using types::List;
+
+  auto func_scheme = store.make_type();
+  auto tvar = store.make_fresh_type_variable_reference(); //  T
+
+  types::Scheme scheme;
+
+  const auto args_type = store.make_type();
+  const auto result_type = store.make_type();
+  const auto func_type = store.make_type();
+
+  types::Abstraction cat(ConcatenationDirection::horizontal, args_type, result_type);
+  auto cat_copy = cat;
+
+  auto list_args_type = store.make_list(tvar);  //  list<T>
+
+  store.assign(args_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, list_args_type)));
+  store.assign(result_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, tvar)));
+
+  scheme.type = func_type;
+  scheme.parameters.push_back(tvar);
+
+  store.assign(func_type, Type(std::move(cat)));
+  store.assign(func_scheme, Type(std::move(scheme)));
+
+  function_types[cat_copy] = func_scheme;
 }
 
 void Unifier::make_binary_operators() {

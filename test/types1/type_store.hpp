@@ -56,6 +56,16 @@ public:
     return make_type<types::List>(std::forward<Args>(args)...);
   }
 
+  template <typename... Args>
+  TypeHandle make_assignment(Args&&... args) {
+    return make_type<types::Assignment>(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  TypeHandle make_abstraction(Args&&... args) {
+    return make_type<types::Abstraction>(std::forward<Args>(args)...);
+  }
+
   TypeHandle make_concrete() {
     auto t = make_type();
     assign(t, Type(types::Scalar(make_type_identifier())));
