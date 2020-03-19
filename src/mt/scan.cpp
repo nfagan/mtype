@@ -11,6 +11,7 @@ void swap(ScanInfo& lhs, ScanInfo& rhs) {
 
   swap(lhs.tokens, rhs.tokens);
   swap(lhs.functions_are_end_terminated, rhs.functions_are_end_terminated);
+  swap(lhs.row_column_indices, rhs.row_column_indices);
 }
 
 bool EndTerminatedKeywordCounts::parent_is_classdef() const {
@@ -101,7 +102,9 @@ ScanResult Scanner::scan(const std::string& str) {
 }
 
 ScanInfo Scanner::finalize_scan(std::vector<Token>& tokens) const {
-  ScanInfo info(std::move(tokens));
+  TextRowColumnIndices new_line_inds;
+  new_line_inds.scan(source_text.data(), source_text.size());
+  ScanInfo info(std::move(tokens), std::move(new_line_inds));
   info.functions_are_end_terminated = !keyword_counts.is_non_end_terminated_function_file();
 
   return info;
@@ -135,7 +138,7 @@ ScanResult Scanner::scan(const char* text, int64_t len) {
     if (c == '%') {
       auto err = handle_comment(tokens);
       if (err) {
-        errors.errors.emplace_back(err.rvalue());
+        errors.emplace_back(err.rvalue());
       }
 
     } else if (block_comment_depth > 0 && !is_within_type_annotation()) {
@@ -162,14 +165,14 @@ ScanResult Scanner::scan(const char* text, int64_t len) {
     } else {
       auto err = handle_punctuation(tokens);
       if (err) {
-        errors.errors.emplace_back(err.rvalue());
+        errors.emplace_back(err.rvalue());
       }
     }
   }
 
   tokens.push_back({TokenType::null, std::string_view()});
 
-  if (errors.errors.empty()) {
+  if (errors.empty()) {
     return make_success<ScanErrors, ScanInfo>(finalize_scan(tokens));
 
   } else {
@@ -204,7 +207,7 @@ void Scanner::check_add_token(mt::Result<mt::ScanError, mt::Token>& res,
   if (res) {
     tokens.push_back(res.value);
   } else {
-    errs.errors.push_back(res.error);
+    errs.push_back(res.error);
   }
 }
 

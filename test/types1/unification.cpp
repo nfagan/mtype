@@ -162,6 +162,7 @@ TypeHandle Unifier::apply_to(const TypeHandle& source) {
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
+      return source;
   }
 }
 
@@ -191,6 +192,7 @@ TypeHandle Unifier::substitute_one(const TypeHandle& source, const TypeHandle& l
       return substitute_one(type.list, source, lhs, rhs);
     default:
       assert(false);
+      return source;
   }
 }
 
@@ -364,6 +366,7 @@ bool Unifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rhs) 
     default:
       MT_SHOW2("Unhandled same types for simplify: ", lhs, rhs);
       assert(false);
+      return false;
   }
 }
 

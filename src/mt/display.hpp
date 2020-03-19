@@ -1,17 +1,22 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 
 namespace mt {
 
-namespace terminal_colors {
+namespace style {
   extern const char* const red;
   extern const char* const green;
   extern const char* const yellow;
   extern const char* const blue;
+  extern const char* const magenta;
+  extern const char* const cyan;
   extern const char* const dflt;
 
-  std::array<const char*, 5> all_colors();
+  std::array<const char*, 7> all_colors();
+  std::string color_code(uint8_t index);
+  std::string color_code(uint8_t r, uint8_t g, uint8_t b);
 }
 
 }

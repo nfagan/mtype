@@ -53,6 +53,7 @@ bool TypeEquality::equivalence_same_types(const TypeHandle& a, const TypeHandle&
       type_printer().show2(a, b);
       std::cout << std::endl;
       assert(false && "Unhandled type equivalence.");
+      return false;
   }
 }
 

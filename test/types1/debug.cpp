@@ -62,17 +62,17 @@ void DebugTypePrinter::show(const TypeHandle& handle) const {
 }
 
 void DebugTypePrinter::show(const types::Scalar& scl) const {
-  std::cout << color(terminal_colors::green) << "s" << scl.identifier.name << color(terminal_colors::dflt);
+  std::cout << color(style::green) << "s" << scl.identifier.name << dflt_color();
 }
 
 void DebugTypePrinter::show(const types::Variable& var) const {
-  std::cout << color(terminal_colors::red) << "T" << var.identifier.name << color(terminal_colors::dflt);
+  std::cout << color(style::red) << "T" << var.identifier.name << dflt_color();
 }
 
 void DebugTypePrinter::show(const types::Abstraction& abstr) const {
   std::cout << "[";
   show(abstr.outputs);
-  std::cout << "] = " << color(terminal_colors::yellow);
+  std::cout << "] = " << color(style::yellow);
 
   if (abstr.is_function()) {
     std::cout << string_registry.at(abstr.name.full_name());
@@ -84,13 +84,14 @@ void DebugTypePrinter::show(const types::Abstraction& abstr) const {
     std::cout << to_symbol(abstr.subscript_method);
   }
 
-  std::cout << color(terminal_colors::dflt) << "(";
+  std::cout << dflt_color() << "(";
   show(abstr.inputs);
   std::cout << ")";
 }
 
 void DebugTypePrinter::show(const types::DestructuredTuple& tup) const {
-  std::cout << "dt-" << tuple_usage_shorthand(tup.usage) << "[";
+  std::cout << color(style::color_code(40)) << "dt-" << tuple_usage_shorthand(tup.usage);
+  std::cout << dflt_color() << "[";
   show(tup.members, ", ");
   std::cout << "]";
 }
@@ -111,7 +112,7 @@ void DebugTypePrinter::show(const std::vector<TypeHandle>& handles, const char* 
 }
 
 void DebugTypePrinter::show(const types::List& list) const {
-  std::cout << "list[";
+  std::cout << list_color() << "list" << dflt_color() << "[";
   show(list.pattern, ", ");
   std::cout << "]";
 }
@@ -136,6 +137,18 @@ void DebugTypePrinter::show(const types::Scheme& scheme) const {
 
 const char* DebugTypePrinter::color(const char* color_code) const {
   return colorize ? color_code : "";
+}
+
+std::string DebugTypePrinter::color(const std::string& color_code) const {
+  return colorize ? color_code : "";
+}
+
+const char* DebugTypePrinter::dflt_color() const {
+  return color(style::dflt);
+}
+
+std::string DebugTypePrinter::list_color() const {
+  return color(style::color_code(41));
 }
 
 }

@@ -20,7 +20,7 @@ void StringVisitor::maybe_parenthesize(std::string& str) const {
 }
 
 void StringVisitor::maybe_colorize(std::string& str, TokenType type) const {
-  using namespace terminal_colors;
+  using namespace style;
   if (!colorize) {
     return;
   }
@@ -35,7 +35,7 @@ void StringVisitor::maybe_colorize(std::string& str, TokenType type) const {
 }
 
 void StringVisitor::maybe_colorize(std::string& str, int color_code_index) const {
-  using namespace terminal_colors;
+  using namespace style;
 
   const auto all = all_colors();
   const char* color_code = dflt;
@@ -47,7 +47,7 @@ void StringVisitor::maybe_colorize(std::string& str, int color_code_index) const
 
 void StringVisitor::maybe_colorize(std::string& str, const char* color_code) const {
   if (colorize) {
-    str = color_code + str + terminal_colors::dflt;
+    str = color_code + str + style::dflt;
   }
 }
 

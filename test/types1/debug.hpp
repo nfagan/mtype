@@ -37,6 +37,9 @@ public:
 
 private:
   const char* color(const char* color_code) const;
+  std::string color(const std::string& color_code) const;
+  const char* dflt_color() const;
+  std::string list_color() const;
 
 private:
   const TypeStore& store;

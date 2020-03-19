@@ -4,6 +4,7 @@
 #include "Optional.hpp"
 #include "token.hpp"
 #include "character.hpp"
+#include "text.hpp"
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -41,24 +42,24 @@ struct EndTerminatedKeywordCounts {
   std::unordered_map<TokenType, int64_t> keyword_counts;
 };
 
-struct ScanErrors {
-  std::vector<ScanError> errors;
-};
+using ScanErrors = std::vector<ScanError>;
 
 struct ScanInfo {
-  std::vector<Token> tokens;
-  bool functions_are_end_terminated;
-
   ScanInfo() : functions_are_end_terminated(true) {
     //
   }
-  explicit ScanInfo(std::vector<Token>&& tokens) :
+  ScanInfo(std::vector<Token>&& tokens, TextRowColumnIndices&& inds) :
   tokens(std::move(tokens)),
-  functions_are_end_terminated(true) {
+  functions_are_end_terminated(true),
+  row_column_indices(std::move(inds)) {
     //
   }
   ScanInfo(ScanInfo&& other) noexcept = default;
   ~ScanInfo() = default;
+
+  std::vector<Token> tokens;
+  bool functions_are_end_terminated;
+  TextRowColumnIndices row_column_indices;
 };
 
 //  swap for ScanInfo

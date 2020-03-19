@@ -35,6 +35,8 @@ set(sources
         scan.cpp
         string.hpp
         string.cpp
+        text.hpp
+        text.cpp
         token.hpp
         token.cpp
         token_manipulation.hpp

@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 
   auto parse_result = parse_file(tokens, contents, parse_inputs);
   if (!parse_result) {
-    show_parse_errors(parse_result.error.errors);
+    show_parse_errors(parse_result.error.errors, scan_info.row_column_indices);
     std::cout << "Failed to parse file." << std::endl;
     return -1;
   }
