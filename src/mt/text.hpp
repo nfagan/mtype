@@ -4,6 +4,7 @@
 #include "utility.hpp"
 #include <cstdint>
 #include <vector>
+#include <string_view>
 
 namespace mt {
 
@@ -26,5 +27,8 @@ public:
 private:
   std::vector<int64_t> new_lines;
 };
+
+std::string mark_text_with_message_and_context(std::string_view text, int64_t start, int64_t stop,
+                                               int64_t context_amount, const std::string& message);
 
 }

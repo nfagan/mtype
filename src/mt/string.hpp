@@ -58,9 +58,6 @@ std::string join(const std::vector<T>& strs, const std::string& by) {
   return result;
 }
 
-std::string mark_text_with_message_and_context(std::string_view text, int64_t start, int64_t stop,
-                                               int64_t context_amount, const std::string& message);
-
 std::vector<int64_t> find_character(const char* str, int64_t len, const Character& delim);
 
 }
