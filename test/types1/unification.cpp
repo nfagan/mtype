@@ -1052,7 +1052,7 @@ void Unifier::make_binary_operators() {
 
   std::vector<BinaryOperator> operators{BinaryOperator::plus, BinaryOperator::minus,
                                         BinaryOperator::times, BinaryOperator::matrix_times,
-                                        BinaryOperator::right_divide};
+                                        BinaryOperator::right_divide, BinaryOperator::colon};
 
   for (const auto& op : operators) {
     auto args_type = store.make_type();
