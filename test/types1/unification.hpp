@@ -58,6 +58,7 @@ public:
   }
 
   void unify();
+  Optional<TypeHandle> bound_type(const TypeHandle& for_type) const;
 
 private:
   void unify_one(TypeEquation eq);

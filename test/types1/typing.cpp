@@ -1,6 +1,36 @@
 #include "typing.hpp"
+#include "debug.hpp"
 
 namespace mt {
+
+void TypeVisitor::show_type_distribution() const {
+  auto counts = type_store.type_distribution();
+  const auto num_types = double(counts.size());
+
+  for (const auto& ct : counts) {
+    std::cout << to_string(ct.first) << ": " << ct.second << " (";
+    std::cout << ct.second/num_types << ")" << std::endl;
+  }
+}
+
+void TypeVisitor::show_variable_types() const {
+  std::cout << "--" << std::endl;
+
+  Store::ReadConst reader(store);
+
+  for (const auto& var_it : variable_type_handles) {
+    const auto& maybe_type = unifier.bound_type(var_it.second);
+    const Type& type = maybe_type ? type_store.at(maybe_type.value()) : type_store.at(var_it.second);
+
+    const auto& def_handle = var_it.first;
+    const auto& def = reader.at(def_handle);
+    const auto& name = string_registry.at(def.name.full_name());
+
+    std::cout << name << ": ";
+    DebugTypePrinter(type_store, string_registry).show(type);
+    std::cout << std::endl;
+  }
+}
 
 void TypeVisitor::function_def_node(const FunctionDefNode& node) {
   using namespace mt::types;

@@ -36,14 +36,12 @@ public:
   }
 
   ~TypeVisitor() {
-    auto counts = type_store.type_distribution();
-    const auto num_types = double(counts.size());
-
-    for (const auto& ct : counts) {
-      std::cout << to_string(ct.first) << ": " << ct.second << " (";
-      std::cout << ct.second/num_types << ")" << std::endl;
-    }
+    show_type_distribution();
+    show_variable_types();
   }
+
+  void show_type_distribution() const;
+  void show_variable_types() const;
 
   void root_block(const RootBlock& block) override {
     MatlabScopeHelper scope_helper(*this, block.scope_handle);

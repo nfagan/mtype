@@ -194,8 +194,8 @@ void test_equivalence() {
   if (eq.equivalence(tup, mult_double_tup)) {
     MT_SHOW_ERROR("Matched double tup with multi-double tup.");
   }
-  if (eq.equivalence(tup_list_double_rvalue, mult_double_tup)) {
-    MT_SHOW_ERROR("Matched multi-double rvalue tup with rvalue double list.");
+  if (!eq.equivalence(tup_list_double_rvalue, mult_double_tup)) {
+    MT_SHOW_ERROR_PRINT2("Failed to match: ", tup_list_double_rvalue, mult_double_tup)
   }
   if (!eq.equivalence(tup_list_double_lvalue, mult_double_tup)) {
     MT_SHOW_ERROR("Failed to match l-value tuple list of double with rvalue mult double tuple.");

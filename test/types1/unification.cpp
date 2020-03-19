@@ -89,6 +89,14 @@ void Unifier::check_push_func(const TypeHandle& source, const types::Abstraction
   registered_funcs[source] = true;
 }
 
+Optional<TypeHandle> Unifier::bound_type(const TypeHandle& for_type) const {
+  if (bound_variables.count(for_type) == 0) {
+    return NullOpt{};
+  } else {
+    return Optional<TypeHandle>(bound_variables.at(for_type));
+  }
+}
+
 void Unifier::unify() {
   make_known_types();
 
@@ -860,16 +868,13 @@ void Unifier::make_list_outputs_type2() {
   const auto& char_handle = store.char_type_handle;
   const auto& string_handle = store.string_type_handle;
 
-  const auto name = std::string("list_dt_out");
+  const auto name = std::string("out_list");
   const auto ident = MatlabIdentifier(string_registry.register_string(name));
 
   Abstraction func(ident, args_type, result_type);
   auto func_copy = func;
 
-//  auto list_type = store.make_list(store.make_destructured_tuple(DestructuredTuple::Usage::rvalue,
-//    TypeHandles{double_handle, char_handle}));
-  auto list_type = store.make_destructured_tuple(DestructuredTuple::Usage::rvalue,
-    TypeHandles{double_handle, char_handle});
+  auto list_type = store.make_list(double_handle);
 
   store.assign(args_type,
     Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle)));
