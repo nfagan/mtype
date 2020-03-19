@@ -14,6 +14,8 @@ namespace style {
   extern const char* const cyan;
   extern const char* const dflt;
 
+  extern const char* const underline;
+
   std::array<const char*, 7> all_colors();
   std::string color_code(uint8_t index);
   std::string color_code(uint8_t r, uint8_t g, uint8_t b);

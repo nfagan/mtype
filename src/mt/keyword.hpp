@@ -12,6 +12,7 @@ namespace mt {
     //  Keywords in any context.
     const char** keywords(int* count);
 
+    bool begins_with_keyword(std::string_view str);
     bool is_keyword(std::string_view str);
     bool is_classdef_keyword(std::string_view str);
     bool is_end_terminated(std::string_view kw);

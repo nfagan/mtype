@@ -9,6 +9,7 @@ namespace mt {
 class TextRowColumnIndices;
 
 class ParseError {
+  friend class ShowParseErrors;
 public:
   ParseError() = default;
 
@@ -18,9 +19,6 @@ public:
   }
 
   ~ParseError() = default;
-
-  void show(int64_t index = 0) const;
-  void show(const TextRowColumnIndices& row_col_indices, int64_t index = 0) const;
 
 private:
   std::string make_message(bool colorize) const;
@@ -33,6 +31,25 @@ private:
 };
 
 using ParseErrors = std::vector<ParseError>;
-void show_parse_errors(const ParseErrors& errs, const TextRowColumnIndices& row_col_indices);
+
+class ShowParseErrors {
+public:
+  ShowParseErrors(const TextRowColumnIndices* row_col_indices) :
+    row_col_indices(row_col_indices), is_rich_text(true) {
+    //
+  }
+
+  void show(const ParseErrors& errs);
+  void show(const ParseError& err, int64_t index = 0);
+
+private:
+  const char* stylize(const char* code) const;
+
+private:
+  const TextRowColumnIndices* row_col_indices;
+
+public:
+  bool is_rich_text;
+};
 
 }

@@ -337,7 +337,11 @@ TypeHandle Unifier::substitute_one(types::List& list, const TypeHandle& source,
     auto& element = list.pattern[i];
     element = substitute_one(element, lhs, rhs);
     assert(element.is_valid());
-    if (element == last) {
+    const bool should_remove = i > 0 && is_concrete_argument(element) && is_concrete_argument(last) &&
+      type_equiv_comparator.equivalence(element, last);
+//    const bool should_remove = element == last;
+
+    if (should_remove) {
       num_remove++;
     } else {
       num_remove = 0;
@@ -466,7 +470,7 @@ bool Unifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs) {
 
 bool Unifier::simplify_different_types(const types::List& list, const TypeHandle& source, const TypeHandle& rhs) {
   const auto& rhs_member = store.at(rhs);
-  if (rhs_member.is_scalar()) {
+  if (rhs_member.is_scalar() || rhs_member.is_tuple()) {
     for (const auto& el : list.pattern) {
       push_type_equation(TypeEquation(el, rhs));
     }

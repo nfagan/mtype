@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iomanip>
 #include <sstream>
+#include <array>
 
 namespace mt {
 
@@ -91,6 +92,41 @@ std::vector<T> split(const char* str, int64_t len, const Character& delim) {
 
   return result;
 }
+
+template <typename T>
+std::vector<T> split_whitespace(const char* str, int64_t len, bool preserve_whitespace) {
+  CharacterIterator it(str, len);
+  std::vector<T> result;
+
+  int64_t offset = 0;
+  int64_t index = 0;
+
+  const std::array<Character, 3> whitespaces{{Character('\n'), Character(' '), Character('\t')}};
+
+  while (it.has_next()) {
+    const auto& c = it.peek();
+    const auto num_units = c.count_units();
+
+    for (const auto& delim : whitespaces) {
+      if (c == delim) {
+        const auto addtl_offset = preserve_whitespace ? num_units : 0;
+
+        T slice(str + offset, index - offset + addtl_offset);
+        result.emplace_back(slice);
+        offset = index + num_units;
+        break;
+      }
+    }
+
+    it.advance();
+    index += num_units;
+  }
+
+  result.emplace_back(T(str + offset, len - offset));
+
+  return result;
+}
+
 }
 
 std::vector<std::string_view> split(std::string_view view, const Character& delim) {
@@ -107,6 +143,10 @@ std::vector<std::string_view> split(const char* str, int64_t len, const Characte
 
 std::vector<std::string> split_copy(const char *str, int64_t len, const Character& delim) {
   return split<std::string>(str, len, delim);
+}
+
+std::vector<std::string> split_whitespace_copy(const char* str, int64_t len, bool preserve) {
+  return split_whitespace<std::string>(str, len, preserve);
 }
 
 std::vector<int64_t> find_character(const char* str, int64_t len, const Character& look_for) {

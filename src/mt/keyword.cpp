@@ -12,6 +12,29 @@ namespace {
 
     return false;
   }
+  bool begins_with_keyword_impl(std::string_view str, const char** keywords, int num_keywords) {
+    for (int i = 0; i < num_keywords; i++) {
+      const int64_t kw_len = std::strlen(keywords[i]);
+      const int64_t str_len = str.size();
+
+      if (str_len >= kw_len) {
+        bool all_match = true;
+
+        for (int64_t j = 0; j < kw_len; j++) {
+          if (keywords[i][j] != str[j]) {
+            all_match = false;
+            break;
+          }
+        }
+
+        if (all_match) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
 }
 
 const char** typing::keywords(int* count) {
@@ -58,6 +81,12 @@ bool matlab::is_keyword(std::string_view str) {
   int num_keywords;
   const auto kws = matlab::keywords(&num_keywords);
   return is_keyword_impl(str, kws, num_keywords);
+}
+
+bool matlab::begins_with_keyword(std::string_view str) {
+  int num_keywords;
+  const auto kws = matlab::keywords(&num_keywords);
+  return begins_with_keyword_impl(str, kws, num_keywords);
 }
 
 bool matlab::is_classdef_keyword(std::string_view str) {

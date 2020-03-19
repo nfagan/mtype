@@ -3,6 +3,8 @@
 #include "character.hpp"
 #include "text.hpp"
 #include "display.hpp"
+#include "keyword.hpp"
+#include <cassert>
 
 namespace mt {
 
@@ -10,10 +12,24 @@ namespace {
 inline std::string transform_message(const std::string& msg) {
   auto split_msg = split_copy(msg.c_str(), msg.size(), Character('\n'));;
   for (auto& m : split_msg) {
-    m = "  " + m;
+    m.insert(0, "  ");
   }
   return join(split_msg, "\n");
 }
+
+inline std::string colorize_message(const std::string& msg) {
+  auto split_msg = split_whitespace_copy(msg.c_str(), msg.size(), true);
+
+  for (auto& m : split_msg) {
+    if (matlab::begins_with_keyword(m)) {
+      m.insert(0, style::yellow);
+      m.append(style::dflt);
+    }
+  }
+
+  return join(split_msg, "");
+}
+
 }
 
 bool ParseError::is_null_token() const {
@@ -31,6 +47,8 @@ std::string ParseError::make_message(bool colorize) const {
   if (colorize) {
     const auto tmp = style::red + message + style::dflt;
     msg = mark_text_with_message_and_context(text, start, stop, context, tmp);
+    msg = colorize_message(msg);
+
   } else {
     msg = mark_text_with_message_and_context(text, start, stop, context, message);
   }
@@ -38,35 +56,36 @@ std::string ParseError::make_message(bool colorize) const {
   return transform_message(msg);
 }
 
-void ParseError::show(int64_t index) const {
-  if (!message.empty()) {
-    const auto transformed = make_message(false);
+void ShowParseErrors::show(const ParseErrors& errs) {
+  std::cout << std::endl;
 
-    std::cout << index << "." << std::endl << std::endl;
+  for (int64_t i = 0; i < int64_t(errs.size()); i++) {
+    show(errs[i], i+1);
+  }
+}
+
+void ShowParseErrors::show(const ParseError& err, int64_t index) {
+  if (!err.message.empty()) {
+    const auto transformed = err.make_message(is_rich_text);
+    const auto start = err.is_null_token() ? 0 : err.at_token.lexeme.data() - err.text.data();
+
+    std::cout << stylize(style::underline) << index;
+
+    if (row_col_indices) {
+      auto new_line_res = row_col_indices->line_info(start);
+      auto row = new_line_res ? new_line_res.value().row : -1;
+      auto col = new_line_res ? new_line_res.value().column : -1;
+
+      std::cout << "@" << row << ":" << col << "";
+    }
+
+    std::cout << stylize(style::dflt) << std::endl << std::endl;
     std::cout << transformed << std::endl << std::endl;
   }
 }
 
-void ParseError::show(const TextRowColumnIndices& row_col_indices, int64_t index) const {
-  if (!message.empty()) {
-    const auto transformed = make_message(true);
-    const auto start = is_null_token() ? 0 : at_token.lexeme.data() - text.data();
-
-    auto new_line_res = row_col_indices.line_info(start);
-    auto row = new_line_res ? new_line_res.value().row : -1;
-    auto col = new_line_res ? new_line_res.value().column : -1;
-
-    std::cout << index << ". @ ";
-    std::cout << row << ":" << col << "." << std::endl << std::endl;
-    std::cout << transformed << std::endl << std::endl;
-  }
-}
-
-void show_parse_errors(const ParseErrors& errs, const TextRowColumnIndices& row_col_inds) {
-  int64_t index = 0;
-  for (const auto& err : errs) {
-    err.show(row_col_inds, ++index);
-  }
+const char* ShowParseErrors::stylize(const char* code) const {
+  return is_rich_text ? code : "";
 }
 
 }
