@@ -14,8 +14,8 @@ namespace mt {
 bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rhs) {
   using Tag = Type::Tag;
 
-  const auto& t0 = unifier.store.at(lhs);
-  const auto& t1 = unifier.store.at(rhs);
+  const auto& t0 = store.at(lhs);
+  const auto& t1 = store.at(rhs);
 
   switch (t0.tag) {
     case Tag::abstraction:

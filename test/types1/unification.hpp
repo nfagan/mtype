@@ -74,7 +74,6 @@ private:
 
   void check_assignment(const TypeHandle& source, const types::Assignment& assignment);
   void check_push_func(const TypeHandle& source, const types::Abstraction& func);
-  void push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num);
 
   bool is_concrete_argument(const types::DestructuredTuple& tup) const;
   bool is_concrete_argument(const types::List& list) const;

@@ -392,13 +392,6 @@ void Unifier::unify_one(TypeEquation eq) {
   bound_variables[eq.lhs] = eq.rhs;
 }
 
-void Unifier::push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num) {
-  assert(num >= 0 && num <= t0.size() && num <= t1.size() && "out of bounds read.");
-  for (int64_t i = 0; i < num; i++) {
-    push_type_equation(TypeEquation(t0[i], t1[i]));
-  }
-}
-
 void Unifier::maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub) {
   if (is_known_subscript_type(sub.principal_argument)) {
     maybe_unify_known_subscript_type(source, sub);
