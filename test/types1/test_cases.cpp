@@ -31,8 +31,8 @@ void test_equivalence_debug() {
   StringRegistry str_registry;
   TypeStore store;
   store.make_builtin_types();
-  TypeEquality equiv(store, str_registry);
-  TypeEquality::TypeEquivalenceComparator eq(equiv);
+  TypeEquality eq(store, str_registry);
+//  TypeEquality::TypeEquivalenceComparator eq(equiv);
 
   const auto& d_handle = store.double_type_handle;
   const auto& c_handle = store.char_type_handle;
@@ -167,8 +167,8 @@ void test_equivalence() {
   StringRegistry str_registry;
   TypeStore store;
   store.make_builtin_types();
-  TypeEquality equiv(store, str_registry);
-  TypeEquality::TypeEquivalenceComparator eq(equiv);
+  TypeEquality eq(store, str_registry);
+//  TypeEquality::TypeEquivalenceComparator eq(equiv);
 
   const auto& d_handle = store.double_type_handle;
   const auto& c_handle = store.char_type_handle;

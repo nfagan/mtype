@@ -173,10 +173,6 @@ bool TypeEquality::equivalence_different_types(const types::List& a, const TypeH
   return a.size() == 1 && equivalence(a.pattern[0], b);
 }
 
-bool TypeEquality::TypeEquivalenceComparator::equivalence(const TypeHandle& a, const TypeHandle& b) const {
-  return type_eq.equivalence(a, b);
-}
-
 bool TypeEquality::TypeEquivalenceComparator::operator()(const TypeHandle& a, const TypeHandle& b) const {
   if (type_eq.equivalence(a, b)) {
     return false;

@@ -28,7 +28,6 @@ public:
     }
 
     bool operator()(const TypeHandle& a, const TypeHandle& b) const;
-    bool equivalence(const TypeHandle& a, const TypeHandle& b) const;
 
     const TypeEquality& type_eq;
   };
