@@ -11,6 +11,7 @@ target_sources(${PROJECT_NAME} PRIVATE
         instance.hpp
         instance.cpp
         member_visitor.hpp
+        member_visitor.cpp
         simplify.hpp
         simplify.cpp
         test_cases.hpp

@@ -1,17 +1,10 @@
 #include "type_equality.hpp"
 #include "typing.hpp"
 #include "debug.hpp"
+#include "member_visitor.hpp"
 #include <cassert>
 
 namespace mt {
-
-int64_t TypeEquality::expect_to_match(const types::DestructuredTuple& parent, const types::DestructuredTuple& child) const {
-  if (parent.is_value_usage() && child.is_outputs()) {
-    return 1;
-  } else {
-    return child.size();
-  }
-}
 
 DebugTypePrinter TypeEquality::type_printer() const {
   return DebugTypePrinter(store, string_registry);
@@ -168,131 +161,8 @@ bool TypeEquality::equivalence(const DT& a, const DT& b) const {
     return element_wise_equivalence(a.members, b.members);
 
   } else {
-    return equivalence_expanding_members(a, b);
+    return DestructuredMemberVisitor{store, DestructuredComparator{*this}}.expand_members(a, b);
   }
-}
-
-bool TypeEquality::equivalence_expanding_members(const DT& a, const DT& b) const {
-  const int64_t num_a = a.size();
-  const int64_t num_b = b.size();
-
-  int64_t ia = 0;
-  int64_t ib = 0;
-
-  while (ia < num_a && ib < num_b) {
-    bool res = equivalence_recurse_tuple(a, b, &ia, &ib);
-    if (!res) {
-      return false;
-    }
-  }
-
-  if (ia == num_a && ib == num_b) {
-    return true;
-
-  } else if (a.is_outputs() && b.is_value_usage()) {
-    return ib == num_b && ia == num_b;
-
-  } else if (b.is_outputs() && a.is_value_usage()) {
-    return ia == num_a && ib == num_a;
-
-  } else {
-//    std::cout << "ia: " << ia << "; ib: " << ib << "; num a: " << num_a << "; num_b: " << num_b << std::endl;
-    return false;
-  }
-}
-
-bool TypeEquality::equivalence_recurse_tuple(const DT& a, const DT& b, int64_t* ia, int64_t* ib) const {
-  assert(*ia < a.size() && *ib < b.size());
-
-  const auto& mem_a = a.members[*ia];
-  const auto& mem_b = b.members[*ib];
-
-  const auto& va = store.at(mem_a);
-  const auto& vb = store.at(mem_b);
-
-  if (va.is_list() && !vb.is_list()) {
-    if (b.is_definition_usage()) {
-      return false;
-    }
-
-    bool success = match_list(va.list, b, ib);
-    (*ia)++;
-    return success;
-
-  } else if (vb.is_list() && !va.is_list()) {
-    if (a.is_definition_usage()) {
-      return false;
-    }
-
-    bool success = match_list(vb.list, a, ia);
-    (*ib)++;
-    return success;
-
-  } else if (va.is_destructured_tuple()) {
-    const int64_t expect_match = expect_to_match(a, va.destructured_tuple);
-    bool success = equivalence_subrecurse_tuple(va.destructured_tuple, b, ib, expect_match);
-    (*ia)++;
-    return success;
-
-
-  } else if (vb.is_destructured_tuple()) {
-    const int64_t expect_match = expect_to_match(b, vb.destructured_tuple);
-    bool success = equivalence_subrecurse_tuple(vb.destructured_tuple, a, ia, expect_match);
-    (*ib)++;
-    return success;
-
-  } else {
-    (*ia)++;
-    (*ib)++;
-
-    return equivalence(mem_a, mem_b);
-  }
-}
-
-bool TypeEquality::equivalence_subrecurse_tuple(const DT& child_a, const DT& b, int64_t* ib, int64_t expect_match) const {
-  int64_t ia_child = 0;
-  bool success = true;
-
-  while (success && ia_child < expect_match && ia_child < child_a.size() && *ib < b.size()) {
-    success = equivalence_recurse_tuple(child_a, b, &ia_child, ib);
-  }
-
-  return success && ia_child == expect_match;
-}
-
-bool TypeEquality::equivalence_subrecurse_list(const types::List& a, int64_t* ia,
-  const types::DestructuredTuple& b, const TypeHandle& mem_b) const {
-
-  const auto& mem_a = a.pattern[*ia];
-  const auto& vb = store.at(mem_b);
-
-  if (vb.is_destructured_tuple()) {
-    const auto& sub_b = vb.destructured_tuple;
-    const int64_t expect_num_b = expect_to_match(b, sub_b);
-    int64_t ib = 0;
-    bool success = true;
-
-    while (success && ib < expect_num_b && ib < sub_b.size()) {
-      success = equivalence_subrecurse_list(a, ia, sub_b, sub_b.members[ib++]);
-    }
-
-    return success && ib == expect_num_b;
-
-  } else {
-    *ia = (*ia + 1) % a.size();
-    return equivalence(mem_a, mem_b);
-  }
-}
-
-bool TypeEquality::match_list(const types::List& a, const DT& b, int64_t* ib) const {
-  int64_t ia = 0;
-  bool success = true;
-
-  while (success && ia < a.size() && *ib < b.size()) {
-    success = equivalence_subrecurse_list(a, &ia, b, b.members[(*ib)++]);
-  }
-
-  return success && (a.size() == 0 || (ia == 0 && *ib == b.size()));
 }
 
 bool TypeEquality::equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const {

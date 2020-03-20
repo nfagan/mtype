@@ -10,6 +10,17 @@ class StringRegistry;
 class DebugTypePrinter;
 
 class TypeEquality {
+private:
+  struct DestructuredComparator {
+    DestructuredComparator(const TypeEquality& eq) : eq(eq) {
+      //
+    }
+    bool operator()(const TypeHandle& a, const TypeHandle& b) const {
+      return eq.equivalence(a, b);
+    }
+
+    const TypeEquality& eq;
+  };
 public:
   struct TypeEquivalenceComparator {
     explicit TypeEquivalenceComparator(const TypeEquality& type_eq) : type_eq(type_eq) {
@@ -53,18 +64,10 @@ private:
   bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const;
   bool equivalence_different_types(const types::List& a, const TypeHandle& b) const;
 
-  bool equivalence_expanding_members(const DT& a, const DT& b) const;
-  bool equivalence_recurse_tuple(const DT& a, const DT& b, int64_t* ia, int64_t* ib) const;
-  bool equivalence_subrecurse_tuple(const DT& a, const DT& b, int64_t* ib, int64_t expect_match) const;
-  bool equivalence_subrecurse_list(const types::List& a, int64_t* ia, const DT& b, const TypeHandle& mem_b) const;
-  bool match_list(const types::List& a, const DT& b, int64_t* ib) const;
-
   bool equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib, int64_t num_a, int64_t num_b) const;
   bool equivalence_list_sub_tuple(const DT& tup_a, const TypeHandles& b, int64_t* ib, int64_t num_b) const;
 
   DebugTypePrinter type_printer() const;
-
-  int64_t expect_to_match(const types::DestructuredTuple& parent, const types::DestructuredTuple& child) const;
 
 private:
   Type::Tag type_of(const TypeHandle& handle) const;

@@ -8,6 +8,17 @@ class Unifier;
 class TypeStore;
 
 class Simplifier {
+private:
+  struct DestructuredSimplifier {
+    DestructuredSimplifier(Simplifier& simplifier) : simplifier(simplifier) {
+      //
+    }
+    bool operator()(const TypeHandle& a, const TypeHandle& b) {
+      return simplifier.simplify(a, b);
+    }
+
+    Simplifier& simplifier;
+  };
 public:
   Simplifier(Unifier& unifier, TypeStore& store) : unifier(unifier), store(store) {
     //
@@ -30,15 +41,6 @@ private:
   bool simplify_different_types(const types::List& list, const TypeHandle& source, const TypeHandle& rhs);
   bool simplify_different_types(const types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& rhs);
 
-  bool simplify_expanding_members(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1);
-  bool simplify_recurse_tuple(const types::DestructuredTuple& a, const types::DestructuredTuple& b, int64_t* ia, int64_t* ib);
-  bool simplify_subrecurse_tuple(const types::DestructuredTuple& a, const types::DestructuredTuple& b,
-                                 const types::DestructuredTuple& sub_a, int64_t* ia, int64_t* ib);
-
-  bool match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib);
-  bool simplify_subrecurse_list(const types::List& a, int64_t* ia, const types::DestructuredTuple& b, const TypeHandle& mem_b);
-
-  Type::Tag type_of(const TypeHandle& handle) const;
   void push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num);
   void push_type_equation(TypeEquation&& eq);
 

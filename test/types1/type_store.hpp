@@ -21,6 +21,10 @@ public:
   [[nodiscard]] const Type& at(const TypeHandle& handle) const;
   Type& at(const TypeHandle& handle);
 
+  Type::Tag type_of(const TypeHandle& handle) const {
+    return at(handle).tag;
+  }
+
   TypeHandle make_type() {
     types.emplace_back();
     return TypeHandle(types.size() - 1);
