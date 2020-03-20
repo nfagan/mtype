@@ -338,7 +338,7 @@ TypeHandle Unifier::substitute_one(types::List& list, const TypeHandle& source,
     assert(element.is_valid());
 
     const bool should_remove = i > 0 && is_concrete_argument(element) &&
-      is_concrete_argument(last) && type_eq.equivalence(element, last);
+      is_concrete_argument(last) && type_eq.equivalence_entry(element, last);
 
     if (should_remove) {
       num_remove++;
@@ -370,7 +370,7 @@ void Unifier::unify_one(TypeEquation eq) {
   const auto rhs_type = type_of(eq.rhs);
 
   if (lhs_type != Tag::variable && rhs_type != Tag::variable) {
-    bool success = simplifier.simplify(eq.lhs, eq.rhs);
+    bool success = simplifier.simplify_entry(eq.lhs, eq.rhs);
 
     if (!success) {
       MT_SHOW2("Failed to simplify: ", eq.lhs, eq.rhs);
@@ -474,7 +474,7 @@ Type::Tag Unifier::type_of(const mt::TypeHandle& handle) const {
 }
 
 DebugTypePrinter Unifier::type_printer() const {
-  return DebugTypePrinter(store, string_registry);
+  return DebugTypePrinter(store, &string_registry);
 }
 
 void Unifier::show() {

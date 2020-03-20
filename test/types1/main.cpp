@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
   TypeStore type_store(10000);
   type_store.make_builtin_types();
 
-  TypeEquality type_eq(type_store, str_registry);
+  TypeEquality type_eq(type_store);
   Library library(type_store, type_eq, str_registry);
   library.make_known_types();
 

@@ -27,7 +27,7 @@ void TypeVisitor::show_variable_types() const {
     const auto& name = string_registry.at(def.name.full_name());
 
     std::cout << name << ": ";
-    DebugTypePrinter(type_store, string_registry).show(type);
+    DebugTypePrinter(type_store, &string_registry).show(type);
     std::cout << std::endl;
   }
 }
@@ -185,6 +185,10 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
 
     push_type_handle(outputs_type);
   }
+}
+
+void TypeVisitor::function_reference_expr(const FunctionReferenceExpr& expr) {
+  assert(false);
 }
 
 void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {

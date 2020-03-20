@@ -11,7 +11,7 @@ int64_t DestructuredMemberVisitor::expect_to_match(const types::DestructuredTupl
   }
 }
 
-bool DestructuredMemberVisitor::expand_members(const DT& a, const DT& b) const {
+bool DestructuredMemberVisitor::expand_members(const DT& a, const DT& b, bool rev) const {
   const int64_t num_a = a.size();
   const int64_t num_b = b.size();
 
@@ -19,7 +19,7 @@ bool DestructuredMemberVisitor::expand_members(const DT& a, const DT& b) const {
   int64_t ib = 0;
 
   while (ia < num_a && ib < num_b) {
-    bool res = recurse_tuple(a, b, &ia, &ib);
+    bool res = recurse_tuple(a, b, &ia, &ib, rev);
     if (!res) {
       return false;
     }
@@ -39,7 +39,7 @@ bool DestructuredMemberVisitor::expand_members(const DT& a, const DT& b) const {
   }
 }
 
-bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t* ia, int64_t* ib) const {
+bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t* ia, int64_t* ib, bool rev) const {
   assert(*ia < a.size() && *ib < b.size());
 
   const auto& mem_a = a.members[*ia];
@@ -53,7 +53,7 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
       return false;
     }
 
-    bool success = match_list(va.list, b, ib);
+    bool success = match_list(va.list, b, ib, rev);
     (*ia)++;
     return success;
 
@@ -62,20 +62,20 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
       return false;
     }
 
-    bool success = match_list(vb.list, a, ia);
+    bool success = match_list(vb.list, a, ia, !rev);
     (*ib)++;
     return success;
 
   } else if (va.is_destructured_tuple()) {
     const int64_t expect_match = expect_to_match(a, va.destructured_tuple);
-    bool success = subrecurse_tuple(va.destructured_tuple, b, ib, expect_match);
+    bool success = subrecurse_tuple(va.destructured_tuple, b, ib, expect_match, rev);
     (*ia)++;
     return success;
 
 
   } else if (vb.is_destructured_tuple()) {
     const int64_t expect_match = expect_to_match(b, vb.destructured_tuple);
-    bool success = subrecurse_tuple(vb.destructured_tuple, a, ia, expect_match);
+    bool success = subrecurse_tuple(vb.destructured_tuple, a, ia, expect_match, !rev);
     (*ib)++;
     return success;
 
@@ -83,23 +83,24 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
     (*ia)++;
     (*ib)++;
 
-    return predicate(mem_a, mem_b);
+    return predicate(mem_a, mem_b, rev);
   }
 }
 
-bool DestructuredMemberVisitor::subrecurse_tuple(const DT& child_a, const DT& b, int64_t* ib, int64_t expect_match) const {
+bool DestructuredMemberVisitor::subrecurse_tuple(const DT& child_a, const DT& b,
+                                                 int64_t* ib, int64_t expect_match, bool rev) const {
   int64_t ia_child = 0;
   bool success = true;
 
   while (success && ia_child < expect_match && ia_child < child_a.size() && *ib < b.size()) {
-    success = recurse_tuple(child_a, b, &ia_child, ib);
+    success = recurse_tuple(child_a, b, &ia_child, ib, rev);
   }
 
   return success && ia_child == expect_match;
 }
 
 bool DestructuredMemberVisitor::subrecurse_list(const types::List& a, int64_t* ia,
-                                                const DT& b, const TypeHandle& mem_b) const {
+                                                const DT& b, const TypeHandle& mem_b, bool rev) const {
 
   const auto& mem_a = a.pattern[*ia];
   const auto& vb = store.at(mem_b);
@@ -111,23 +112,23 @@ bool DestructuredMemberVisitor::subrecurse_list(const types::List& a, int64_t* i
     bool success = true;
 
     while (success && ib < expect_num_b && ib < sub_b.size()) {
-      success = subrecurse_list(a, ia, sub_b, sub_b.members[ib++]);
+      success = subrecurse_list(a, ia, sub_b, sub_b.members[ib++], rev);
     }
 
     return success && ib == expect_num_b;
 
   } else {
     *ia = (*ia + 1) % a.size();
-    return predicate(mem_a, mem_b);
+    return predicate(mem_a, mem_b, rev);
   }
 }
 
-bool DestructuredMemberVisitor::match_list(const types::List& a, const DT& b, int64_t* ib) const {
+bool DestructuredMemberVisitor::match_list(const types::List& a, const DT& b, int64_t* ib, bool rev) const {
   int64_t ia = 0;
   bool success = true;
 
   while (success && ia < a.size() && *ib < b.size()) {
-    success = subrecurse_list(a, &ia, b, b.members[(*ib)++]);
+    success = subrecurse_list(a, &ia, b, b.members[(*ib)++], rev);
   }
 
   return success && (a.size() == 0 || (ia == 0 && *ib == b.size()));

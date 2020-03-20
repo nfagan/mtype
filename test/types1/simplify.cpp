@@ -11,7 +11,19 @@
 
 namespace mt {
 
-bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rhs) {
+bool Simplifier::simplify_entry(const TypeHandle& lhs, const TypeHandle& rhs) {
+  return simplify(lhs, rhs, false);
+}
+
+bool Simplifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs, bool rev) {
+  if (store.type_of(lhs) == store.type_of(rhs)) {
+    return simplify_same_types(lhs, rhs, rev);
+  } else {
+    return simplify_different_types(lhs, rhs, rev);
+  }
+}
+
+bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rhs, bool rev) {
   using Tag = Type::Tag;
 
   const auto& t0 = store.at(lhs);
@@ -19,19 +31,17 @@ bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rh
 
   switch (t0.tag) {
     case Tag::abstraction:
-      return simplify(t0.abstraction, t1.abstraction);
+      return simplify(t0.abstraction, t1.abstraction, rev);
     case Tag::scalar:
-      return simplify(t0.scalar, t1.scalar);
+      return simplify(t0.scalar, t1.scalar, rev);
     case Tag::tuple:
-      return simplify(t0.tuple, t1.tuple);
+      return simplify(t0.tuple, t1.tuple, rev);
     case Tag::destructured_tuple:
-      return simplify(t0.destructured_tuple, t1.destructured_tuple);
+      return simplify(t0.destructured_tuple, t1.destructured_tuple, rev);
     case Tag::list:
-      return simplify(t0.list, t1.list);
-    case Tag::variable: {
-      unifier.push_type_equation(TypeEquation(lhs, rhs));
-      return true;
-    }
+      return simplify(t0.list, t1.list, rev);
+    case Tag::variable:
+      return simplify_make_type_equation(lhs, rhs, rev);
     default:
       MT_SHOW2("Unhandled same types for simplify: ", lhs, rhs);
       assert(false);
@@ -39,31 +49,32 @@ bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rh
   }
 }
 
-bool Simplifier::simplify_different_types(const TypeHandle& lhs, const TypeHandle& rhs) {
+bool Simplifier::simplify_make_type_equation(const TypeHandle& t0, const TypeHandle& t1, bool rev) {
+  push_make_type_equation(t0, t1, rev);
+  return true;
+}
+
+bool Simplifier::simplify_different_types(const TypeHandle& lhs, const TypeHandle& rhs, bool rev) {
   using Tag = Type::Tag;
 
   const auto lhs_type = store.type_of(lhs);
   const auto rhs_type = store.type_of(rhs);
 
-  if (lhs_type == Tag::variable) {
-    push_type_equation(TypeEquation(lhs, rhs));
-    return true;
+  if (lhs_type == Type::Tag::variable || rhs_type == Type::Tag::variable) {
+    return simplify_make_type_equation(lhs, rhs, rev);
+  }
 
-  } else if (rhs_type == Tag::variable) {
-    push_type_equation(TypeEquation(rhs, lhs));
-    return true;
-
-  } else if (lhs_type == Tag::destructured_tuple) {
-    return simplify_different_types(store.at(lhs).destructured_tuple, lhs, rhs);
+  if (lhs_type == Tag::destructured_tuple) {
+    return simplify_different_types(store.at(lhs).destructured_tuple, lhs, rhs, rev);
 
   } else if (rhs_type == Tag::destructured_tuple) {
-    return simplify_different_types(store.at(rhs).destructured_tuple, rhs, lhs);
+    return simplify_different_types(store.at(rhs).destructured_tuple, rhs, lhs, !rev);
 
   } else if (lhs_type == Tag::list) {
-    return simplify_different_types(store.at(lhs).list, lhs, rhs);
+    return simplify_different_types(store.at(lhs).list, lhs, rhs, rev);
 
   } else if (rhs_type == Tag::list) {
-    return simplify_different_types(store.at(rhs).list, rhs, lhs);
+    return simplify_different_types(store.at(rhs).list, rhs, lhs, !rev);
 
   } else {
     MT_SHOW2("Unhandled simplify for diff types: ", lhs, rhs);
@@ -72,59 +83,51 @@ bool Simplifier::simplify_different_types(const TypeHandle& lhs, const TypeHandl
   }
 }
 
-bool Simplifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs) {
-  if (store.type_of(lhs) == store.type_of(rhs)) {
-    return simplify_same_types(lhs, rhs);
-  } else {
-    return simplify_different_types(lhs, rhs);
-  }
-}
-
-bool Simplifier::simplify_different_types(const types::List& list, const TypeHandle& source, const TypeHandle& rhs) {
+bool Simplifier::simplify_different_types(const types::List& list, const TypeHandle& source,
+                                          const TypeHandle& rhs, bool rev) {
   const auto& rhs_member = store.at(rhs);
+
   if (rhs_member.is_scalar() || rhs_member.is_tuple()) {
     for (const auto& el : list.pattern) {
-      push_type_equation(TypeEquation(el, rhs));
+      push_make_type_equation(el, rhs, rev);
     }
+
     return true;
   }
 
-  MT_SHOW2("Cannot simplify list with non-scalar type.", source, rhs);
+  MT_SHOW2("ERROR: Cannot simplify list with type:", source, rhs);
   assert(false);
 
   return false;
 }
 
-bool Simplifier::simplify_different_types(const types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& rhs) {
-  using Use = types::DestructuredTuple::Usage;
-
-  auto t = store.make_destructured_tuple(Use::rvalue, rhs);
-  push_type_equation(TypeEquation(source, t));
-
-  return true;
+bool Simplifier::simplify_different_types(const DT& tup, const TypeHandle& source, const TypeHandle& rhs, bool rev) {
+  const auto t = store.make_rvalue_destructured_tuple(rhs);
+  return simplify_make_type_equation(source, t, rev);
 }
 
-bool Simplifier::simplify(const types::Scalar& t0, const types::Scalar& t1) {
+bool Simplifier::simplify(const types::Scalar& t0, const types::Scalar& t1, bool rev) {
   return t0.identifier == t1.identifier;
 }
 
-bool Simplifier::simplify(const types::Abstraction& t0, const types::Abstraction& t1) {
-  return simplify(t0.inputs, t1.inputs) && simplify(t0.outputs, t1.outputs);
+bool Simplifier::simplify(const types::Abstraction& t0, const types::Abstraction& t1, bool rev) {
+  //  Swap t1 and t0 order for inputs.
+  return simplify(t1.inputs, t0.inputs, rev) && simplify(t0.outputs, t1.outputs, rev);
 }
 
-bool Simplifier::simplify(const types::DestructuredTuple& t0, const types::DestructuredTuple& t1) {
+bool Simplifier::simplify(const DT& t0, const DT& t1, bool rev) {
   if (types::DestructuredTuple::mismatching_definition_usages(t0, t1)) {
     return false;
 
   } else if (t0.is_definition_usage() && t0.usage == t1.usage) {
-    return simplify(t0.members, t1.members);
+    return simplify(t0.members, t1.members, rev);
 
   } else {
-    return DestructuredMemberVisitor{store, DestructuredSimplifier{*this}}.expand_members(t0, t1);
+    return DestructuredMemberVisitor{store, DestructuredSimplifier{*this}}.expand_members(t0, t1, rev);
   }
 }
 
-bool Simplifier::simplify(const types::List& t0, const types::List& t1) {
+bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev) {
   const int64_t num_a = t0.size();
   const int64_t num_b = t1.size();
   const int64_t sz = std::max(num_a, num_b);
@@ -138,22 +141,28 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1) {
     const auto& mem_a = t0.pattern[i % num_a];
     const auto& mem_b = t1.pattern[i % num_b];
 
-    push_type_equation(TypeEquation(mem_a, mem_b));
+    push_make_type_equation(mem_a, mem_b, rev);
   }
 
   return true;
 }
 
-bool Simplifier::simplify(const types::Tuple& t0, const types::Tuple& t1) {
-  return simplify(t0.members, t1.members);
+bool Simplifier::simplify(const types::Tuple& t0, const types::Tuple& t1, bool rev) {
+  return simplify(t0.members, t1.members, rev);
 }
 
-bool Simplifier::simplify(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1) {
+bool Simplifier::simplify(const TypeHandles& t0, const TypeHandles& t1, bool rev) {
   const auto sz0 = t0.size();
   if (sz0 != t1.size()) {
     return false;
   }
-  push_type_equations(t0, t1, sz0);
+
+  if (rev) {
+    push_type_equations(t1, t0, sz0);
+  } else {
+    push_type_equations(t0, t1, sz0);
+  }
+
   return true;
 }
 
@@ -166,6 +175,14 @@ void Simplifier::push_type_equations(const std::vector<TypeHandle>& t0, const st
 
 void Simplifier::push_type_equation(TypeEquation&& eq) {
   unifier.push_type_equation(std::move(eq));
+}
+
+void Simplifier::push_make_type_equation(const TypeHandle& t0, const TypeHandle& t1, bool rev) {
+  if (rev) {
+    unifier.push_type_equation(TypeEquation(t1, t0));
+  } else {
+    unifier.push_type_equation(TypeEquation(t0, t1));
+  }
 }
 
 }

@@ -60,6 +60,12 @@ public:
   }
 
   template <typename... Args>
+  TypeHandle make_rvalue_destructured_tuple(Args&&... args) {
+    using Use = types::DestructuredTuple::Usage;
+    return make_type<types::DestructuredTuple>(Use::rvalue, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   TypeHandle make_list(Args&&... args) {
     return make_type<types::List>(std::forward<Args>(args)...);
   }

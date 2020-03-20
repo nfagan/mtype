@@ -6,7 +6,6 @@
 namespace mt {
 
 class TypeVisitor;
-class StringRegistry;
 class DebugTypePrinter;
 
 class TypeEquality {
@@ -15,8 +14,8 @@ private:
     DestructuredComparator(const TypeEquality& eq) : eq(eq) {
       //
     }
-    bool operator()(const TypeHandle& a, const TypeHandle& b) const {
-      return eq.equivalence(a, b);
+    bool operator()(const TypeHandle& a, const TypeHandle& b, bool rev) const {
+      return eq.equivalence(a, b, rev);
     }
 
     const TypeEquality& eq;
@@ -42,30 +41,32 @@ public:
   };
 
 public:
-  TypeEquality(const TypeStore& store, const StringRegistry& string_registry) :
-  store(store), string_registry(string_registry) {
+  TypeEquality(const TypeStore& store) : store(store) {
     //
   }
 public:
-  bool equivalence(const TypeHandle& a, const TypeHandle& b) const;
+  bool equivalence_entry(const TypeHandle& a, const TypeHandle& b) const;
 
 private:
   using DT = types::DestructuredTuple;
 
-  bool element_wise_equivalence(const TypeHandles& a, const TypeHandles& b) const;
-  bool equivalence_different_types(const TypeHandle& a, const TypeHandle& b) const;
-  bool equivalence_same_types(const TypeHandle& a, const TypeHandle& b) const;
+  bool equivalence(const TypeHandle& a, const TypeHandle& b, bool rev) const;
 
-  bool equivalence(const types::Scalar& a, const types::Scalar& b) const;
-  bool equivalence(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const;
-  bool equivalence(const types::List& a, const types::List& b) const;
-  bool equivalence(const types::Tuple& a, const types::Tuple& b) const;
+  bool element_wise_equivalence(const TypeHandles& a, const TypeHandles& b, bool rev) const;
+  bool equivalence_different_types(const TypeHandle& a, const TypeHandle& b, bool rev) const;
+  bool equivalence_same_types(const TypeHandle& a, const TypeHandle& b, bool rev) const;
 
-  bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const;
-  bool equivalence_different_types(const types::List& a, const TypeHandle& b) const;
+  bool equivalence(const types::Scalar& a, const types::Scalar& b, bool rev) const;
+  bool equivalence(const types::DestructuredTuple& a, const types::DestructuredTuple& b, bool rev) const;
+  bool equivalence(const types::List& a, const types::List& b, bool rev) const;
+  bool equivalence(const types::Tuple& a, const types::Tuple& b, bool rev) const;
 
-  bool equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib, int64_t num_a, int64_t num_b) const;
-  bool equivalence_list_sub_tuple(const DT& tup_a, const TypeHandles& b, int64_t* ib, int64_t num_b) const;
+  bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b, bool rev) const;
+  bool equivalence_different_types(const types::List& a, const TypeHandle& b, bool rev) const;
+
+  bool equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,
+    int64_t num_a, int64_t num_b, bool rev) const;
+  bool equivalence_list_sub_tuple(const DT& tup_a, const TypeHandles& b, int64_t* ib, int64_t num_b, bool rev) const;
 
   DebugTypePrinter type_printer() const;
 
@@ -74,7 +75,6 @@ private:
 
 private:
   const TypeStore& store;
-  const StringRegistry& string_registry;
 };
 
 }

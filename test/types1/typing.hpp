@@ -80,6 +80,7 @@ public:
   void function_call_expr(const FunctionCallExpr& expr) override;
   void binary_operator_expr(const BinaryOperatorExpr& expr) override;
   void variable_reference_expr(const VariableReferenceExpr& expr) override;
+  void function_reference_expr(const FunctionReferenceExpr& expr) override;
 
   void anonymous_function_expr(const AnonymousFunctionExpr& expr) override {
     assert(false && "Unhandled.");

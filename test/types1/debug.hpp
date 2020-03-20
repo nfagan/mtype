@@ -9,7 +9,11 @@ class TypeVisitor;
 
 class DebugTypePrinter {
 public:
-  explicit DebugTypePrinter(const TypeStore& store, const StringRegistry& string_registry) :
+  explicit DebugTypePrinter(const TypeStore& store) : DebugTypePrinter(store, nullptr) {
+    //
+  }
+
+  DebugTypePrinter(const TypeStore& store, const StringRegistry* string_registry) :
   store(store), string_registry(string_registry), colorize(true) {
     //
   }
@@ -44,7 +48,7 @@ private:
 
 private:
   const TypeStore& store;
-  const StringRegistry& string_registry;
+  const StringRegistry* string_registry;
 
 public:
   bool colorize;

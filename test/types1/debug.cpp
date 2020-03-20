@@ -78,7 +78,11 @@ void DebugTypePrinter::show(const types::Abstraction& abstr) const {
   std::cout << "] = " << color(style::yellow);
 
   if (abstr.is_function()) {
-    std::cout << string_registry.at(abstr.name.full_name());
+    if (string_registry) {
+      std::cout << string_registry->at(abstr.name.full_name());
+    } else {
+      std::cout << "f-" << abstr.name.full_name();
+    }
 
   } else if (abstr.is_binary_operator()) {
     std::cout << to_string(abstr.binary_operator);
