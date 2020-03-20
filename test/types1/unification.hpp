@@ -12,21 +12,19 @@ namespace mt {
 
 class TypeVisitor;
 class DebugTypePrinter;
+class Library;
 
 class Unifier {
   friend class Simplifier;
 public:
   using BoundVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
 public:
-  explicit Unifier(TypeStore& store, StringRegistry& string_registry) :
+  Unifier(TypeStore& store, const Library& library, const TypeEquality& type_eq, StringRegistry& string_registry) :
   store(store),
+  library(library),
+  type_eq(type_eq),
   string_registry(string_registry),
-  type_eq(store, string_registry),
   simplifier(*this, store),
-  arg_comparator(type_eq),
-  type_equiv_comparator(type_eq),
-  function_types(arg_comparator),
-  types_with_known_subscripts(type_equiv_comparator),
   instantiation(store) {
     //
   }
@@ -85,36 +83,20 @@ private:
   void flatten_destructured_tuple(const types::DestructuredTuple& source, std::vector<TypeHandle>& into) const;
   void flatten_list(const TypeHandle& source, std::vector<TypeHandle>& into) const;
 
-  void make_known_types();
-  void make_binary_operators();
-  void make_subscript_references();
-  void make_concatenations();
-  void make_builtin_parens_subscript_references();
-  void make_builtin_brace_subscript_reference();
-  void make_free_functions();
-  void make_min();
-  void make_fileparts();
-  void make_list_outputs_type();
-  void make_list_outputs_type2();
-  void make_list_inputs_type();
-
   DebugTypePrinter type_printer() const;
 
 private:
   TypeStore& store;
+  const Library& library;
+  const TypeEquality& type_eq;
   StringRegistry& string_registry;
-  TypeEquality type_eq;
   Simplifier simplifier;
 
   std::vector<TypeEquation> type_equations;
   BoundVariables bound_variables;
 
-  TypeEquality::ArgumentComparator arg_comparator;
-  TypeEquality::TypeEquivalenceComparator type_equiv_comparator;
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_assignments;
-  std::map<types::Abstraction, TypeHandle, TypeEquality::ArgumentComparator> function_types;
-  std::set<TypeHandle, TypeEquality::TypeEquivalenceComparator> types_with_known_subscripts;
 
   Instantiation instantiation;
 };

@@ -1,6 +1,7 @@
 #include "mt/mt.hpp"
 #include "typing.hpp"
 #include "test_cases.hpp"
+#include "library.hpp"
 #include "util.hpp"
 #include <chrono>
 
@@ -46,7 +47,15 @@ int main(int argc, char** argv) {
 
   auto t0 = std::chrono::high_resolution_clock::now();
 
-  TypeVisitor type_visitor(store, str_registry);
+  //  Reserve space
+  TypeStore type_store(10000);
+  type_store.make_builtin_types();
+
+  TypeEquality type_eq(type_store, str_registry);
+  Library library(type_store, type_eq, str_registry);
+  library.make_known_types();
+
+  TypeVisitor type_visitor(store, type_store, library, type_eq, str_registry);
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
   root_block->accept_const(type_visitor);
 

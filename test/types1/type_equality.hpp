@@ -47,11 +47,12 @@ public:
   store(store), string_registry(string_registry) {
     //
   }
+public:
+  bool equivalence(const TypeHandle& a, const TypeHandle& b) const;
 
 private:
   using DT = types::DestructuredTuple;
 
-  bool equivalence(const TypeHandle& a, const TypeHandle& b) const;
   bool element_wise_equivalence(const TypeHandles& a, const TypeHandles& b) const;
   bool equivalence_different_types(const TypeHandle& a, const TypeHandle& b) const;
   bool equivalence_same_types(const TypeHandle& a, const TypeHandle& b) const;

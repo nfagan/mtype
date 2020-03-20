@@ -25,12 +25,13 @@ private:
   using MatlabScopeHelper = ScopeHelper<TypeVisitor, ScopeStack>;
 
 public:
-  explicit TypeVisitor(Store& store, StringRegistry& string_registry) :
-    unifier(type_store, string_registry), store(store), string_registry(string_registry) {
-    //  Reserve space
-    type_store.reserve(10000);
-
-    type_store.make_builtin_types();
+  explicit TypeVisitor(Store& store, TypeStore& type_store, const Library& library,
+    const TypeEquality& type_eq, StringRegistry& string_registry) :
+    store(store),
+    type_store(type_store),
+    string_registry(string_registry),
+    unifier(type_store, library, type_eq, string_registry) {
+    //
     assignment_state.push_non_assignment_target_rvalue();
     value_category_state.push_rhs();
   }
@@ -149,13 +150,13 @@ private:
     type_handles.pop_back();
     return handle;
   }
-public:
-  Unifier unifier;
 
 private:
   Store& store;
-  TypeStore type_store;
+  TypeStore& type_store;
   const StringRegistry& string_registry;
+
+  Unifier unifier;
 
   AssignmentSourceState assignment_state;
   ValueCategoryState value_category_state;

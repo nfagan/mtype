@@ -10,6 +10,10 @@ public:
     //
   }
 
+  explicit TypeStore(int64_t cap) : type_variable_ids(0) {
+    reserve(cap);
+  }
+
   void reserve(int64_t cap) {
     types.reserve(cap);
   }
