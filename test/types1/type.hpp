@@ -37,6 +37,26 @@ struct TypeIdentifier {
   int64_t name;
 };
 
+struct TypeEquationTerm {
+  TypeEquationTerm(const Token& source_token, const TypeHandle& type) :
+    source_token(source_token), type(type) {
+    //
+  }
+
+
+  Token source_token;
+  TypeHandle type;
+};
+
+struct TypeEquation {
+  TypeEquation(const TypeHandle& lhs, const TypeHandle& rhs) : lhs(lhs), rhs(rhs) {
+    //
+  }
+
+  TypeHandle lhs;
+  TypeHandle rhs;
+};
+
 namespace types {
   struct Null {
     //

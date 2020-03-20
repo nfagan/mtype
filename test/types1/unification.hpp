@@ -13,27 +13,8 @@ namespace mt {
 class TypeVisitor;
 class DebugTypePrinter;
 
-struct TypeEquationTerm {
-  TypeEquationTerm(const Token& source_token, const TypeHandle& type) :
-  source_token(source_token), type(type) {
-    //
-  }
-
-
-  Token source_token;
-  TypeHandle type;
-};
-
-struct TypeEquation {
-  TypeEquation(const TypeHandle& lhs, const TypeHandle& rhs) : lhs(lhs), rhs(rhs) {
-    //
-  }
-
-  TypeHandle lhs;
-  TypeHandle rhs;
-};
-
 class Unifier {
+  friend class Simplifier;
 public:
   using BoundVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
 public:
@@ -41,7 +22,7 @@ public:
   store(store),
   string_registry(string_registry),
   type_eq(store, string_registry),
-  simplifier(*this),
+  simplifier(*this, store),
   arg_comparator(type_eq),
   type_equiv_comparator(type_eq),
   function_types(arg_comparator),
