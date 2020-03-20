@@ -59,16 +59,18 @@ private:
                                  int64_t* ia, int64_t* ib) const;
   bool equivalence_subrecurse_tuple(const types::DestructuredTuple& a,
                                     const types::DestructuredTuple& b,
-                                    const types::DestructuredTuple& sub_a,
-                                    int64_t* ia,
-                                    int64_t* ib) const;
+                                    int64_t* ib, int64_t expect_match) const;
   bool equivalence_subrecurse_list(const types::List& a, int64_t* ia,
     const types::DestructuredTuple& b, const TypeHandle& mem_b) const;
 
   bool equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,
     int64_t num_a, int64_t num_b) const;
+  bool equivalence_list_sub_tuple(const types::DestructuredTuple& tup_a,
+                                  const TypeHandles& b, int64_t* ib, int64_t num_b) const;
 
   DebugTypePrinter type_printer() const;
+
+  int64_t expect_to_match(const types::DestructuredTuple& parent, const types::DestructuredTuple& child) const;
 
 private:
   Type::Tag type_of(const TypeHandle& handle) const;

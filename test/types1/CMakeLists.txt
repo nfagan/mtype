@@ -10,6 +10,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         debug.cpp
         instance.hpp
         instance.cpp
+        simplify.hpp
+        simplify.cpp
         test_cases.hpp
         test_cases.cpp
         type.hpp

@@ -5,6 +5,7 @@
 #include "type_equality.hpp"
 #include "type_store.hpp"
 #include "instance.hpp"
+#include "simplify.hpp"
 #include <map>
 
 namespace mt {
@@ -40,6 +41,7 @@ public:
   store(store),
   string_registry(string_registry),
   type_eq(store, string_registry),
+  simplifier(*this),
   arg_comparator(type_eq),
   type_equiv_comparator(type_eq),
   function_types(arg_comparator),
@@ -144,6 +146,7 @@ private:
   TypeStore& store;
   StringRegistry& string_registry;
   TypeEquality type_eq;
+  Simplifier simplifier;
 
   std::vector<TypeEquation> type_equations;
   BoundVariables bound_variables;

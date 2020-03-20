@@ -5,6 +5,14 @@
 
 namespace mt {
 
+int64_t TypeEquality::expect_to_match(const types::DestructuredTuple& parent, const types::DestructuredTuple& child) const {
+  if (parent.is_value_usage() && child.is_outputs()) {
+    return 1;
+  } else {
+    return child.size();
+  }
+}
+
 DebugTypePrinter TypeEquality::type_printer() const {
   return DebugTypePrinter(store, string_registry);
 }
@@ -119,20 +127,12 @@ bool TypeEquality::equivalence_list(const TypeHandles& a, const TypeHandles& b, 
     return success;
 
   } else if (va.is_destructured_tuple()) {
-    const auto& tup_a = va.destructured_tuple;
-    const int64_t use_num_a = tup_a.is_outputs() ? std::min(int64_t(1), tup_a.size()) : tup_a.size();
-
-    int64_t new_ia = 0;
-    bool success = equivalence_list(tup_a.members, b, &new_ia, ib, use_num_a, num_b);
+    bool success = equivalence_list_sub_tuple(va.destructured_tuple, b, ib, num_b);
     (*ia)++;
     return success;
 
   } else if (vb.is_destructured_tuple()) {
-    const auto& tup_b = vb.destructured_tuple;
-    const int64_t use_num_b = tup_b.is_outputs() ? std::min(int64_t(1), tup_b.size()) : tup_b.size();
-
-    int64_t new_ib = 0;
-    bool success = equivalence_list(a, tup_b.members, ia, &new_ib, num_a, use_num_b);
+    bool success = equivalence_list_sub_tuple(vb.destructured_tuple, a, ia, num_a);
     (*ib)++;
     return success;
 
@@ -142,6 +142,14 @@ bool TypeEquality::equivalence_list(const TypeHandles& a, const TypeHandles& b, 
 
     return equivalence(mem_a, mem_b);
   }
+}
+
+bool TypeEquality::equivalence_list_sub_tuple(const types::DestructuredTuple& tup_a,
+                                              const TypeHandles& b,
+                                              int64_t* ib, int64_t num_b) const {
+  const int64_t use_num_a = tup_a.is_outputs() ? std::min(int64_t(1), tup_a.size()) : tup_a.size();
+  int64_t new_ia = 0;
+  return equivalence_list(tup_a.members, b, &new_ia, ib, use_num_a, num_b);
 }
 
 bool TypeEquality::equivalence(const types::List& a, const types::List& b) const {
@@ -171,8 +179,8 @@ bool TypeEquality::equivalence_same_definition_usage(const types::DestructuredTu
 }
 
 bool TypeEquality::equivalence_expanding_members(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const {
-  const int64_t num_a = a.members.size();
-  const int64_t num_b = b.members.size();
+  const int64_t num_a = a.size();
+  const int64_t num_b = b.size();
 
   int64_t ia = 0;
   int64_t ib = 0;
@@ -229,10 +237,17 @@ bool TypeEquality::equivalence_recurse_tuple(const types::DestructuredTuple& a,
     return success;
 
   } else if (va.is_destructured_tuple()) {
-    return equivalence_subrecurse_tuple(a, b, va.destructured_tuple, ia, ib);
+    const int64_t expect_match = expect_to_match(a, va.destructured_tuple);
+    bool success = equivalence_subrecurse_tuple(va.destructured_tuple, b, ib, expect_match);
+    (*ia)++;
+    return success;
+
 
   } else if (vb.is_destructured_tuple()) {
-    return equivalence_subrecurse_tuple(b, a, vb.destructured_tuple, ib, ia);
+    const int64_t expect_match = expect_to_match(b, vb.destructured_tuple);
+    bool success = equivalence_subrecurse_tuple(vb.destructured_tuple, a, ia, expect_match);
+    (*ib)++;
+    return success;
 
   } else {
     (*ia)++;
@@ -242,26 +257,15 @@ bool TypeEquality::equivalence_recurse_tuple(const types::DestructuredTuple& a,
   }
 }
 
-bool TypeEquality::equivalence_subrecurse_tuple(const types::DestructuredTuple& a,
+bool TypeEquality::equivalence_subrecurse_tuple(const types::DestructuredTuple& child_a,
                                                 const types::DestructuredTuple& b,
-                                                const types::DestructuredTuple& sub_a,
-                                                int64_t* ia,
-                                                int64_t* ib) const {
+                                                int64_t* ib, int64_t expect_match) const {
   int64_t ia_child = 0;
-  const int64_t num_sub_a = sub_a.size();
-  int64_t expect_match = num_sub_a;
-
-  if (a.is_value_usage() && sub_a.is_outputs()) {
-    expect_match = 1;
-  }
-
   bool success = true;
 
-  while (success && ia_child < expect_match && ia_child < num_sub_a && *ib < b.size()) {
-    success = equivalence_recurse_tuple(sub_a, b, &ia_child, ib);
+  while (success && ia_child < expect_match && ia_child < child_a.size() && *ib < b.size()) {
+    success = equivalence_recurse_tuple(child_a, b, &ia_child, ib);
   }
-
-  (*ia)++;
 
   return success && ia_child == expect_match;
 }
@@ -270,20 +274,15 @@ bool TypeEquality::equivalence_subrecurse_list(const types::List& a, int64_t* ia
   const types::DestructuredTuple& b, const TypeHandle& mem_b) const {
 
   const auto& mem_a = a.pattern[*ia];
+  const auto& vb = store.at(mem_b);
 
-  if (type_of(mem_b) == Type::Tag::destructured_tuple) {
-    const auto& sub_b = store.at(mem_b).destructured_tuple;
-    const int64_t num_b = sub_b.size();
-
-    int64_t expect_num_b = num_b;
-    if (b.is_value_usage() && sub_b.is_outputs()) {
-      expect_num_b = 1;
-    }
-
+  if (vb.is_destructured_tuple()) {
+    const auto& sub_b = vb.destructured_tuple;
+    const int64_t expect_num_b = expect_to_match(b, sub_b);
     int64_t ib = 0;
     bool success = true;
 
-    while (success && ib < expect_num_b && ib < num_b) {
+    while (success && ib < expect_num_b && ib < sub_b.size()) {
       success = equivalence_subrecurse_list(a, ia, sub_b, sub_b.members[ib++]);
     }
 
