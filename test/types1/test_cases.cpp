@@ -11,6 +11,18 @@
   std::cout << "FAIL: " << msg << std::endl; \
   DebugTypePrinter(store, str_registry).show2((a), (b));
 
+#define MT_ERROR_IF_NON_EQUIV(msg, a, b) \
+  if (!eq.equivalence((a), (b))) { \
+    std::cout << "FAIL: " << msg << std::endl; \
+    DebugTypePrinter(store, str_registry).show2((a), (b)); \
+  }
+
+#define MT_ERROR_IF_EQUIV(msg, a, b) \
+  if (  eq.equivalence((a), (b))) { \
+    std::cout << "FAIL: " << msg << std::endl; \
+    DebugTypePrinter(store, str_registry).show2((a), (b)); \
+  }
+
 namespace mt {
 
 void test_equivalence_debug() {
@@ -100,9 +112,9 @@ void test_equivalence_debug() {
   if (!eq.equivalence(mixed_rec_tup, flat_tup)) {
     MT_SHOW_ERROR("Mixed flat and recursive double tups were not equiv.");
   }
-  if (!eq.equivalence(wrap_tup, c_handle)) {
-    MT_SHOW_ERROR("Recursive tuple wrapping char outputs not equal to char.");
-  }
+
+  MT_ERROR_IF_EQUIV("Recursive tuple wrapping char outputs equal to char.", wrap_tup, c_handle)
+
   if (!eq.equivalence(wrap_tup, tup3)) {
     MT_SHOW_ERROR("Recursive tuple wrapping char outputs not equal to rvalue tuple wrapping char.");
   }

@@ -126,7 +126,7 @@ void Unifier::unify() {
     unify_one(type_equations[i++]);
   }
 
-  show();
+//  show();
 }
 
 TypeHandle Unifier::apply_to(const TypeHandle& source, mt::types::Variable& var) {
