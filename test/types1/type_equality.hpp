@@ -38,8 +38,10 @@ public:
   }
 
 private:
+  using DT = types::DestructuredTuple;
+
   bool equivalence(const TypeHandle& a, const TypeHandle& b) const;
-  bool element_wise_equivalence(const std::vector<TypeHandle>& a, const std::vector<TypeHandle>& b) const;
+  bool element_wise_equivalence(const TypeHandles& a, const TypeHandles& b) const;
   bool equivalence_different_types(const TypeHandle& a, const TypeHandle& b) const;
   bool equivalence_same_types(const TypeHandle& a, const TypeHandle& b) const;
 
@@ -50,23 +52,15 @@ private:
 
   bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b) const;
   bool equivalence_different_types(const types::List& a, const TypeHandle& b) const;
-  bool match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib) const;
 
-  bool equivalence_same_definition_usage(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const;
-  bool equivalence_expanding_members(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const;
-  bool equivalence_recurse_tuple(const types::DestructuredTuple& a,
-                                 const types::DestructuredTuple& b,
-                                 int64_t* ia, int64_t* ib) const;
-  bool equivalence_subrecurse_tuple(const types::DestructuredTuple& a,
-                                    const types::DestructuredTuple& b,
-                                    int64_t* ib, int64_t expect_match) const;
-  bool equivalence_subrecurse_list(const types::List& a, int64_t* ia,
-    const types::DestructuredTuple& b, const TypeHandle& mem_b) const;
+  bool equivalence_expanding_members(const DT& a, const DT& b) const;
+  bool equivalence_recurse_tuple(const DT& a, const DT& b, int64_t* ia, int64_t* ib) const;
+  bool equivalence_subrecurse_tuple(const DT& a, const DT& b, int64_t* ib, int64_t expect_match) const;
+  bool equivalence_subrecurse_list(const types::List& a, int64_t* ia, const DT& b, const TypeHandle& mem_b) const;
+  bool match_list(const types::List& a, const DT& b, int64_t* ib) const;
 
-  bool equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,
-    int64_t num_a, int64_t num_b) const;
-  bool equivalence_list_sub_tuple(const types::DestructuredTuple& tup_a,
-                                  const TypeHandles& b, int64_t* ib, int64_t num_b) const;
+  bool equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib, int64_t num_a, int64_t num_b) const;
+  bool equivalence_list_sub_tuple(const DT& tup_a, const TypeHandles& b, int64_t* ib, int64_t num_b) const;
 
   DebugTypePrinter type_printer() const;
 

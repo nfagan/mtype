@@ -21,7 +21,7 @@ Type::Tag TypeEquality::type_of(const TypeHandle& handle) const {
   return store.at(handle).tag;
 }
 
-bool TypeEquality::element_wise_equivalence(const std::vector<TypeHandle>& a, const std::vector<TypeHandle>& b) const {
+bool TypeEquality::element_wise_equivalence(const TypeHandles& a, const TypeHandles& b) const {
   const int64_t size_a = a.size();
   if (size_a != b.size()) {
     return false;
@@ -144,9 +144,7 @@ bool TypeEquality::equivalence_list(const TypeHandles& a, const TypeHandles& b, 
   }
 }
 
-bool TypeEquality::equivalence_list_sub_tuple(const types::DestructuredTuple& tup_a,
-                                              const TypeHandles& b,
-                                              int64_t* ib, int64_t num_b) const {
+bool TypeEquality::equivalence_list_sub_tuple(const DT& tup_a, const TypeHandles& b, int64_t* ib, int64_t num_b) const {
   const int64_t use_num_a = tup_a.is_outputs() ? std::min(int64_t(1), tup_a.size()) : tup_a.size();
   int64_t new_ia = 0;
   return equivalence_list(tup_a.members, b, &new_ia, ib, use_num_a, num_b);
@@ -162,23 +160,19 @@ bool TypeEquality::equivalence(const types::Tuple& a, const types::Tuple& b) con
   return element_wise_equivalence(a.members, b.members);
 }
 
-bool TypeEquality::equivalence(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const {
+bool TypeEquality::equivalence(const DT& a, const DT& b) const {
   if (types::DestructuredTuple::mismatching_definition_usages(a, b)) {
     return false;
 
   } else if (a.is_definition_usage() && a.usage == b.usage) {
-    return equivalence_same_definition_usage(a, b);
+    return element_wise_equivalence(a.members, b.members);
 
   } else {
     return equivalence_expanding_members(a, b);
   }
 }
 
-bool TypeEquality::equivalence_same_definition_usage(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const {
-  return element_wise_equivalence(a.members, b.members);
-}
-
-bool TypeEquality::equivalence_expanding_members(const types::DestructuredTuple& a, const types::DestructuredTuple& b) const {
+bool TypeEquality::equivalence_expanding_members(const DT& a, const DT& b) const {
   const int64_t num_a = a.size();
   const int64_t num_b = b.size();
 
@@ -207,9 +201,7 @@ bool TypeEquality::equivalence_expanding_members(const types::DestructuredTuple&
   }
 }
 
-bool TypeEquality::equivalence_recurse_tuple(const types::DestructuredTuple& a,
-                                             const types::DestructuredTuple& b,
-                                             int64_t* ia, int64_t* ib) const {
+bool TypeEquality::equivalence_recurse_tuple(const DT& a, const DT& b, int64_t* ia, int64_t* ib) const {
   assert(*ia < a.size() && *ib < b.size());
 
   const auto& mem_a = a.members[*ia];
@@ -257,9 +249,7 @@ bool TypeEquality::equivalence_recurse_tuple(const types::DestructuredTuple& a,
   }
 }
 
-bool TypeEquality::equivalence_subrecurse_tuple(const types::DestructuredTuple& child_a,
-                                                const types::DestructuredTuple& b,
-                                                int64_t* ib, int64_t expect_match) const {
+bool TypeEquality::equivalence_subrecurse_tuple(const DT& child_a, const DT& b, int64_t* ib, int64_t expect_match) const {
   int64_t ia_child = 0;
   bool success = true;
 
@@ -294,7 +284,7 @@ bool TypeEquality::equivalence_subrecurse_list(const types::List& a, int64_t* ia
   }
 }
 
-bool TypeEquality::match_list(const types::List& a, const types::DestructuredTuple& b, int64_t* ib) const {
+bool TypeEquality::match_list(const types::List& a, const DT& b, int64_t* ib) const {
   int64_t ia = 0;
   bool success = true;
 

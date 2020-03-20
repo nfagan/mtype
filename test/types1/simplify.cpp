@@ -211,7 +211,7 @@ bool Simplifier::simplify_subrecurse_tuple(const types::DestructuredTuple& a,
 }
 
 bool Simplifier::simplify_subrecurse_list(const types::List& a, int64_t* ia,
-                                       const types::DestructuredTuple& b, const TypeHandle& mem_b) {
+                                          const types::DestructuredTuple& b, const TypeHandle& mem_b) {
 
   const auto& mem_a = a.pattern[*ia];
 
