@@ -25,7 +25,7 @@ public:
   }
 
 public:
-  bool simplify_entry(const TypeHandle& lhs, const TypeHandle& rhs);
+  bool simplify_entry(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs);
 
 private:
   using DT = types::DestructuredTuple;
@@ -47,12 +47,18 @@ private:
   bool simplify_make_type_equation(const TypeHandle& t0, const TypeHandle& t1, bool rev);
 
   void push_make_type_equation(const TypeHandle& t0, const TypeHandle& t1, bool rev);
-  void push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num);
+  void push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num, bool rev);
   void push_type_equation(TypeEquation&& eq);
+
+  const Token* lhs_source_token();
+  const Token* rhs_source_token();
 
 private:
   Unifier& unifier;
   TypeStore& store;
+
+  TypeEquationTerm lhs_source_term;
+  TypeEquationTerm rhs_source_term;
 };
 
 }

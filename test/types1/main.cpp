@@ -65,6 +65,8 @@ int main(int argc, char** argv) {
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
 
+  std::cout << "Term size: " << sizeof(TypeEquationTerm) << std::endl;
+
 //  StringVisitor str_visitor(&str_registry, &store);
 //  std::cout << root_block->accept(str_visitor) << std::endl;
 

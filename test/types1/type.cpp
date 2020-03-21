@@ -4,6 +4,14 @@
 
 namespace mt {
 
+TypeEquationTerm make_term(const Token* source_token, const TypeHandle& term) {
+  return TypeEquationTerm(source_token, term);
+}
+
+TypeEquation make_eq(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) {
+  return TypeEquation(lhs, rhs);
+}
+
 const char* to_string(types::DestructuredTuple::Usage usage) {
   switch (usage) {
     case types::DestructuredTuple::Usage::rvalue:

@@ -389,7 +389,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
-  auto ast_node = std::make_unique<FunctionDefNode>(def_handle, child_scope);
+  auto ast_node = std::make_unique<FunctionDefNode>(source_token, def_handle, child_scope);
   return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
 }
 

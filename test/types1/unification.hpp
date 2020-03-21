@@ -17,7 +17,7 @@ class Library;
 class Unifier {
   friend class Simplifier;
 public:
-  using BoundVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
+  using BoundVariables = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::HandleHash>;
 public:
   Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
   store(store),
@@ -71,12 +71,12 @@ private:
   Type::Tag type_of(TypeRef handle) const;
   void show();
 
-  TypeHandle maybe_unify_subscript(TypeRef source, types::Subscript& sub);
-  TypeHandle maybe_unify_known_subscript_type(TypeRef source, types::Subscript& sub);
-  TypeHandle maybe_unify_function_call_subscript(TypeRef source, const types::Abstraction& source_func, types::Subscript& sub);
+  TypeHandle maybe_unify_subscript(TypeRef source, TermRef term, types::Subscript& sub);
+  TypeHandle maybe_unify_known_subscript_type(TypeRef source, TermRef term, types::Subscript& sub);
+  TypeHandle maybe_unify_function_call_subscript(TypeRef source, TermRef term, const types::Abstraction& source_func, types::Subscript& sub);
 
-  void check_assignment(TypeRef source, const types::Assignment& assignment);
-  void check_push_func(TypeRef source, const types::Abstraction& func);
+  void check_assignment(TypeRef source, TermRef term, const types::Assignment& assignment);
+  void check_push_func(TypeRef source, TermRef term, const types::Abstraction& func);
 
   bool is_known_subscript_type(TypeRef handle) const;
   bool is_concrete_argument(TypeRef handle) const;

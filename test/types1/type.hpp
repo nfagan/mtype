@@ -36,28 +36,34 @@ struct TypeEquationTerm {
     }
   };
 
-  explicit TypeEquationTerm(const TypeHandle& term) : term(term) {
+  TypeEquationTerm() : source_token(nullptr) {
     //
   }
 
-  TypeEquationTerm(const Token& source_token, const TypeHandle& term) :
+  TypeEquationTerm(const Token* source_token, const TypeHandle& term) :
     source_token(source_token), term(term) {
     //
   }
 
+  friend bool operator==(const TypeEquationTerm& a, const TypeEquationTerm& b) {
+    return a.term == b.term;
+  }
 
-  Token source_token;
+  const Token* source_token;
   TypeHandle term;
 };
 
 struct TypeEquation {
-  TypeEquation(const TypeHandle& lhs, const TypeHandle& rhs) : lhs(lhs), rhs(rhs) {
+  TypeEquation(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) : lhs(lhs), rhs(rhs) {
     //
   }
 
-  TypeHandle lhs;
-  TypeHandle rhs;
+  TypeEquationTerm lhs;
+  TypeEquationTerm rhs;
 };
+
+TypeEquationTerm make_term(const Token* source_token, const TypeHandle& term);
+TypeEquation make_eq(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs);
 
 namespace types {
   struct Null {

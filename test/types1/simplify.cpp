@@ -11,8 +11,11 @@
 
 namespace mt {
 
-bool Simplifier::simplify_entry(const TypeHandle& lhs, const TypeHandle& rhs) {
-  return simplify(lhs, rhs, false);
+bool Simplifier::simplify_entry(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) {
+  lhs_source_term = lhs;
+  rhs_source_term = rhs;
+
+  return simplify(lhs.term, rhs.term, false);
 }
 
 bool Simplifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs, bool rev) {
@@ -156,20 +159,14 @@ bool Simplifier::simplify(const TypeHandles& t0, const TypeHandles& t1, bool rev
   if (sz0 != t1.size()) {
     return false;
   }
-
-  if (rev) {
-    push_type_equations(t1, t0, sz0);
-  } else {
-    push_type_equations(t0, t1, sz0);
-  }
-
+  push_type_equations(t0, t1, sz0, rev);
   return true;
 }
 
-void Simplifier::push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num) {
+void Simplifier::push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num, bool rev) {
   assert(num >= 0 && num <= t0.size() && num <= t1.size() && "out of bounds read.");
   for (int64_t i = 0; i < num; i++) {
-    push_type_equation(TypeEquation(t0[i], t1[i]));
+    push_make_type_equation(t0[i], t1[i], rev);
   }
 }
 
@@ -179,10 +176,24 @@ void Simplifier::push_type_equation(TypeEquation&& eq) {
 
 void Simplifier::push_make_type_equation(const TypeHandle& t0, const TypeHandle& t1, bool rev) {
   if (rev) {
-    unifier.push_type_equation(TypeEquation(t1, t0));
+    const auto lhs_term = make_term(rhs_source_token(), t1);
+    const auto rhs_term = make_term(lhs_source_token(), t0);
+    push_type_equation(make_eq(lhs_term, rhs_term));
+
   } else {
-    unifier.push_type_equation(TypeEquation(t0, t1));
+    const auto lhs_term = make_term(lhs_source_token(), t0);
+    const auto rhs_term = make_term(rhs_source_token(), t1);
+
+    push_type_equation(make_eq(lhs_term, rhs_term));
   }
+}
+
+const Token* Simplifier::lhs_source_token() {
+  return lhs_source_term.source_token;
+}
+
+const Token* Simplifier::rhs_source_token() {
+  return rhs_source_term.source_token;
 }
 
 }

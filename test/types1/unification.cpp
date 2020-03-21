@@ -17,6 +17,16 @@
 
 namespace mt {
 
+Optional<TypeHandle> Unifier::bound_type(const TypeHandle& for_type) const {
+  const auto lookup = TypeEquationTerm(nullptr, for_type);
+
+  if (bound_variables.count(lookup) == 0) {
+    return NullOpt{};
+  } else {
+    return Optional<TypeHandle>(bound_variables.at(lookup).term);
+  }
+}
+
 bool Unifier::is_concrete_argument(const mt::TypeHandle& handle) const {
   return TypeProperties(store).is_concrete_argument(handle);
 }
@@ -29,7 +39,7 @@ bool Unifier::is_known_subscript_type(TypeRef handle) const {
   return is_concrete_argument(handle) && library.is_known_subscript_type(handle);
 }
 
-void Unifier::check_push_func(TypeRef source, const types::Abstraction& func) {
+void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstraction& func) {
   if (registered_funcs.count(source) > 0) {
     return;
   }
@@ -46,14 +56,19 @@ void Unifier::check_push_func(TypeRef source, const types::Abstraction& func) {
     const auto& func_ref = store.at(maybe_func.value());
 
     if (func_ref.is_abstraction()) {
-      push_type_equation(TypeEquation(source, maybe_func.value()));
+      const auto lhs_term = make_term(term.source_token, source);
+      const auto rhs_term = make_term(term.source_token, maybe_func.value());
+      push_type_equation(make_eq(lhs_term, rhs_term));
 
     } else {
       assert(func_ref.is_scheme());
       const auto& func_scheme = func_ref.scheme;
       const auto new_abstr_handle = instantiation.instantiate(func_scheme);
       assert(type_of(new_abstr_handle) == Type::Tag::abstraction);
-      push_type_equation(TypeEquation(source, new_abstr_handle));
+
+      const auto lhs_term = make_term(term.source_token, source);
+      const auto rhs_term = make_term(term.source_token, new_abstr_handle);
+      push_type_equation(make_eq(lhs_term, rhs_term));
     }
 
   } else {
@@ -65,22 +80,17 @@ void Unifier::check_push_func(TypeRef source, const types::Abstraction& func) {
   registered_funcs[source] = true;
 }
 
-void Unifier::check_assignment(TypeRef source, const types::Assignment& assignment) {
+void Unifier::check_assignment(TypeRef source, TermRef term, const types::Assignment& assignment) {
   if (registered_assignments.count(source) > 0) {
     return;
   }
 
   if (is_concrete_argument(assignment.rhs)) {
-    push_type_equation(TypeEquation(assignment.lhs, assignment.rhs));
-    registered_assignments[source] = true;
-  }
-}
+    const auto lhs_term = make_term(term.source_token, assignment.lhs);
+    const auto rhs_term = make_term(term.source_token, assignment.rhs);
+    push_type_equation(make_eq(lhs_term, rhs_term));
 
-Optional<TypeHandle> Unifier::bound_type(TypeRef for_type) const {
-  if (bound_variables.count(for_type) == 0) {
-    return NullOpt{};
-  } else {
-    return Optional<TypeHandle>(bound_variables.at(for_type));
+    registered_assignments[source] = true;
   }
 }
 
@@ -94,8 +104,10 @@ void Unifier::unify() {
 }
 
 TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Variable& var) {
-  if (bound_variables.count(source) > 0) {
-    return bound_variables.at(source);
+  TypeEquationTerm lookup(nullptr, source);
+
+  if (bound_variables.count(lookup) > 0) {
+    return bound_variables.at(lookup).term;
   } else {
     return source;
   }
@@ -115,7 +127,7 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Abstraction& f
   func.inputs = apply_to(func.inputs, term);
   func.outputs = apply_to(func.outputs, term);
 
-  check_push_func(source, func);
+  check_push_func(source, term, func);
 
   return source;
 }
@@ -138,7 +150,7 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Assignment& as
   assignment.lhs = apply_to(assignment.lhs, term);
   assignment.rhs = apply_to(assignment.rhs, term);
 
-  check_assignment(source, assignment);
+  check_assignment(source, term, assignment);
 
   return source;
 }
@@ -213,7 +225,7 @@ TypeHandle Unifier::substitute_one(types::Assignment& assignment, TypeRef source
   assignment.rhs = substitute_one(assignment.rhs, term, lhs, rhs);
   assignment.lhs = substitute_one(assignment.lhs, term, lhs, rhs);
 
-  check_assignment(source, assignment);
+  check_assignment(source, term, assignment);
 
   return source;
 }
@@ -222,7 +234,7 @@ TypeHandle Unifier::substitute_one(types::Abstraction& func, TypeRef source, Ter
   func.inputs = substitute_one(func.inputs, term, lhs, rhs);
   func.outputs = substitute_one(func.outputs, term, lhs, rhs);
 
-  check_push_func(source, func);
+  check_push_func(source, term, func);
 
   return source;
 }
@@ -256,7 +268,7 @@ TypeHandle Unifier::substitute_one(types::Subscript& sub, TypeRef source,
   }
 
   sub.outputs = substitute_one(sub.outputs, term, lhs, rhs);
-  return maybe_unify_subscript(source, sub);
+  return maybe_unify_subscript(source, term, sub);
 }
 
 void Unifier::flatten_list(TypeRef source, std::vector<TypeHandle>& into) const {
@@ -320,21 +332,21 @@ TypeHandle Unifier::substitute_one(types::List& list, TypeRef source,
 void Unifier::unify_one(TypeEquation eq) {
   using Tag = Type::Tag;
 
-  eq.lhs = apply_to(eq.lhs, TypeEquationTerm(eq.lhs));
-  eq.rhs = apply_to(eq.rhs, TypeEquationTerm(eq.rhs));
+  eq.lhs.term = apply_to(eq.lhs.term, eq.lhs);
+  eq.rhs.term = apply_to(eq.rhs.term, eq.rhs);
 
-  if (eq.lhs == eq.rhs) {
+  if (eq.lhs.term == eq.rhs.term) {
     return;
   }
 
-  const auto lhs_type = type_of(eq.lhs);
-  const auto rhs_type = type_of(eq.rhs);
+  const auto lhs_type = type_of(eq.lhs.term);
+  const auto rhs_type = type_of(eq.rhs.term);
 
   if (lhs_type != Tag::variable && rhs_type != Tag::variable) {
     bool success = simplifier.simplify_entry(eq.lhs, eq.rhs);
 
     if (!success) {
-      MT_SHOW2("Failed to simplify: ", eq.lhs, eq.rhs);
+      MT_SHOW2("Failed to simplify: ", eq.lhs.term, eq.rhs.term);
       assert(false);
     }
 
@@ -346,18 +358,19 @@ void Unifier::unify_one(TypeEquation eq) {
   }
 
   for (auto& subst_it : bound_variables) {
-    subst_it.second = substitute_one(subst_it.second, TypeEquationTerm(eq.lhs), TypeEquationTerm(eq.lhs), TypeEquationTerm(eq.rhs));
+    auto& rhs_term = subst_it.second;
+    rhs_term.term = substitute_one(rhs_term.term, rhs_term, eq.lhs, eq.rhs);
   }
 
   bound_variables[eq.lhs] = eq.rhs;
 }
 
-TypeHandle Unifier::maybe_unify_subscript(TypeRef source, types::Subscript& sub) {
+TypeHandle Unifier::maybe_unify_subscript(TypeRef source, TermRef term, types::Subscript& sub) {
   if (is_known_subscript_type(sub.principal_argument)) {
-    return maybe_unify_known_subscript_type(source, sub);
+    return maybe_unify_known_subscript_type(source, term, sub);
 
   } else if (type_of(sub.principal_argument) == Type::Tag::abstraction) {
-    return maybe_unify_function_call_subscript(source, store.at(sub.principal_argument).abstraction, sub);
+    return maybe_unify_function_call_subscript(source, term, store.at(sub.principal_argument).abstraction, sub);
 
   } else if (type_of(sub.principal_argument) != Type::Tag::variable) {
     MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
@@ -368,6 +381,7 @@ TypeHandle Unifier::maybe_unify_subscript(TypeRef source, types::Subscript& sub)
 }
 
 TypeHandle Unifier::maybe_unify_function_call_subscript(TypeRef source,
+                                                        TermRef term,
                                                         const types::Abstraction& source_func,
                                                         types::Subscript& sub) {
   if (registered_funcs.count(source) > 0) {
@@ -393,16 +407,21 @@ TypeHandle Unifier::maybe_unify_function_call_subscript(TypeRef source,
   auto lookup_handle = store.make_type();
   store.assign(lookup_handle, Type(std::move(lookup)));
 
-  push_type_equation(TypeEquation(sub.outputs, result_type));
-  push_type_equation(TypeEquation(sub.principal_argument, lookup_handle));
+  const auto sub_lhs_term = make_term(term.source_token, sub.outputs);
+  const auto sub_rhs_term = make_term(term.source_token, result_type);
+  push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
 
-  check_push_func(lookup_handle, store.at(lookup_handle).abstraction);
+  const auto arg_lhs_term = make_term(term.source_token, sub.principal_argument);
+  const auto arg_rhs_term = make_term(term.source_token, lookup_handle);
+  push_type_equation(make_eq(arg_lhs_term, arg_rhs_term));
+
+  check_push_func(lookup_handle, term, store.at(lookup_handle).abstraction);
   registered_funcs[source] = true;
 
   return source;
 }
 
-TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, types::Subscript& sub) {
+TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, TermRef term, types::Subscript& sub) {
   using types::Subscript;
   using types::Abstraction;
   using types::DestructuredTuple;
@@ -434,7 +453,9 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, types::Subs
     const auto& func = store.at(maybe_func.value());
 
     if (func.is_abstraction()) {
-      push_type_equation(TypeEquation(sub.outputs, func.abstraction.outputs));
+      const auto lhs_term = make_term(term.source_token, sub.outputs);
+      const auto rhs_term = make_term(term.source_token, func.abstraction.outputs);
+      push_type_equation(make_eq(lhs_term, rhs_term));
 
     } else {
       assert(func.tag == Type::Tag::scheme);
@@ -443,13 +464,21 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, types::Subs
       const auto& func_ref = store.at(new_abstr_handle);
       assert(func_ref.is_abstraction());
 
-      push_type_equation(TypeEquation(sub.outputs, func_ref.abstraction.outputs));
-      push_type_equation(TypeEquation(tup_type, func_ref.abstraction.inputs));
+      const auto sub_lhs_term = make_term(term.source_token, sub.outputs);
+      const auto sub_rhs_term = make_term(term.source_token, func_ref.abstraction.outputs);
+      push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
+
+      const auto tup_lhs_term = make_term(term.source_token, tup_type);
+      const auto tup_rhs_term = make_term(term.source_token, func_ref.abstraction.inputs);
+      push_type_equation(make_eq(tup_lhs_term, tup_rhs_term));
     }
 
     if (sub.subscripts.size() > 1) {
       auto result_type = store.make_fresh_type_variable_reference();
-      push_type_equation(TypeEquation(result_type, sub.outputs));
+
+      const auto lhs_term = make_term(term.source_token, result_type);
+      const auto rhs_term = make_term(term.source_token, sub.outputs);
+      push_type_equation(make_eq(lhs_term, rhs_term));
 
       sub.principal_argument = result_type;
       sub.subscripts.erase(sub.subscripts.begin());
