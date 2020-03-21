@@ -22,6 +22,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         type.cpp
         typing.hpp
         typing.cpp
+        type_properties.hpp
+        type_properties.cpp
         type_store.hpp
         type_store.cpp
         type_equality.hpp

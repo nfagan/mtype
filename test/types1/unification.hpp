@@ -19,10 +19,9 @@ class Unifier {
 public:
   using BoundVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
 public:
-  Unifier(TypeStore& store, const Library& library, const TypeEquality& type_eq, StringRegistry& string_registry) :
+  Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
   store(store),
   library(library),
-  type_eq(type_eq),
   string_registry(string_registry),
   simplifier(*this, store),
   instantiation(store) {
@@ -67,18 +66,16 @@ private:
   Type::Tag type_of(const TypeHandle& handle) const;
   void show();
 
-  void maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub);
-  bool maybe_unify_known_subscript_type(const TypeHandle& source, types::Subscript& sub);
+  TypeHandle maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub);
+  TypeHandle maybe_unify_known_subscript_type(const TypeHandle& source, types::Subscript& sub);
+  TypeHandle maybe_unify_function_call_subscript(const TypeHandle& source, const types::Abstraction& source_func, types::Subscript& sub);
 
   void check_assignment(const TypeHandle& source, const types::Assignment& assignment);
   void check_push_func(const TypeHandle& source, const types::Abstraction& func);
 
-  bool is_concrete_argument(const types::DestructuredTuple& tup) const;
-  bool is_concrete_argument(const types::List& list) const;
-  bool is_concrete_argument(const TypeHandle& arg) const;
-  bool are_concrete_arguments(const std::vector<TypeHandle>& args) const;
-
   bool is_known_subscript_type(const TypeHandle& handle) const;
+  bool is_concrete_argument(const TypeHandle& handle) const;
+  bool are_concrete_arguments(const TypeHandles& handles) const;
 
   void flatten_destructured_tuple(const types::DestructuredTuple& source, std::vector<TypeHandle>& into) const;
   void flatten_list(const TypeHandle& source, std::vector<TypeHandle>& into) const;
@@ -88,7 +85,6 @@ private:
 private:
   TypeStore& store;
   const Library& library;
-  const TypeEquality& type_eq;
   StringRegistry& string_registry;
   Simplifier simplifier;
 

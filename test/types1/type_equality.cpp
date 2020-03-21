@@ -52,6 +52,8 @@ bool TypeEquality::equivalence_same_types(const TypeHandle& a, const TypeHandle&
       return equivalence(value_a.list, value_b.list, rev);
     case Type::Tag::tuple:
       return equivalence(value_a.tuple, value_b.tuple, rev);
+    case Type::Tag::abstraction:
+      return equivalence(value_a.abstraction, value_b.abstraction, rev);
     case Type::Tag::variable:
       return true;
     default:
@@ -157,6 +159,31 @@ bool TypeEquality::equivalence(const types::Tuple& a, const types::Tuple& b, boo
   return element_wise_equivalence(a.members, b.members, rev);
 }
 
+bool TypeEquality::equivalence(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {
+  using Type = types::Abstraction::Type;
+
+  if (a.type != b.type) {
+    return false;
+  }
+  if (a.type == Type::binary_operator && a.binary_operator != b.binary_operator) {
+    return false;
+
+  } else if (a.type == Type::unary_operator && a.unary_operator != b.unary_operator) {
+    return false;
+
+  } else if (a.type == Type::subscript_reference && a.subscript_method != b.subscript_method) {
+    return false;
+
+  } else if (a.type == Type::function && a.name != b.name) {
+    return false;
+
+  } else if (a.type == Type::concatenation && a.concatenation_direction != b.concatenation_direction) {
+    return false;
+  }
+
+  return equivalence(a.inputs, b.inputs, rev) && equivalence(a.outputs, b.outputs, rev);
+}
+
 bool TypeEquality::equivalence(const DT& a, const DT& b, bool rev) const {
   if (types::DestructuredTuple::mismatching_definition_usages(a, b)) {
     return false;
@@ -165,7 +192,7 @@ bool TypeEquality::equivalence(const DT& a, const DT& b, bool rev) const {
     return element_wise_equivalence(a.members, b.members, rev);
 
   } else {
-    return DestructuredMemberVisitor{store, DestructuredComparator{*this}}.expand_members(a, b, rev);
+    return DestructuredMemberVisitor{store, DestructuredVisitor{*this}}.expand_members(a, b, rev);
   }
 }
 
@@ -210,6 +237,10 @@ bool TypeEquality::ArgumentComparator::operator()(const types::Abstraction& a, c
 
   const auto& args_a = type_eq.store.at(a.inputs);
   const auto& args_b = type_eq.store.at(b.inputs);
+
+  if (args_a.tag != args_b.tag) {
+    return args_a.tag < args_b.tag;
+  }
 
   assert(args_a.is_destructured_tuple() && args_b.is_destructured_tuple());
 

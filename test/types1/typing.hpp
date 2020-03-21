@@ -30,7 +30,7 @@ public:
     store(store),
     type_store(type_store),
     string_registry(string_registry),
-    unifier(type_store, library, type_eq, string_registry) {
+    unifier(type_store, library, string_registry) {
     //
     assignment_state.push_non_assignment_target_rvalue();
     value_category_state.push_rhs();

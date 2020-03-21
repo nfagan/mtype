@@ -14,6 +14,9 @@ public:
     reserve(cap);
   }
 
+  TypeStore(const TypeStore& other) = delete;
+  TypeStore& operator=(const TypeStore& other) = delete;
+
   void reserve(int64_t cap) {
     types.reserve(cap);
   }

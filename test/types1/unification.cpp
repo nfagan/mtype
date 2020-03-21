@@ -2,6 +2,7 @@
 #include "typing.hpp"
 #include "library.hpp"
 #include "debug.hpp"
+#include "type_properties.hpp"
 #include <algorithm>
 
 #define MT_SHOW1(msg, a) \
@@ -15,6 +16,14 @@
   std::cout << std::endl
 
 namespace mt {
+
+bool Unifier::is_concrete_argument(const mt::TypeHandle& handle) const {
+  return TypeProperties(store).is_concrete_argument(handle);
+}
+
+bool Unifier::are_concrete_arguments(const mt::TypeHandles& handles) const {
+  return TypeProperties(store).are_concrete_arguments(handles);
+}
 
 bool Unifier::is_known_subscript_type(const TypeHandle& handle) const {
   return is_concrete_argument(handle) && library.is_known_subscript_type(handle);
@@ -30,51 +39,17 @@ void Unifier::flatten_destructured_tuple(const types::DestructuredTuple& source,
   }
 }
 
-bool Unifier::is_concrete_argument(const TypeHandle& handle) const {
-  using Tag = Type::Tag;
-  const auto& type = store.at(handle);
-
-  switch (type.tag) {
-    case Tag::destructured_tuple:
-      return is_concrete_argument(type.destructured_tuple);
-    case Tag::list:
-      return is_concrete_argument(type.list);
-    case Tag::tuple:
-    case Tag::scalar:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool Unifier::are_concrete_arguments(const std::vector<TypeHandle>& args) const {
-  for (const auto& arg : args) {
-    if (!is_concrete_argument(arg)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool Unifier::is_concrete_argument(const types::DestructuredTuple& tup) const {
-  return are_concrete_arguments(tup.members);
-}
-
-bool Unifier::is_concrete_argument(const types::List& list) const {
-  return are_concrete_arguments(list.pattern);
-}
-
 void Unifier::check_push_func(const TypeHandle& source, const types::Abstraction& func) {
   if (registered_funcs.count(source) > 0) {
     return;
   }
 
-  assert(type_of(func.inputs) == Type::Tag::destructured_tuple);
-  const auto& inputs = store.at(func.inputs).destructured_tuple;
-
-  if (!is_concrete_argument(inputs)) {
+  if (!is_concrete_argument(func.inputs)) {
     return;
   }
+
+  assert(type_of(func.inputs) == Type::Tag::destructured_tuple);
+  const auto& inputs = store.at(func.inputs).destructured_tuple;
 
   auto maybe_func = library.lookup_function(func);
   if (maybe_func) {
@@ -294,8 +269,7 @@ TypeHandle Unifier::substitute_one(types::Subscript& sub, const TypeHandle& sour
   }
 
   sub.outputs = substitute_one(sub.outputs, lhs, rhs);
-  maybe_unify_subscript(source, sub);
-  return source;
+  return maybe_unify_subscript(source, sub);
 }
 
 void Unifier::flatten_list(const TypeHandle& source, std::vector<TypeHandle>& into) const {
@@ -338,7 +312,7 @@ TypeHandle Unifier::substitute_one(types::List& list, const TypeHandle& source,
     assert(element.is_valid());
 
     const bool should_remove = i > 0 && is_concrete_argument(element) &&
-      is_concrete_argument(last) && type_eq.equivalence_entry(element, last);
+      is_concrete_argument(last) && TypeEquality(store).equivalence_entry(element, last);
 
     if (should_remove) {
       num_remove++;
@@ -391,31 +365,70 @@ void Unifier::unify_one(TypeEquation eq) {
   bound_variables[eq.lhs] = eq.rhs;
 }
 
-void Unifier::maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub) {
+TypeHandle Unifier::maybe_unify_subscript(const TypeHandle& source, types::Subscript& sub) {
   if (is_known_subscript_type(sub.principal_argument)) {
-    maybe_unify_known_subscript_type(source, sub);
+    return maybe_unify_known_subscript_type(source, sub);
+
+  } else if (type_of(sub.principal_argument) == Type::Tag::abstraction) {
+    return maybe_unify_function_call_subscript(source, store.at(sub.principal_argument).abstraction, sub);
 
   } else if (type_of(sub.principal_argument) != Type::Tag::variable) {
     MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
     assert(false);
   }
+
+  return source;
 }
 
-bool Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::Subscript& sub) {
+TypeHandle Unifier::maybe_unify_function_call_subscript(const TypeHandle& source,
+                                                        const types::Abstraction& source_func,
+                                                        types::Subscript& sub) {
+  if (registered_funcs.count(source) > 0) {
+    return source;
+  }
+
+  if (sub.subscripts.size() != 1 || sub.subscripts[0].method != SubscriptMethod::parens) {
+    registered_funcs[source] = true;
+    std::cout << "ERROR: Expected exactly 1 () subscript." << std::endl;
+    return source;
+  }
+
+  const auto& sub0 = sub.subscripts[0];
+
+  if (!are_concrete_arguments(sub0.arguments)) {
+    return source;
+  }
+
+  auto args_copy = sub0.arguments;
+  const auto tup = store.make_rvalue_destructured_tuple(std::move(args_copy));
+  const auto result_type = store.make_fresh_type_variable_reference();
+  auto lookup = types::Abstraction::clone(source_func, tup, result_type);
+  auto lookup_handle = store.make_type();
+  store.assign(lookup_handle, Type(std::move(lookup)));
+
+  push_type_equation(TypeEquation(sub.outputs, result_type));
+  push_type_equation(TypeEquation(sub.principal_argument, lookup_handle));
+
+  check_push_func(lookup_handle, store.at(lookup_handle).abstraction);
+  registered_funcs[source] = true;
+
+  return source;
+}
+
+TypeHandle Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::Subscript& sub) {
   using types::Subscript;
   using types::Abstraction;
   using types::DestructuredTuple;
 
   if (registered_funcs.count(source) > 0) {
-    return true;
+    return source;
   }
 
   assert(!sub.subscripts.empty() && "Expected at least one subscript.");
   const auto& sub0 = sub.subscripts[0];
-  assert(!sub0.arguments.empty());
 
   if (!are_concrete_arguments(sub0.arguments)) {
-    return true;
+    return source;
   }
 
   std::vector<TypeHandle> into;
@@ -458,15 +471,12 @@ bool Unifier::maybe_unify_known_subscript_type(const TypeHandle& source, types::
     } else {
       registered_funcs[source] = true;
     }
-
-    return true;
-
   } else {
     MT_SHOW1("ERROR: no such subscript signature: ", tup_type);
     registered_funcs[source] = true;
-
-    return false;
   }
+
+  return source;
 }
 
 Type::Tag Unifier::type_of(const mt::TypeHandle& handle) const {

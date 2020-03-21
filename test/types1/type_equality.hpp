@@ -10,8 +10,8 @@ class DebugTypePrinter;
 
 class TypeEquality {
 private:
-  struct DestructuredComparator {
-    DestructuredComparator(const TypeEquality& eq) : eq(eq) {
+  struct DestructuredVisitor {
+    DestructuredVisitor(const TypeEquality& eq) : eq(eq) {
       //
     }
     bool operator()(const TypeHandle& a, const TypeHandle& b, bool rev) const {
@@ -60,6 +60,7 @@ private:
   bool equivalence(const types::DestructuredTuple& a, const types::DestructuredTuple& b, bool rev) const;
   bool equivalence(const types::List& a, const types::List& b, bool rev) const;
   bool equivalence(const types::Tuple& a, const types::Tuple& b, bool rev) const;
+  bool equivalence(const types::Abstraction& a, const types::Abstraction& b, bool rev) const;
 
   bool equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b, bool rev) const;
   bool equivalence_different_types(const types::List& a, const TypeHandle& b, bool rev) const;

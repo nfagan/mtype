@@ -111,8 +111,8 @@ bool Simplifier::simplify(const types::Scalar& t0, const types::Scalar& t1, bool
 }
 
 bool Simplifier::simplify(const types::Abstraction& t0, const types::Abstraction& t1, bool rev) {
-  //  Swap t1 and t0 order for inputs.
-  return simplify(t1.inputs, t0.inputs, rev) && simplify(t0.outputs, t1.outputs, rev);
+  //  Contravariance for inputs.
+  return simplify(t0.inputs, t1.inputs, !rev) && simplify(t0.outputs, t1.outputs, rev);
 }
 
 bool Simplifier::simplify(const DT& t0, const DT& t1, bool rev) {

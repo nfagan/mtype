@@ -1,5 +1,6 @@
 #include "library.hpp"
 #include "type_store.hpp"
+#include <cassert>
 
 namespace mt {
 
@@ -21,10 +22,34 @@ void Library::make_known_types() {
 
 void Library::make_free_functions() {
   make_min();
+  make_sum();
   make_fileparts();
   make_list_outputs_type();
   make_list_inputs_type();
   make_list_outputs_type2();
+}
+
+void Library::make_sum() {
+  using types::DestructuredTuple;
+  using types::Abstraction;
+
+  const auto args_type = store.make_type();
+  const auto result_type = store.make_type();
+  const auto func_type = store.make_type();
+  const auto& d_handle = store.double_type_handle;
+
+  const auto ident = MatlabIdentifier(string_registry.register_string("sum"));
+
+  Abstraction func(ident, args_type, result_type);
+  auto func_copy = func;
+
+  store.assign(args_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, d_handle)));
+  store.assign(result_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, d_handle)));
+
+  store.assign(func_type, Type(std::move(func)));
+  function_types[func_copy] = func_type;
 }
 
 void Library::make_min() {

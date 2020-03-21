@@ -188,7 +188,15 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
 }
 
 void TypeVisitor::function_reference_expr(const FunctionReferenceExpr& expr) {
-  assert(false);
+  Store::ReadConst reader(store);
+  const auto& ref = reader.at(expr.handle);
+  assert(!ref.def_handle.is_valid() && "Local funcs not yet handled.");
+
+  auto inputs = type_store.make_fresh_type_variable_reference();
+  auto outputs = type_store.make_fresh_type_variable_reference();
+  auto func = type_store.make_abstraction(ref.name, inputs, outputs);
+
+  push_type_handle(func);
 }
 
 void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {

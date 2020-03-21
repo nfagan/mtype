@@ -33,6 +33,7 @@ private:
   void make_builtin_brace_subscript_reference();
   void make_free_functions();
   void make_min();
+  void make_sum();
   void make_fileparts();
   void make_list_outputs_type();
   void make_list_outputs_type2();
