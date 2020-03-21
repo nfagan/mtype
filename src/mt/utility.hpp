@@ -32,6 +32,8 @@
   class_name(const class_name& other) = default; \
   class_name& operator=(const class_name& other) = default;
 
+#define MT_NODISCARD [[nodiscard]]
+
 namespace mt {
 
 template <typename T, typename Stack>
