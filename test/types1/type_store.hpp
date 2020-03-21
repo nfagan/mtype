@@ -21,6 +21,10 @@ public:
     types.reserve(cap);
   }
 
+  int64_t size() const {
+    return types.size();
+  }
+
   [[nodiscard]] const std::vector<Type>& get_types() const {
     return types;
   }

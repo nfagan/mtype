@@ -4,16 +4,9 @@
 #include <cstdint>
 #include <iostream>
 
-#define MT_TYPE_VISITOR_METHOD(name, type) \
-  virtual void name(type&) {} \
-  virtual void name(const type&) {}
-
 namespace mt {
 
-class TypeVisitor;
-
 struct TypeHandle : public detail::Handle<100> {
-  friend class TypeVisitor;
   friend class TypeStore;
   using Handle::Handle;
 };
@@ -38,6 +31,12 @@ struct TypeIdentifier {
 };
 
 struct TypeEquationTerm {
+  struct HandleHash {
+    std::size_t operator()(const TypeEquationTerm& t) const {
+      return TypeHandle::Hash{}(t.term);
+    }
+  };
+
   TypeEquationTerm(const Token& source_token, const TypeHandle& term) :
     source_token(source_token), term(term) {
     //
@@ -491,4 +490,3 @@ std::ostream& operator<<(std::ostream& stream, Type::Tag tag);
 }
 
 #undef MT_DEBUG_TYPE_RVALUE_CTOR
-#undef MT_TYPE_VISITOR_METHOD

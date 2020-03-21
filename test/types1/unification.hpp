@@ -31,6 +31,7 @@ public:
   ~Unifier() {
     std::cout << "Num type eqs: " << type_equations.size() << std::endl;
     std::cout << "Subs size: " << bound_variables.size() << std::endl;
+    std::cout << "Num types: " << store.size() << std::endl;
   }
 
   void push_type_equation(TypeEquation&& eq) {
