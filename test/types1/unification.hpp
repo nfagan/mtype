@@ -42,27 +42,29 @@ public:
   Optional<TypeHandle> bound_type(const TypeHandle& for_type) const;
 
 private:
+  using Term = TypeEquationTerm;
+
   void unify_one(TypeEquation eq);
 
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Abstraction& func);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Variable& var);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Tuple& tup);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::DestructuredTuple& tup);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Subscript& sub);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::List& list);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, types::Assignment& assignment);
-  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source);
-  void apply_to(std::vector<TypeHandle>& sources);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Abstraction& func);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Variable& var);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Tuple& tup);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::DestructuredTuple& tup);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Subscript& sub);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::List& list);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Assignment& assignment);
+  [[nodiscard]] TypeHandle apply_to(const TypeHandle& source, const TypeEquationTerm& term);
+  void apply_to(std::vector<TypeHandle>& sources, const TypeEquationTerm& term);
 
-  [[nodiscard]] TypeHandle substitute_one(types::Variable& var, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::Abstraction& func, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::Tuple& tup, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::DestructuredTuple& tup, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::Subscript& sub, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::List& list, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(types::Assignment& assignment, const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  [[nodiscard]] TypeHandle substitute_one(const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs);
-  void substitute_one(std::vector<TypeHandle>& sources, const TypeHandle& lhs, const TypeHandle& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Variable& var, const TypeHandle& source, const Term& lhs, const Term& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Abstraction& func, const TypeHandle& source, const Term& lhs, const Term& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Tuple& tup, const TypeHandle& source, const Term& lhs, const Term& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::DestructuredTuple& tup, const TypeHandle& source, const Term& lhs, const Term& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Subscript& sub, const TypeHandle& source, const Term& lhs, const Term& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::List& list, const TypeHandle& source, const Term& lhs, const Term& rhs);
+  [[nodiscard]] TypeHandle substitute_one(types::Assignment& assignment, const TypeHandle& source, const Term& lhs, const Term& rhs);
+  [[nodiscard]] TypeHandle substitute_one(const TypeHandle& source, const Term& lhs, const Term& rhs);
+  void substitute_one(std::vector<TypeHandle>& sources, const Term& lhs, const Term& rhs);
 
   Type::Tag type_of(const TypeHandle& handle) const;
   void show();
@@ -78,7 +80,6 @@ private:
   bool is_concrete_argument(const TypeHandle& handle) const;
   bool are_concrete_arguments(const TypeHandles& handles) const;
 
-  void flatten_destructured_tuple(const types::DestructuredTuple& source, std::vector<TypeHandle>& into) const;
   void flatten_list(const TypeHandle& source, std::vector<TypeHandle>& into) const;
 
   DebugTypePrinter type_printer() const;

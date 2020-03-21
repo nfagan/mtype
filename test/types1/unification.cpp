@@ -29,16 +29,6 @@ bool Unifier::is_known_subscript_type(const TypeHandle& handle) const {
   return is_concrete_argument(handle) && library.is_known_subscript_type(handle);
 }
 
-void Unifier::flatten_destructured_tuple(const types::DestructuredTuple& source, std::vector<TypeHandle>& into) const {
-  for (const auto& mem : source.members) {
-    if (type_of(mem) == Type::Tag::destructured_tuple) {
-      flatten_destructured_tuple(store.at(mem).destructured_tuple, into);
-    } else {
-      into.push_back(mem);
-    }
-  }
-}
-
 void Unifier::check_push_func(const TypeHandle& source, const types::Abstraction& func) {
   if (registered_funcs.count(source) > 0) {
     return;
@@ -103,7 +93,7 @@ void Unifier::unify() {
 //  show();
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source, mt::types::Variable& var) {
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Variable& var) {
   if (bound_variables.count(source) > 0) {
     return bound_variables.at(source);
   } else {
@@ -111,68 +101,68 @@ TypeHandle Unifier::apply_to(const TypeHandle& source, mt::types::Variable& var)
   }
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source, types::Tuple& tup) {
-  apply_to(tup.members);
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Tuple& tup) {
+  apply_to(tup.members, term);
   return source;
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source, types::DestructuredTuple& tup) {
-  apply_to(tup.members);
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::DestructuredTuple& tup) {
+  apply_to(tup.members, term);
   return source;
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source, types::Abstraction& func) {
-  func.inputs = apply_to(func.inputs);
-  func.outputs = apply_to(func.outputs);
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Abstraction& func) {
+  func.inputs = apply_to(func.inputs, term);
+  func.outputs = apply_to(func.outputs, term);
 
   check_push_func(source, func);
 
   return source;
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source, types::Subscript& sub) {
-  sub.principal_argument = apply_to(sub.principal_argument);
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Subscript& sub) {
+  sub.principal_argument = apply_to(sub.principal_argument, term);
   for (auto& s : sub.subscripts) {
-    apply_to(s.arguments);
+    apply_to(s.arguments, term);
   }
-  sub.outputs = apply_to(sub.outputs);
+  sub.outputs = apply_to(sub.outputs, term);
   return source;
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source, types::List& list) {
-  apply_to(list.pattern);
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::List& list) {
+  apply_to(list.pattern, term);
   return source;
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source, types::Assignment& assignment) {
-  assignment.lhs = apply_to(assignment.lhs);
-  assignment.rhs = apply_to(assignment.rhs);
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term, types::Assignment& assignment) {
+  assignment.lhs = apply_to(assignment.lhs, term);
+  assignment.rhs = apply_to(assignment.rhs, term);
 
   check_assignment(source, assignment);
 
   return source;
 }
 
-TypeHandle Unifier::apply_to(const TypeHandle& source) {
+TypeHandle Unifier::apply_to(const TypeHandle& source, const TypeEquationTerm& term) {
   auto& type = store.at(source);
 
   switch (type.tag) {
     case Type::Tag::variable:
-      return apply_to(source, type.variable);
+      return apply_to(source, term, type.variable);
     case Type::Tag::scalar:
       return source;
     case Type::Tag::abstraction:
-      return apply_to(source, type.abstraction);
+      return apply_to(source, term, type.abstraction);
     case Type::Tag::tuple:
-      return apply_to(source, type.tuple);
+      return apply_to(source, term, type.tuple);
     case Type::Tag::destructured_tuple:
-      return apply_to(source, type.destructured_tuple);
+      return apply_to(source, term, type.destructured_tuple);
     case Type::Tag::subscript:
-      return apply_to(source, type.subscript);
+      return apply_to(source, term, type.subscript);
     case Type::Tag::list:
-      return apply_to(source, type.list);
+      return apply_to(source, term, type.list);
     case Type::Tag::assignment:
-      return apply_to(source, type.assignment);
+      return apply_to(source, term, type.assignment);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -180,13 +170,13 @@ TypeHandle Unifier::apply_to(const TypeHandle& source) {
   }
 }
 
-void Unifier::apply_to(std::vector<TypeHandle>& sources) {
+void Unifier::apply_to(std::vector<TypeHandle>& sources, const TypeEquationTerm& term) {
   for (auto& source : sources) {
-    source = apply_to(source);
+    source = apply_to(source, term);
   }
 }
 
-TypeHandle Unifier::substitute_one(const TypeHandle& source, const TypeHandle& lhs, const TypeHandle& rhs) {
+TypeHandle Unifier::substitute_one(const TypeHandle& source, const Term& lhs, const Term& rhs) {
   auto& type = store.at(source);
 
   switch (type.tag) {
@@ -213,14 +203,14 @@ TypeHandle Unifier::substitute_one(const TypeHandle& source, const TypeHandle& l
   }
 }
 
-void Unifier::substitute_one(std::vector<TypeHandle>& sources, const TypeHandle& lhs, const TypeHandle& rhs) {
+void Unifier::substitute_one(std::vector<TypeHandle>& sources, const Term& lhs, const Term& rhs) {
   for (auto& source : sources) {
     source = substitute_one(source, lhs, rhs);
   }
 }
 
 TypeHandle Unifier::substitute_one(types::Assignment& assignment, const TypeHandle& source,
-                                     const TypeHandle& lhs, const TypeHandle& rhs) {
+                                     const Term& lhs, const Term& rhs) {
   assignment.rhs = substitute_one(assignment.rhs, lhs, rhs);
   assignment.lhs = substitute_one(assignment.lhs, lhs, rhs);
 
@@ -230,7 +220,7 @@ TypeHandle Unifier::substitute_one(types::Assignment& assignment, const TypeHand
 }
 
 TypeHandle Unifier::substitute_one(types::Abstraction& func, const TypeHandle& source,
-                                   const TypeHandle& lhs, const TypeHandle& rhs) {
+                                   const Term& lhs, const Term& rhs) {
   func.inputs = substitute_one(func.inputs, lhs, rhs);
   func.outputs = substitute_one(func.outputs, lhs, rhs);
 
@@ -240,28 +230,28 @@ TypeHandle Unifier::substitute_one(types::Abstraction& func, const TypeHandle& s
 }
 
 TypeHandle Unifier::substitute_one(types::Tuple& tup, const TypeHandle& source,
-                                   const TypeHandle& lhs, const TypeHandle& rhs) {
+                                   const Term& lhs, const Term& rhs) {
   substitute_one(tup.members, lhs, rhs);
   return source;
 }
 
 TypeHandle Unifier::substitute_one(types::DestructuredTuple& tup, const TypeHandle& source,
-                                   const TypeHandle& lhs, const TypeHandle& rhs) {
+                                   const Term& lhs, const Term& rhs) {
   substitute_one(tup.members, lhs, rhs);
   return source;
 }
 
 TypeHandle Unifier::substitute_one(types::Variable& var, const TypeHandle& source,
-                                   const TypeHandle& lhs, const TypeHandle& rhs) {
-  if (source == lhs) {
-    return rhs;
+                                   const Term& lhs, const Term& rhs) {
+  if (source == lhs.term) {
+    return rhs.term;
   } else {
     return source;
   }
 }
 
 TypeHandle Unifier::substitute_one(types::Subscript& sub, const TypeHandle& source,
-                                   const TypeHandle& lhs, const TypeHandle& rhs) {
+                                   const Term& lhs, const Term& rhs) {
   sub.principal_argument = substitute_one(sub.principal_argument, lhs, rhs);
 
   for (auto& s : sub.subscripts) {
@@ -297,7 +287,7 @@ void Unifier::flatten_list(const TypeHandle& source, std::vector<TypeHandle>& in
 }
 
 TypeHandle Unifier::substitute_one(types::List& list, const TypeHandle& source,
-                                   const TypeHandle& lhs, const TypeHandle& rhs) {
+                                   const Term& lhs, const Term& rhs) {
   std::vector<TypeHandle> flattened;
   flatten_list(source, flattened);
   std::swap(list.pattern, flattened);
@@ -333,8 +323,8 @@ TypeHandle Unifier::substitute_one(types::List& list, const TypeHandle& source,
 void Unifier::unify_one(TypeEquation eq) {
   using Tag = Type::Tag;
 
-  eq.lhs = apply_to(eq.lhs);
-  eq.rhs = apply_to(eq.rhs);
+  eq.lhs = apply_to(eq.lhs, TypeEquationTerm(eq.lhs));
+  eq.rhs = apply_to(eq.rhs, TypeEquationTerm(eq.rhs));
 
   if (eq.lhs == eq.rhs) {
     return;
@@ -359,7 +349,7 @@ void Unifier::unify_one(TypeEquation eq) {
   }
 
   for (auto& subst_it : bound_variables) {
-    subst_it.second = substitute_one(subst_it.second, eq.lhs, eq.rhs);
+    subst_it.second = substitute_one(subst_it.second, TypeEquationTerm(eq.lhs), TypeEquationTerm(eq.rhs));
   }
 
   bound_variables[eq.lhs] = eq.rhs;

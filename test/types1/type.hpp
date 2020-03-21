@@ -13,7 +13,6 @@ struct TypeHandle : public detail::Handle<100> {
 
 using TypeHandles = std::vector<TypeHandle>;
 
-struct Type;
 struct TypeIdentifier {
   TypeIdentifier() : TypeIdentifier(-1) {
     //
@@ -36,6 +35,10 @@ struct TypeEquationTerm {
       return TypeHandle::Hash{}(t.term);
     }
   };
+
+  explicit TypeEquationTerm(const TypeHandle& term) : term(term) {
+    //
+  }
 
   TypeEquationTerm(const Token& source_token, const TypeHandle& term) :
     source_token(source_token), term(term) {
