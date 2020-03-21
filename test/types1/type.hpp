@@ -38,14 +38,14 @@ struct TypeIdentifier {
 };
 
 struct TypeEquationTerm {
-  TypeEquationTerm(const Token& source_token, const TypeHandle& type) :
-    source_token(source_token), type(type) {
+  TypeEquationTerm(const Token& source_token, const TypeHandle& term) :
+    source_token(source_token), term(term) {
     //
   }
 
 
   Token source_token;
-  TypeHandle type;
+  TypeHandle term;
 };
 
 struct TypeEquation {

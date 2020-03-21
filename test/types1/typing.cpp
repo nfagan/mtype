@@ -110,12 +110,12 @@ void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
 
   for (const auto& arg : expr.arguments) {
     auto tvar = type_store.make_fresh_type_variable_reference();
-    push_type_handle(tvar);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, tvar));
     arg->accept_const(*this);
-    auto result_var = pop_type_handle();
+    auto result = pop_type_equation_term();
 
-    unifier.push_type_equation(TypeEquation(tvar, result_var));
-    members.push_back(result_var);
+    unifier.push_type_equation(TypeEquation(tvar, result.term));
+    members.push_back(result.term);
   }
 
   auto args_type = type_store.make_type();
@@ -134,7 +134,7 @@ void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   type_store.assign(func_type, Type(Abstraction(function_name, args_type, result_type)));
   unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), func_type));
 
-  push_type_handle(result_type);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, result_type));
 }
 
 void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
@@ -149,7 +149,7 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
     //  a = b; y = 1 + 2;
     auto tup_handle = type_store.make_type();
     type_store.assign(tup_handle, Type(DestructuredTuple(usage, variable_type_handle)));
-    push_type_handle(tup_handle);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, tup_handle));
 
   } else {
     std::vector<Subscript::Sub> subscripts;
@@ -164,12 +164,12 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
 
       for (const auto& arg_expr : sub.arguments) {
         auto var_handle = type_store.make_fresh_type_variable_reference();
-        push_type_handle(var_handle);
+        push_type_equation_term(TypeEquationTerm(expr.source_token, var_handle));
         arg_expr->accept_const(*this);
-        auto res_handle = pop_type_handle();
-        args.push_back(res_handle);
+        auto res = pop_type_equation_term();
+        args.push_back(res.term);
 
-        unifier.push_type_equation(TypeEquation(var_handle, res_handle));
+        unifier.push_type_equation(TypeEquation(var_handle, res.term));
       }
 
       subscripts.emplace_back(Subscript::Sub(method, std::move(args)));
@@ -183,7 +183,7 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
     type_store.assign(sub_type, Type(Subscript(variable_type_handle, std::move(subscripts), outputs_type)));
     unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), sub_type));
 
-    push_type_handle(outputs_type);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, outputs_type));
   }
 }
 
@@ -196,42 +196,42 @@ void TypeVisitor::function_reference_expr(const FunctionReferenceExpr& expr) {
   auto outputs = type_store.make_fresh_type_variable_reference();
   auto func = type_store.make_abstraction(ref.name, inputs, outputs);
 
-  push_type_handle(func);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, func));
 }
 
 void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
   using namespace mt::types;
 
   auto tvar_lhs = type_store.make_fresh_type_variable_reference();
-  push_type_handle(tvar_lhs);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, tvar_lhs));
   expr.left->accept_const(*this);
-  auto lhs_result = pop_type_handle();
+  auto lhs_result = pop_type_equation_term();
 
-  if (variables.count(lhs_result) == 0) {
-    unifier.push_type_equation(TypeEquation(tvar_lhs, lhs_result));
+  if (variables.count(lhs_result.term) == 0) {
+    unifier.push_type_equation(TypeEquation(tvar_lhs, lhs_result.term));
   }
 
   auto tvar_rhs = type_store.make_fresh_type_variable_reference();
-  push_type_handle(tvar_rhs);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, tvar_rhs));
   expr.right->accept_const(*this);
-  auto rhs_result = pop_type_handle();
+  auto rhs_result = pop_type_equation_term();
 
-  if (variables.count(rhs_result) == 0) {
-    unifier.push_type_equation(TypeEquation(tvar_rhs, rhs_result));
+  if (variables.count(rhs_result.term) == 0) {
+    unifier.push_type_equation(TypeEquation(tvar_rhs, rhs_result.term));
   }
 
   const auto output_handle = type_store.make_fresh_type_variable_reference();
   const auto inputs_handle = type_store.make_type();
 
   type_store.assign(inputs_handle,
-    Type(DestructuredTuple(DestructuredTuple::Usage::rvalue, lhs_result, rhs_result)));
+    Type(DestructuredTuple(DestructuredTuple::Usage::rvalue, lhs_result.term, rhs_result.term)));
 
   types::Abstraction func_type(expr.op, inputs_handle, output_handle);
   const auto func_handle = type_store.make_type();
   type_store.assign(func_handle, Type(std::move(func_type)));
   unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), func_handle));
 
-  push_type_handle(output_handle);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, output_handle));
 }
 
 void TypeVisitor::grouping_expr(const GroupingExpr& expr) {
@@ -260,17 +260,17 @@ void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
 
   for (const auto& component : expr.components) {
     auto tvar = type_store.make_fresh_type_variable_reference();
-    push_type_handle(tvar);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, tvar));
     component.expr->accept_const(*this);
-    auto res = pop_type_handle();
+    auto res = pop_type_equation_term();
 
-    unifier.push_type_equation(TypeEquation(tvar, res));
-    members.push_back(res);
+    unifier.push_type_equation(TypeEquation(tvar, res.term));
+    members.push_back(res.term);
   }
 
   auto tup_type = type_store.make_type();
   type_store.assign(tup_type, Type(DestructuredTuple(Use::lvalue, std::move(members))));
-  push_type_handle(tup_type);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, tup_type));
 }
 
 void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
@@ -284,14 +284,14 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
   for (int64_t i = 0; i < expr.components.size(); i++) {
     const auto& component = expr.components[i];
     auto tvar = type_store.make_fresh_type_variable_reference();
-    push_type_handle(tvar);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, tvar));
     component.expr->accept_const(*this);
-    auto res = pop_type_handle();
+    auto res = pop_type_equation_term();
 
     const auto current_dir = concatenation_direction_from_token_type(component.delimiter);
 
     if (i == 0 || last_dir == current_dir) {
-      arg_handles.back().push_back(res);
+      arg_handles.back().push_back(res.term);
     } else {
       assert(false && "Unhandled.");
     }
@@ -305,7 +305,7 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
   auto abstr = type_store.make_abstraction(last_dir, tup, result_handle);
 
   unifier.push_type_equation(TypeEquation(type_store.make_fresh_type_variable_reference(), abstr));
-  push_type_handle(result_handle);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, result_handle));
 }
 
 void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
@@ -317,12 +317,12 @@ void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
 
   for (const auto& component : expr.components) {
     auto tvar = type_store.make_fresh_type_variable_reference();
-    push_type_handle(tvar);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, tvar));
     component.expr->accept_const(*this);
-    auto res = pop_type_handle();
+    auto res = pop_type_equation_term();
 
-    unifier.push_type_equation(TypeEquation(tvar, res));
-    list.pattern.push_back(res);
+    unifier.push_type_equation(TypeEquation(tvar, res.term));
+    list.pattern.push_back(res.term);
   }
 
   auto list_handle = type_store.make_type();
@@ -331,7 +331,7 @@ void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
   type_store.assign(list_handle, Type(std::move(list)));
   type_store.assign(tuple_handle, Type(Tuple(list_handle)));
 
-  push_type_handle(tuple_handle);
+  push_type_equation_term(TypeEquationTerm(expr.source_token, tuple_handle));
 }
 
 /*
@@ -346,14 +346,14 @@ void TypeVisitor::assignment_stmt(const AssignmentStmt& stmt) {
   assignment_state.push_assignment_target_rvalue();
   stmt.of_expr->accept_const(*this);
   assignment_state.pop_assignment_target_state();
-  auto rhs = pop_type_handle();
+  auto rhs = pop_type_equation_term();
 
   value_category_state.push_lhs();
   stmt.to_expr->accept_const(*this);
   value_category_state.pop_side();
-  auto lhs = pop_type_handle();
+  auto lhs = pop_type_equation_term();
 
-  const auto assignment = type_store.make_assignment(lhs, rhs);
+  const auto assignment = type_store.make_assignment(lhs.term, rhs.term);
   const auto assignment_var = type_store.make_fresh_type_variable_reference();
   unifier.push_type_equation(TypeEquation(assignment_var, assignment));
 }

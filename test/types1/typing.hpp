@@ -59,22 +59,22 @@ public:
 
   void number_literal_expr(const NumberLiteralExpr& expr) override {
     assert(type_store.double_type_handle.is_valid());
-    push_type_handle(type_store.double_type_handle);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, type_store.double_type_handle));
   }
 
   void char_literal_expr(const CharLiteralExpr& expr) override {
     assert(type_store.char_type_handle.is_valid());
-    push_type_handle(type_store.char_type_handle);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, type_store.char_type_handle));
   }
 
   void string_literal_expr(const StringLiteralExpr& expr) override {
     assert(type_store.string_type_handle.is_valid());
-    push_type_handle(type_store.string_type_handle);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, type_store.string_type_handle));
   }
 
   void literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) override {
     assert(type_store.char_type_handle.is_valid());
-    push_type_handle(type_store.char_type_handle);
+    push_type_equation_term(TypeEquationTerm(expr.source_token, type_store.char_type_handle));
   }
 
   void function_call_expr(const FunctionCallExpr& expr) override;
@@ -141,15 +141,15 @@ private:
     return scope_handles.back();
   }
 
-  void push_type_handle(const TypeHandle& handle) {
-    type_handles.push_back(handle);
+  void push_type_equation_term(const TypeEquationTerm& term) {
+    type_eq_terms.push_back(term);
   }
 
-  TypeHandle pop_type_handle() {
-    assert(!type_handles.empty());
-    const auto handle = type_handles.back();
-    type_handles.pop_back();
-    return handle;
+  TypeEquationTerm pop_type_equation_term() {
+    assert(!type_eq_terms.empty());
+    const auto term = type_eq_terms.back();
+    type_eq_terms.pop_back();
+    return term;
   }
 
 private:
@@ -170,7 +170,7 @@ private:
   std::unordered_map<FunctionDefHandle, TypeHandle, FunctionDefHandle::Hash> function_type_handles;
   std::unordered_map<TypeHandle, FunctionDefHandle, TypeHandle::Hash> functions;
 
-  std::vector<TypeHandle> type_handles;
+  std::vector<TypeEquationTerm> type_eq_terms;
 };
 
 }
