@@ -7,6 +7,7 @@
 #include "instance.hpp"
 #include "simplify.hpp"
 #include "error.hpp"
+#include "substitution.hpp"
 #include <map>
 
 namespace mt {
@@ -42,6 +43,7 @@ public:
   using BoundVariables = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::HandleHash>;
 public:
   Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
+  substitution(nullptr),
   store(store),
   library(library),
   string_registry(string_registry),
@@ -51,18 +53,7 @@ public:
     //
   }
 
-  ~Unifier() {
-    std::cout << "Num type eqs: " << type_equations.size() << std::endl;
-    std::cout << "Subs size: " << bound_variables.size() << std::endl;
-    std::cout << "Num types: " << store.size() << std::endl;
-  }
-
-  void push_type_equation(TypeEquation&& eq) {
-    type_equations.emplace_back(std::move(eq));
-  }
-
-  MT_NODISCARD UnifyResult unify();
-  Optional<TypeHandle> bound_type(const TypeHandle& for_type) const;
+  MT_NODISCARD UnifyResult unify(Substitution* subst);
   DebugTypePrinter type_printer() const;
 
   void add_error(SimplificationFailure&& err);
@@ -72,6 +63,7 @@ public:
     TypeRef lhs_type, TypeRef rhs_type) const;
 
 private:
+  void reset(Substitution* subst);
   void unify_one(TypeEquation eq);
 
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Abstraction& func);
@@ -100,7 +92,8 @@ private:
 
   TypeHandle maybe_unify_subscript(TypeRef source, TermRef term, types::Subscript& sub);
   TypeHandle maybe_unify_known_subscript_type(TypeRef source, TermRef term, types::Subscript& sub);
-  TypeHandle maybe_unify_function_call_subscript(TypeRef source, TermRef term, const types::Abstraction& source_func, types::Subscript& sub);
+  TypeHandle maybe_unify_function_call_subscript(TypeRef source, TermRef term,
+    const types::Abstraction& source_func, types::Subscript& sub);
 
   void check_assignment(TypeRef source, TermRef term, const types::Assignment& assignment);
   void check_push_func(TypeRef source, TermRef term, const types::Abstraction& func);
@@ -113,14 +106,14 @@ private:
   bool had_error() const;
   void mark_failure();
 
+public:
+  Substitution* substitution;
+
 private:
   TypeStore& store;
   const Library& library;
   StringRegistry& string_registry;
   Simplifier simplifier;
-
-  std::vector<TypeEquation> type_equations;
-  BoundVariables bound_variables;
 
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_assignments;

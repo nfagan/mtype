@@ -13,7 +13,6 @@
 namespace mt {
 
 class TypeVisitor : public TypePreservingVisitor {
-  friend class Unifier;
 private:
   struct ScopeStack {
     static void push(TypeVisitor& vis, const MatlabScopeHandle& handle) {
@@ -26,12 +25,13 @@ private:
   using MatlabScopeHelper = ScopeHelper<TypeVisitor, ScopeStack>;
 
 public:
-  explicit TypeVisitor(Unifier& unifier, Store& store, TypeStore& type_store, const Library& library, StringRegistry& string_registry) :
+  explicit TypeVisitor(Substitution& substitution, Store& store, TypeStore& type_store,
+    const Library& library, StringRegistry& string_registry) :
+    substitution(substitution),
     store(store),
     type_store(type_store),
     library(library),
-    string_registry(string_registry),
-    unifier(unifier) {
+    string_registry(string_registry) {
     //
     assignment_state.push_non_assignment_target_rvalue();
     value_category_state.push_rhs();
@@ -147,12 +147,12 @@ private:
   }
 
 private:
+  Substitution& substitution;
+
   Store& store;
   TypeStore& type_store;
   const Library& library;
   const StringRegistry& string_registry;
-
-  Unifier& unifier;
 
   AssignmentSourceState assignment_state;
   ValueCategoryState value_category_state;

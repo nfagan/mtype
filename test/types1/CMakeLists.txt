@@ -18,6 +18,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         member_visitor.cpp
         simplify.hpp
         simplify.cpp
+        substitution.hpp
+        substitution.cpp
         test_cases.hpp
         test_cases.cpp
         type.hpp

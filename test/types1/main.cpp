@@ -54,13 +54,14 @@ int main(int argc, char** argv) {
   Library library(type_store, type_eq, str_registry);
   library.make_known_types();
 
+  Substitution substitution;
   Unifier unifier(type_store, library, str_registry);
+  TypeVisitor type_visitor(substitution, store, type_store, library, str_registry);
 
-  TypeVisitor type_visitor(unifier, store, type_store, library, str_registry);
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
   root_block->accept_const(type_visitor);
 
-  auto unify_res = unifier.unify();
+  auto unify_res = unifier.unify(&substitution);
 
   mt::run_all();
 
@@ -81,6 +82,10 @@ int main(int argc, char** argv) {
       std::cout << "ERROR" << std::endl;
     }
   }
+
+  std::cout << "Num type eqs: " << substitution.num_type_equations() << std::endl;
+  std::cout << "Subs size: " << substitution.num_bound_variables() << std::endl;
+  std::cout << "Num types: " << type_store.size() << std::endl;
 
 //  StringVisitor str_visitor(&str_registry, &store);
 //  std::cout << root_block->accept(str_visitor) << std::endl;

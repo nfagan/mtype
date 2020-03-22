@@ -184,7 +184,7 @@ void Simplifier::push_make_type_equations(const TypeHandles& t0, const TypeHandl
 }
 
 void Simplifier::push_type_equation(TypeEquation&& eq) {
-  unifier.push_type_equation(std::move(eq));
+  unifier.substitution->push_type_equation(std::move(eq));
 }
 
 void Simplifier::push_make_type_equation(TypeRef t0, TypeRef t1, bool rev) {

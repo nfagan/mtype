@@ -19,7 +19,7 @@ void TypeVisitor::show_variable_types() const {
   Store::ReadConst reader(store);
 
   for (const auto& var_it : variable_type_handles) {
-    const auto& maybe_type = unifier.bound_type(var_it.second);
+    const auto& maybe_type = substitution.bound_type(var_it.second);
     const Type& type = maybe_type ? type_store.at(maybe_type.value()) : type_store.at(var_it.second);
 
     const auto& def_handle = var_it.first;
@@ -92,7 +92,7 @@ void TypeVisitor::function_def_node(const FunctionDefNode& node) {
   const auto rhs_term = make_term(&node.source_token, type_handle);
 
   type_store.assign(type_handle, Type(Abstraction(function_name, input_handle, output_handle)));
-  unifier.push_type_equation(make_eq(lhs_term, rhs_term));
+  substitution.push_type_equation(make_eq(lhs_term, rhs_term));
 
   if (function_body) {
     function_body->accept_const(*this);
@@ -118,7 +118,7 @@ void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
     arg->accept_const(*this);
     auto result = pop_type_equation_term();
 
-    unifier.push_type_equation(make_eq(tvar_term, result));
+    substitution.push_type_equation(make_eq(tvar_term, result));
     members.push_back(result.term);
   }
 
@@ -139,7 +139,7 @@ void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   const auto func_rhs_term = make_term(&expr.source_token, func_type);
 
   type_store.assign(func_type, Type(Abstraction(function_name, args_type, result_type)));
-  unifier.push_type_equation(make_eq(func_lhs_term, func_rhs_term));
+  substitution.push_type_equation(make_eq(func_lhs_term, func_rhs_term));
 
   push_type_equation_term(TypeEquationTerm(&expr.source_token, result_type));
 }
@@ -177,7 +177,7 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
         auto res = pop_type_equation_term();
         args.push_back(res.term);
 
-        unifier.push_type_equation(make_eq(var_term, res));
+        substitution.push_type_equation(make_eq(var_term, res));
       }
 
       subscripts.emplace_back(Subscript::Sub(method, std::move(args)));
@@ -192,7 +192,7 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
     const auto sub_rhs_term = make_term(&expr.source_token, sub_type);
 
     type_store.assign(sub_type, Type(Subscript(variable_type_handle, std::move(subscripts), outputs_type)));
-    unifier.push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
+    substitution.push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
 
     push_type_equation_term(TypeEquationTerm(&expr.source_token, outputs_type));
   }
@@ -220,7 +220,7 @@ void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
   auto lhs_result = pop_type_equation_term();
 
   if (variables.count(lhs_result.term) == 0) {
-    unifier.push_type_equation(make_eq(tvar_lhs_term, lhs_result));
+    substitution.push_type_equation(make_eq(tvar_lhs_term, lhs_result));
   }
 
   const auto tvar_rhs = type_store.make_fresh_type_variable_reference();
@@ -230,7 +230,7 @@ void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
   auto rhs_result = pop_type_equation_term();
 
   if (variables.count(rhs_result.term) == 0) {
-    unifier.push_type_equation(make_eq(tvar_rhs_term, rhs_result));
+    substitution.push_type_equation(make_eq(tvar_rhs_term, rhs_result));
   }
 
   const auto output_handle = type_store.make_fresh_type_variable_reference();
@@ -245,7 +245,7 @@ void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
 
   const auto func_lhs_term = make_term(&expr.source_token, type_store.make_fresh_type_variable_reference());
   const auto func_rhs_term = make_term(&expr.source_token, func_handle);
-  unifier.push_type_equation(make_eq(func_lhs_term, func_rhs_term));
+  substitution.push_type_equation(make_eq(func_lhs_term, func_rhs_term));
 
   push_type_equation_term(TypeEquationTerm(&expr.source_token, output_handle));
 }
@@ -281,7 +281,7 @@ void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
     component.expr->accept_const(*this);
     auto res = pop_type_equation_term();
 
-    unifier.push_type_equation(make_eq(tvar_term, res));
+    substitution.push_type_equation(make_eq(tvar_term, res));
     members.push_back(res.term);
   }
 
@@ -323,7 +323,7 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
 
   const auto lhs_term = make_term(&expr.source_token, type_store.make_fresh_type_variable_reference());
   const auto rhs_term = make_term(&expr.source_token, abstr);
-  unifier.push_type_equation(make_eq(lhs_term, rhs_term));
+  substitution.push_type_equation(make_eq(lhs_term, rhs_term));
 
   push_type_equation_term(TypeEquationTerm(&expr.source_token, result_handle));
 }
@@ -342,7 +342,7 @@ void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
     component.expr->accept_const(*this);
     auto res = pop_type_equation_term();
 
-    unifier.push_type_equation(make_eq(tvar_term, res));
+    substitution.push_type_equation(make_eq(tvar_term, res));
     list.pattern.push_back(res.term);
   }
 
@@ -380,7 +380,7 @@ void TypeVisitor::assignment_stmt(const AssignmentStmt& stmt) {
   const auto lhs_term = make_term(lhs.source_token, assignment_var);
   const auto rhs_term = make_term(rhs.source_token, assignment);
 
-  unifier.push_type_equation(make_eq(lhs_term, rhs_term));
+  substitution.push_type_equation(make_eq(lhs_term, rhs_term));
 }
 
 }

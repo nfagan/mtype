@@ -17,16 +17,6 @@
 
 namespace mt {
 
-Optional<TypeHandle> Unifier::bound_type(const TypeHandle& for_type) const {
-  const auto lookup = TypeEquationTerm(nullptr, for_type);
-
-  if (bound_variables.count(lookup) == 0) {
-    return NullOpt{};
-  } else {
-    return Optional<TypeHandle>(bound_variables.at(lookup).term);
-  }
-}
-
 bool Unifier::is_concrete_argument(const mt::TypeHandle& handle) const {
   return TypeProperties(store).is_concrete_argument(handle);
 }
@@ -58,7 +48,7 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
     if (func_ref.is_abstraction()) {
       const auto lhs_term = make_term(term.source_token, source);
       const auto rhs_term = make_term(term.source_token, maybe_func.value());
-      push_type_equation(make_eq(lhs_term, rhs_term));
+      substitution->push_type_equation(make_eq(lhs_term, rhs_term));
 
     } else {
       assert(func_ref.is_scheme());
@@ -68,7 +58,7 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
 
       const auto lhs_term = make_term(term.source_token, source);
       const auto rhs_term = make_term(term.source_token, new_abstr_handle);
-      push_type_equation(make_eq(lhs_term, rhs_term));
+      substitution->push_type_equation(make_eq(lhs_term, rhs_term));
     }
 
   } else {
@@ -88,16 +78,26 @@ void Unifier::check_assignment(TypeRef source, TermRef term, const types::Assign
   if (is_concrete_argument(assignment.rhs)) {
     const auto lhs_term = make_term(term.source_token, assignment.lhs);
     const auto rhs_term = make_term(term.source_token, assignment.rhs);
-    push_type_equation(make_eq(lhs_term, rhs_term));
+    substitution->push_type_equation(make_eq(lhs_term, rhs_term));
 
     registered_assignments[source] = true;
   }
 }
 
-UnifyResult Unifier::unify() {
+void Unifier::reset(Substitution* subst) {
+  assert(subst);
+
+  substitution = subst;
+  simplification_failures.clear();
+  any_failures = false;
+}
+
+UnifyResult Unifier::unify(Substitution* subst) {
+  reset(subst);
+
   int64_t i = 0;
-  while (i < type_equations.size()) {
-    unify_one(type_equations[i++]);
+  while (i < substitution->type_equations.size()) {
+    unify_one(substitution->type_equations[i++]);
   }
 
   if (had_error()) {
@@ -105,15 +105,13 @@ UnifyResult Unifier::unify() {
   } else {
     return UnifyResult();
   }
-
-//  show();
 }
 
 TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Variable& var) {
   TypeEquationTerm lookup(nullptr, source);
 
-  if (bound_variables.count(lookup) > 0) {
-    return bound_variables.at(lookup).term;
+  if (substitution->bound_variables.count(lookup) > 0) {
+    return substitution->bound_variables.at(lookup).term;
   } else {
     return source;
   }
@@ -364,12 +362,12 @@ void Unifier::unify_one(TypeEquation eq) {
     std::swap(eq.lhs, eq.rhs);
   }
 
-  for (auto& subst_it : bound_variables) {
+  for (auto& subst_it : substitution->bound_variables) {
     auto& rhs_term = subst_it.second;
     rhs_term.term = substitute_one(rhs_term.term, rhs_term, eq.lhs, eq.rhs);
   }
 
-  bound_variables[eq.lhs] = eq.rhs;
+  substitution->bound_variables[eq.lhs] = eq.rhs;
 }
 
 TypeHandle Unifier::maybe_unify_subscript(TypeRef source, TermRef term, types::Subscript& sub) {
@@ -418,11 +416,11 @@ TypeHandle Unifier::maybe_unify_function_call_subscript(TypeRef source,
 
   const auto sub_lhs_term = make_term(term.source_token, sub.outputs);
   const auto sub_rhs_term = make_term(term.source_token, result_type);
-  push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
+  substitution->push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
 
   const auto arg_lhs_term = make_term(term.source_token, sub.principal_argument);
   const auto arg_rhs_term = make_term(term.source_token, lookup_handle);
-  push_type_equation(make_eq(arg_lhs_term, arg_rhs_term));
+  substitution->push_type_equation(make_eq(arg_lhs_term, arg_rhs_term));
 
   check_push_func(lookup_handle, term, store.at(lookup_handle).abstraction);
   registered_funcs[source] = true;
@@ -464,7 +462,7 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, TermRef ter
     if (func.is_abstraction()) {
       const auto lhs_term = make_term(term.source_token, sub.outputs);
       const auto rhs_term = make_term(term.source_token, func.abstraction.outputs);
-      push_type_equation(make_eq(lhs_term, rhs_term));
+      substitution->push_type_equation(make_eq(lhs_term, rhs_term));
 
     } else {
       assert(func.tag == Type::Tag::scheme);
@@ -475,11 +473,11 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, TermRef ter
 
       const auto sub_lhs_term = make_term(term.source_token, sub.outputs);
       const auto sub_rhs_term = make_term(term.source_token, func_ref.abstraction.outputs);
-      push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
+      substitution->push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
 
       const auto tup_lhs_term = make_term(term.source_token, tup_type);
       const auto tup_rhs_term = make_term(term.source_token, func_ref.abstraction.inputs);
-      push_type_equation(make_eq(tup_lhs_term, tup_rhs_term));
+      substitution->push_type_equation(make_eq(tup_lhs_term, tup_rhs_term));
     }
 
     if (sub.subscripts.size() > 1) {
@@ -487,7 +485,7 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, TermRef ter
 
       const auto lhs_term = make_term(term.source_token, result_type);
       const auto rhs_term = make_term(term.source_token, sub.outputs);
-      push_type_equation(make_eq(lhs_term, rhs_term));
+      substitution->push_type_equation(make_eq(lhs_term, rhs_term));
 
       sub.principal_argument = result_type;
       sub.subscripts.erase(sub.subscripts.begin());
