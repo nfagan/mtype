@@ -94,10 +94,16 @@ void Unifier::check_assignment(TypeRef source, TermRef term, const types::Assign
   }
 }
 
-void Unifier::unify() {
+UnifyResult Unifier::unify() {
   int64_t i = 0;
   while (i < type_equations.size()) {
     unify_one(type_equations[i++]);
+  }
+
+  if (had_error()) {
+    return UnifyResult(std::move(simplification_failures));
+  } else {
+    return UnifyResult();
   }
 
 //  show();
@@ -346,8 +352,9 @@ void Unifier::unify_one(TypeEquation eq) {
     bool success = simplifier.simplify_entry(eq.lhs, eq.rhs);
 
     if (!success) {
-      MT_SHOW2("Failed to simplify: ", eq.lhs.term, eq.rhs.term);
-      assert(false);
+      mark_failure();
+//      MT_SHOW2("Failed to simplify: ", eq.lhs.term, eq.rhs.term);
+//      assert(false);
     }
 
     return;
@@ -370,7 +377,9 @@ TypeHandle Unifier::maybe_unify_subscript(TypeRef source, TermRef term, types::S
     return maybe_unify_known_subscript_type(source, term, sub);
 
   } else if (type_of(sub.principal_argument) == Type::Tag::abstraction) {
-    return maybe_unify_function_call_subscript(source, term, store.at(sub.principal_argument).abstraction, sub);
+    //  a() where a is a variable, discovered to be a function reference.
+    const auto& func = store.at(sub.principal_argument).abstraction;
+    return maybe_unify_function_call_subscript(source, term, func, sub);
 
   } else if (type_of(sub.principal_argument) != Type::Tag::variable) {
     MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
@@ -501,6 +510,28 @@ Type::Tag Unifier::type_of(const mt::TypeHandle& handle) const {
 
 DebugTypePrinter Unifier::type_printer() const {
   return DebugTypePrinter(store, &string_registry);
+}
+
+void Unifier::emplace_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+                                             TypeRef lhs_type, TypeRef rhs_type) {
+  add_error(make_simplification_failure(lhs_token, rhs_token, lhs_type, rhs_type));
+}
+
+SimplificationFailure Unifier::make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+                                                           TypeRef lhs_type, TypeRef rhs_type) const {
+  return SimplificationFailure(lhs_token, rhs_token, lhs_type, rhs_type);
+}
+
+void Unifier::add_error(SimplificationFailure&& err) {
+  simplification_failures.emplace_back(std::move(err));
+}
+
+bool Unifier::had_error() const {
+  return any_failures || !simplification_failures.empty();
+}
+
+void Unifier::mark_failure() {
+  any_failures = true;
 }
 
 void Unifier::show() {

@@ -13,7 +13,33 @@ bool Library::is_known_subscript_type(const TypeHandle& handle) const {
   return types_with_known_subscripts.count(handle) > 0;
 }
 
+Optional<std::string> Library::type_name(const TypeHandle& handle) const {
+  const auto& type = store.at(handle);
+  if (!type.is_scalar()) {
+    return NullOpt{};
+  }
+
+  return type_name(type.scalar);
+}
+
+Optional<std::string> Library::type_name(const mt::types::Scalar& scl) const {
+  const auto& name_it = scalar_type_names.find(scl.identifier);
+
+  if (name_it == scalar_type_names.end()) {
+    return NullOpt{};
+  } else {
+    return Optional<std::string>(string_registry.at(name_it->second));
+  }
+}
+
+void Library::make_builtin_types() {
+  double_type_handle = make_named_scalar_type("double");
+  string_type_handle = make_named_scalar_type("string");
+  char_type_handle = make_named_scalar_type("char");
+}
+
 void Library::make_known_types() {
+  make_builtin_types();
   make_subscript_references();
   make_binary_operators();
   make_free_functions();
@@ -36,7 +62,7 @@ void Library::make_sum() {
   const auto args_type = store.make_type();
   const auto result_type = store.make_type();
   const auto func_type = store.make_type();
-  const auto& d_handle = store.double_type_handle;
+  const auto& d_handle = double_type_handle;
 
   const auto ident = MatlabIdentifier(string_registry.register_string("sum"));
 
@@ -60,9 +86,9 @@ void Library::make_min() {
   const auto result_type = store.make_type();
   const auto func_type = store.make_type();
 
-  const auto& double_handle = store.double_type_handle;
-  const auto& char_handle = store.char_type_handle;
-  const auto& str_handle = store.string_type_handle;
+  const auto& double_handle = double_type_handle;
+  const auto& char_handle = char_type_handle;
+  const auto& str_handle = string_type_handle;
   const auto name = std::string("min");
   const auto ident = MatlabIdentifier(string_registry.register_string(name));
 
@@ -87,8 +113,8 @@ void Library::make_fileparts() {
   const auto result_type = store.make_type();
   const auto func_type = store.make_type();
 
-  const auto& double_handle = store.double_type_handle;
-  const auto& char_handle = store.char_type_handle;
+  const auto& double_handle = double_type_handle;
+  const auto& char_handle = char_type_handle;
 
   const auto name = std::string("fileparts");
   const auto ident = MatlabIdentifier(string_registry.register_string(name));
@@ -116,7 +142,7 @@ void Library::make_list_inputs_type() {
   const auto args_type = store.make_type();
   const auto result_type = store.make_type();
   const auto func_type = store.make_type();
-  const auto& double_handle = store.double_type_handle;
+  const auto& double_handle = double_type_handle;
   const auto list_type = store.make_list(double_handle);
 
   const auto ident = MatlabIdentifier(string_registry.register_string("in_list"));
@@ -143,9 +169,9 @@ void Library::make_list_outputs_type() {
   const auto func_type = store.make_type();
   const auto list_type = store.make_type();
 
-  const auto& double_handle = store.double_type_handle;
-  const auto& char_handle = store.char_type_handle;
-  const auto& string_handle = store.string_type_handle;
+  const auto& double_handle = double_type_handle;
+  const auto& char_handle = char_type_handle;
+  const auto& string_handle = string_type_handle;
 
   const auto name = std::string("lists");
   const auto ident = MatlabIdentifier(string_registry.register_string(name));
@@ -175,9 +201,9 @@ void Library::make_list_outputs_type2() {
   const auto result_type = store.make_type();
   const auto func_type = store.make_type();
 
-  const auto& double_handle = store.double_type_handle;
-  const auto& char_handle = store.char_type_handle;
-  const auto& string_handle = store.string_type_handle;
+  const auto& double_handle = double_type_handle;
+  const auto& char_handle = char_type_handle;
+  const auto& string_handle = string_type_handle;
 
   const auto name = std::string("out_list");
   const auto ident = MatlabIdentifier(string_registry.register_string(name));
@@ -206,7 +232,7 @@ void Library::make_builtin_parens_subscript_references() {
   using types::Abstraction;
   using types::List;
 
-  std::vector<TypeHandle> default_array_types{store.double_type_handle, store.char_type_handle};
+  std::vector<TypeHandle> default_array_types{double_type_handle, char_type_handle};
 
   for (const auto& referent_type_handle : default_array_types) {
     const auto args_type = store.make_type();
@@ -217,7 +243,7 @@ void Library::make_builtin_parens_subscript_references() {
     Abstraction ref(SubscriptMethod::parens, args_type, result_type);
     auto ref_copy = ref;
 
-    std::vector<TypeHandle> list_types{store.double_type_handle};
+    std::vector<TypeHandle> list_types{double_type_handle};
 
     //  T(list<double>) -> T
     store.assign(list_type, Type(List(std::move(list_types))));
@@ -256,7 +282,7 @@ void Library::make_builtin_brace_subscript_reference() {
   types::Abstraction ref(SubscriptMethod::brace, args_type, result_type);
   auto ref_copy = ref;
 
-  store.assign(list_subs_type, Type(List(store.double_type_handle)));  //  list<double>
+  store.assign(list_subs_type, Type(List(double_type_handle)));  //  list<double>
   store.assign(list_result_type, Type(List(ref_var)));  //  list<T>
 
   store.assign(args_type,
@@ -323,7 +349,7 @@ void Library::make_binary_operators() {
     Abstraction abstr(op, args_type, result_type);
     Abstraction abstr_copy = abstr;
 
-    const auto& double_handle = store.double_type_handle;
+    const auto& double_handle = double_type_handle;
 
     store.assign(args_type,
       Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle, double_handle)));
@@ -333,6 +359,16 @@ void Library::make_binary_operators() {
 
     function_types[abstr_copy] = func_type;
   }
+}
+
+TypeHandle Library::make_named_scalar_type(const char* name) {
+  const auto name_id = string_registry.register_string(name);
+  const auto type_handle = store.make_concrete();
+  assert(store.type_of(type_handle) == Type::Tag::scalar);
+  const auto& type = store.at(type_handle).scalar;
+
+  scalar_type_names[type.identifier] = name_id;
+  return type_handle;
 }
 
 }

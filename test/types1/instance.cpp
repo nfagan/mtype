@@ -38,6 +38,7 @@ TypeHandle Instantiation::clone(const TypeHandle& source, const InstanceVariable
     default:
       std::cout << to_string(type.tag) << std::endl;
       assert(false && "Unhandled.");
+      return source;
   }
 }
 

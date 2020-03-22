@@ -3,6 +3,7 @@
 #include "test_cases.hpp"
 #include "library.hpp"
 #include "util.hpp"
+#include "type_representation.hpp"
 #include <chrono>
 
 namespace {
@@ -49,15 +50,17 @@ int main(int argc, char** argv) {
 
   //  Reserve space
   TypeStore type_store(10000);
-  type_store.make_builtin_types();
-
   TypeEquality type_eq(type_store);
   Library library(type_store, type_eq, str_registry);
   library.make_known_types();
 
-  TypeVisitor type_visitor(store, type_store, library, type_eq, str_registry);
+  Unifier unifier(type_store, library, str_registry);
+
+  TypeVisitor type_visitor(unifier, store, type_store, library, str_registry);
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
   root_block->accept_const(type_visitor);
+
+  auto unify_res = unifier.unify();
 
   mt::run_all();
 
@@ -65,7 +68,19 @@ int main(int argc, char** argv) {
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
 
-  std::cout << "Term size: " << sizeof(TypeEquationTerm) << std::endl;
+  type_visitor.show_type_distribution();
+  type_visitor.show_variable_types();
+
+  if (unify_res.is_error()) {
+    TypeToString type_to_string(type_store, library, &str_registry);
+    type_to_string.explicit_destructured_tuples = false;
+    ShowUnificationErrors show(type_store, type_to_string);
+    show.show(unify_res.simplify_failures, contents, file_descriptor);
+
+    if (unify_res.simplify_failures.empty()) {
+      std::cout << "ERROR" << std::endl;
+    }
+  }
 
 //  StringVisitor str_visitor(&str_registry, &store);
 //  std::cout << root_block->accept(str_visitor) << std::endl;

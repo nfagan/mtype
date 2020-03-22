@@ -12,8 +12,13 @@ struct TypeHandle : public detail::Handle<100> {
 };
 
 using TypeHandles = std::vector<TypeHandle>;
+using TypeRef = const TypeHandle&;
 
 struct TypeIdentifier {
+  struct Hash {
+    std::size_t operator()(const TypeIdentifier& id) const;
+  };
+
   TypeIdentifier() : TypeIdentifier(-1) {
     //
   }
@@ -24,6 +29,9 @@ struct TypeIdentifier {
 
   friend bool operator==(const TypeIdentifier& a, const TypeIdentifier& b) {
     return a.name == b.name;
+  }
+  friend bool operator!=(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name != b.name;
   }
 
   int64_t name;
@@ -52,6 +60,8 @@ struct TypeEquationTerm {
   const Token* source_token;
   TypeHandle term;
 };
+
+using TermRef = const TypeEquationTerm&;
 
 struct TypeEquation {
   TypeEquation(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) : lhs(lhs), rhs(rhs) {
@@ -229,6 +239,10 @@ namespace types {
 
     bool is_value_usage() const {
       return is_lvalue() || is_rvalue();
+    }
+
+    static bool is_value_usage(Usage use) {
+      return use == Usage::rvalue || use == Usage::lvalue;
     }
 
     static bool mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b) {

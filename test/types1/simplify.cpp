@@ -18,7 +18,7 @@ bool Simplifier::simplify_entry(const TypeEquationTerm& lhs, const TypeEquationT
   return simplify(lhs.term, rhs.term, false);
 }
 
-bool Simplifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs, bool rev) {
+bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, bool rev) {
   if (store.type_of(lhs) == store.type_of(rhs)) {
     return simplify_same_types(lhs, rhs, rev);
   } else {
@@ -26,7 +26,7 @@ bool Simplifier::simplify(const TypeHandle& lhs, const TypeHandle& rhs, bool rev
   }
 }
 
-bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rhs, bool rev) {
+bool Simplifier::simplify_same_types(TypeRef lhs, TypeRef rhs, bool rev) {
   using Tag = Type::Tag;
 
   const auto& t0 = store.at(lhs);
@@ -34,13 +34,13 @@ bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rh
 
   switch (t0.tag) {
     case Tag::abstraction:
-      return simplify(t0.abstraction, t1.abstraction, rev);
+      return simplify(lhs, rhs, t0.abstraction, t1.abstraction, rev);
     case Tag::scalar:
-      return simplify(t0.scalar, t1.scalar, rev);
+      return simplify(lhs, rhs, t0.scalar, t1.scalar, rev);
     case Tag::tuple:
-      return simplify(t0.tuple, t1.tuple, rev);
+      return simplify(lhs, rhs, t0.tuple, t1.tuple, rev);
     case Tag::destructured_tuple:
-      return simplify(t0.destructured_tuple, t1.destructured_tuple, rev);
+      return simplify(lhs, rhs, t0.destructured_tuple, t1.destructured_tuple, rev);
     case Tag::list:
       return simplify(t0.list, t1.list, rev);
     case Tag::variable:
@@ -52,12 +52,12 @@ bool Simplifier::simplify_same_types(const TypeHandle& lhs, const TypeHandle& rh
   }
 }
 
-bool Simplifier::simplify_make_type_equation(const TypeHandle& t0, const TypeHandle& t1, bool rev) {
+bool Simplifier::simplify_make_type_equation(TypeRef t0, TypeRef t1, bool rev) {
   push_make_type_equation(t0, t1, rev);
   return true;
 }
 
-bool Simplifier::simplify_different_types(const TypeHandle& lhs, const TypeHandle& rhs, bool rev) {
+bool Simplifier::simplify_different_types(TypeRef lhs, TypeRef rhs, bool rev) {
   using Tag = Type::Tag;
 
   const auto lhs_type = store.type_of(lhs);
@@ -80,14 +80,15 @@ bool Simplifier::simplify_different_types(const TypeHandle& lhs, const TypeHandl
     return simplify_different_types(store.at(rhs).list, rhs, lhs, !rev);
 
   } else {
-    MT_SHOW2("Unhandled simplify for diff types: ", lhs, rhs);
-    assert(false);
+    check_emplace_simplification_failure(false, lhs, rhs);
+//    MT_SHOW2("Unhandled simplify for diff types: ", lhs, rhs);
+//    assert(false);
     return false;
   }
 }
 
-bool Simplifier::simplify_different_types(const types::List& list, const TypeHandle& source,
-                                          const TypeHandle& rhs, bool rev) {
+bool Simplifier::simplify_different_types(const types::List& list, TypeRef source,
+                                          TypeRef rhs, bool rev) {
   const auto& rhs_member = store.at(rhs);
 
   if (rhs_member.is_scalar() || rhs_member.is_tuple()) {
@@ -104,30 +105,40 @@ bool Simplifier::simplify_different_types(const types::List& list, const TypeHan
   return false;
 }
 
-bool Simplifier::simplify_different_types(const DT& tup, const TypeHandle& source, const TypeHandle& rhs, bool rev) {
+bool Simplifier::simplify_different_types(const DT& tup, TypeRef source, TypeRef rhs, bool rev) {
   const auto t = store.make_rvalue_destructured_tuple(rhs);
   return simplify_make_type_equation(source, t, rev);
 }
 
-bool Simplifier::simplify(const types::Scalar& t0, const types::Scalar& t1, bool rev) {
-  return t0.identifier == t1.identifier;
+bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev) {
+  bool success = t0.identifier == t1.identifier;
+  check_emplace_simplification_failure(success, lhs, rhs);
+  return success;
 }
 
-bool Simplifier::simplify(const types::Abstraction& t0, const types::Abstraction& t1, bool rev) {
+bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const types::Abstraction& t0, const types::Abstraction& t1, bool rev) {
   //  Contravariance for inputs.
-  return simplify(t0.inputs, t1.inputs, !rev) && simplify(t0.outputs, t1.outputs, rev);
+  bool success = simplify(t0.inputs, t1.inputs, !rev);
+  success = success && simplify(t0.outputs, t1.outputs, rev);
+  check_emplace_simplification_failure(success, lhs, rhs);
+  return success;
 }
 
-bool Simplifier::simplify(const DT& t0, const DT& t1, bool rev) {
+bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const DT& t0, const DT& t1, bool rev) {
+  bool success;
+
   if (types::DestructuredTuple::mismatching_definition_usages(t0, t1)) {
-    return false;
+    success = false;
 
   } else if (t0.is_definition_usage() && t0.usage == t1.usage) {
-    return simplify(t0.members, t1.members, rev);
+    success = simplify(t0.members, t1.members, rev);
 
   } else {
-    return DestructuredMemberVisitor{store, DestructuredSimplifier{*this}}.expand_members(t0, t1, rev);
+    success = DestructuredMemberVisitor{store, DestructuredSimplifier{*this}}.expand_members(t0, t1, rev);
   }
+
+  check_emplace_simplification_failure(success, lhs, rhs);
+  return success;
 }
 
 bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev) {
@@ -150,8 +161,10 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
   return true;
 }
 
-bool Simplifier::simplify(const types::Tuple& t0, const types::Tuple& t1, bool rev) {
-  return simplify(t0.members, t1.members, rev);
+bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev) {
+  bool success = simplify(t0.members, t1.members, rev);
+  check_emplace_simplification_failure(success, lhs, rhs);
+  return success;
 }
 
 bool Simplifier::simplify(const TypeHandles& t0, const TypeHandles& t1, bool rev) {
@@ -159,11 +172,11 @@ bool Simplifier::simplify(const TypeHandles& t0, const TypeHandles& t1, bool rev
   if (sz0 != t1.size()) {
     return false;
   }
-  push_type_equations(t0, t1, sz0, rev);
+  push_make_type_equations(t0, t1, sz0, rev);
   return true;
 }
 
-void Simplifier::push_type_equations(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, int64_t num, bool rev) {
+void Simplifier::push_make_type_equations(const TypeHandles& t0, const TypeHandles& t1, int64_t num, bool rev) {
   assert(num >= 0 && num <= t0.size() && num <= t1.size() && "out of bounds read.");
   for (int64_t i = 0; i < num; i++) {
     push_make_type_equation(t0[i], t1[i], rev);
@@ -174,7 +187,7 @@ void Simplifier::push_type_equation(TypeEquation&& eq) {
   unifier.push_type_equation(std::move(eq));
 }
 
-void Simplifier::push_make_type_equation(const TypeHandle& t0, const TypeHandle& t1, bool rev) {
+void Simplifier::push_make_type_equation(TypeRef t0, TypeRef t1, bool rev) {
   if (rev) {
     const auto lhs_term = make_term(rhs_source_token(), t1);
     const auto rhs_term = make_term(lhs_source_token(), t0);
@@ -185,6 +198,12 @@ void Simplifier::push_make_type_equation(const TypeHandle& t0, const TypeHandle&
     const auto rhs_term = make_term(rhs_source_token(), t1);
 
     push_type_equation(make_eq(lhs_term, rhs_term));
+  }
+}
+
+void Simplifier::check_emplace_simplification_failure(bool success, TypeRef lhs, TypeRef rhs) {
+  if (!success) {
+    unifier.emplace_simplification_failure(lhs_source_token(), rhs_source_token(), lhs, rhs);
   }
 }
 

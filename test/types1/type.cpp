@@ -1,8 +1,13 @@
 #include "type.hpp"
 #include "typing.hpp"
+#include <functional>
 #include <cassert>
 
 namespace mt {
+
+std::size_t TypeIdentifier::Hash::operator()(const TypeIdentifier& id) const {
+  return std::hash<int64_t>{}(id.name);
+}
 
 TypeEquationTerm make_term(const Token* source_token, const TypeHandle& term) {
   return TypeEquationTerm(source_token, term);

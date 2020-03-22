@@ -2,6 +2,7 @@
 #include "type_store.hpp"
 #include "type_equality.hpp"
 #include "debug.hpp"
+#include "library.hpp"
 #include <cassert>
 
 #define MT_SHOW_ERROR(msg) \
@@ -30,12 +31,14 @@ void test_equivalence_debug() {
 
   StringRegistry str_registry;
   TypeStore store;
-  store.make_builtin_types();
   TypeEquality eq(store);
+  Library library(store, eq, str_registry);
+  library.make_known_types();
+
 //  TypeEquality::TypeEquivalenceComparator eq(equiv);
 
-  const auto& d_handle = store.double_type_handle;
-  const auto& c_handle = store.char_type_handle;
+  const auto& d_handle = library.double_type_handle;
+  const auto& c_handle = library.char_type_handle;
 
   auto tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle});
   auto tup2 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, c_handle});
@@ -166,12 +169,12 @@ void test_equivalence() {
 
   StringRegistry str_registry;
   TypeStore store;
-  store.make_builtin_types();
   TypeEquality eq(store);
-//  TypeEquality::TypeEquivalenceComparator eq(equiv);
+  Library library(store, eq, str_registry);
+  library.make_known_types();
 
-  const auto& d_handle = store.double_type_handle;
-  const auto& c_handle = store.char_type_handle;
+  const auto& d_handle = library.double_type_handle;
+  const auto& c_handle = library.char_type_handle;
 
   auto tup = store.make_destructured_tuple(Use::rvalue, d_handle);
   auto rec_tup = store.make_destructured_tuple(Use::rvalue, tup);
@@ -194,13 +197,13 @@ void test_equivalence() {
   if (!eq.equivalence_entry(rec_tup, tup)) {
     MT_SHOW_ERROR("Failed to match r value tuples; ordering effects.");
   }
-  if (!eq.equivalence_entry(rec_tup, store.double_type_handle)) {
+  if (!eq.equivalence_entry(rec_tup, d_handle)) {
     MT_SHOW_ERROR("Failed to unroll destructured tuple.");
   }
-  if (!eq.equivalence_entry(store.double_type_handle, store.double_type_handle)) {
+  if (!eq.equivalence_entry(d_handle, d_handle)) {
     MT_SHOW_ERROR("Failed to match double to double.");
   }
-  if (eq.equivalence_entry(tup, store.char_type_handle)) {
+  if (eq.equivalence_entry(tup, c_handle)) {
     MT_SHOW_ERROR("Matched double tup with char.");
   }
   if (eq.equivalence_entry(tup, mult_double_tup)) {

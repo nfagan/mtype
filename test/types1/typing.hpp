@@ -4,6 +4,7 @@
 #include "type.hpp"
 #include "unification.hpp"
 #include "type_store.hpp"
+#include "library.hpp"
 #include <cassert>
 #include <memory>
 #include <set>
@@ -25,20 +26,15 @@ private:
   using MatlabScopeHelper = ScopeHelper<TypeVisitor, ScopeStack>;
 
 public:
-  explicit TypeVisitor(Store& store, TypeStore& type_store, const Library& library,
-    const TypeEquality& type_eq, StringRegistry& string_registry) :
+  explicit TypeVisitor(Unifier& unifier, Store& store, TypeStore& type_store, const Library& library, StringRegistry& string_registry) :
     store(store),
     type_store(type_store),
+    library(library),
     string_registry(string_registry),
-    unifier(type_store, library, string_registry) {
+    unifier(unifier) {
     //
     assignment_state.push_non_assignment_target_rvalue();
     value_category_state.push_rhs();
-  }
-
-  ~TypeVisitor() {
-    show_type_distribution();
-    show_variable_types();
   }
 
   void show_type_distribution() const;
@@ -47,8 +43,6 @@ public:
   void root_block(const RootBlock& block) override {
     MatlabScopeHelper scope_helper(*this, block.scope_handle);
     block.block->accept_const(*this);
-
-    unifier.unify();
   }
 
   void block(const Block& block) override {
@@ -58,23 +52,23 @@ public:
   }
 
   void number_literal_expr(const NumberLiteralExpr& expr) override {
-    assert(type_store.double_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, type_store.double_type_handle));
+    assert(library.double_type_handle.is_valid());
+    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.double_type_handle));
   }
 
   void char_literal_expr(const CharLiteralExpr& expr) override {
-    assert(type_store.char_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, type_store.char_type_handle));
+    assert(library.char_type_handle.is_valid());
+    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.char_type_handle));
   }
 
   void string_literal_expr(const StringLiteralExpr& expr) override {
-    assert(type_store.string_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, type_store.string_type_handle));
+    assert(library.string_type_handle.is_valid());
+    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.string_type_handle));
   }
 
   void literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) override {
-    assert(type_store.char_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, type_store.char_type_handle));
+    assert(library.char_type_handle.is_valid());
+    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.char_type_handle));
   }
 
   void function_call_expr(const FunctionCallExpr& expr) override;
@@ -155,9 +149,10 @@ private:
 private:
   Store& store;
   TypeStore& type_store;
+  const Library& library;
   const StringRegistry& string_registry;
 
-  Unifier unifier;
+  Unifier& unifier;
 
   AssignmentSourceState assignment_state;
   ValueCategoryState value_category_state;

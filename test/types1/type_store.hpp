@@ -93,12 +93,6 @@ public:
     return t;
   }
 
-  void make_builtin_types() {
-    double_type_handle = make_concrete();
-    string_type_handle = make_concrete();
-    char_type_handle = make_concrete();
-  }
-
   void assign(const TypeHandle& at, Type&& type);
 
   std::unordered_map<Type::Tag, double> type_distribution() const {
@@ -117,11 +111,6 @@ public:
 private:
   std::vector<Type> types;
   int64_t type_variable_ids;
-
-public:
-  TypeHandle double_type_handle;
-  TypeHandle string_type_handle;
-  TypeHandle char_type_handle;
 };
 
 }

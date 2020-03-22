@@ -6,6 +6,7 @@
 #include "type_store.hpp"
 #include "instance.hpp"
 #include "simplify.hpp"
+#include "error.hpp"
 #include <map>
 
 namespace mt {
@@ -14,8 +15,29 @@ class TypeVisitor;
 class DebugTypePrinter;
 class Library;
 
+struct UnifyResult {
+  UnifyResult(std::vector<SimplificationFailure>&& simplify_failures) :
+  simplify_failures(std::move(simplify_failures)), had_error(true) {
+    //
+  }
+
+  UnifyResult() : had_error(false) {
+    //
+  }
+
+  bool is_success() const {
+    return !had_error;
+  }
+
+  bool is_error() const {
+    return had_error;
+  }
+
+  bool had_error;
+  std::vector<SimplificationFailure> simplify_failures;
+};
+
 class Unifier {
-  friend class Simplifier;
 public:
   using BoundVariables = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::HandleHash>;
 public:
@@ -24,7 +46,8 @@ public:
   library(library),
   string_registry(string_registry),
   simplifier(*this, store),
-  instantiation(store) {
+  instantiation(store),
+  any_failures(false) {
     //
   }
 
@@ -38,13 +61,17 @@ public:
     type_equations.emplace_back(std::move(eq));
   }
 
-  void unify();
+  MT_NODISCARD UnifyResult unify();
   Optional<TypeHandle> bound_type(const TypeHandle& for_type) const;
+  DebugTypePrinter type_printer() const;
+
+  void add_error(SimplificationFailure&& err);
+  void emplace_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+                                      TypeRef lhs_type, TypeRef rhs_type);
+  SimplificationFailure make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+    TypeRef lhs_type, TypeRef rhs_type) const;
 
 private:
-  using TermRef = const TypeEquationTerm&;
-  using TypeRef = const TypeHandle&;
-
   void unify_one(TypeEquation eq);
 
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Abstraction& func);
@@ -83,8 +110,8 @@ private:
   bool are_concrete_arguments(const TypeHandles& handles) const;
 
   void flatten_list(TypeRef source, std::vector<TypeHandle>& into) const;
-
-  DebugTypePrinter type_printer() const;
+  bool had_error() const;
+  void mark_failure();
 
 private:
   TypeStore& store;
@@ -99,6 +126,9 @@ private:
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_assignments;
 
   Instantiation instantiation;
+
+  std::vector<SimplificationFailure> simplification_failures;
+  bool any_failures;
 };
 
 }

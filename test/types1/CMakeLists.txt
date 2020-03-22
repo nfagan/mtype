@@ -8,6 +8,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         main.cpp
         debug.hpp
         debug.cpp
+        error.hpp
+        error.cpp
         instance.hpp
         instance.cpp
         library.hpp
@@ -24,6 +26,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         typing.cpp
         type_properties.hpp
         type_properties.cpp
+        type_representation.hpp
+        type_representation.cpp
         type_store.hpp
         type_store.cpp
         type_equality.hpp
