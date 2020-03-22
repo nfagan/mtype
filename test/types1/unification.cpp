@@ -34,7 +34,7 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
     return;
   }
 
-  if (!is_concrete_argument(func.inputs)) {
+  if (!is_concrete_argument(func.inputs) || func.is_anonymous()) {
     return;
   }
 
@@ -381,7 +381,7 @@ TypeHandle Unifier::maybe_unify_subscript(TypeRef source, TermRef term, types::S
 
   } else if (type_of(sub.principal_argument) != Type::Tag::variable) {
     MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
-    assert(false);
+//    assert(false);
   }
 
   return source;

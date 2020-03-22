@@ -1,5 +1,4 @@
 #include "type_equality.hpp"
-#include "typing.hpp"
 #include "debug.hpp"
 #include "member_visitor.hpp"
 #include <cassert>

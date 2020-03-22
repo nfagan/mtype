@@ -35,6 +35,7 @@ private:
   void make_concatenations();
   void make_builtin_parens_subscript_references();
   void make_builtin_brace_subscript_reference();
+  void make_builtin_parens_tuple_subscript_reference();
   void make_free_functions();
   void make_min();
   void make_sum();

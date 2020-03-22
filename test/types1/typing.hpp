@@ -12,6 +12,8 @@
 
 namespace mt {
 
+class TypeToString;
+
 class TypeVisitor : public TypePreservingVisitor {
 private:
   struct ScopeStack {
@@ -38,7 +40,7 @@ public:
   }
 
   void show_type_distribution() const;
-  void show_variable_types() const;
+  void show_variable_types(TypeToString& printer) const;
 
   void root_block(const RootBlock& block) override {
     MatlabScopeHelper scope_helper(*this, block.scope_handle);
@@ -76,14 +78,13 @@ public:
   void variable_reference_expr(const VariableReferenceExpr& expr) override;
   void function_reference_expr(const FunctionReferenceExpr& expr) override;
 
-  void anonymous_function_expr(const AnonymousFunctionExpr& expr) override {
-    assert(false && "Unhandled.");
-  }
+  void anonymous_function_expr(const AnonymousFunctionExpr& expr) override;
 
   void grouping_expr(const GroupingExpr& expr) override;
   void bracket_grouping_expr_lhs(const GroupingExpr& expr);
   void bracket_grouping_expr_rhs(const GroupingExpr& expr);
   void brace_grouping_expr_rhs(const GroupingExpr& expr);
+  void parens_grouping_expr_rhs(const GroupingExpr& expr);
 
   void expr_stmt(const ExprStmt& stmt) override;
   void assignment_stmt(const AssignmentStmt& stmt) override;
@@ -99,6 +100,9 @@ public:
   }
 
 private:
+  std::vector<TypeHandle> grouping_expr_components(const GroupingExpr& expr);
+  void gather_function_inputs(const MatlabScope& scope, const std::vector<FunctionInputParameter>& inputs, TypeHandles& into);
+
   bool is_bound_type_variable(const VariableDefHandle& handle) {
     return variable_type_handles.count(handle) > 0;
   }

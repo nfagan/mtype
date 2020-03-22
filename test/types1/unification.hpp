@@ -114,11 +114,10 @@ private:
   const Library& library;
   StringRegistry& string_registry;
   Simplifier simplifier;
+  Instantiation instantiation;
 
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_assignments;
-
-  Instantiation instantiation;
 
   std::vector<SimplificationFailure> simplification_failures;
   bool any_failures;

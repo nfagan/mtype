@@ -4,6 +4,7 @@
 #include "library.hpp"
 #include "util.hpp"
 #include "type_representation.hpp"
+#include "debug.hpp"
 #include <chrono>
 
 namespace {
@@ -69,12 +70,13 @@ int main(int argc, char** argv) {
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
 
+  TypeToString type_to_string(type_store, library, &str_registry);
+  type_to_string.explicit_destructured_tuples = false;
+
   type_visitor.show_type_distribution();
-  type_visitor.show_variable_types();
+  type_visitor.show_variable_types(type_to_string);
 
   if (unify_res.is_error()) {
-    TypeToString type_to_string(type_store, library, &str_registry);
-    type_to_string.explicit_destructured_tuples = false;
     ShowUnificationErrors show(type_store, type_to_string);
     show.show(unify_res.simplify_failures, contents, file_descriptor);
 

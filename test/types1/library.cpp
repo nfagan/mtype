@@ -225,6 +225,7 @@ void Library::make_list_outputs_type2() {
 void Library::make_subscript_references() {
   make_builtin_parens_subscript_references();
   make_builtin_brace_subscript_reference();
+  make_builtin_parens_tuple_subscript_reference();
 }
 
 void Library::make_builtin_parens_subscript_references() {
@@ -257,6 +258,46 @@ void Library::make_builtin_parens_subscript_references() {
     function_types[ref_copy] = func_type;
     types_with_known_subscripts.insert(referent_type_handle);
   }
+}
+
+void Library::make_builtin_parens_tuple_subscript_reference() {
+  using types::DestructuredTuple;
+  using types::Abstraction;
+  using types::List;
+
+  auto func_scheme = store.make_type();
+  auto ref_var = store.make_fresh_type_variable_reference();
+  auto tup_type = store.make_type();
+  auto list_type = store.make_list(ref_var);
+
+  types::Scheme scheme;
+
+  //  {list<T>}
+  store.assign(tup_type, Type(types::Tuple(list_type)));
+
+  const auto args_type = store.make_type();
+  const auto list_subs_type = store.make_type();
+  const auto result_type = store.make_type();
+  const auto func_type = store.make_type();
+
+  types::Abstraction ref(SubscriptMethod::parens, args_type, result_type);
+  auto ref_copy = ref;
+
+  store.assign(list_subs_type, Type(List(double_type_handle)));  //  list<double>
+
+  store.assign(args_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, tup_type, list_subs_type)));
+  store.assign(result_type,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, tup_type)));
+
+  scheme.type = func_type;
+  scheme.parameters.push_back(ref_var);
+
+  store.assign(func_type, Type(std::move(ref)));
+  store.assign(func_scheme, Type(std::move(scheme)));
+
+  function_types[ref_copy] = func_scheme;
+  types_with_known_subscripts.insert(tup_type);
 }
 
 void Library::make_builtin_brace_subscript_reference() {

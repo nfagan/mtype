@@ -111,6 +111,9 @@ void TypeToString::apply(const types::Abstraction& abstr) {
 
   } else if (abstr.type == types::Abstraction::Type::concatenation) {
     stream << to_symbol(abstr.concatenation_direction);
+
+  } else if (abstr.type == types::Abstraction::Type::anonymous_function) {
+    stream << "@";
   }
 
   stream << dflt_color() << "(";

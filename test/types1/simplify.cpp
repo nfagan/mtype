@@ -91,7 +91,7 @@ bool Simplifier::simplify_different_types(const types::List& list, TypeRef sourc
                                           TypeRef rhs, bool rev) {
   const auto& rhs_member = store.at(rhs);
 
-  if (rhs_member.is_scalar() || rhs_member.is_tuple()) {
+  if (rhs_member.is_scalar() || rhs_member.is_tuple() || rhs_member.is_abstraction()) {
     for (const auto& el : list.pattern) {
       push_make_type_equation(el, rhs, rev);
     }
@@ -99,8 +99,10 @@ bool Simplifier::simplify_different_types(const types::List& list, TypeRef sourc
     return true;
   }
 
-  MT_SHOW2("ERROR: Cannot simplify list with type:", source, rhs);
-  assert(false);
+  check_emplace_simplification_failure(false, source, rhs);
+
+//  MT_SHOW2("ERROR: Cannot simplify list with type:", source, rhs);
+//  assert(false);
 
   return false;
 }

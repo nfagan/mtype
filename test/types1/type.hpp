@@ -290,7 +290,8 @@ namespace types {
       binary_operator,
       subscript_reference,
       function,
-      concatenation
+      concatenation,
+      anonymous_function
     };
 
     Abstraction() : type(Type::function) {
@@ -315,6 +316,10 @@ namespace types {
     }
     Abstraction(ConcatenationDirection dir, const TypeHandle& inputs, const TypeHandle& outputs) :
       type(Type::concatenation), concatenation_direction(dir), inputs(inputs), outputs(outputs) {
+      //
+    }
+    Abstraction(const TypeHandle& inputs, const TypeHandle& outputs) :
+      type(Type::anonymous_function), inputs(inputs), outputs(outputs) {
       //
     }
 
@@ -349,6 +354,10 @@ namespace types {
 
     bool is_binary_operator() const {
       return type == Type::binary_operator;
+    }
+
+    bool is_anonymous() const {
+      return type == Type::anonymous_function;
     }
 
     static Abstraction clone(const Abstraction& a, const TypeHandle& inputs, const TypeHandle& outputs) {

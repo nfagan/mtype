@@ -1,5 +1,6 @@
 #include "typing.hpp"
 #include "debug.hpp"
+#include "type_representation.hpp"
 
 namespace mt {
 
@@ -13,7 +14,7 @@ void TypeVisitor::show_type_distribution() const {
   }
 }
 
-void TypeVisitor::show_variable_types() const {
+void TypeVisitor::show_variable_types(TypeToString& printer) const {
   std::cout << "--" << std::endl;
 
   Store::ReadConst reader(store);
@@ -26,9 +27,28 @@ void TypeVisitor::show_variable_types() const {
     const auto& def = reader.at(def_handle);
     const auto& name = string_registry.at(def.name.full_name());
 
-    std::cout << name << ": ";
-    DebugTypePrinter(type_store, &string_registry).show(type);
-    std::cout << std::endl;
+    printer.clear();
+    printer.apply(type);
+    auto type_str = printer.str();
+    printer.clear();
+
+    std::cout << name << ": " << type_str << std::endl;
+  }
+}
+
+void TypeVisitor::gather_function_inputs(const MatlabScope& scope, const std::vector<FunctionInputParameter>& inputs, TypeHandles& into) {
+  for (const auto& input : inputs) {
+    if (!input.is_ignored) {
+      assert(input.name.full_name() >= 0);
+
+      const auto variable_def_handle = scope.local_variables.at(input.name);
+      const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
+
+      into.push_back(variable_type_handle);
+    } else {
+      //  @TODO: Change this type to Top
+      into.push_back(type_store.make_fresh_type_variable_reference());
+    }
   }
 }
 
@@ -54,19 +74,7 @@ void TypeVisitor::function_def_node(const FunctionDefNode& node) {
     const auto& scope = reader.at(scope_handle);
     function_name = def.header.name;
 
-    for (const auto& input : def.header.inputs) {
-      if (!input.is_ignored) {
-        assert(input.name.full_name() >= 0);
-
-        const auto variable_def_handle = scope.local_variables.at(input.name);
-        const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
-
-        function_inputs.push_back(variable_type_handle);
-      } else {
-        //  @TODO: Change this type to Top
-        function_inputs.push_back(type_store.make_fresh_type_variable_reference());
-      }
-    }
+    gather_function_inputs(scope, def.header.inputs, function_inputs);
 
     for (const auto& output : def.header.outputs) {
       assert(output.full_name() >= 0);
@@ -210,6 +218,44 @@ void TypeVisitor::function_reference_expr(const FunctionReferenceExpr& expr) {
   push_type_equation_term(TypeEquationTerm(&expr.source_token, func));
 }
 
+void TypeVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
+  using namespace mt::types;
+
+  MatlabScopeHelper scope_helper(*this, expr.scope_handle);
+
+  std::vector<TypeHandle> function_inputs;
+  std::vector<TypeHandle> function_outputs;
+
+  {
+    const auto scope_handle = current_scope_handle();
+
+    Store::ReadConst reader(store);
+    const auto& scope = reader.at(scope_handle);
+
+    gather_function_inputs(scope, expr.inputs, function_inputs);
+  }
+
+  const auto input_handle = type_store.make_type();
+  const auto output_type = type_store.make_fresh_type_variable_reference();
+  const auto output_term = make_term(&expr.source_token, output_type);
+
+  const auto func = type_store.make_abstraction(input_handle, output_type);
+  const auto func_term = make_term(&expr.source_token, func);
+
+  type_store.assign(input_handle,
+    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, std::move(function_inputs))));
+
+  const auto lhs_body_term = make_term(&expr.source_token, type_store.make_fresh_type_variable_reference());
+  push_type_equation_term(lhs_body_term);
+  expr.expr->accept_const(*this);
+  const auto rhs_body_term = pop_type_equation_term();
+
+  substitution.push_type_equation(make_eq(lhs_body_term, rhs_body_term));
+  substitution.push_type_equation(make_eq(rhs_body_term, output_term));
+
+  push_type_equation_term(func_term);
+}
+
 void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
   using namespace mt::types;
 
@@ -262,15 +308,16 @@ void TypeVisitor::grouping_expr(const GroupingExpr& expr) {
       bracket_grouping_expr_rhs(expr);
     }
 
+  } else if (expr.method == GroupingMethod::parens) {
+    assert(!value_category_state.is_lhs());
+    parens_grouping_expr_rhs(expr);
+
   } else {
     assert(false && "Unhandled grouping expr.");
   }
 }
 
-void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
-  using types::DestructuredTuple;
-  using Use = DestructuredTuple::Usage;
-
+std::vector<TypeHandle> TypeVisitor::grouping_expr_components(const GroupingExpr& expr) {
   std::vector<TypeHandle> members;
   members.reserve(expr.components.size());
 
@@ -285,7 +332,27 @@ void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
     members.push_back(res.term);
   }
 
+  return members;
+}
+
+void TypeVisitor::parens_grouping_expr_rhs(const GroupingExpr& expr) {
+  using types::DestructuredTuple;
+  using Use = DestructuredTuple::Usage;
+
   auto tup_type = type_store.make_type();
+  auto members = grouping_expr_components(expr);
+
+  type_store.assign(tup_type, Type(DestructuredTuple(Use::rvalue, std::move(members))));
+  push_type_equation_term(TypeEquationTerm(&expr.source_token, tup_type));
+}
+
+void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
+  using types::DestructuredTuple;
+  using Use = DestructuredTuple::Usage;
+
+  auto tup_type = type_store.make_type();
+  auto members = grouping_expr_components(expr);
+
   type_store.assign(tup_type, Type(DestructuredTuple(Use::lvalue, std::move(members))));
   push_type_equation_term(TypeEquationTerm(&expr.source_token, tup_type));
 }
