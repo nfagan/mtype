@@ -1,7 +1,8 @@
 #pragma once
 
 #include "type.hpp"
-#include "type_equality.hpp"
+#include "type_relation.hpp"
+#include "type_relationships.hpp"
 #include <map>
 
 namespace mt {
@@ -11,7 +12,8 @@ class TypeStore;
 class Library {
   friend class Unifier;
 public:
-  explicit Library(TypeStore& store, const TypeEquality& type_eq, StringRegistry& string_registry) :
+  explicit Library(TypeStore& store, StringRegistry& string_registry) :
+  type_eq(equiv_relation, store),
   store(store),
   string_registry(string_registry),
   arg_comparator(type_eq),
@@ -27,6 +29,9 @@ public:
 
   Optional<std::string> type_name(const TypeHandle& type) const;
   Optional<std::string> type_name(const types::Scalar& scl) const;
+
+  //  Test a <: b
+  bool subtype_related(const types::Scalar& a, const types::Scalar& b) const;
 
 private:
   void make_builtin_types();
@@ -47,14 +52,17 @@ private:
   TypeHandle make_named_scalar_type(const char* name);
 
 private:
+  TypeEquivalence equiv_relation;
+  TypeRelation type_eq;
+
   TypeStore& store;
   StringRegistry& string_registry;
 
-  TypeEquality::ArgumentComparator arg_comparator;
-  TypeEquality::TypeEquivalenceComparator type_equiv_comparator;
+  TypeRelation::ArgumentComparator arg_comparator;
+  TypeRelation::TypeRelationComparator type_equiv_comparator;
 
-  std::map<types::Abstraction, TypeHandle, TypeEquality::ArgumentComparator> function_types;
-  std::set<TypeHandle, TypeEquality::TypeEquivalenceComparator> types_with_known_subscripts;
+  std::map<types::Abstraction, TypeHandle, TypeRelation::ArgumentComparator> function_types;
+  std::set<TypeHandle, TypeRelation::TypeRelationComparator> types_with_known_subscripts;
 
   std::unordered_map<TypeIdentifier, int64_t, TypeIdentifier::Hash> scalar_type_names;
 

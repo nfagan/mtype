@@ -51,8 +51,7 @@ int main(int argc, char** argv) {
 
   //  Reserve space
   TypeStore type_store(10000);
-  TypeEquality type_eq(type_store);
-  Library library(type_store, type_eq, str_registry);
+  Library library(type_store, str_registry);
   library.make_known_types();
 
   Substitution substitution;

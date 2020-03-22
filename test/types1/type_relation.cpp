@@ -1,58 +1,58 @@
-#include "type_equality.hpp"
+#include "type_relation.hpp"
 #include "debug.hpp"
 #include "member_visitor.hpp"
 #include <cassert>
 
 namespace mt {
 
-DebugTypePrinter TypeEquality::type_printer() const {
+DebugTypePrinter TypeRelation::type_printer() const {
   return DebugTypePrinter(store);
 }
 
-Type::Tag TypeEquality::type_of(const TypeHandle& handle) const {
+Type::Tag TypeRelation::type_of(const TypeHandle& handle) const {
   return store.at(handle).tag;
 }
 
-bool TypeEquality::element_wise_equivalence(const TypeHandles& a, const TypeHandles& b, bool rev) const {
+bool TypeRelation::element_wise_related(const TypeHandles& a, const TypeHandles& b, bool rev) const {
   const int64_t size_a = a.size();
   if (size_a != b.size()) {
     return false;
   }
   for (int64_t i = 0; i < size_a; i++) {
-    if (!equivalence(a[i], b[i], rev)) {
+    if (!related(a[i], b[i], rev)) {
       return false;
     }
   }
   return true;
 }
 
-bool TypeEquality::equivalence_entry(const TypeHandle& a, const TypeHandle& b) const {
-  return equivalence(a, b, false);
+bool TypeRelation::related_entry(const TypeHandle& a, const TypeHandle& b) const {
+  return related(a, b, false);
 }
 
-bool TypeEquality::equivalence(const TypeHandle& a, const TypeHandle& b, bool rev) const {
+bool TypeRelation::related(const TypeHandle& a, const TypeHandle& b, bool rev) const {
   if (type_of(a) == type_of(b)) {
-    return equivalence_same_types(a, b, rev);
+    return related_same_types(a, b, rev);
   } else {
-    return equivalence_different_types(a, b, rev);
+    return related_different_types(a, b, rev);
   }
 }
 
-bool TypeEquality::equivalence_same_types(const TypeHandle& a, const TypeHandle& b, bool rev) const {
+bool TypeRelation::related_same_types(const TypeHandle& a, const TypeHandle& b, bool rev) const {
   const auto& value_a = store.at(a);
   const auto& value_b = store.at(b);
 
   switch (value_a.tag) {
     case Type::Tag::scalar:
-      return equivalence(value_a.scalar, value_b.scalar, rev);
+      return related(value_a.scalar, value_b.scalar, rev);
     case Type::Tag::destructured_tuple:
-      return equivalence(value_a.destructured_tuple, value_b.destructured_tuple, rev);
+      return related(value_a.destructured_tuple, value_b.destructured_tuple, rev);
     case Type::Tag::list:
-      return equivalence(value_a.list, value_b.list, rev);
+      return related(value_a.list, value_b.list, rev);
     case Type::Tag::tuple:
-      return equivalence(value_a.tuple, value_b.tuple, rev);
+      return related(value_a.tuple, value_b.tuple, rev);
     case Type::Tag::abstraction:
-      return equivalence(value_a.abstraction, value_b.abstraction, rev);
+      return related(value_a.abstraction, value_b.abstraction, rev);
     case Type::Tag::variable:
       return true;
     default:
@@ -63,7 +63,7 @@ bool TypeEquality::equivalence_same_types(const TypeHandle& a, const TypeHandle&
   }
 }
 
-bool TypeEquality::equivalence_different_types(const TypeHandle& a, const TypeHandle& b, bool rev) const {
+bool TypeRelation::related_different_types(const TypeHandle& a, const TypeHandle& b, bool rev) const {
   const auto& value_a = store.at(a);
   const auto& value_b = store.at(b);
 
@@ -72,28 +72,28 @@ bool TypeEquality::equivalence_different_types(const TypeHandle& a, const TypeHa
   }
 
   if (value_a.is_destructured_tuple()) {
-    return equivalence_different_types(value_a.destructured_tuple, b, rev);
+    return related_different_types(value_a.destructured_tuple, b, rev);
 
   } else if (value_b.is_destructured_tuple()) {
-    return equivalence_different_types(value_b.destructured_tuple, a, !rev);
+    return related_different_types(value_b.destructured_tuple, a, !rev);
 
   } else if (value_a.is_list()) {
-    return equivalence_different_types(value_a.list, b, rev);
+    return related_different_types(value_a.list, b, rev);
 
   } else if (value_b.is_list()) {
-    return equivalence_different_types(value_b.list, a, !rev);
+    return related_different_types(value_b.list, a, !rev);
 
   } else {
     return false;
   }
 }
 
-bool TypeEquality::equivalence(const types::Scalar& a, const types::Scalar& b, bool rev) const {
-  return a.identifier.name == b.identifier.name;
+bool TypeRelation::related(const types::Scalar& a, const types::Scalar& b, bool rev) const {
+  return relationship.related(a, b, rev);
 }
 
-bool TypeEquality::equivalence_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,
-  int64_t num_a, int64_t num_b, bool rev) const {
+bool TypeRelation::related_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,
+                                int64_t num_a, int64_t num_b, bool rev) const {
 
   if (*ia == num_a) {
     return *ib == num_b;
@@ -114,23 +114,23 @@ bool TypeEquality::equivalence_list(const TypeHandles& a, const TypeHandles& b, 
 
   if (va.is_list()) {
     int64_t new_ia = 0;
-    bool success = equivalence_list(va.list.pattern, b, &new_ia, ib, va.list.size(), num_b, rev);
+    bool success = related_list(va.list.pattern, b, &new_ia, ib, va.list.size(), num_b, rev);
     (*ia)++;
     return success;
 
   } else if (vb.is_list()) {
     int64_t new_ib = 0;
-    bool success = equivalence_list(a, vb.list.pattern, ia, &new_ib, num_a, vb.list.size(), rev);
+    bool success = related_list(a, vb.list.pattern, ia, &new_ib, num_a, vb.list.size(), rev);
     (*ib)++;
     return success;
 
   } else if (va.is_destructured_tuple()) {
-    bool success = equivalence_list_sub_tuple(va.destructured_tuple, b, ib, num_b, rev);
+    bool success = related_list_sub_tuple(va.destructured_tuple, b, ib, num_b, rev);
     (*ia)++;
     return success;
 
   } else if (vb.is_destructured_tuple()) {
-    bool success = equivalence_list_sub_tuple(vb.destructured_tuple, a, ia, num_a, !rev);
+    bool success = related_list_sub_tuple(vb.destructured_tuple, a, ia, num_a, !rev);
     (*ib)++;
     return success;
 
@@ -138,27 +138,27 @@ bool TypeEquality::equivalence_list(const TypeHandles& a, const TypeHandles& b, 
     (*ia)++;
     (*ib)++;
 
-    return equivalence(mem_a, mem_b, rev);
+    return related(mem_a, mem_b, rev);
   }
 }
 
-bool TypeEquality::equivalence_list_sub_tuple(const DT& tup_a, const TypeHandles& b, int64_t* ib, int64_t num_b, bool rev) const {
+bool TypeRelation::related_list_sub_tuple(const DT& tup_a, const TypeHandles& b, int64_t* ib, int64_t num_b, bool rev) const {
   const int64_t use_num_a = tup_a.is_outputs() ? std::min(int64_t(1), tup_a.size()) : tup_a.size();
   int64_t new_ia = 0;
-  return equivalence_list(tup_a.members, b, &new_ia, ib, use_num_a, num_b, rev);
+  return related_list(tup_a.members, b, &new_ia, ib, use_num_a, num_b, rev);
 }
 
-bool TypeEquality::equivalence(const types::List& a, const types::List& b, bool rev) const {
+bool TypeRelation::related(const types::List& a, const types::List& b, bool rev) const {
   int64_t ia = 0;
   int64_t ib = 0;
-  return equivalence_list(a.pattern, b.pattern, &ia, &ib, a.size(), b.size(), rev);
+  return related_list(a.pattern, b.pattern, &ia, &ib, a.size(), b.size(), rev);
 }
 
-bool TypeEquality::equivalence(const types::Tuple& a, const types::Tuple& b, bool rev) const {
-  return element_wise_equivalence(a.members, b.members, rev);
+bool TypeRelation::related(const types::Tuple& a, const types::Tuple& b, bool rev) const {
+  return element_wise_related(a.members, b.members, rev);
 }
 
-bool TypeEquality::equivalence(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {
+bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {
   using Type = types::Abstraction::Type;
 
   if (a.type != b.type) {
@@ -180,38 +180,38 @@ bool TypeEquality::equivalence(const types::Abstraction& a, const types::Abstrac
     return false;
   }
 
-  return equivalence(a.inputs, b.inputs, rev) && equivalence(a.outputs, b.outputs, rev);
+  return related(a.inputs, b.inputs, rev) && related(a.outputs, b.outputs, rev);
 }
 
-bool TypeEquality::equivalence(const DT& a, const DT& b, bool rev) const {
+bool TypeRelation::related(const DT& a, const DT& b, bool rev) const {
   if (types::DestructuredTuple::mismatching_definition_usages(a, b)) {
     return false;
 
   } else if (a.is_definition_usage() && a.usage == b.usage) {
-    return element_wise_equivalence(a.members, b.members, rev);
+    return element_wise_related(a.members, b.members, rev);
 
   } else {
     return DestructuredMemberVisitor{store, DestructuredVisitor{*this}}.expand_members(a, b, rev);
   }
 }
 
-bool TypeEquality::equivalence_different_types(const types::DestructuredTuple& a, const TypeHandle& b, bool rev) const {
-  return a.size() == 1 && equivalence(a.members[0], b, rev);
+bool TypeRelation::related_different_types(const types::DestructuredTuple& a, const TypeHandle& b, bool rev) const {
+  return a.size() == 1 && related(a.members[0], b, rev);
 }
 
-bool TypeEquality::equivalence_different_types(const types::List& a, const TypeHandle& b, bool rev) const {
-  return a.size() == 1 && equivalence(a.pattern[0], b, rev);
+bool TypeRelation::related_different_types(const types::List& a, const TypeHandle& b, bool rev) const {
+  return a.size() == 1 && related(a.pattern[0], b, rev);
 }
 
-bool TypeEquality::TypeEquivalenceComparator::operator()(const TypeHandle& a, const TypeHandle& b) const {
-  if (type_eq.equivalence(a, b, false)) {
+bool TypeRelation::TypeRelationComparator::operator()(const TypeHandle& a, const TypeHandle& b) const {
+  if (type_eq.related(a, b, false)) {
     return false;
   }
 
   return a < b;
 }
 
-bool TypeEquality::ArgumentComparator::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
+bool TypeRelation::ArgumentComparator::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
   using Type = types::Abstraction::Type;
 
   if (a.type != b.type) {
@@ -246,7 +246,8 @@ bool TypeEquality::ArgumentComparator::operator()(const types::Abstraction& a, c
   const auto& tup_a = args_a.destructured_tuple;
   const auto& tup_b = args_b.destructured_tuple;
 
-  return !type_eq.equivalence(tup_a, tup_b, false);
+  return !type_eq.related(tup_a, tup_b, false);
 }
+
 
 }

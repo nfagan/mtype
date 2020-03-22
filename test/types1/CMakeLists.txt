@@ -28,12 +28,14 @@ target_sources(${PROJECT_NAME} PRIVATE
         typing.cpp
         type_properties.hpp
         type_properties.cpp
+        type_relation.hpp
+        type_relation.cpp
+        type_relationships.hpp
+        type_relationships.cpp
         type_representation.hpp
         type_representation.cpp
         type_store.hpp
         type_store.cpp
-        type_equality.hpp
-        type_equality.cpp
         unification.hpp
         unification.cpp
         util.hpp

@@ -4,6 +4,14 @@
 
 namespace mt {
 
+bool Library::subtype_related(const types::Scalar& a, const types::Scalar& b) const {
+  if (a.identifier == b.identifier) {
+    return true;
+  }
+
+  return false;
+}
+
 Optional<TypeHandle> Library::lookup_function(const types::Abstraction& func) const {
   const auto func_it = function_types.find(func);
   return func_it == function_types.end() ? NullOpt{} : Optional<TypeHandle>(func_it->second);

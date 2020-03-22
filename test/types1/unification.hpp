@@ -2,7 +2,6 @@
 
 #include "mt/mt.hpp"
 #include "type.hpp"
-#include "type_equality.hpp"
 #include "type_store.hpp"
 #include "instance.hpp"
 #include "simplify.hpp"

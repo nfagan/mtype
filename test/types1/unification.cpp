@@ -315,7 +315,8 @@ TypeHandle Unifier::substitute_one(types::List& list, TypeRef source,
     assert(element.is_valid());
 
     const bool should_remove = i > 0 && is_concrete_argument(element) &&
-      is_concrete_argument(last) && TypeEquality(store).equivalence_entry(element, last);
+                               is_concrete_argument(last) &&
+      TypeRelation(TypeEquivalence(), store).related_entry(element, last);
 
     if (should_remove) {
       num_remove++;

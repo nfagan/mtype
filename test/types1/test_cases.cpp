@@ -1,6 +1,7 @@
 #include "test_cases.hpp"
 #include "type_store.hpp"
-#include "type_equality.hpp"
+#include "type_relation.hpp"
+#include "type_relationships.hpp"
 #include "debug.hpp"
 #include "library.hpp"
 #include <cassert>
@@ -13,13 +14,13 @@
   DebugTypePrinter(store, &str_registry).show2((a), (b));
 
 #define MT_ERROR_IF_NON_EQUIV(msg, a, b) \
-  if (!eq.equivalence_entry((a), (b))) { \
+  if (!eq.related_entry((a), (b))) { \
     std::cout << "FAIL: " << msg << std::endl; \
     DebugTypePrinter(store, &str_registry).show2((a), (b)); \
   }
 
 #define MT_ERROR_IF_EQUIV(msg, a, b) \
-  if (eq.equivalence_entry((a), (b))) { \
+  if (eq.related_entry((a), (b))) { \
     std::cout << "FAIL: " << msg << std::endl; \
     DebugTypePrinter(store, &str_registry).show2((a), (b)); \
   }
@@ -31,11 +32,10 @@ void test_equivalence_debug() {
 
   StringRegistry str_registry;
   TypeStore store;
-  TypeEquality eq(store);
-  Library library(store, eq, str_registry);
+  TypeEquivalence equiv;
+  TypeRelation eq(equiv, store);
+  Library library(store, str_registry);
   library.make_known_types();
-
-//  TypeEquality::TypeEquivalenceComparator eq(equiv);
 
   const auto& d_handle = library.double_type_handle;
   const auto& c_handle = library.char_type_handle;
@@ -85,79 +85,79 @@ void test_equivalence_debug() {
   auto wrap_out1 = store.make_destructured_tuple(Use::rvalue, out1);
   auto wrap_in_list = store.make_destructured_tuple(Use::definition_inputs, list_double);
 
-  if (!eq.equivalence_entry(mixed_wrap_tup, flat_mixed_tup)) {
+  if (!eq.related_entry(mixed_wrap_tup, flat_mixed_tup)) {
     MT_SHOW_ERROR("Flattened type sequence not equal equivalent nested sequence.");
   }
-  if (!eq.equivalence_entry(rec_tup4, d_handle)) {
+  if (!eq.related_entry(rec_tup4, d_handle)) {
     MT_SHOW_ERROR("Double handle not equal to recursive scalar tuple.");
   }
-  if (eq.equivalence_entry(rec_tup4, c_handle)) {
+  if (eq.related_entry(rec_tup4, c_handle)) {
     MT_SHOW_ERROR("Recursive recursive scalar double tuple equal to char.");
   }
-  if (!eq.equivalence_entry(rec_tup, rec_tup)) {
+  if (!eq.related_entry(rec_tup, rec_tup)) {
     MT_SHOW_ERROR("Recursive tuples were not equivalent.");
   }
-  if (eq.equivalence_entry(rec_tup, rec_tup2)) {
+  if (eq.related_entry(rec_tup, rec_tup2)) {
     MT_SHOW_ERROR("Non equiv double-char tuples were marked equivalent.");
   }
-  if (eq.equivalence_entry(rec_tup2, rec_tup3)) {
+  if (eq.related_entry(rec_tup2, rec_tup3)) {
     MT_SHOW_ERROR("Non equiv char tuples were marked equivalent.");
   }
-  if (eq.equivalence_entry(rec_tup, rec_tup4)) {
+  if (eq.related_entry(rec_tup, rec_tup4)) {
     MT_SHOW_ERROR("Non equiv double tuples were marked equivalent.");
   }
-  if (!eq.equivalence_entry(empty_tup, empty_tup)) {
+  if (!eq.related_entry(empty_tup, empty_tup)) {
     MT_SHOW_ERROR("Empty tuples were not equiv.");
   }
-  if (eq.equivalence_entry(empty_tup, tup2)) {
+  if (eq.related_entry(empty_tup, tup2)) {
     MT_SHOW_ERROR("Tuples were equiv when 1 empty.");
   }
-  if (!eq.equivalence_entry(mixed_rec_tup, flat_tup)) {
+  if (!eq.related_entry(mixed_rec_tup, flat_tup)) {
     MT_SHOW_ERROR("Mixed flat and recursive double tups were not equiv.");
   }
 
   MT_ERROR_IF_EQUIV("Recursive tuple wrapping char outputs equal to char.", wrap_tup, c_handle)
 
-  if (!eq.equivalence_entry(wrap_tup, tup3)) {
+  if (!eq.related_entry(wrap_tup, tup3)) {
     MT_SHOW_ERROR("Recursive tuple wrapping char outputs not equal to rvalue tuple wrapping char.");
   }
-  if (!eq.equivalence_entry(flat_l_tup, out_tup)) {
+  if (!eq.related_entry(flat_l_tup, out_tup)) {
     MT_SHOW_ERROR("Flat l-value char tuple not equal to flat [char, double] outputs.");
   }
-  if (!eq.equivalence_entry(wrap_l_tup, out_tup)) {
+  if (!eq.related_entry(wrap_l_tup, out_tup)) {
     MT_SHOW_ERROR("Wrapped l-value char tuple not equal to flat [char, double] outputs.");
   }
-  if (!eq.equivalence_entry(rec_tup_match_list1, tup_list1)) {
+  if (!eq.related_entry(rec_tup_match_list1, tup_list1)) {
     MT_SHOW_ERROR("Failed to match tuple of list of matching types with tuple of list.");
   }
-  if (!eq.equivalence_entry(rec_tup_match_list2, tup_list1)) {
+  if (!eq.related_entry(rec_tup_match_list2, tup_list1)) {
     MT_SHOW_ERROR("Failed to match tuple of list of matching types with tuple of list.");
   }
-  if (!eq.equivalence_entry(tup_list1, rec_tup_match_list2)) {
+  if (!eq.related_entry(tup_list1, rec_tup_match_list2)) {
     MT_SHOW_ERROR("Failed to match tuple of list of matching types with tuple of list.");
   }
-  if (!eq.equivalence_entry(tup_match_list1, tup_list1)) {
+  if (!eq.related_entry(tup_match_list1, tup_list1)) {
     MT_SHOW_ERROR("Failed to match tuple of list of matching types with tuple of list.");
   }
-  if (eq.equivalence_entry(rec_tup, tup_list1)) {
+  if (eq.related_entry(rec_tup, tup_list1)) {
     MT_SHOW_ERROR("Matched incorrect tuple with tuple list.");
   }
-  if (eq.equivalence_entry(input_tup, tup_list1)) {
+  if (eq.related_entry(input_tup, tup_list1)) {
     MT_SHOW_ERROR("Matched input tuple with list 1.");
   }
-  if (!eq.equivalence_entry(input_tup, match_input_tup)) {
+  if (!eq.related_entry(input_tup, match_input_tup)) {
     MT_SHOW_ERROR("Failed to match input tuple with nested equiv r value tuple.");
   }
-  if (!eq.equivalence_entry(match_in_tup, wrap_out_tup)) {
+  if (!eq.related_entry(match_in_tup, wrap_out_tup)) {
     MT_SHOW_ERROR_PRINT2("Failed to match: ", match_in_tup, wrap_out_tup)
   }
-  if (!eq.equivalence_entry(mixed_list1, test_list1)) {
+  if (!eq.related_entry(mixed_list1, test_list1)) {
     MT_SHOW_ERROR_PRINT2("Failed to match: ", mixed_list1, test_list1)
   }
-  if (!eq.equivalence_entry(wrap_list1, wrap_list2)) {
+  if (!eq.related_entry(wrap_list1, wrap_list2)) {
     MT_SHOW_ERROR_PRINT2("Failed to match: ", wrap_list1, wrap_list2)
   }
-  if (!eq.equivalence_entry(wrap_out1, wrap_in_list)) {
+  if (!eq.related_entry(wrap_out1, wrap_in_list)) {
     MT_SHOW_ERROR_PRINT2("Failed to match: ", wrap_out1, wrap_in_list)
   }
 }
@@ -169,8 +169,9 @@ void test_equivalence() {
 
   StringRegistry str_registry;
   TypeStore store;
-  TypeEquality eq(store);
-  Library library(store, eq, str_registry);
+  TypeEquivalence equiv;
+  TypeRelation eq(equiv, store);
+  Library library(store, str_registry);
   library.make_known_types();
 
   const auto& d_handle = library.double_type_handle;
@@ -191,46 +192,46 @@ void test_equivalence() {
 
   auto nest_tup_pattern = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{tup_match_pattern, tup_match_pattern});
 
-  if (!eq.equivalence_entry(tup, rec_tup)) {
+  if (!eq.related_entry(tup, rec_tup)) {
     MT_SHOW_ERROR("Failed to match r value tuples.");
   }
-  if (!eq.equivalence_entry(rec_tup, tup)) {
+  if (!eq.related_entry(rec_tup, tup)) {
     MT_SHOW_ERROR("Failed to match r value tuples; ordering effects.");
   }
-  if (!eq.equivalence_entry(rec_tup, d_handle)) {
+  if (!eq.related_entry(rec_tup, d_handle)) {
     MT_SHOW_ERROR("Failed to unroll destructured tuple.");
   }
-  if (!eq.equivalence_entry(d_handle, d_handle)) {
+  if (!eq.related_entry(d_handle, d_handle)) {
     MT_SHOW_ERROR("Failed to match double to double.");
   }
-  if (eq.equivalence_entry(tup, c_handle)) {
+  if (eq.related_entry(tup, c_handle)) {
     MT_SHOW_ERROR("Matched double tup with char.");
   }
-  if (eq.equivalence_entry(tup, mult_double_tup)) {
+  if (eq.related_entry(tup, mult_double_tup)) {
     MT_SHOW_ERROR("Matched double tup with multi-double tup.");
   }
-  if (!eq.equivalence_entry(tup_list_double_rvalue, mult_double_tup)) {
+  if (!eq.related_entry(tup_list_double_rvalue, mult_double_tup)) {
     MT_SHOW_ERROR_PRINT2("Failed to match: ", tup_list_double_rvalue, mult_double_tup)
   }
-  if (!eq.equivalence_entry(tup_list_double_lvalue, mult_double_tup)) {
+  if (!eq.related_entry(tup_list_double_lvalue, mult_double_tup)) {
     MT_SHOW_ERROR("Failed to match l-value tuple list of double with rvalue mult double tuple.");
   }
-  if (!eq.equivalence_entry(mult_double_tup, tup_list_double_lvalue)) {
+  if (!eq.related_entry(mult_double_tup, tup_list_double_lvalue)) {
     MT_SHOW_ERROR("Failed to match l-value tuple list of double with rvalue mult double tuple; ordering effects.");
   }
-  if (!eq.equivalence_entry(mult_rec_double_tup, tup_list_double_lvalue)) {
+  if (!eq.related_entry(mult_rec_double_tup, tup_list_double_lvalue)) {
     MT_SHOW_ERROR("Failed to match l-value tuple list of double with rvalue mult double tuple.");
   }
-  if (!eq.equivalence_entry(list_pattern, list_pattern)) {
+  if (!eq.related_entry(list_pattern, list_pattern)) {
     MT_SHOW_ERROR("Failed to match same lists.");
   }
-  if (!eq.equivalence_entry(tup_list_pattern, tup_match_pattern)) {
+  if (!eq.related_entry(tup_list_pattern, tup_match_pattern)) {
     MT_SHOW_ERROR("Failed to match multi-element list pattern to destructured tuple.");
   }
-  if (eq.equivalence_entry(tup_list_pattern, tup_wrong_pattern)) {
+  if (eq.related_entry(tup_list_pattern, tup_wrong_pattern)) {
     MT_SHOW_ERROR("Matched destructured tuple with wrong pattern to patterned list.");
   }
-  if (!eq.equivalence_entry(nest_tup_pattern, tup_list_pattern)) {
+  if (!eq.related_entry(nest_tup_pattern, tup_list_pattern)) {
     MT_SHOW_ERROR("Nested tuple of pattern failed to match pattern.");
   }
 
