@@ -6,20 +6,20 @@ namespace mt {
 
 class Library;
 
-class TypeEquivalence : public TypeRelationship {
+class EquivalenceRelation : public TypeRelationship {
 public:
-  TypeEquivalence() = default;
-  ~TypeEquivalence() override = default;
+  EquivalenceRelation() = default;
+  ~EquivalenceRelation() override = default;
 
   bool related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const override;
 };
 
-class SubtypeRelated : public TypeRelationship {
+class SubtypeRelation : public TypeRelationship {
 public:
-  SubtypeRelated(const Library& library) : library(library) {
+  SubtypeRelation(const Library& library) : library(library) {
     //
   }
-  ~SubtypeRelated() override = default;
+  ~SubtypeRelation() override = default;
 
   bool related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const override;
 

@@ -19,33 +19,33 @@ public:
 class TypeRelation {
 private:
   struct DestructuredVisitor {
-    DestructuredVisitor(const TypeRelation& eq) : eq(eq) {
+    DestructuredVisitor(const TypeRelation& relation) : relation(relation) {
       //
     }
     bool operator()(const TypeHandle& a, const TypeHandle& b, bool rev) const {
-      return eq.related(a, b, rev);
+      return relation.related(a, b, rev);
     }
 
-    const TypeRelation& eq;
+    const TypeRelation& relation;
   };
 public:
   struct TypeRelationComparator {
-    explicit TypeRelationComparator(const TypeRelation& type_eq) : type_eq(type_eq) {
+    explicit TypeRelationComparator(const TypeRelation& type_relation) : type_relation(type_relation) {
       //
     }
 
     bool operator()(const TypeHandle& a, const TypeHandle& b) const;
 
-    const TypeRelation& type_eq;
+    const TypeRelation& type_relation;
   };
 
   struct ArgumentComparator {
-    explicit ArgumentComparator(const TypeRelation& type_eq) : type_eq(type_eq) {
+    explicit ArgumentComparator(const TypeRelation& type_relation) : type_relation(type_relation) {
       //
     }
 
     bool operator()(const types::Abstraction& a, const types::Abstraction& b) const;
-    const TypeRelation& type_eq;
+    const TypeRelation& type_relation;
   };
 
 public:

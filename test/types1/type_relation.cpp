@@ -204,7 +204,7 @@ bool TypeRelation::related_different_types(const types::List& a, const TypeHandl
 }
 
 bool TypeRelation::TypeRelationComparator::operator()(const TypeHandle& a, const TypeHandle& b) const {
-  if (type_eq.related(a, b, false)) {
+  if (type_relation.related(a, b, false)) {
     return false;
   }
 
@@ -234,8 +234,8 @@ bool TypeRelation::ArgumentComparator::operator()(const types::Abstraction& a, c
     return a.concatenation_direction < b.concatenation_direction;
   }
 
-  const auto& args_a = type_eq.store.at(a.inputs);
-  const auto& args_b = type_eq.store.at(b.inputs);
+  const auto& args_a = type_relation.store.at(a.inputs);
+  const auto& args_b = type_relation.store.at(b.inputs);
 
   if (args_a.tag != args_b.tag) {
     return args_a.tag < args_b.tag;
@@ -246,7 +246,7 @@ bool TypeRelation::ArgumentComparator::operator()(const types::Abstraction& a, c
   const auto& tup_a = args_a.destructured_tuple;
   const auto& tup_b = args_b.destructured_tuple;
 
-  return !type_eq.related(tup_a, tup_b, false);
+  return !type_relation.related(tup_a, tup_b, false);
 }
 
 

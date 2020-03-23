@@ -109,7 +109,7 @@ private:
 
 public:
   Substitution* substitution;
-  SubtypeRelated subtype_relationship;
+  SubtypeRelation subtype_relationship;
 
 private:
   TypeStore& store;

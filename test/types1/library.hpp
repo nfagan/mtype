@@ -13,6 +13,7 @@ class Library {
   friend class Unifier;
 public:
   explicit Library(TypeStore& store, StringRegistry& string_registry) :
+  subtype_relation(*this),
   type_eq(equiv_relation, store),
   store(store),
   string_registry(string_registry),
@@ -54,7 +55,8 @@ private:
   TypeHandle make_named_scalar_type(const char* name);
 
 private:
-  TypeEquivalence equiv_relation;
+  SubtypeRelation subtype_relation;
+  EquivalenceRelation equiv_relation;
   TypeRelation type_eq;
 
   TypeStore& store;

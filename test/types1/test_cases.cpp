@@ -32,7 +32,7 @@ void test_subtyping() {
 
   StringRegistry str_registry;
   TypeStore store;
-  TypeEquivalence equiv;
+  EquivalenceRelation equiv;
   TypeRelation eq(equiv, store);
   Library library(store, str_registry);
   library.make_known_types();
@@ -53,7 +53,7 @@ void test_equivalence_debug() {
 
   StringRegistry str_registry;
   TypeStore store;
-  TypeEquivalence equiv;
+  EquivalenceRelation equiv;
   TypeRelation eq(equiv, store);
   Library library(store, str_registry);
   library.make_known_types();
@@ -190,7 +190,7 @@ void test_equivalence() {
 
   StringRegistry str_registry;
   TypeStore store;
-  TypeEquivalence equiv;
+  EquivalenceRelation equiv;
   TypeRelation eq(equiv, store);
   Library library(store, str_registry);
   library.make_known_types();
