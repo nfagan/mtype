@@ -80,6 +80,26 @@ namespace types {
     //
   };
 
+  struct SubtypeRelation {
+    SubtypeRelation() = default;
+
+    SubtypeRelation(const TypeHandle& source, const TypeHandle& supertype) :
+    source(source), supertypes{supertype} {
+      //
+    }
+
+    SubtypeRelation(const TypeHandle& source, TypeHandles&& supertypes) :
+    source(source), supertypes(std::move(supertypes)) {
+      //
+    }
+
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(SubtypeRelation)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SubtypeRelation)
+
+    TypeHandle source;
+    TypeHandles supertypes;
+  };
+
   struct ConstantValue {
     enum class Type {
       int_value = 0,

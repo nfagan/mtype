@@ -13,7 +13,7 @@ public:
   TypeRelationship() = default;
   virtual ~TypeRelationship() = default;
 
-  virtual bool related(const types::Scalar& a, const types::Scalar& b, bool rev) const = 0;
+  virtual bool related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const = 0;
 };
 
 class TypeRelation {
@@ -65,7 +65,7 @@ private:
   bool related_different_types(const TypeHandle& a, const TypeHandle& b, bool rev) const;
   bool related_same_types(const TypeHandle& a, const TypeHandle& b, bool rev) const;
 
-  bool related(const types::Scalar& a, const types::Scalar& b, bool rev) const;
+  bool related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const;
   bool related(const types::DestructuredTuple& a, const types::DestructuredTuple& b, bool rev) const;
   bool related(const types::List& a, const types::List& b, bool rev) const;
   bool related(const types::Tuple& a, const types::Tuple& b, bool rev) const;

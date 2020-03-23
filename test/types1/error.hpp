@@ -31,8 +31,13 @@ public:
     //
   }
 
-  void show(const SimplificationFailure& err, std::string_view text, const CodeFileDescriptor& descriptor) const;
-  void show(const SimplificationFailures& errs, std::string_view text, const CodeFileDescriptor& descriptor) const;
+  void show(const SimplificationFailure& err, int64_t index, std::string_view text,
+    const CodeFileDescriptor& descriptor, const TextRowColumnIndices& row_col_indices) const;
+  void show(const SimplificationFailures& errs, std::string_view text,
+    const CodeFileDescriptor& descriptor, const TextRowColumnIndices& row_col_indices) const;
+
+private:
+  const char* stylize(const char* code) const;
 
 private:
   const TypeStore& store;

@@ -67,6 +67,18 @@ public:
   }
 
   template <typename... Args>
+  TypeHandle make_output_destructured_tuple(Args&&... args) {
+    using Use = types::DestructuredTuple::Usage;
+    return make_type<types::DestructuredTuple>(Use::definition_outputs, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  TypeHandle make_input_destructured_tuple(Args&&... args) {
+    using Use = types::DestructuredTuple::Usage;
+    return make_type<types::DestructuredTuple>(Use::definition_inputs, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   TypeHandle make_rvalue_destructured_tuple(Args&&... args) {
     using Use = types::DestructuredTuple::Usage;
     return make_type<types::DestructuredTuple>(Use::rvalue, std::forward<Args>(args)...);

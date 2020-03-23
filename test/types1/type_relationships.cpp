@@ -7,7 +7,7 @@ namespace mt {
  * TypeEquivalence
  */
 
-bool TypeEquivalence::related(const types::Scalar& a, const types::Scalar& b, bool rev) const {
+bool TypeEquivalence::related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const {
   return a.identifier == b.identifier;
 }
 
@@ -15,11 +15,11 @@ bool TypeEquivalence::related(const types::Scalar& a, const types::Scalar& b, bo
  * SubtypeRelated
  */
 
-bool SubtypeRelated::related(const types::Scalar& a, const types::Scalar& b, bool rev) const {
+bool SubtypeRelated::related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const {
   if (rev) {
-    return library.subtype_related(b, a);
+    return library.subtype_related(rhs, lhs, b, a);
   } else {
-    return library.subtype_related(a, b);
+    return library.subtype_related(lhs, rhs, a, b);
   }
 }
 

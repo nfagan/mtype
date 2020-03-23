@@ -71,13 +71,14 @@ int main(int argc, char** argv) {
 
   TypeToString type_to_string(type_store, library, &str_registry);
   type_to_string.explicit_destructured_tuples = false;
+  type_to_string.arrow_function_notation = true;
 
   type_visitor.show_type_distribution();
   type_visitor.show_variable_types(type_to_string);
 
   if (unify_res.is_error()) {
     ShowUnificationErrors show(type_store, type_to_string);
-    show.show(unify_res.simplify_failures, contents, file_descriptor);
+    show.show(unify_res.simplify_failures, contents, file_descriptor, scan_info.row_column_indices);
 
     if (unify_res.simplify_failures.empty()) {
       std::cout << "ERROR" << std::endl;

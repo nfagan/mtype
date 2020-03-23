@@ -17,7 +17,8 @@ public:
   }
 
   TypeToString(const TypeStore& store, const Library& library, const StringRegistry* string_registry) :
-    store(store), library(library), string_registry(string_registry), colorize(true), explicit_destructured_tuples(true) {
+    store(store), library(library), string_registry(string_registry),
+    rich_text(true), explicit_destructured_tuples(true), arrow_function_notation(false) {
     //
   }
 
@@ -39,6 +40,7 @@ public:
 
 private:
   void apply_implicit(const DT& tup, const Optional<DT::Usage>& parent_usage);
+  void apply_name(const types::Abstraction& abstr);
 
   const char* color(const char* color_code) const;
   std::string color(const std::string& color_code) const;
@@ -52,8 +54,9 @@ private:
   const StringRegistry* string_registry;
 
 public:
-  bool colorize;
+  bool rich_text;
   bool explicit_destructured_tuples;
+  bool arrow_function_notation;
 };
 
 }

@@ -92,9 +92,38 @@ void TypeToString::apply(const types::Variable& var) {
 }
 
 void TypeToString::apply(const types::Abstraction& abstr) {
-  stream << "[";
-  apply(abstr.outputs);
-  stream << "] = " << color(style::yellow);
+  if (arrow_function_notation) {
+    apply_name(abstr);
+
+    stream << "(";
+    apply(abstr.inputs);
+    stream << ")";
+
+    if (rich_text) {
+      stream << " → ";
+    } else {
+      stream << " -> ";
+    }
+
+    stream << "[";
+    apply(abstr.outputs);
+    stream << "]";
+
+  } else {
+    stream << "[";
+    apply(abstr.outputs);
+    stream << "] = ";
+
+    apply_name(abstr);
+
+    stream << "(";
+    apply(abstr.inputs);
+    stream << ")";
+  }
+}
+
+void TypeToString::apply_name(const types::Abstraction& abstr) {
+  stream << color(style::yellow);
 
   if (abstr.is_function()) {
     if (string_registry) {
@@ -116,9 +145,7 @@ void TypeToString::apply(const types::Abstraction& abstr) {
     stream << "@";
   }
 
-  stream << dflt_color() << "(";
-  apply(abstr.inputs);
-  stream << ")";
+  stream << dflt_color();
 }
 
 void TypeToString::apply(const types::DestructuredTuple& tup) {
@@ -200,11 +227,11 @@ void TypeToString::apply_implicit(const DT& tup, const Optional<DT::Usage>& pare
 }
 
 const char* TypeToString::color(const char* color_code) const {
-  return colorize ? color_code : "";
+  return rich_text ? color_code : "";
 }
 
 std::string TypeToString::color(const std::string& color_code) const {
-  return colorize ? color_code : "";
+  return rich_text ? color_code : "";
 }
 
 const char* TypeToString::dflt_color() const {

@@ -7,6 +7,7 @@
 #include "simplify.hpp"
 #include "error.hpp"
 #include "substitution.hpp"
+#include "type_relationships.hpp"
 #include <map>
 
 namespace mt {
@@ -43,6 +44,7 @@ public:
 public:
   Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
   substitution(nullptr),
+  subtype_relationship(library),
   store(store),
   library(library),
   string_registry(string_registry),
@@ -107,6 +109,7 @@ private:
 
 public:
   Substitution* substitution;
+  SubtypeRelated subtype_relationship;
 
 private:
   TypeStore& store;

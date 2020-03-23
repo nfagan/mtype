@@ -10,14 +10,6 @@
 namespace mt {
 
 namespace {
-inline std::string transform_message(const std::string& msg) {
-  auto split_msg = split_copy(msg.c_str(), msg.size(), Character('\n'));;
-  for (auto& m : split_msg) {
-    m.insert(0, "  ");
-  }
-  return join(split_msg, "\n");
-}
-
 inline std::string colorize_message(const std::string& msg) {
   auto split_msg = split_whitespace_copy(msg.c_str(), msg.size(), true);
 
@@ -30,7 +22,6 @@ inline std::string colorize_message(const std::string& msg) {
 
   return join(split_msg, "");
 }
-
 }
 
 bool ParseError::is_null_token() const {
@@ -54,7 +45,7 @@ std::string ParseError::make_message(bool colorize) const {
     msg = mark_text_with_message_and_context(text, start, stop, context, message);
   }
 
-  return transform_message(msg);
+  return indent_spaces(msg, 2);
 }
 
 void ShowParseErrors::show(const ParseErrors& errs) {

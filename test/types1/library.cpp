@@ -4,9 +4,31 @@
 
 namespace mt {
 
-bool Library::subtype_related(const types::Scalar& a, const types::Scalar& b) const {
+bool Library::subtype_related(TypeRef lhs, TypeRef rhs) const {
+  const auto& a = store.at(lhs);
+  const auto& b = store.at(rhs);
+
+  if (a.is_scalar() && b.is_scalar()) {
+    return subtype_related(lhs, rhs, a.scalar, b.scalar);
+  } else {
+    return false;
+  }
+}
+
+bool Library::subtype_related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b) const {
   if (a.identifier == b.identifier) {
     return true;
+  }
+
+  const auto& sub_it = scalar_subtype_relations.find(lhs);
+  if (sub_it == scalar_subtype_relations.end()) {
+    return false;
+  }
+
+  for (const auto& supertype : sub_it->second.supertypes) {
+    if (supertype == rhs) {
+      return true;
+    }
   }
 
   return false;
@@ -44,6 +66,10 @@ void Library::make_builtin_types() {
   double_type_handle = make_named_scalar_type("double");
   string_type_handle = make_named_scalar_type("string");
   char_type_handle = make_named_scalar_type("char");
+  sub_double_type_handle = make_named_scalar_type("sub-double");
+
+  //  Mark that sub-double is a subclass of double.
+  scalar_subtype_relations[sub_double_type_handle] = types::SubtypeRelation(sub_double_type_handle, double_type_handle);
 }
 
 void Library::make_known_types() {
@@ -61,6 +87,7 @@ void Library::make_free_functions() {
   make_list_outputs_type();
   make_list_inputs_type();
   make_list_outputs_type2();
+  make_sub_double();
 }
 
 void Library::make_sum() {
@@ -408,6 +435,17 @@ void Library::make_binary_operators() {
 
     function_types[abstr_copy] = func_type;
   }
+}
+
+void Library::make_sub_double() {
+  const auto name = MatlabIdentifier(string_registry.register_string("sub_double"));
+  const auto args = store.make_output_destructured_tuple(TypeHandles());
+  const auto outs = store.make_input_destructured_tuple(sub_double_type_handle);
+  const auto func = store.make_abstraction(name, args, outs);
+
+  types::Abstraction abstr_copy = store.at(func).abstraction;
+
+  function_types[abstr_copy] = func;
 }
 
 TypeHandle Library::make_named_scalar_type(const char* name) {

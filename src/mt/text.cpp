@@ -55,8 +55,24 @@ void swap(TextRowColumnIndices& a, TextRowColumnIndices& b) {
   swap(a.new_lines, b.new_lines);
 }
 
-std::string mark_text_with_message_and_context(std::string_view text, int64_t start, int64_t stop,
-                                               int64_t context_amount, const std::string& message) {
+std::string spaces(int num) {
+  std::string spaces;
+  for (int i = 0; i < num; i++) {
+    spaces += " ";
+  }
+  return spaces;
+}
+
+std::string indent_spaces(const std::string& text, int num_spaces) {
+  const auto spcs = spaces(num_spaces);
+  auto split = split_copy(text.c_str(), text.size(), Character('\n'));
+  for (auto& m : split) {
+    m.insert(0, spcs);
+  }
+  return join(split, "\n");
+}
+
+MarkTextResult mark_text(std::string_view text, int64_t start, int64_t stop, int64_t context_amount) {
   //  @TODO: Robust handling of UTF8 context.
   int64_t begin_ind = std::max(int64_t(0), start - context_amount);
   int64_t stop_ind = std::min(int64_t(text.size()), stop + context_amount);
@@ -78,24 +94,31 @@ std::string mark_text_with_message_and_context(std::string_view text, int64_t st
   }
 
   if (interval_ptr == 0) {
-    return "";
+    return MarkTextResult();
   }
 
   auto interval_ind = interval_ptr - 1;
   auto num_spaces = subset_start_ind - cumulative_inds[interval_ind] - 1;
 
-  std::string result;
+  lines.erase(lines.begin() + interval_ind + 1, lines.end());
 
-  for (int i = 0; i < num_spaces; i++) {
-    result += " ";
+  return MarkTextResult(std::move(lines), num_spaces);
+}
+
+std::string mark_text_with_message_and_context(std::string_view text, int64_t start, int64_t stop,
+                                               int64_t context_amount, const std::string& message) {
+  auto mark_text_res = mark_text(text, start, stop, context_amount);
+  if (!mark_text_res.success) {
+    return "";
   }
 
-  result += "^\n";
-  result += message;
+  auto& lines = mark_text_res.lines;
+  auto msg = spaces(mark_text_res.num_spaces_to_start);
 
-  lines.erase(lines.begin() + interval_ind + 1, lines.end());
-  lines.push_back(result);
+  msg += "^\n";
+  msg += message;
 
+  lines.push_back(msg);
   return join(lines, "\n");
 }
 

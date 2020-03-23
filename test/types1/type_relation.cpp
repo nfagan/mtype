@@ -44,7 +44,7 @@ bool TypeRelation::related_same_types(const TypeHandle& a, const TypeHandle& b, 
 
   switch (value_a.tag) {
     case Type::Tag::scalar:
-      return related(value_a.scalar, value_b.scalar, rev);
+      return related(a, b, value_a.scalar, value_b.scalar, rev);
     case Type::Tag::destructured_tuple:
       return related(value_a.destructured_tuple, value_b.destructured_tuple, rev);
     case Type::Tag::list:
@@ -88,8 +88,8 @@ bool TypeRelation::related_different_types(const TypeHandle& a, const TypeHandle
   }
 }
 
-bool TypeRelation::related(const types::Scalar& a, const types::Scalar& b, bool rev) const {
-  return relationship.related(a, b, rev);
+bool TypeRelation::related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const {
+  return relationship.related(lhs, rhs, a, b, rev);
 }
 
 bool TypeRelation::related_list(const TypeHandles& a, const TypeHandles& b, int64_t* ia, int64_t* ib,

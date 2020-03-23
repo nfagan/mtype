@@ -113,7 +113,7 @@ bool Simplifier::simplify_different_types(const DT& tup, TypeRef source, TypeRef
 }
 
 bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev) {
-  bool success = t0.identifier == t1.identifier;
+  const bool success = unifier.subtype_relationship.related(lhs, rhs, t0, t1, rev);
   check_emplace_simplification_failure(success, lhs, rhs);
   return success;
 }

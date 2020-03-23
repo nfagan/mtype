@@ -76,8 +76,9 @@ void Unifier::check_assignment(TypeRef source, TermRef term, const types::Assign
   }
 
   if (is_concrete_argument(assignment.rhs)) {
-    const auto lhs_term = make_term(term.source_token, assignment.lhs);
-    const auto rhs_term = make_term(term.source_token, assignment.rhs);
+    //  In assignment lhs = rhs, rhs must be a subtype of lhs
+    const auto lhs_term = make_term(term.source_token, assignment.rhs);
+    const auto rhs_term = make_term(term.source_token, assignment.lhs);
     substitution->push_type_equation(make_eq(lhs_term, rhs_term));
 
     registered_assignments[source] = true;

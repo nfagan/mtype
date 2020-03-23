@@ -31,7 +31,8 @@ public:
   Optional<std::string> type_name(const types::Scalar& scl) const;
 
   //  Test a <: b
-  bool subtype_related(const types::Scalar& a, const types::Scalar& b) const;
+  bool subtype_related(TypeRef lhs, TypeRef rhs) const;
+  bool subtype_related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b) const;
 
 private:
   void make_builtin_types();
@@ -48,6 +49,7 @@ private:
   void make_list_outputs_type();
   void make_list_outputs_type2();
   void make_list_inputs_type();
+  void make_sub_double();
 
   TypeHandle make_named_scalar_type(const char* name);
 
@@ -65,11 +67,13 @@ private:
   std::set<TypeHandle, TypeRelation::TypeRelationComparator> types_with_known_subscripts;
 
   std::unordered_map<TypeIdentifier, int64_t, TypeIdentifier::Hash> scalar_type_names;
+  std::unordered_map<TypeHandle, types::SubtypeRelation, TypeHandle::Hash> scalar_subtype_relations;
 
 public:
   TypeHandle double_type_handle;
   TypeHandle char_type_handle;
   TypeHandle string_type_handle;
+  TypeHandle sub_double_type_handle;
 };
 
 }

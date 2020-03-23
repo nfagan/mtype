@@ -27,6 +27,27 @@
 
 namespace mt {
 
+void test_subtyping() {
+  using Use = types::DestructuredTuple::Usage;
+
+  StringRegistry str_registry;
+  TypeStore store;
+  TypeEquivalence equiv;
+  TypeRelation eq(equiv, store);
+  Library library(store, str_registry);
+  library.make_known_types();
+
+  const auto& d_handle = library.double_type_handle;
+  const auto& sub_d_handle = library.sub_double_type_handle;
+
+  if (!library.subtype_related(sub_d_handle, d_handle)) {
+    MT_SHOW_ERROR_PRINT2("sub-double not subtype of double", sub_d_handle, d_handle);
+  }
+  if (library.subtype_related(d_handle, sub_d_handle)) {
+    MT_SHOW_ERROR_PRINT2("double marked a subtype of sub-double", d_handle, sub_d_handle);
+  }
+}
+
 void test_equivalence_debug() {
   using Use = types::DestructuredTuple::Usage;
 
@@ -242,6 +263,7 @@ void test_equivalence() {
 void run_all() {
   test_equivalence();
   test_equivalence_debug();
+  test_subtyping();
 }
 
 #undef MT_SHOW_ERROR
