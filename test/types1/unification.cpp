@@ -466,6 +466,7 @@ void Unifier::unify_one(TypeEquation eq) {
   assert(lhs_type == Type::Tag::variable);
 
   if (occurs(eq.rhs.term, eq.rhs, eq.lhs.term)) {
+    MT_SHOW2("No occurrence violation: ", eq.lhs.term, eq.rhs.term);
     assert(false && "No occurrence violation.");
   }
 
