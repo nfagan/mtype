@@ -51,6 +51,7 @@ private:
   void make_list_outputs_type2();
   void make_list_inputs_type();
   void make_sub_double();
+  void make_double();
 
   TypeHandle make_named_scalar_type(const char* name);
 

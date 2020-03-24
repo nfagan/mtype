@@ -56,12 +56,16 @@ struct TypeEquationTerm {
   friend bool operator==(const TypeEquationTerm& a, const TypeEquationTerm& b) {
     return a.term == b.term;
   }
+  friend bool operator!=(const TypeEquationTerm& a, const TypeEquationTerm& b) {
+    return a.term != b.term;
+  }
 
   const Token* source_token;
   TypeHandle term;
 };
 
 using TermRef = const TypeEquationTerm&;
+using BoundTerms = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::HandleHash>;
 
 struct TypeEquation {
   TypeEquation(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) : lhs(lhs), rhs(rhs) {
@@ -141,12 +145,17 @@ namespace types {
 
   struct Scheme {
     Scheme() = default;
+    Scheme(const TypeHandle& type, std::vector<TypeHandle>&& params) :
+    type(type), parameters(std::move(params)) {
+      //
+    }
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Scheme)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Scheme)
 
     TypeHandle type;
     std::vector<TypeHandle> parameters;
+    std::vector<TypeEquation> constraints;
   };
 
   struct Scalar {

@@ -63,8 +63,6 @@ int main(int argc, char** argv) {
 
   auto unify_res = unifier.unify(&substitution);
 
-  mt::run_all();
-
   auto t1 = std::chrono::high_resolution_clock::now();
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
@@ -86,8 +84,12 @@ int main(int argc, char** argv) {
   }
 
   std::cout << "Num type eqs: " << substitution.num_type_equations() << std::endl;
-  std::cout << "Subs size: " << substitution.num_bound_variables() << std::endl;
+  std::cout << "Subs size: " << substitution.num_bound_terms() << std::endl;
   std::cout << "Num types: " << type_store.size() << std::endl;
+  std::cout << "Type size: " << sizeof(mt::Type) << std::endl;
+  std::cout << "Vec size: " << sizeof(TypeHandles) << std::endl;
+
+  mt::run_all();
 
 //  StringVisitor str_visitor(&str_registry, &store);
 //  std::cout << root_block->accept(str_visitor) << std::endl;

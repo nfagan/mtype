@@ -14,6 +14,8 @@ bool TypeProperties::is_concrete_argument(const TypeHandle& handle) const {
       return is_concrete_argument(type.list);
     case Tag::abstraction:
       return is_concrete_argument(type.abstraction);
+    case Tag::scheme:
+      return is_concrete_argument(type.scheme);
     case Tag::tuple:
     case Tag::scalar:
       return true;
@@ -41,6 +43,10 @@ bool TypeProperties::is_concrete_argument(const mt::types::Abstraction& abstr) c
 
 bool TypeProperties::is_concrete_argument(const types::List& list) const {
   return are_concrete_arguments(list.pattern);
+}
+
+bool TypeProperties::is_concrete_argument(const types::Scheme& scheme) const {
+  return is_concrete_argument(scheme.type);
 }
 
 }

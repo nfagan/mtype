@@ -180,7 +180,7 @@ bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction
     return false;
   }
 
-  return related(a.inputs, b.inputs, rev) && related(a.outputs, b.outputs, rev);
+  return related(a.inputs, b.inputs, !rev) && related(a.outputs, b.outputs, rev);
 }
 
 bool TypeRelation::related(const DT& a, const DT& b, bool rev) const {
@@ -246,7 +246,16 @@ bool TypeRelation::ArgumentComparator::operator()(const types::Abstraction& a, c
   const auto& tup_a = args_a.destructured_tuple;
   const auto& tup_b = args_b.destructured_tuple;
 
+#if 0
+  std::cout << "Comparing .. " << std::endl;
+  type_relation.type_printer().show2(a, b);
+  bool related = type_relation.related(tup_a, tup_b, false);
+  std::cout << "Related ? " << related << std::endl << "===\n";
+  return !related;
+
+#else
   return !type_relation.related(tup_a, tup_b, false);
+#endif
 }
 
 

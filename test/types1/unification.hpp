@@ -74,6 +74,7 @@ private:
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Subscript& sub);
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::List& list);
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Assignment& assignment);
+  MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Scheme& scheme);
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term);
   void apply_to(std::vector<TypeHandle>& sources, TermRef term);
 
@@ -87,6 +88,17 @@ private:
   MT_NODISCARD TypeHandle substitute_one(types::Subscript& sub,          TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD TypeHandle substitute_one(types::List& list,              TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD TypeHandle substitute_one(types::Assignment& assignment,  TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD TypeHandle substitute_one(types::Scheme& scheme,          TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
+
+  bool occurs(TypeRef t, TermRef term, TypeRef lhs) const;
+  bool occurs(const TypeHandles& ts, TermRef term, TypeRef lhs) const;
+  bool occurs(const types::Abstraction& abstr,      TermRef term, TypeRef lhs) const;
+  bool occurs(const types::Tuple& tup,              TermRef term, TypeRef lhs) const;
+  bool occurs(const types::DestructuredTuple& tup,  TermRef term, TypeRef lhs) const;
+  bool occurs(const types::Subscript& sub,          TermRef term, TypeRef lhs) const;
+  bool occurs(const types::List& list,              TermRef term, TypeRef lhs) const;
+  bool occurs(const types::Assignment& assignment,  TermRef term, TypeRef lhs) const;
+  bool occurs(const types::Scheme& scheme,          TermRef term, TypeRef lhs) const;
 
   Type::Tag type_of(TypeRef handle) const;
   void show();
@@ -94,7 +106,9 @@ private:
   TypeHandle maybe_unify_subscript(TypeRef source, TermRef term, types::Subscript& sub);
   TypeHandle maybe_unify_known_subscript_type(TypeRef source, TermRef term, types::Subscript& sub);
   TypeHandle maybe_unify_function_call_subscript(TypeRef source, TermRef term,
-    const types::Abstraction& source_func, types::Subscript& sub);
+    const types::Abstraction& source_func, const types::Subscript& sub);
+  TypeHandle maybe_unify_anonymous_function_call_subscript(TypeRef source, TermRef term,
+    const types::Scheme& scheme, types::Subscript& sub);
 
   void check_assignment(TypeRef source, TermRef term, const types::Assignment& assignment);
   void check_push_func(TypeRef source, TermRef term, const types::Abstraction& func);
@@ -102,6 +116,8 @@ private:
   bool is_known_subscript_type(TypeRef handle) const;
   bool is_concrete_argument(TypeRef handle) const;
   bool are_concrete_arguments(const TypeHandles& handles) const;
+
+  TypeHandle instantiate(const types::Scheme& scheme);
 
   void flatten_list(TypeRef source, std::vector<TypeHandle>& into) const;
   bool had_error() const;

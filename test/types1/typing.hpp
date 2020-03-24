@@ -139,6 +139,33 @@ private:
     return scope_handles.back();
   }
 
+  void push_type_equation(TypeEquation&& eq) {
+    if (constraint_repositories.empty()) {
+      substitution.push_type_equation(std::move(eq));
+    } else {
+      constraint_repositories.back().emplace_back(eq);
+    }
+  }
+
+  void push_constraint_repository() {
+    constraint_repositories.emplace_back();
+  }
+
+  std::vector<TypeEquation>& current_constraint_repository() {
+    assert(!constraint_repositories.empty());
+    return constraint_repositories.back();
+  }
+
+  const std::vector<TypeEquation>& current_constraint_repository() const {
+    assert(!constraint_repositories.empty());
+    return constraint_repositories.back();
+  }
+
+  void pop_constraint_repository() {
+    assert(!constraint_repositories.empty() && "No constraints to pop.");
+    constraint_repositories.pop_back();
+  }
+
   void push_type_equation_term(const TypeEquationTerm& term) {
     type_eq_terms.push_back(term);
   }
@@ -170,6 +197,7 @@ private:
   std::unordered_map<TypeHandle, FunctionDefHandle, TypeHandle::Hash> functions;
 
   std::vector<TypeEquationTerm> type_eq_terms;
+  std::vector<std::vector<TypeEquation>> constraint_repositories;
 };
 
 }

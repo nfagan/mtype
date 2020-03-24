@@ -16,6 +16,7 @@ public:
   bool are_concrete_arguments(const std::vector<TypeHandle>& args) const;
 
 private:
+  bool is_concrete_argument(const types::Scheme& scheme) const;
   bool is_concrete_argument(const types::Abstraction& abstr) const;
   bool is_concrete_argument(const types::DestructuredTuple& tup) const;
   bool is_concrete_argument(const types::List& list) const;

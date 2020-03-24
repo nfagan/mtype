@@ -25,6 +25,18 @@
     DebugTypePrinter(store, &str_registry).show2((a), (b)); \
   }
 
+#define MT_ERROR_IF_RELATED(relation, msg, a, b) \
+  if (relation.related_entry((a), (b))) { \
+    std::cout << "FAIL (expected no relation): " << msg << std::endl; \
+    DebugTypePrinter(store, &str_registry).show2((a), (b)); \
+  }
+
+#define MT_ERROR_IF_UNRELATED(relation, msg, a, b) \
+  if (!relation.related_entry((a), (b))) { \
+    std::cout << "FAIL (expected relation): " << msg << std::endl; \
+    DebugTypePrinter(store, &str_registry).show2((a), (b)); \
+  }
+
 namespace mt {
 
 void test_subtyping() {
@@ -32,20 +44,51 @@ void test_subtyping() {
 
   StringRegistry str_registry;
   TypeStore store;
-  EquivalenceRelation equiv;
-  TypeRelation eq(equiv, store);
   Library library(store, str_registry);
+  SubtypeRelation subtype_relation(library);
   library.make_known_types();
+  TypeRelation relation(subtype_relation, store);
+  TypeRelation::ArgumentComparator arg_compare(relation);
 
   const auto& d_handle = library.double_type_handle;
   const auto& sub_d_handle = library.sub_double_type_handle;
 
-  if (!library.subtype_related(sub_d_handle, d_handle)) {
-    MT_SHOW_ERROR_PRINT2("sub-double not subtype of double", sub_d_handle, d_handle);
-  }
-  if (library.subtype_related(d_handle, sub_d_handle)) {
-    MT_SHOW_ERROR_PRINT2("double marked a subtype of sub-double", d_handle, sub_d_handle);
-  }
+  const auto sum_double_args = store.make_input_destructured_tuple(d_handle);
+  const auto sum_double_outs = store.make_output_destructured_tuple(d_handle);
+  const auto sum_name = MatlabIdentifier(str_registry.register_string("sum"));
+  const auto sum_double = store.make_abstraction(sum_name, sum_double_args, sum_double_outs);
+  const auto sum_sub_double_args = store.make_input_destructured_tuple(sub_d_handle);
+  const auto sum_sub_double_outs = store.make_output_destructured_tuple(sub_d_handle);
+  const auto sum_sub_double = store.make_abstraction(sum_name, sum_sub_double_args, sum_sub_double_outs);
+  const auto sum_subtype = store.make_abstraction(sum_name, sum_double_args, sum_sub_double_outs);
+
+  const auto nested_tup_double = store.make_rvalue_destructured_tuple(sum_double_outs);
+  const auto nested_tup_sub_double = store.make_rvalue_destructured_tuple(sum_sub_double_outs);
+
+  const auto list_subtype = store.make_list(sub_d_handle);
+  const auto list_type = store.make_list(d_handle);
+
+  const auto mult_double = store.make_rvalue_destructured_tuple(TypeHandles{d_handle, d_handle});
+  const auto wrap_list = store.make_rvalue_destructured_tuple(list_type);
+
+  MT_ERROR_IF_UNRELATED(relation, "", sub_d_handle, d_handle)
+  MT_ERROR_IF_RELATED(relation, "", d_handle, sub_d_handle)
+  MT_ERROR_IF_RELATED(relation, "", sum_sub_double, sum_double)
+  MT_ERROR_IF_RELATED(relation, "", sum_double, sum_sub_double)
+  MT_ERROR_IF_UNRELATED(relation, "", sum_subtype, sum_double)
+  MT_ERROR_IF_RELATED(relation, "", sum_double, sum_subtype)
+  MT_ERROR_IF_UNRELATED(relation, "", list_subtype, list_type)
+  MT_ERROR_IF_RELATED(relation, "", list_type, list_subtype)
+  MT_ERROR_IF_UNRELATED(relation, "", nested_tup_sub_double, nested_tup_double)
+  MT_ERROR_IF_UNRELATED(relation, "", nested_tup_sub_double, nested_tup_sub_double)
+  MT_ERROR_IF_RELATED(relation, "", nested_tup_double, nested_tup_sub_double)
+  MT_ERROR_IF_UNRELATED(relation, "", list_subtype, d_handle)
+  MT_ERROR_IF_RELATED(relation, "", d_handle, list_subtype)
+  MT_ERROR_IF_UNRELATED(relation, "", list_subtype, wrap_list)
+  MT_ERROR_IF_RELATED(relation, "", wrap_list, list_subtype)
+  MT_ERROR_IF_UNRELATED(relation, "", wrap_list, mult_double)
+  MT_ERROR_IF_UNRELATED(relation, "", sum_sub_double_args, nested_tup_double)
+  MT_ERROR_IF_UNRELATED(relation, "", nested_tup_sub_double, sum_double_args)
 }
 
 void test_equivalence_debug() {
@@ -61,43 +104,43 @@ void test_equivalence_debug() {
   const auto& d_handle = library.double_type_handle;
   const auto& c_handle = library.char_type_handle;
 
-  auto tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle});
-  auto tup2 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, c_handle});
-  auto tup3 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{c_handle});
-  auto tup4 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle});
+  auto tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle});
+  auto tup2 = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, c_handle});
+  auto tup3 = store.make_destructured_tuple(Use::rvalue, TypeHandles{c_handle});
+  auto tup4 = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle});
   auto rec_tup = store.make_destructured_tuple(Use::rvalue, tup);
   auto rec_tup2 = store.make_destructured_tuple(Use::rvalue, tup2);
   auto rec_tup3 = store.make_destructured_tuple(Use::rvalue, tup3);
   auto rec_tup4 = store.make_destructured_tuple(Use::rvalue, tup4);
-  auto empty_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{});
-  auto out_tup = store.make_destructured_tuple(Use::definition_outputs, std::vector<TypeHandle>{c_handle, d_handle});
-  auto out_tup2 = store.make_destructured_tuple(Use::definition_outputs, std::vector<TypeHandle>{d_handle, c_handle});
-  auto wrap_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{out_tup});
+  auto empty_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{});
+  auto out_tup = store.make_destructured_tuple(Use::definition_outputs, TypeHandles{c_handle, d_handle});
+  auto out_tup2 = store.make_destructured_tuple(Use::definition_outputs, TypeHandles{d_handle, c_handle});
+  auto wrap_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{out_tup});
 
-  auto wrap_out_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{out_tup, c_handle});
-  auto match_in_tup = store.make_destructured_tuple(Use::definition_inputs, std::vector<TypeHandle>{c_handle, c_handle});
+  auto wrap_out_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{out_tup, c_handle});
+  auto match_in_tup = store.make_destructured_tuple(Use::definition_inputs, TypeHandles{c_handle, c_handle});
 
-  auto mixed_wrap_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{tup, d_handle, tup2});
-  auto flat_mixed_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, d_handle, d_handle, c_handle});
+  auto mixed_wrap_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{tup, d_handle, tup2});
+  auto flat_mixed_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle, d_handle, d_handle, c_handle});
 
-  auto list1 = store.make_list(std::vector<TypeHandle>{c_handle, d_handle});
-  auto tup_list1 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{list1});
-  auto tup_match_list1 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{c_handle, d_handle});
-  auto rec_tup_match_list1 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{tup_match_list1, tup_match_list1});
-  auto rec_tup_match_list2 = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{c_handle, rec_tup4, c_handle, d_handle});
+  auto list1 = store.make_list(TypeHandles{c_handle, d_handle});
+  auto tup_list1 = store.make_destructured_tuple(Use::rvalue, TypeHandles{list1});
+  auto tup_match_list1 = store.make_destructured_tuple(Use::rvalue, TypeHandles{c_handle, d_handle});
+  auto rec_tup_match_list1 = store.make_destructured_tuple(Use::rvalue, TypeHandles{tup_match_list1, tup_match_list1});
+  auto rec_tup_match_list2 = store.make_destructured_tuple(Use::rvalue, TypeHandles{c_handle, rec_tup4, c_handle, d_handle});
 
-  auto input_tup = store.make_destructured_tuple(Use::definition_inputs, std::vector<TypeHandle>{c_handle, d_handle});
-  auto match_input_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{tup3, tup4});
+  auto input_tup = store.make_destructured_tuple(Use::definition_inputs, TypeHandles{c_handle, d_handle});
+  auto match_input_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{tup3, tup4});
 
-  auto flat_l_tup = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{c_handle});
-  auto wrap_l_tup = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{flat_l_tup});
+  auto flat_l_tup = store.make_destructured_tuple(Use::lvalue, TypeHandles{c_handle});
+  auto wrap_l_tup = store.make_destructured_tuple(Use::lvalue, TypeHandles{flat_l_tup});
 
-  auto mixed_rec_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, rec_tup, d_handle});
-  auto flat_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, d_handle, d_handle});
+  auto mixed_rec_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, rec_tup, d_handle});
+  auto flat_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle, d_handle, d_handle});
 
   // list[dt-r[dt-r[s0]], s0, dt-o[s0, s2]]
-  auto mixed_list1 = store.make_list(std::vector<TypeHandle>{rec_tup4, d_handle, out_tup2});
-  auto test_list1 = store.make_list(std::vector<TypeHandle>{d_handle, d_handle, d_handle});
+  auto mixed_list1 = store.make_list(TypeHandles{rec_tup4, d_handle, out_tup2});
+  auto test_list1 = store.make_list(TypeHandles{d_handle, d_handle, d_handle});
   auto wrap_list1 = store.make_destructured_tuple(Use::definition_inputs, test_list1);
   auto wrap_list2 = store.make_destructured_tuple(Use::rvalue, mixed_list1);
 
@@ -201,17 +244,17 @@ void test_equivalence() {
   auto tup = store.make_destructured_tuple(Use::rvalue, d_handle);
   auto rec_tup = store.make_destructured_tuple(Use::rvalue, tup);
   auto mult_double_tup = store.make_destructured_tuple(Use::rvalue, d_handle, d_handle);
-  auto mult_rec_double_tup = store.make_destructured_tuple(Use::rvalue, std::vector<TypeHandle>{d_handle, d_handle, rec_tup});
+  auto mult_rec_double_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle, rec_tup});
   auto list_double = store.make_list(d_handle);
   auto tup_list_double_rvalue = store.make_destructured_tuple(Use::rvalue, list_double);
   auto tup_list_double_lvalue = store.make_destructured_tuple(Use::lvalue, list_double);
 
-  auto list_pattern = store.make_list(std::vector<TypeHandle>{d_handle, d_handle, c_handle});
+  auto list_pattern = store.make_list(TypeHandles{d_handle, d_handle, c_handle});
   auto tup_list_pattern = store.make_destructured_tuple(Use::rvalue, list_pattern);
-  auto tup_match_pattern = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{d_handle, d_handle, c_handle});
-  auto tup_wrong_pattern = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{d_handle, d_handle, c_handle, d_handle});
+  auto tup_match_pattern = store.make_destructured_tuple(Use::lvalue, TypeHandles{d_handle, d_handle, c_handle});
+  auto tup_wrong_pattern = store.make_destructured_tuple(Use::lvalue, TypeHandles{d_handle, d_handle, c_handle, d_handle});
 
-  auto nest_tup_pattern = store.make_destructured_tuple(Use::lvalue, std::vector<TypeHandle>{tup_match_pattern, tup_match_pattern});
+  auto nest_tup_pattern = store.make_destructured_tuple(Use::lvalue, TypeHandles{tup_match_pattern, tup_match_pattern});
 
   if (!eq.related_entry(tup, rec_tup)) {
     MT_SHOW_ERROR("Failed to match r value tuples.");

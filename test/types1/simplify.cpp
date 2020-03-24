@@ -43,6 +43,10 @@ bool Simplifier::simplify_same_types(TypeRef lhs, TypeRef rhs, bool rev) {
       return simplify(lhs, rhs, t0.destructured_tuple, t1.destructured_tuple, rev);
     case Tag::list:
       return simplify(t0.list, t1.list, rev);
+    case Tag::scheme:
+      return simplify(t0.scheme, t1.scheme, rev);
+    case Tag::subscript:
+      return simplify(t0.subscript, t1.subscript, rev);
     case Tag::variable:
       return simplify_make_type_equation(lhs, rhs, rev);
     default:
@@ -161,6 +165,29 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
   }
 
   return true;
+}
+
+bool Simplifier::simplify(const types::Scheme& t0, const types::Scheme& t1, bool rev) {
+  return simplify(t0.type, t1.type, rev);
+}
+
+bool Simplifier::simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev) {
+  if (t0.subscripts.size() != t1.subscripts.size()) {
+    return false;
+  }
+  for (int64_t i = 0; i < t0.subscripts.size(); i++) {
+    const auto& args0 = t0.subscripts[i];
+    const auto& args1 = t1.subscripts[i];
+
+    if (args0.method != args1.method) {
+      return false;
+    }
+
+    if (!simplify(args0.arguments, args1.arguments, !rev)) {
+      return false;
+    }
+  }
+  return simplify(t0.outputs, t1.outputs, rev);
 }
 
 bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev) {

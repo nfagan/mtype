@@ -108,11 +108,85 @@ UnifyResult Unifier::unify(Substitution* subst) {
   }
 }
 
+bool Unifier::occurs(TypeRef t, TermRef term, TypeRef lhs) const {
+  auto& type = store.at(t);
+
+  switch (type.tag) {
+    case Type::Tag::abstraction:
+      return occurs(type.abstraction, term, lhs);
+    case Type::Tag::tuple:
+      return occurs(type.tuple, term, lhs);
+    case Type::Tag::destructured_tuple:
+      return occurs(type.destructured_tuple, term, lhs);
+    case Type::Tag::subscript:
+      return occurs(type.subscript, term, lhs);
+    case Type::Tag::list:
+      return occurs(type.list, term, lhs);
+    case Type::Tag::assignment:
+      return occurs(type.assignment, term, lhs);
+    case Type::Tag::scheme:
+      return occurs(type.scheme, term, lhs);
+    case Type::Tag::scalar:
+      return false;
+    case Type::Tag::variable:
+      return t == lhs;
+    default:
+    MT_SHOW1("Unhandled occurs: ", t);
+      assert(false);
+      return true;
+  }
+}
+
+bool Unifier::occurs(const TypeHandles& ts, TermRef term, TypeRef lhs) const {
+  for (const auto& t : ts) {
+    if (occurs(t, term, lhs)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Unifier::occurs(const types::Abstraction& abstr, TermRef term, TypeRef lhs) const {
+  return occurs(abstr.inputs, term, lhs) || occurs(abstr.outputs, term, lhs);
+}
+
+bool Unifier::occurs(const types::Tuple& tup, TermRef term, TypeRef lhs) const {
+  return occurs(tup.members, term, lhs);
+}
+
+bool Unifier::occurs(const types::DestructuredTuple& tup, TermRef term, TypeRef lhs) const {
+  return occurs(tup.members, term, lhs);
+}
+
+bool Unifier::occurs(const types::Subscript& sub, TermRef term, TypeRef lhs) const {
+  if (occurs(sub.outputs, term, lhs) || occurs(sub.principal_argument, term, lhs)) {
+    return true;
+  }
+  for (const auto& s : sub.subscripts) {
+    if (occurs(s.arguments, term, lhs)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Unifier::occurs(const types::List& list, TermRef term, TypeRef lhs) const {
+  return occurs(list.pattern, term, lhs);
+}
+
+bool Unifier::occurs(const types::Assignment& assignment, TermRef term, TypeRef lhs) const {
+  return occurs(assignment.lhs, term, lhs) || occurs(assignment.rhs, term, lhs);
+}
+
+bool Unifier::occurs(const types::Scheme& scheme, TermRef term, TypeRef lhs) const {
+  return occurs(scheme.type, term, lhs);
+}
+
 TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Variable& var) {
   TypeEquationTerm lookup(nullptr, source);
 
-  if (substitution->bound_variables.count(lookup) > 0) {
-    return substitution->bound_variables.at(lookup).term;
+  if (substitution->bound_terms.count(lookup) > 0) {
+    return substitution->bound_terms.at(lookup).term;
   } else {
     return source;
   }
@@ -160,6 +234,17 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Assignment& as
   return source;
 }
 
+TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Scheme& scheme) {
+  scheme.type = apply_to(scheme.type, term);
+
+  for (auto& eq : scheme.constraints) {
+    eq.lhs.term = apply_to(eq.lhs.term, term);
+    eq.rhs.term = apply_to(eq.rhs.term, term);
+  }
+
+  return source;
+}
+
 TypeHandle Unifier::apply_to(TypeRef source, TermRef term) {
   auto& type = store.at(source);
 
@@ -180,6 +265,8 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term) {
       return apply_to(source, term, type.list);
     case Type::Tag::assignment:
       return apply_to(source, term, type.assignment);
+    case Type::Tag::scheme:
+      return apply_to(source, term, type.scheme);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -213,6 +300,8 @@ TypeHandle Unifier::substitute_one(TypeRef source, TermRef term, TermRef lhs, Te
       return substitute_one(type.list, source, term, lhs, rhs);
     case Type::Tag::assignment:
       return substitute_one(type.assignment, source, term, lhs, rhs);
+    case Type::Tag::scheme:
+      return substitute_one(type.scheme, source, term, lhs, rhs);
     default:
       MT_SHOW1("Unhandled: ", source);
       assert(false);
@@ -224,6 +313,17 @@ void Unifier::substitute_one(std::vector<TypeHandle>& sources, TermRef term, Ter
   for (auto& source : sources) {
     source = substitute_one(source, term, lhs, rhs);
   }
+}
+
+TypeHandle Unifier::substitute_one(types::Scheme& scheme, TypeRef source, TermRef term, TermRef lhs, TermRef rhs) {
+  scheme.type = substitute_one(scheme.type, term, lhs, rhs);
+
+  for (auto& eq : scheme.constraints) {
+    eq.lhs.term = substitute_one(eq.lhs.term, term, lhs, rhs);
+    eq.rhs.term = substitute_one(eq.rhs.term, term, lhs, rhs);
+  }
+
+  return source;
 }
 
 TypeHandle Unifier::substitute_one(types::Assignment& assignment, TypeRef source, TermRef term, TermRef lhs, TermRef rhs) {
@@ -345,16 +445,14 @@ void Unifier::unify_one(TypeEquation eq) {
     return;
   }
 
-  const auto lhs_type = type_of(eq.lhs.term);
-  const auto rhs_type = type_of(eq.rhs.term);
+  auto lhs_type = type_of(eq.lhs.term);
+  auto rhs_type = type_of(eq.rhs.term);
 
   if (lhs_type != Tag::variable && rhs_type != Tag::variable) {
     bool success = simplifier.simplify_entry(eq.lhs, eq.rhs);
 
     if (!success) {
       mark_failure();
-//      MT_SHOW2("Failed to simplify: ", eq.lhs.term, eq.rhs.term);
-//      assert(false);
     }
 
     return;
@@ -362,37 +460,106 @@ void Unifier::unify_one(TypeEquation eq) {
   } else if (lhs_type != Tag::variable) {
     assert(rhs_type == Tag::variable && "Rhs should be variable.");
     std::swap(eq.lhs, eq.rhs);
+    std::swap(lhs_type, rhs_type);
   }
 
-  for (auto& subst_it : substitution->bound_variables) {
+  assert(lhs_type == Type::Tag::variable);
+
+  if (occurs(eq.rhs.term, eq.rhs, eq.lhs.term)) {
+    assert(false && "No occurrence violation.");
+  }
+
+  for (auto& subst_it : substitution->bound_terms) {
     auto& rhs_term = subst_it.second;
     rhs_term.term = substitute_one(rhs_term.term, rhs_term, eq.lhs, eq.rhs);
   }
 
-  substitution->bound_variables[eq.lhs] = eq.rhs;
+  substitution->bound_terms[eq.lhs] = eq.rhs;
+}
+
+TypeHandle Unifier::instantiate(const types::Scheme& scheme) {
+  const auto instance_vars = instantiation.make_instance_variables(scheme);
+  Instantiation::ClonedVariables cloned;
+  const auto& bound_terms = substitution->bound_terms;
+
+  const auto instance_handle = instantiation.instantiate(scheme, instance_vars, bound_terms, cloned);
+  auto instance_constraints = scheme.constraints;
+
+  for (auto& constraint : instance_constraints) {
+    constraint.lhs.term = instantiation.clone(constraint.lhs.term, instance_vars, bound_terms, cloned);
+    constraint.rhs.term = instantiation.clone(constraint.rhs.term, instance_vars, bound_terms, cloned);
+
+    if (constraint.lhs != constraint.rhs) {
+      substitution->push_type_equation(constraint);
+    }
+  }
+
+  return instance_handle;
 }
 
 TypeHandle Unifier::maybe_unify_subscript(TypeRef source, TermRef term, types::Subscript& sub) {
+  const auto& arg0 = store.at(sub.principal_argument);
+
   if (is_known_subscript_type(sub.principal_argument)) {
     return maybe_unify_known_subscript_type(source, term, sub);
 
-  } else if (type_of(sub.principal_argument) == Type::Tag::abstraction) {
+  } else if (arg0.is_abstraction()) {
     //  a() where a is a variable, discovered to be a function reference.
-    const auto& func = store.at(sub.principal_argument).abstraction;
-    return maybe_unify_function_call_subscript(source, term, func, sub);
+    return maybe_unify_function_call_subscript(source, term, arg0.abstraction, sub);
+
+  } else if (arg0.is_scheme()) {
+    return maybe_unify_anonymous_function_call_subscript(source, term, arg0.scheme, sub);
 
   } else if (type_of(sub.principal_argument) != Type::Tag::variable) {
     MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
-//    assert(false);
   }
 
+  return source;
+}
+
+TypeHandle Unifier::maybe_unify_anonymous_function_call_subscript(TypeRef source,
+                                                                  TermRef term,
+                                                                  const types::Scheme& scheme,
+                                                                  types::Subscript& sub) {
+  const auto& scheme_type = store.at(scheme.type);
+
+  if (!scheme_type.is_abstraction() || registered_funcs.count(source) > 0) {
+    return source;
+  }
+
+  if (sub.subscripts.size() != 1 || sub.subscripts[0].method != SubscriptMethod::parens) {
+    registered_funcs[source] = true;
+    std::cout << "ERROR: Expected exactly 1 () subscript." << std::endl;
+    return source;
+  }
+
+  const auto& sub0 = sub.subscripts[0];
+
+  if (!are_concrete_arguments(sub0.arguments)) {
+    return source;
+  }
+
+  const auto instance_handle = instantiate(scheme);
+  assert(type_of(instance_handle) == Type::Tag::abstraction);
+  const auto& source_func = store.at(instance_handle).abstraction;
+
+  const auto sub_lhs_term = make_term(term.source_token, sub.outputs);
+  const auto sub_rhs_term = make_term(term.source_token, source_func.outputs);
+  substitution->push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
+
+  auto copy_args = sub0.arguments;
+  const auto arg_lhs_term = make_term(term.source_token, store.make_rvalue_destructured_tuple(std::move(copy_args)));
+  const auto arg_rhs_term = make_term(term.source_token, source_func.inputs);
+  substitution->push_type_equation(make_eq(arg_lhs_term, arg_rhs_term));
+
+  registered_funcs[source] = true;
   return source;
 }
 
 TypeHandle Unifier::maybe_unify_function_call_subscript(TypeRef source,
                                                         TermRef term,
                                                         const types::Abstraction& source_func,
-                                                        types::Subscript& sub) {
+                                                        const types::Subscript& sub) {
   if (registered_funcs.count(source) > 0) {
     return source;
   }

@@ -192,9 +192,9 @@ void TypeToString::apply(const types::Subscript& subscript) {
 }
 
 void TypeToString::apply(const types::Scheme& scheme) {
-  stream << "given<";
+  stream << color(style::yellow) << "given" << dflt_color() << " <";
   apply(scheme.parameters, ", ");
-  stream << ">";
+  stream << "> ";
   apply(scheme.type);
 }
 

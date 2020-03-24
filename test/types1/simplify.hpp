@@ -39,6 +39,8 @@ private:
   bool simplify(TypeRef lhs, TypeRef rhs, const DT& t0, const DT& t1, bool rev);
   bool simplify(TypeRef lhs, TypeRef rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev);
   bool simplify(const types::List& t0, const types::List& t1, bool rev);
+  bool simplify(const types::Scheme& t0, const types::Scheme& t1, bool rev);
+  bool simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev);
   bool simplify(TypeRef lhs, TypeRef rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev);
   bool simplify(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, bool rev);
 

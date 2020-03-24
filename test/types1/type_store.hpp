@@ -99,6 +99,11 @@ public:
     return make_type<types::Abstraction>(std::forward<Args>(args)...);
   }
 
+  template <typename... Args>
+  TypeHandle make_scheme(Args&&... args) {
+    return make_type<types::Scheme>(std::forward<Args>(args)...);
+  }
+
   TypeHandle make_concrete() {
     auto t = make_type();
     assign(t, Type(types::Scalar(make_type_identifier())));
