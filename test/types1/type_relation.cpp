@@ -26,8 +26,8 @@ bool TypeRelation::element_wise_related(const TypeHandles& a, const TypeHandles&
   return true;
 }
 
-bool TypeRelation::related_entry(const TypeHandle& a, const TypeHandle& b) const {
-  return related(a, b, false);
+bool TypeRelation::related_entry(const TypeHandle& a, const TypeHandle& b, bool rev) const {
+  return related(a, b, rev);
 }
 
 bool TypeRelation::related(const TypeHandle& a, const TypeHandle& b, bool rev) const {

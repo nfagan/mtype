@@ -44,7 +44,7 @@ bool Simplifier::simplify_same_types(TypeRef lhs, TypeRef rhs, bool rev) {
     case Tag::list:
       return simplify(t0.list, t1.list, rev);
     case Tag::scheme:
-      return simplify(t0.scheme, t1.scheme, rev);
+      return simplify(lhs, rhs, t0.scheme, t1.scheme, rev);
     case Tag::subscript:
       return simplify(t0.subscript, t1.subscript, rev);
     case Tag::variable:
@@ -167,8 +167,10 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
   return true;
 }
 
-bool Simplifier::simplify(const types::Scheme& t0, const types::Scheme& t1, bool rev) {
-  return simplify(t0.type, t1.type, rev);
+bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const types::Scheme& t0, const types::Scheme& t1, bool rev) {
+  return TypeRelation(EquivalenceRelation(), store).related_entry(lhs, rhs, rev);
+//  return true;
+//  return simplify(t0.type, t1.type, rev);
 }
 
 bool Simplifier::simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev) {

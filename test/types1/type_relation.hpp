@@ -54,7 +54,7 @@ public:
     //
   }
 public:
-  bool related_entry(const TypeHandle& a, const TypeHandle& b) const;
+  bool related_entry(const TypeHandle& a, const TypeHandle& b, bool rev = false) const;
 
 private:
   using DT = types::DestructuredTuple;
