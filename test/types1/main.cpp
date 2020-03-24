@@ -70,6 +70,7 @@ int main(int argc, char** argv) {
   TypeToString type_to_string(type_store, library, &str_registry);
   type_to_string.explicit_destructured_tuples = false;
   type_to_string.arrow_function_notation = true;
+  type_to_string.max_num_type_variables = 3;
 
   type_visitor.show_type_distribution();
   type_visitor.show_variable_types(type_to_string);

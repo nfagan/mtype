@@ -18,7 +18,7 @@ public:
 
   TypeToString(const TypeStore& store, const Library& library, const StringRegistry* string_registry) :
     store(store), library(library), string_registry(string_registry),
-    rich_text(true), explicit_destructured_tuples(true), arrow_function_notation(false) {
+    rich_text(true), explicit_destructured_tuples(true), arrow_function_notation(false), max_num_type_variables(-1) {
     //
   }
 
@@ -57,6 +57,7 @@ public:
   bool rich_text;
   bool explicit_destructured_tuples;
   bool arrow_function_notation;
+  int max_num_type_variables;
 };
 
 }

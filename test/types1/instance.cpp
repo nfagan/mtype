@@ -3,15 +3,17 @@
 
 namespace mt {
 
-Instantiation::InstanceVariables Instantiation::make_instance_variables(const types::Scheme& from_scheme) {
-  InstanceVariables replacing;
-
+void Instantiation::make_instance_variables(const types::Scheme& from_scheme, InstanceVariables& into) {
   for (const auto& param : from_scheme.parameters) {
-    if (replacing.count(param) == 0) {
-      replacing.emplace(param, store.make_fresh_type_variable_reference());
+    if (into.count(param) == 0) {
+      into.emplace(param, store.make_fresh_type_variable_reference());
     }
   }
+}
 
+Instantiation::InstanceVariables Instantiation::make_instance_variables(const types::Scheme& from_scheme) {
+  InstanceVariables replacing;
+  make_instance_variables(from_scheme, replacing);
   return replacing;
 }
 
@@ -22,7 +24,9 @@ TypeHandle Instantiation::instantiate(const types::Scheme& scheme) {
 }
 
 TypeHandle Instantiation::instantiate(const types::Scheme& scheme, BT preserving, CV cloned) {
-  return instantiate(scheme, make_instance_variables(scheme), preserving, cloned);
+  InstanceVariables vars;
+  make_instance_variables(scheme, vars);
+  return instantiate(scheme, vars, preserving, cloned);
 }
 
 TypeHandle Instantiation::instantiate(const types::Scheme& scheme, IV replacing, BT preserving, CV cloned) {
@@ -104,6 +108,7 @@ TypeHandle Instantiation::clone(const types::Subscript& sub, IV replacing, BT pr
 }
 
 TypeHandle Instantiation::clone(const types::Variable& var, TypeRef source, IV replacing, BT preserving, CV cloned) {
+#if 0
   if (replacing.count(source) > 0) {
     return replacing.at(source);
 
@@ -119,6 +124,13 @@ TypeHandle Instantiation::clone(const types::Variable& var, TypeRef source, IV r
     cloned[source] = new_source;
     return new_source;
   }
+#else
+  if (replacing.count(source) > 0) {
+    return replacing.at(source);
+  } else {
+    return source;
+  }
+#endif
 }
 
 TypeHandle Instantiation::clone(const types::Scalar& scl, TypeRef source, IV replacing, BT preserving, CV cloned) {
@@ -126,6 +138,7 @@ TypeHandle Instantiation::clone(const types::Scalar& scl, TypeRef source, IV rep
 }
 
 TypeHandle Instantiation::clone(const types::Scheme& scheme, IV replacing, BT preserving, CV cloned) {
+#if 0
   auto scheme_b = scheme;
   scheme_b.parameters = clone(scheme_b.parameters, replacing, preserving, cloned);
   scheme_b.type = clone(scheme_b.type, replacing, preserving, cloned);
@@ -136,6 +149,23 @@ TypeHandle Instantiation::clone(const types::Scheme& scheme, IV replacing, BT pr
   auto scheme_handle = store.make_type();
   store.assign(scheme_handle, Type(std::move(scheme_b)));
   return scheme_handle;
+#else
+  auto scheme_b = scheme;
+  auto& new_replacing = replacing;
+  make_instance_variables(scheme_b, new_replacing);
+
+  scheme_b.parameters = clone(scheme_b.parameters, new_replacing, preserving, cloned);
+  scheme_b.type = clone(scheme_b.type, new_replacing, preserving, cloned);
+
+  for (auto& eq : scheme_b.constraints) {
+    eq.lhs.term = clone(eq.lhs.term, new_replacing, preserving, cloned);
+    eq.rhs.term = clone(eq.rhs.term, new_replacing, preserving, cloned);
+  }
+
+  auto scheme_handle = store.make_type();
+  store.assign(scheme_handle, Type(std::move(scheme_b)));
+  return scheme_handle;
+#endif
 }
 
 }

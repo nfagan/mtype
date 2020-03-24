@@ -9,7 +9,7 @@ class Instantiation {
 public:
   using InstanceVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
   using ClonedVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
-  using IV = const InstanceVariables&;
+  using IV = InstanceVariables&;
   using BT = const BoundTerms&;
   using CV = ClonedVariables&;
 
@@ -26,6 +26,8 @@ public:
   InstanceVariables make_instance_variables(const types::Scheme& from_scheme);
 
 private:
+  void make_instance_variables(const types::Scheme& from_scheme, InstanceVariables& into);
+
   TypeHandle clone(const types::Abstraction& abstr, IV replacing, BT preserving, CV cloned);
   TypeHandle clone(const types::DestructuredTuple& tup, IV replacing, BT preserving, CV cloned);
   TypeHandle clone(const types::Tuple& tup, IV replacing, BT preserving, CV cloned);

@@ -16,6 +16,11 @@ class TypeToString;
 
 class TypeVisitor : public TypePreservingVisitor {
 private:
+  struct ConstraintRepository {
+    std::vector<TypeHandle> variables;
+    std::vector<TypeEquation> constraints;
+  };
+
   struct ScopeStack {
     static void push(TypeVisitor& vis, const MatlabScopeHandle& handle) {
       vis.push_scope(handle);
@@ -107,12 +112,20 @@ private:
     return variable_type_handles.count(handle) > 0;
   }
 
+  TypeHandle make_fresh_type_variable_reference() {
+    auto var_handle = type_store.make_fresh_type_variable_reference();
+    if (!constraint_repositories.empty()) {
+      constraint_repositories.back().variables.push_back(var_handle);
+    }
+    return var_handle;
+  }
+
   TypeHandle require_bound_type_variable(const VariableDefHandle& variable_def_handle) {
     if (is_bound_type_variable(variable_def_handle)) {
       return variable_type_handles.at(variable_def_handle);
     }
 
-    const auto variable_type_handle = type_store.make_fresh_type_variable_reference();
+    const auto variable_type_handle = make_fresh_type_variable_reference();
     bind_type_variable_to_variable_def(variable_def_handle, variable_type_handle);
 
     return variable_type_handle;
@@ -142,7 +155,8 @@ private:
     if (constraint_repositories.empty()) {
       substitution.push_type_equation(std::move(eq));
     } else {
-      constraint_repositories.back().emplace_back(eq);
+      substitution.push_type_equation(eq);
+      constraint_repositories.back().constraints.push_back(eq);
     }
   }
 
@@ -150,12 +164,12 @@ private:
     constraint_repositories.emplace_back();
   }
 
-  std::vector<TypeEquation>& current_constraint_repository() {
+  ConstraintRepository& current_constraint_repository() {
     assert(!constraint_repositories.empty());
     return constraint_repositories.back();
   }
 
-  const std::vector<TypeEquation>& current_constraint_repository() const {
+  const ConstraintRepository& current_constraint_repository() const {
     assert(!constraint_repositories.empty());
     return constraint_repositories.back();
   }
@@ -196,7 +210,7 @@ private:
   std::unordered_map<TypeHandle, FunctionDefHandle, TypeHandle::Hash> functions;
 
   std::vector<TypeEquationTerm> type_eq_terms;
-  std::vector<std::vector<TypeEquation>> constraint_repositories;
+  std::vector<ConstraintRepository> constraint_repositories;
 };
 
 }

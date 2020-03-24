@@ -237,10 +237,10 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Assignment& as
 TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Scheme& scheme) {
   scheme.type = apply_to(scheme.type, term);
 
-  for (auto& eq : scheme.constraints) {
-    eq.lhs.term = apply_to(eq.lhs.term, term);
-    eq.rhs.term = apply_to(eq.rhs.term, term);
-  }
+//  for (auto& eq : scheme.constraints) {
+//    eq.lhs.term = apply_to(eq.lhs.term, term);
+//    eq.rhs.term = apply_to(eq.rhs.term, term);
+//  }
 
   return source;
 }
@@ -318,10 +318,10 @@ void Unifier::substitute_one(std::vector<TypeHandle>& sources, TermRef term, Ter
 TypeHandle Unifier::substitute_one(types::Scheme& scheme, TypeRef source, TermRef term, TermRef lhs, TermRef rhs) {
   scheme.type = substitute_one(scheme.type, term, lhs, rhs);
 
-  for (auto& eq : scheme.constraints) {
-    eq.lhs.term = substitute_one(eq.lhs.term, term, lhs, rhs);
-    eq.rhs.term = substitute_one(eq.rhs.term, term, lhs, rhs);
-  }
+//  for (auto& eq : scheme.constraints) {
+//    eq.lhs.term = substitute_one(eq.lhs.term, term, lhs, rhs);
+//    eq.rhs.term = substitute_one(eq.rhs.term, term, lhs, rhs);
+//  }
 
   return source;
 }
@@ -478,7 +478,7 @@ void Unifier::unify_one(TypeEquation eq) {
 }
 
 TypeHandle Unifier::instantiate(const types::Scheme& scheme) {
-  const auto instance_vars = instantiation.make_instance_variables(scheme);
+  auto instance_vars = instantiation.make_instance_variables(scheme);
   Instantiation::ClonedVariables cloned;
   const auto& bound_terms = substitution->bound_terms;
 

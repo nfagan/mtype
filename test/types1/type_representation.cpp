@@ -193,7 +193,11 @@ void TypeToString::apply(const types::Subscript& subscript) {
 
 void TypeToString::apply(const types::Scheme& scheme) {
   stream << color(style::yellow) << "given" << dflt_color() << " <";
-  apply(scheme.parameters, ", ");
+  if (max_num_type_variables < 0 || scheme.parameters.size() <= max_num_type_variables) {
+    apply(scheme.parameters, ", ");
+  } else {
+    stream << "...";
+  }
   stream << "> ";
   apply(scheme.type);
 }
