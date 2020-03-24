@@ -112,8 +112,7 @@ private:
       return variable_type_handles.at(variable_def_handle);
     }
 
-    const auto variable_type_handle = type_store.make_type();
-    type_store.assign(variable_type_handle, Type(type_store.make_type_variable()));
+    const auto variable_type_handle = type_store.make_fresh_type_variable_reference();
     bind_type_variable_to_variable_def(variable_def_handle, variable_type_handle);
 
     return variable_type_handle;

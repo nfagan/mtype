@@ -43,12 +43,8 @@ public:
 
   TypeHandle make_fresh_type_variable_reference() {
     auto handle = make_type();
-    assign(handle, Type(make_type_variable()));
+    assign(handle, Type(types::Variable(make_type_identifier())));
     return handle;
-  }
-
-  types::Variable make_type_variable() {
-    return types::Variable(make_type_identifier());
   }
 
   TypeIdentifier make_type_identifier() {
