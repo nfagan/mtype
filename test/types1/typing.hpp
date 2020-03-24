@@ -151,9 +151,9 @@ private:
     return scope_handles.back();
   }
 
-  void push_type_equation(TypeEquation&& eq) {
+  void push_type_equation(const TypeEquation& eq) {
     if (constraint_repositories.empty()) {
-      substitution.push_type_equation(std::move(eq));
+      substitution.push_type_equation(eq);
     } else {
       substitution.push_type_equation(eq);
       constraint_repositories.back().constraints.push_back(eq);

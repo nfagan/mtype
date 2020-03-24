@@ -194,7 +194,7 @@ void TypeToString::apply(const types::Scheme& scheme, std::stringstream& stream)
   if (max_num_type_variables < 0 || scheme.parameters.size() <= max_num_type_variables) {
     apply(scheme.parameters, stream, ", ");
   } else {
-    stream << "...";
+    stream << color(style::red) << scheme.parameters.size() << dflt_color();
   }
   stream << "> ";
   apply(scheme.type, stream);
