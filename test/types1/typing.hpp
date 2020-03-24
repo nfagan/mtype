@@ -45,7 +45,7 @@ public:
   }
 
   void show_type_distribution() const;
-  void show_variable_types(TypeToString& printer) const;
+  void show_variable_types(const TypeToString& printer) const;
 
   void root_block(const RootBlock& block) override {
     MatlabScopeHelper scope_helper(*this, block.scope_handle);

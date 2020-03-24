@@ -22,25 +22,23 @@ public:
     //
   }
 
-  void clear();
-  std::string str() const;
-
-  void apply(const TypeHandle& handle);
-  void apply(const Type& type);
-  void apply(const types::Scalar& scl);
-  void apply(const types::Tuple& tup);
-  void apply(const types::Variable& var);
-  void apply(const types::Abstraction& abstr);
-  void apply(const types::DestructuredTuple& tup);
-  void apply(const types::List& list);
-  void apply(const types::Subscript& subscript);
-  void apply(const types::Scheme& scheme);
-  void apply(const types::Assignment& assignment);
-  void apply(const std::vector<TypeHandle>& handles, const char* delim = ", ");
+  MT_NODISCARD std::string apply(const TypeHandle& handle) const;
+  void apply(const TypeHandle& handle, std::stringstream& into) const;
+  void apply(const Type& type, std::stringstream& into) const;
+  void apply(const types::Scalar& scl, std::stringstream& into) const;
+  void apply(const types::Tuple& tup, std::stringstream& into) const;
+  void apply(const types::Variable& var, std::stringstream& into) const;
+  void apply(const types::Abstraction& abstr, std::stringstream& into) const;
+  void apply(const types::DestructuredTuple& tup, std::stringstream& into) const;
+  void apply(const types::List& list, std::stringstream& into) const;
+  void apply(const types::Subscript& subscript, std::stringstream& into) const;
+  void apply(const types::Scheme& scheme, std::stringstream& into) const;
+  void apply(const types::Assignment& assignment, std::stringstream& into) const;
+  void apply(const std::vector<TypeHandle>& handles, std::stringstream& into, const char* delim = ", ") const;
 
 private:
-  void apply_implicit(const DT& tup, const Optional<DT::Usage>& parent_usage);
-  void apply_name(const types::Abstraction& abstr);
+  void apply_implicit(const DT& tup, const Optional<DT::Usage>& parent_usage, std::stringstream& into) const;
+  void apply_name(const types::Abstraction& abstr, std::stringstream& into) const;
 
   const char* color(const char* color_code) const;
   std::string color(const std::string& color_code) const;
@@ -48,7 +46,6 @@ private:
   std::string list_color() const;
 
 private:
-  std::stringstream stream;
   const TypeStore& store;
   const Library& library;
   const StringRegistry* string_registry;

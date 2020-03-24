@@ -14,7 +14,7 @@ void TypeVisitor::show_type_distribution() const {
   }
 }
 
-void TypeVisitor::show_variable_types(TypeToString& printer) const {
+void TypeVisitor::show_variable_types(const TypeToString& printer) const {
   std::cout << "--" << std::endl;
 
   Store::ReadConst reader(store);
@@ -27,10 +27,9 @@ void TypeVisitor::show_variable_types(TypeToString& printer) const {
     const auto& def = reader.at(def_handle);
     const auto& name = string_registry.at(def.name.full_name());
 
-    printer.clear();
-    printer.apply(type);
-    auto type_str = printer.str();
-    printer.clear();
+    std::stringstream type_stream;
+    printer.apply(type, type_stream);
+    auto type_str = type_stream.str();
 
     std::cout << name << ": " << type_str << std::endl;
   }

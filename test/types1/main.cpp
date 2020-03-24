@@ -11,7 +11,8 @@ namespace {
 std::string get_source_file_path(int argc, char** argv) {
   if (argc < 2) {
 //    return "/Users/Nick/Documents/MATLAB/repositories/fieldtrip/ft_databrowser.m";
-    return "/Users/Nick/repositories/cpp/mt/matlab/test/X.m";
+//    return "/Users/Nick/repositories/cpp/mt/matlab/test/X.m";
+    return "/Users/Nick/Desktop/another.m";
   } else {
     return argv[1];
   }
@@ -50,7 +51,7 @@ int main(int argc, char** argv) {
   auto t0 = std::chrono::high_resolution_clock::now();
 
   //  Reserve space
-  TypeStore type_store(10000);
+  TypeStore type_store(1e5);
   Library library(type_store, str_registry);
   library.make_known_types();
 

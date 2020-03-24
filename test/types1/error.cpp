@@ -16,12 +16,8 @@ void ShowUnificationErrors::show(const SimplificationFailure& err, int64_t index
   const auto stop = is_null ? 0 : at_token.lexeme.data() + at_token.lexeme.size() - text.data();
   const int64_t context = 50;
 
-  type_to_string.clear();
-  type_to_string.apply(err.lhs_type);
-  auto lhs_str = type_to_string.str();
-  type_to_string.clear();
-  type_to_string.apply(err.rhs_type);
-  auto rhs_str = type_to_string.str();
+  const auto lhs_str = type_to_string.apply(err.lhs_type);
+  const auto rhs_str = type_to_string.apply(err.rhs_type);
 
   const std::string type_msg = lhs_str + " ≠ " + rhs_str + ".";
   auto msg = mark_text_with_message_and_context(text, start, stop, context, type_msg);

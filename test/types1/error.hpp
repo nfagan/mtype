@@ -26,7 +26,7 @@ using SimplificationFailures = std::vector<SimplificationFailure>;
 
 class ShowUnificationErrors {
 public:
-  ShowUnificationErrors(const TypeStore& store, TypeToString& type_to_string) :
+  ShowUnificationErrors(const TypeStore& store, const TypeToString& type_to_string) :
   store(store), type_to_string(type_to_string), rich_text(true) {
     //
   }
@@ -41,7 +41,7 @@ private:
 
 private:
   const TypeStore& store;
-  TypeToString& type_to_string;
+  const TypeToString& type_to_string;
 
 public:
   bool rich_text;
