@@ -58,25 +58,12 @@ public:
     }
   }
 
-  void number_literal_expr(const NumberLiteralExpr& expr) override {
-    assert(library.double_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.double_type_handle));
-  }
+  void number_literal_expr(const NumberLiteralExpr& expr) override;
+  void char_literal_expr(const CharLiteralExpr& expr) override;
+  void string_literal_expr(const StringLiteralExpr& expr) override;
 
-  void char_literal_expr(const CharLiteralExpr& expr) override {
-    assert(library.char_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.char_type_handle));
-  }
-
-  void string_literal_expr(const StringLiteralExpr& expr) override {
-    assert(library.string_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.string_type_handle));
-  }
-
-  void literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) override {
-    assert(library.char_type_handle.is_valid());
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, library.char_type_handle));
-  }
+  void dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) override;
+  void literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) override;
 
   void function_call_expr(const FunctionCallExpr& expr) override;
   void binary_operator_expr(const BinaryOperatorExpr& expr) override;

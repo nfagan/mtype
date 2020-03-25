@@ -110,6 +110,39 @@ void TypeVisitor::function_def_node(const FunctionDefNode& node) {
  * Expr
  */
 
+void TypeVisitor::number_literal_expr(const NumberLiteralExpr& expr) {
+  assert(library.double_type_handle.is_valid());
+  push_type_equation_term(make_term(&expr.source_token, library.double_type_handle));
+}
+
+void TypeVisitor::char_literal_expr(const CharLiteralExpr& expr) {
+  assert(library.char_type_handle.is_valid());
+  push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
+}
+
+void TypeVisitor::string_literal_expr(const StringLiteralExpr& expr) {
+  assert(library.string_type_handle.is_valid());
+  push_type_equation_term(make_term(&expr.source_token, library.string_type_handle));
+}
+
+void TypeVisitor::dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) {
+  const auto lhs_var = make_fresh_type_variable_reference();
+  const auto lhs_term = make_term(&expr.source_token, lhs_var);
+  push_type_equation_term(lhs_term);
+  expr.expr->accept_const(*this);
+  auto rhs_term = pop_type_equation_term();
+
+  push_type_equation(make_eq(lhs_term, rhs_term));
+  //  Reference expr must resolve to char.
+  push_type_equation(make_eq(rhs_term, make_term(&expr.source_token, library.char_type_handle)));
+  push_type_equation_term(lhs_term);
+}
+
+void TypeVisitor::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) {
+  assert(library.char_type_handle.is_valid());
+  push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
+}
+
 void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   using types::DestructuredTuple;
   using types::Abstraction;
@@ -148,7 +181,7 @@ void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   type_store.assign(func_type, Type(Abstraction(function_name, args_type, result_type)));
   push_type_equation(make_eq(func_lhs_term, func_rhs_term));
 
-  push_type_equation_term(TypeEquationTerm(&expr.source_token, result_type));
+  push_type_equation_term(make_term(&expr.source_token, result_type));
 }
 
 void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
@@ -163,7 +196,7 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
     //  a = b; y = 1 + 2;
     auto tup_handle = type_store.make_type();
     type_store.assign(tup_handle, Type(DestructuredTuple(usage, variable_type_handle)));
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, tup_handle));
+    push_type_equation_term(make_term(&expr.source_token, tup_handle));
 
   } else {
     std::vector<Subscript::Sub> subscripts;
@@ -201,7 +234,7 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
     type_store.assign(sub_type, Type(Subscript(variable_type_handle, std::move(subscripts), outputs_type)));
     push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
 
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, outputs_type));
+    push_type_equation_term(make_term(&expr.source_token, outputs_type));
   }
 }
 
@@ -214,7 +247,7 @@ void TypeVisitor::function_reference_expr(const FunctionReferenceExpr& expr) {
   auto outputs = make_fresh_type_variable_reference();
   auto func = type_store.make_abstraction(ref.name, inputs, outputs);
 
-  push_type_equation_term(TypeEquationTerm(&expr.source_token, func));
+  push_type_equation_term(make_term(&expr.source_token, func));
 }
 
 void TypeVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
@@ -304,7 +337,7 @@ void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
   const auto func_rhs_term = make_term(&expr.source_token, func_handle);
   push_type_equation(make_eq(func_lhs_term, func_rhs_term));
 
-  push_type_equation_term(TypeEquationTerm(&expr.source_token, output_handle));
+  push_type_equation_term(make_term(&expr.source_token, output_handle));
 }
 
 void TypeVisitor::grouping_expr(const GroupingExpr& expr) {
@@ -354,7 +387,7 @@ void TypeVisitor::parens_grouping_expr_rhs(const GroupingExpr& expr) {
   auto members = grouping_expr_components(expr);
 
   type_store.assign(tup_type, Type(DestructuredTuple(Use::rvalue, std::move(members))));
-  push_type_equation_term(TypeEquationTerm(&expr.source_token, tup_type));
+  push_type_equation_term(make_term(&expr.source_token, tup_type));
 }
 
 void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
@@ -365,7 +398,7 @@ void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
   auto members = grouping_expr_components(expr);
 
   type_store.assign(tup_type, Type(DestructuredTuple(Use::lvalue, std::move(members))));
-  push_type_equation_term(TypeEquationTerm(&expr.source_token, tup_type));
+  push_type_equation_term(make_term(&expr.source_token, tup_type));
 }
 
 void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
@@ -379,7 +412,7 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
   for (int64_t i = 0; i < expr.components.size(); i++) {
     const auto& component = expr.components[i];
     auto tvar = make_fresh_type_variable_reference();
-    push_type_equation_term(TypeEquationTerm(&expr.source_token, tvar));
+    push_type_equation_term(make_term(&expr.source_token, tvar));
     component.expr->accept_const(*this);
     auto res = pop_type_equation_term();
 
@@ -403,7 +436,7 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
   const auto rhs_term = make_term(&expr.source_token, abstr);
   push_type_equation(make_eq(lhs_term, rhs_term));
 
-  push_type_equation_term(TypeEquationTerm(&expr.source_token, result_handle));
+  push_type_equation_term(make_term(&expr.source_token, result_handle));
 }
 
 void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
@@ -430,7 +463,7 @@ void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
   type_store.assign(list_handle, Type(std::move(list)));
   type_store.assign(tuple_handle, Type(Tuple(list_handle)));
 
-  push_type_equation_term(TypeEquationTerm(&expr.source_token, tuple_handle));
+  push_type_equation_term(make_term(&expr.source_token, tuple_handle));
 }
 
 /*
