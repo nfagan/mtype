@@ -165,9 +165,18 @@ public:
   friend ReadMut;
   friend ReadConst;
   friend Write;
+
+  template <typename T>
+  using Callback = std::function<void(T&)>;
 public:
   Store() = default;
   ~Store() = default;
+
+  template <typename T>
+  void use(const Callback<T>& cb) {
+    T access(*this);
+    cb(access);
+  }
 
 private:
   MatlabScopeHandle make_matlab_scope(const MatlabScopeHandle& parent);

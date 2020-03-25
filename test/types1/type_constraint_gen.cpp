@@ -159,10 +159,9 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
   auto result_type = make_fresh_type_variable_reference();
 
   MatlabIdentifier function_name;
-  {
-    Store::ReadConst reader(store);
+  store.use<Store::ReadConst>([&](const auto& reader) {
     function_name = reader.at(expr.reference_handle).name;
-  }
+  });
 
   const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
   const auto func_rhs_term = make_term(&expr.source_token, func_type);

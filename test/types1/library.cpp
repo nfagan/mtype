@@ -259,7 +259,7 @@ void Library::make_list_outputs_type2() {
 }
 
 void Library::make_subscript_references() {
-  make_builtin_parens_tuple_subscript_reference();
+//  make_builtin_parens_tuple_subscript_reference();
   make_builtin_parens_subscript_references();
   make_builtin_brace_subscript_reference();
 }
