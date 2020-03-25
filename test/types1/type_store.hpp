@@ -58,6 +58,11 @@ public:
   }
 
   template <typename... Args>
+  TypeHandle make_tuple(Args&&... args) {
+    return make_type<types::Tuple>(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   TypeHandle make_destructured_tuple(Args&&... args) {
     return make_type<types::DestructuredTuple>(std::forward<Args>(args)...);
   }

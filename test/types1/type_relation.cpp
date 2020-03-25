@@ -247,8 +247,10 @@ bool TypeRelation::ArgumentComparator::operator()(const types::Abstraction& a, c
   const auto& tup_b = args_b.destructured_tuple;
 
 #if 0
-  std::cout << "Comparing .. " << std::endl;
-  type_relation.type_printer().show2(a, b);
+  std::cout << "Comparing args for type: ";
+  type_relation.type_printer().show(a);
+  std::cout << std::endl;
+  type_relation.type_printer().show2(tup_a, tup_b);
   bool related = type_relation.related(tup_a, tup_b, false);
   std::cout << "Related ? " << related << std::endl << "===\n";
   return !related;

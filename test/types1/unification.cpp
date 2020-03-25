@@ -665,7 +665,7 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, TermRef ter
       registered_funcs[source] = true;
     }
   } else {
-    MT_SHOW1("ERROR: no such subscript signature: ", tup_type);
+    MT_SHOW1("ERROR: no such subscript signature: ", sub);
     registered_funcs[source] = true;
   }
 

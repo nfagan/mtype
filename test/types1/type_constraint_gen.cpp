@@ -32,17 +32,13 @@ void TypeConstraintGenerator::show_variable_types(const TypeToString& printer) c
 
   for (const auto& var_it : variable_type_handles) {
     const auto& maybe_type = substitution.bound_type(var_it.second);
-    const Type& type = maybe_type ? type_store.at(maybe_type.value()) : type_store.at(var_it.second);
+    const auto& type = maybe_type ? maybe_type.value() : var_it.second;
 
     const auto& def_handle = var_it.first;
     const auto& def = reader.at(def_handle);
     const auto& name = string_registry.at(def.name.full_name());
 
-    std::stringstream type_stream;
-    printer.apply(type, type_stream);
-    auto type_str = type_stream.str();
-
-    std::cout << name << ": " << type_str << std::endl;
+    std::cout << name << ": " << printer.apply(type) << std::endl;
   }
 }
 
@@ -61,6 +57,19 @@ void TypeConstraintGenerator::gather_function_inputs(const MatlabScope& scope,
       //  @TODO: Change this type to Top
       into.push_back(make_fresh_type_variable_reference());
     }
+  }
+}
+
+void TypeConstraintGenerator::gather_function_outputs(const MatlabScope& scope,
+                                                      const std::vector<MatlabIdentifier>& ids,
+                                                      TypeHandles& into) {
+  for (const auto& output : ids) {
+    assert(output.full_name() >= 0);
+
+    const auto variable_def_handle = scope.local_variables.at(output);
+    const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
+
+    into.push_back(variable_type_handle);
   }
 }
 
@@ -87,26 +96,13 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     function_name = def.header.name;
 
     gather_function_inputs(scope, def.header.inputs, function_inputs);
-
-    for (const auto& output : def.header.outputs) {
-      assert(output.full_name() >= 0);
-
-      const auto variable_def_handle = scope.local_variables.at(output);
-      const auto variable_type_handle = require_bound_type_variable(variable_def_handle);
-
-      function_outputs.push_back(variable_type_handle);
-    }
+    gather_function_outputs(scope, def.header.outputs, function_outputs);
 
     function_body = def.body.get();
   }
 
-  const auto input_handle = type_store.make_type();
-  const auto output_handle = type_store.make_type();
-
-  type_store.assign(input_handle,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, std::move(function_inputs))));
-  type_store.assign(output_handle,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(function_outputs))));
+  const auto input_handle = type_store.make_input_destructured_tuple(std::move(function_inputs));
+  const auto output_handle = type_store.make_output_destructured_tuple(std::move(function_outputs));
 
   const auto lhs_term = make_term(&node.source_token, make_fresh_type_variable_reference());
   const auto rhs_term = make_term(&node.source_token, type_handle);
@@ -150,10 +146,6 @@ void TypeConstraintGenerator::literal_field_reference_expr(const LiteralFieldRef
 }
 
 void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using Use = DestructuredTuple::Usage;
-
   std::vector<TypeHandle> members;
   members.reserve(expr.arguments.size());
 
@@ -175,7 +167,7 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
   const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
   const auto func_rhs_term = make_term(&expr.source_token, func_type);
 
-  type_store.assign(func_type, Type(Abstraction(function_name, args_type, result_type)));
+  type_store.assign(func_type, Type(types::Abstraction(function_name, args_type, result_type)));
   push_type_equation(make_eq(func_lhs_term, func_rhs_term));
 
   push_type_equation_term(make_term(&expr.source_token, result_type));
@@ -191,8 +183,7 @@ void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExp
 
   if (expr.subscripts.empty()) {
     //  a = b; y = 1 + 2;
-    auto tup_handle = type_store.make_type();
-    type_store.assign(tup_handle, Type(DestructuredTuple(usage, variable_type_handle)));
+    const auto tup_handle = type_store.make_destructured_tuple(usage, variable_type_handle);
     push_type_equation_term(make_term(&expr.source_token, tup_handle));
 
   } else {

@@ -77,7 +77,10 @@ public:
 
 private:
   std::vector<TypeHandle> grouping_expr_components(const GroupingExpr& expr);
+
   void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypeHandles& into);
+  void gather_function_outputs(const MatlabScope& scope, const std::vector<MatlabIdentifier>& ids, TypeHandles& into);
+
   TypeEquationTerm visit_expr(const BoxedExpr& expr, const Token& source_token);
 
   TypeHandle make_fresh_type_variable_reference() {

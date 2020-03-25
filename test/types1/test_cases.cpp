@@ -149,6 +149,9 @@ void test_equivalence_debug() {
   auto wrap_out1 = store.make_destructured_tuple(Use::rvalue, out1);
   auto wrap_in_list = store.make_destructured_tuple(Use::definition_inputs, list_double);
 
+  auto list_tup_double_char = store.make_list(tup2);
+  auto list_double_char = store.make_list(TypeHandles{d_handle, c_handle});
+
   if (!eq.related_entry(mixed_wrap_tup, flat_mixed_tup)) {
     MT_SHOW_ERROR("Flattened type sequence not equal equivalent nested sequence.");
   }
@@ -224,6 +227,8 @@ void test_equivalence_debug() {
   if (!eq.related_entry(wrap_out1, wrap_in_list)) {
     MT_SHOW_ERROR_PRINT2("Failed to match: ", wrap_out1, wrap_in_list)
   }
+
+  MT_ERROR_IF_UNRELATED(eq, "", list_tup_double_char, list_double_char)
 }
 
 void test_equivalence() {
