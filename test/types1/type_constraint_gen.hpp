@@ -14,7 +14,7 @@ namespace mt {
 
 class TypeToString;
 
-class TypeVisitor : public TypePreservingVisitor {
+class TypeConstraintGenerator : public TypePreservingVisitor {
 private:
   struct ConstraintRepository {
     std::vector<TypeHandle> variables;
@@ -22,18 +22,18 @@ private:
   };
 
   struct ScopeStack {
-    static void push(TypeVisitor& vis, const MatlabScopeHandle& handle) {
+    static void push(TypeConstraintGenerator& vis, const MatlabScopeHandle& handle) {
       vis.push_scope(handle);
     }
-    static void pop(TypeVisitor& vis) {
+    static void pop(TypeConstraintGenerator& vis) {
       vis.pop_scope();
     }
   };
-  using MatlabScopeHelper = ScopeHelper<TypeVisitor, ScopeStack>;
+  using MatlabScopeHelper = ScopeHelper<TypeConstraintGenerator, ScopeStack>;
 
 public:
-  explicit TypeVisitor(Substitution& substitution, Store& store, TypeStore& type_store,
-    const Library& library, StringRegistry& string_registry) :
+  explicit TypeConstraintGenerator(Substitution& substitution, Store& store, TypeStore& type_store,
+                                   const Library& library, StringRegistry& string_registry) :
     substitution(substitution),
     store(store),
     type_store(type_store),
@@ -47,16 +47,8 @@ public:
   void show_type_distribution() const;
   void show_variable_types(const TypeToString& printer) const;
 
-  void root_block(const RootBlock& block) override {
-    MatlabScopeHelper scope_helper(*this, block.scope_handle);
-    block.block->accept_const(*this);
-  }
-
-  void block(const Block& block) override {
-    for (const auto& node : block.nodes) {
-      node->accept_const(*this);
-    }
-  }
+  void root_block(const RootBlock& block) override;
+  void block(const Block& block) override;
 
   void number_literal_expr(const NumberLiteralExpr& expr) override;
   void char_literal_expr(const CharLiteralExpr& expr) override;
@@ -83,21 +75,10 @@ public:
 
   void function_def_node(const FunctionDefNode& node) override;
 
-  const Type& at(const TypeHandle& handle) const {
-    return type_store.at(handle);
-  }
-
-  Type& at(const TypeHandle& handle) {
-    return type_store.at(handle);
-  }
-
 private:
   std::vector<TypeHandle> grouping_expr_components(const GroupingExpr& expr);
-  void gather_function_inputs(const MatlabScope& scope, const std::vector<FunctionInputParameter>& inputs, TypeHandles& into);
-
-  bool is_bound_type_variable(const VariableDefHandle& handle) {
-    return variable_type_handles.count(handle) > 0;
-  }
+  void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypeHandles& into);
+  TypeEquationTerm visit_expr(const BoxedExpr& expr, const Token& source_token);
 
   TypeHandle make_fresh_type_variable_reference() {
     auto var_handle = type_store.make_fresh_type_variable_reference();
@@ -108,7 +89,7 @@ private:
   }
 
   TypeHandle require_bound_type_variable(const VariableDefHandle& variable_def_handle) {
-    if (is_bound_type_variable(variable_def_handle)) {
+    if (variable_type_handles.count(variable_def_handle) > 0) {
       return variable_type_handles.at(variable_def_handle);
     }
 

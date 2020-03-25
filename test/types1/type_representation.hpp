@@ -12,16 +12,17 @@ class TypeToString {
 public:
   using DT = types::DestructuredTuple;
 
-  explicit TypeToString(const TypeStore& store, const Library& library) : TypeToString(store, library, nullptr) {
+  explicit TypeToString(const TypeStore& store, const Library* library) : TypeToString(store, library, nullptr) {
     //
   }
 
-  TypeToString(const TypeStore& store, const Library& library, const StringRegistry* string_registry) :
+  TypeToString(const TypeStore& store, const Library* library, const StringRegistry* string_registry) :
     store(store), library(library), string_registry(string_registry),
     rich_text(true), explicit_destructured_tuples(true), arrow_function_notation(false), max_num_type_variables(-1) {
     //
   }
 
+  MT_NODISCARD std::string apply(const Type& t) const;
   MT_NODISCARD std::string apply(const TypeHandle& handle) const;
   void apply(const TypeHandle& handle, std::stringstream& into) const;
   void apply(const Type& type, std::stringstream& into) const;
@@ -47,7 +48,7 @@ private:
 
 private:
   const TypeStore& store;
-  const Library& library;
+  const Library* library;
   const StringRegistry* string_registry;
 
 public:

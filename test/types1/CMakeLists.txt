@@ -7,7 +7,6 @@ target_link_libraries(${PROJECT_NAME} mt)
 target_sources(${PROJECT_NAME} PRIVATE
         main.cpp
         debug.hpp
-        debug.cpp
         error.hpp
         error.cpp
         instance.hpp
@@ -24,8 +23,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         test_cases.cpp
         type.hpp
         type.cpp
-        typing.hpp
-        typing.cpp
+        type_constraint_gen.hpp
+        type_constraint_gen.cpp
         type_properties.hpp
         type_properties.cpp
         type_relation.hpp

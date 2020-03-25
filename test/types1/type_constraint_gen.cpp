@@ -1,10 +1,10 @@
-#include "typing.hpp"
+#include "type_constraint_gen.hpp"
 #include "debug.hpp"
 #include "type_representation.hpp"
 
 namespace mt {
 
-void TypeVisitor::show_type_distribution() const {
+void TypeConstraintGenerator::show_type_distribution() const {
   auto counts = type_store.type_distribution();
   const auto num_types = double(counts.size());
 
@@ -14,7 +14,18 @@ void TypeVisitor::show_type_distribution() const {
   }
 }
 
-void TypeVisitor::show_variable_types(const TypeToString& printer) const {
+void TypeConstraintGenerator::root_block(const RootBlock& block) {
+  MatlabScopeHelper scope_helper(*this, block.scope_handle);
+  block.block->accept_const(*this);
+}
+
+void TypeConstraintGenerator::block(const Block& block) {
+  for (const auto& node : block.nodes) {
+    node->accept_const(*this);
+  }
+}
+
+void TypeConstraintGenerator::show_variable_types(const TypeToString& printer) const {
   std::cout << "--" << std::endl;
 
   Store::ReadConst reader(store);
@@ -35,7 +46,9 @@ void TypeVisitor::show_variable_types(const TypeToString& printer) const {
   }
 }
 
-void TypeVisitor::gather_function_inputs(const MatlabScope& scope, const std::vector<FunctionInputParameter>& inputs, TypeHandles& into) {
+void TypeConstraintGenerator::gather_function_inputs(const MatlabScope& scope,
+                                                     const FunctionInputParameters& inputs,
+                                                     TypeHandles& into) {
   for (const auto& input : inputs) {
     if (!input.is_ignored) {
       assert(input.name.full_name() >= 0);
@@ -51,7 +64,7 @@ void TypeVisitor::gather_function_inputs(const MatlabScope& scope, const std::ve
   }
 }
 
-void TypeVisitor::function_def_node(const FunctionDefNode& node) {
+void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   using namespace mt::types;
 
   const Block* function_body = nullptr;
@@ -110,40 +123,33 @@ void TypeVisitor::function_def_node(const FunctionDefNode& node) {
  * Expr
  */
 
-void TypeVisitor::number_literal_expr(const NumberLiteralExpr& expr) {
+void TypeConstraintGenerator::number_literal_expr(const NumberLiteralExpr& expr) {
   assert(library.double_type_handle.is_valid());
   push_type_equation_term(make_term(&expr.source_token, library.double_type_handle));
 }
 
-void TypeVisitor::char_literal_expr(const CharLiteralExpr& expr) {
+void TypeConstraintGenerator::char_literal_expr(const CharLiteralExpr& expr) {
   assert(library.char_type_handle.is_valid());
   push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
 }
 
-void TypeVisitor::string_literal_expr(const StringLiteralExpr& expr) {
+void TypeConstraintGenerator::string_literal_expr(const StringLiteralExpr& expr) {
   assert(library.string_type_handle.is_valid());
   push_type_equation_term(make_term(&expr.source_token, library.string_type_handle));
 }
 
-void TypeVisitor::dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) {
-  const auto lhs_var = make_fresh_type_variable_reference();
-  const auto lhs_term = make_term(&expr.source_token, lhs_var);
-  push_type_equation_term(lhs_term);
-  expr.expr->accept_const(*this);
-  auto rhs_term = pop_type_equation_term();
-
-  push_type_equation(make_eq(lhs_term, rhs_term));
-  //  Reference expr must resolve to char.
-  push_type_equation(make_eq(rhs_term, make_term(&expr.source_token, library.char_type_handle)));
-  push_type_equation_term(lhs_term);
+void TypeConstraintGenerator::dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) {
+  const auto field_term = visit_expr(expr.expr, expr.source_token);
+  push_type_equation(make_eq(field_term, make_term(&expr.source_token, library.char_type_handle)));
+  push_type_equation_term(field_term);
 }
 
-void TypeVisitor::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) {
+void TypeConstraintGenerator::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) {
   assert(library.char_type_handle.is_valid());
   push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
 }
 
-void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
+void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
   using types::DestructuredTuple;
   using types::Abstraction;
   using Use = DestructuredTuple::Usage;
@@ -152,22 +158,13 @@ void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   members.reserve(expr.arguments.size());
 
   for (const auto& arg : expr.arguments) {
-    const auto tvar = make_fresh_type_variable_reference();
-    const auto tvar_term = make_term(&expr.source_token, tvar);
-    push_type_equation_term(tvar_term);
-    arg->accept_const(*this);
-    auto result = pop_type_equation_term();
-
-    push_type_equation(make_eq(tvar_term, result));
+    const auto result = visit_expr(arg, expr.source_token);
     members.push_back(result.term);
   }
 
-  auto args_type = type_store.make_type();
+  const auto args_type = type_store.make_rvalue_destructured_tuple(std::move(members));
   auto func_type = type_store.make_type();
   auto result_type = make_fresh_type_variable_reference();
-
-  DestructuredTuple tup(Use::rvalue, std::move(members));
-  type_store.assign(args_type, Type(std::move(tup)));
 
   MatlabIdentifier function_name;
   {
@@ -184,7 +181,7 @@ void TypeVisitor::function_call_expr(const FunctionCallExpr& expr) {
   push_type_equation_term(make_term(&expr.source_token, result_type));
 }
 
-void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
+void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExpr& expr) {
   using mt::types::Subscript;
   using mt::types::DestructuredTuple;
   using Use = DestructuredTuple::Usage;
@@ -210,14 +207,8 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
       args.reserve(sub.arguments.size());
 
       for (const auto& arg_expr : sub.arguments) {
-        auto var_handle = make_fresh_type_variable_reference();
-        const auto var_term = make_term(&expr.source_token, var_handle);
-        push_type_equation_term(var_term);
-        arg_expr->accept_const(*this);
-        auto res = pop_type_equation_term();
+        const auto res = visit_expr(arg_expr, expr.source_token);
         args.push_back(res.term);
-
-        push_type_equation(make_eq(var_term, res));
       }
 
       subscripts.emplace_back(Subscript::Sub(method, std::move(args)));
@@ -238,7 +229,7 @@ void TypeVisitor::variable_reference_expr(const VariableReferenceExpr& expr) {
   }
 }
 
-void TypeVisitor::function_reference_expr(const FunctionReferenceExpr& expr) {
+void TypeConstraintGenerator::function_reference_expr(const FunctionReferenceExpr& expr) {
   Store::ReadConst reader(store);
   const auto& ref = reader.at(expr.handle);
   assert(!ref.def_handle.is_valid() && "Local funcs not yet handled.");
@@ -250,7 +241,7 @@ void TypeVisitor::function_reference_expr(const FunctionReferenceExpr& expr) {
   push_type_equation_term(make_term(&expr.source_token, func));
 }
 
-void TypeVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
+void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
   using namespace mt::types;
 
   MatlabScopeHelper scope_helper(*this, expr.scope_handle);
@@ -275,9 +266,6 @@ void TypeVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
   const auto output_term = make_term(&expr.source_token, output_type);
 
   const auto func = type_store.make_abstraction(input_handle, output_type);
-//  const auto func_term = make_term(&expr.source_token, func);
-//  auto scheme_variables = function_inputs;
-//  scheme_variables.push_back(output_type);
 
   const auto lhs_body_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
   push_type_equation_term(lhs_body_term);
@@ -296,42 +284,18 @@ void TypeVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
 
   type_store.at(func_scheme).scheme.constraints = std::move(stored_constraints.constraints);
 
-//  push_type_equation_term(func_term);
   push_type_equation_term(func_scheme_term);
 }
 
-void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
+void TypeConstraintGenerator::binary_operator_expr(const BinaryOperatorExpr& expr) {
   using namespace mt::types;
 
-  const auto tvar_lhs = make_fresh_type_variable_reference();
-  const auto tvar_lhs_term = make_term(&expr.source_token, tvar_lhs);
-  push_type_equation_term(tvar_lhs_term);
-  expr.left->accept_const(*this);
-  auto lhs_result = pop_type_equation_term();
-
-  if (variables.count(lhs_result.term) == 0) {
-    push_type_equation(make_eq(tvar_lhs_term, lhs_result));
-  }
-
-  const auto tvar_rhs = make_fresh_type_variable_reference();
-  const auto tvar_rhs_term = make_term(&expr.source_token, tvar_rhs);
-  push_type_equation_term(tvar_rhs_term);
-  expr.right->accept_const(*this);
-  auto rhs_result = pop_type_equation_term();
-
-  if (variables.count(rhs_result.term) == 0) {
-    push_type_equation(make_eq(tvar_rhs_term, rhs_result));
-  }
+  const auto lhs_result = visit_expr(expr.left, expr.source_token);
+  const auto rhs_result = visit_expr(expr.right, expr.source_token);
 
   const auto output_handle = make_fresh_type_variable_reference();
-  const auto inputs_handle = type_store.make_type();
-
-  type_store.assign(inputs_handle,
-    Type(DestructuredTuple(DestructuredTuple::Usage::rvalue, lhs_result.term, rhs_result.term)));
-
-  types::Abstraction func_type(expr.op, inputs_handle, output_handle);
-  const auto func_handle = type_store.make_type();
-  type_store.assign(func_handle, Type(std::move(func_type)));
+  const auto inputs_handle = type_store.make_rvalue_destructured_tuple(lhs_result.term, rhs_result.term);
+  const auto func_handle = type_store.make_abstraction(expr.op, inputs_handle, output_handle);
 
   const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
   const auto func_rhs_term = make_term(&expr.source_token, func_handle);
@@ -340,7 +304,7 @@ void TypeVisitor::binary_operator_expr(const BinaryOperatorExpr& expr) {
   push_type_equation_term(make_term(&expr.source_token, output_handle));
 }
 
-void TypeVisitor::grouping_expr(const GroupingExpr& expr) {
+void TypeConstraintGenerator::grouping_expr(const GroupingExpr& expr) {
   if (expr.method == GroupingMethod::brace) {
     assert(!value_category_state.is_lhs());
     brace_grouping_expr_rhs(expr);
@@ -361,47 +325,31 @@ void TypeVisitor::grouping_expr(const GroupingExpr& expr) {
   }
 }
 
-std::vector<TypeHandle> TypeVisitor::grouping_expr_components(const GroupingExpr& expr) {
+std::vector<TypeHandle> TypeConstraintGenerator::grouping_expr_components(const GroupingExpr& expr) {
   std::vector<TypeHandle> members;
   members.reserve(expr.components.size());
 
   for (const auto& component : expr.components) {
-    auto tvar = make_fresh_type_variable_reference();
-    const auto tvar_term = make_term(&expr.source_token, tvar);
-    push_type_equation_term(tvar_term);
-    component.expr->accept_const(*this);
-    auto res = pop_type_equation_term();
-
-    push_type_equation(make_eq(tvar_term, res));
+    const auto res = visit_expr(component.expr, expr.source_token);
     members.push_back(res.term);
   }
 
   return members;
 }
 
-void TypeVisitor::parens_grouping_expr_rhs(const GroupingExpr& expr) {
-  using types::DestructuredTuple;
-  using Use = DestructuredTuple::Usage;
-
-  auto tup_type = type_store.make_type();
+void TypeConstraintGenerator::parens_grouping_expr_rhs(const GroupingExpr& expr) {
   auto members = grouping_expr_components(expr);
-
-  type_store.assign(tup_type, Type(DestructuredTuple(Use::rvalue, std::move(members))));
+  const auto tup_type = type_store.make_rvalue_destructured_tuple(std::move(members));
   push_type_equation_term(make_term(&expr.source_token, tup_type));
 }
 
-void TypeVisitor::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
-  using types::DestructuredTuple;
-  using Use = DestructuredTuple::Usage;
-
-  auto tup_type = type_store.make_type();
+void TypeConstraintGenerator::bracket_grouping_expr_lhs(const GroupingExpr& expr) {
   auto members = grouping_expr_components(expr);
-
-  type_store.assign(tup_type, Type(DestructuredTuple(Use::lvalue, std::move(members))));
+  const auto tup_type = type_store.make_lvalue_destructured_tuple(std::move(members));
   push_type_equation_term(make_term(&expr.source_token, tup_type));
 }
 
-void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
+void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
   auto last_dir = ConcatenationDirection::vertical;
   std::vector<TypeHandles> arg_handles;
   std::vector<TypeHandle> result_handles;
@@ -411,11 +359,7 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
 
   for (int64_t i = 0; i < expr.components.size(); i++) {
     const auto& component = expr.components[i];
-    auto tvar = make_fresh_type_variable_reference();
-    push_type_equation_term(make_term(&expr.source_token, tvar));
-    component.expr->accept_const(*this);
-    auto res = pop_type_equation_term();
-
+    const auto res = visit_expr(component.expr, expr.source_token);
     const auto current_dir = concatenation_direction_from_token_type(component.delimiter);
 
     if (i == 0 || last_dir == current_dir) {
@@ -429,7 +373,7 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
 
   auto args = std::move(arg_handles.back());
   auto result_handle = result_handles.back();
-  auto tup = type_store.make_destructured_tuple(types::DestructuredTuple::Usage::rvalue, std::move(args));
+  auto tup = type_store.make_rvalue_destructured_tuple(std::move(args));
   auto abstr = type_store.make_abstraction(last_dir, tup, result_handle);
 
   const auto lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
@@ -439,7 +383,7 @@ void TypeVisitor::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
   push_type_equation_term(make_term(&expr.source_token, result_handle));
 }
 
-void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
+void TypeConstraintGenerator::brace_grouping_expr_rhs(const GroupingExpr& expr) {
   using types::List;
   using types::Tuple;
 
@@ -447,13 +391,7 @@ void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
   list.pattern.reserve(expr.components.size());
 
   for (const auto& component : expr.components) {
-    auto tvar = make_fresh_type_variable_reference();
-    const auto tvar_term = make_term(&expr.source_token, tvar);
-    push_type_equation_term(tvar_term);
-    component.expr->accept_const(*this);
-    auto res = pop_type_equation_term();
-
-    push_type_equation(make_eq(tvar_term, res));
+    const auto res = visit_expr(component.expr, expr.source_token);
     list.pattern.push_back(res.term);
   }
 
@@ -470,11 +408,11 @@ void TypeVisitor::brace_grouping_expr_rhs(const GroupingExpr& expr) {
  * Stmt
  */
 
-void TypeVisitor::expr_stmt(const ExprStmt& stmt) {
+void TypeConstraintGenerator::expr_stmt(const ExprStmt& stmt) {
   stmt.expr->accept_const(*this);
 }
 
-void TypeVisitor::assignment_stmt(const AssignmentStmt& stmt) {
+void TypeConstraintGenerator::assignment_stmt(const AssignmentStmt& stmt) {
   assignment_state.push_assignment_target_rvalue();
   stmt.of_expr->accept_const(*this);
   assignment_state.pop_assignment_target_state();
@@ -492,6 +430,20 @@ void TypeVisitor::assignment_stmt(const AssignmentStmt& stmt) {
   const auto rhs_term = make_term(rhs.source_token, assignment);
 
   push_type_equation(make_eq(lhs_term, rhs_term));
+}
+
+/*
+ * Util
+ */
+
+TypeEquationTerm TypeConstraintGenerator::visit_expr(const BoxedExpr& expr, const Token& source_token) {
+  const auto lhs_term = make_term(&source_token, make_fresh_type_variable_reference());
+  push_type_equation_term(lhs_term);
+  expr->accept_const(*this);
+  auto rhs_term = pop_type_equation_term();
+  push_type_equation(make_eq(lhs_term, rhs_term));
+
+  return rhs_term;
 }
 
 }

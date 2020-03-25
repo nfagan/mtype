@@ -5,7 +5,7 @@
 
 namespace mt {
 
-class TypeVisitor;
+class TypeConstraintGenerator;
 class DebugTypePrinter;
 
 class TypeRelationship {

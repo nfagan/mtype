@@ -62,6 +62,12 @@ void TypeToString::apply(const Type& t, std::stringstream& into) const {
   }
 }
 
+std::string TypeToString::apply(const Type& t) const {
+  std::stringstream into;
+  apply(t, into);
+  return into.str();
+}
+
 std::string TypeToString::apply(const TypeHandle& handle) const {
   std::stringstream into;
   apply(handle, into);
@@ -73,7 +79,12 @@ void TypeToString::apply(const TypeHandle& handle, std::stringstream& into) cons
 }
 
 void TypeToString::apply(const types::Scalar& scl, std::stringstream& stream) const {
-  const auto maybe_type_name = library.type_name(scl);
+  Optional<std::string> maybe_type_name;
+
+  if (library) {
+    maybe_type_name = library->type_name(scl);
+  }
+
   stream << color(style::green);
 
   if (maybe_type_name) {

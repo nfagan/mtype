@@ -63,6 +63,8 @@ struct FunctionInputParameter {
   bool is_ignored;
 };
 
+using FunctionInputParameters = std::vector<FunctionInputParameter>;
+
 struct AccessSpecifier {
   AccessSpecifier() : type(AccessType::private_access), num_classes(0) {
     //

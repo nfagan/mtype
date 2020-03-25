@@ -1,5 +1,5 @@
 #include "mt/mt.hpp"
-#include "typing.hpp"
+#include "type_constraint_gen.hpp"
 #include "test_cases.hpp"
 #include "library.hpp"
 #include "util.hpp"
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
   Substitution substitution;
   Unifier unifier(type_store, library, str_registry);
-  TypeVisitor type_visitor(substitution, store, type_store, library, str_registry);
+  TypeConstraintGenerator type_visitor(substitution, store, type_store, library, str_registry);
 
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
   root_block->accept_const(type_visitor);
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
 
-  TypeToString type_to_string(type_store, library, &str_registry);
+  TypeToString type_to_string(type_store, &library, &str_registry);
   type_to_string.explicit_destructured_tuples = false;
   type_to_string.arrow_function_notation = true;
   type_to_string.max_num_type_variables = 3;
