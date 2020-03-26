@@ -49,7 +49,7 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
   const auto& vb = store.at(mem_b);
 
   if (va.is_list() && !vb.is_list()) {
-    if (b.is_definition_usage()) {
+    if (b.is_definition_usage() && !vb.is_variable()) {
       return false;
     }
 
@@ -58,7 +58,7 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
     return success;
 
   } else if (vb.is_list() && !va.is_list()) {
-    if (a.is_definition_usage()) {
+    if (a.is_definition_usage() && !va.is_variable()) {
       return false;
     }
 

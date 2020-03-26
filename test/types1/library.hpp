@@ -51,6 +51,7 @@ private:
   void make_list_outputs_type();
   void make_list_outputs_type2();
   void make_list_inputs_type();
+  void make_sub_sub_double();
   void make_sub_double();
   void make_double();
 
@@ -78,6 +79,7 @@ public:
   TypeHandle char_type_handle;
   TypeHandle string_type_handle;
   TypeHandle sub_double_type_handle;
+  TypeHandle sub_sub_double_type_handle;
 };
 
 }

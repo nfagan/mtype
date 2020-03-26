@@ -26,7 +26,7 @@ bool Library::subtype_related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, 
   }
 
   for (const auto& supertype : sub_it->second.supertypes) {
-    if (supertype == rhs) {
+    if (supertype == rhs || subtype_related(supertype, rhs)) {
       return true;
     }
   }
@@ -67,9 +67,15 @@ void Library::make_builtin_types() {
   string_type_handle = make_named_scalar_type("string");
   char_type_handle = make_named_scalar_type("char");
   sub_double_type_handle = make_named_scalar_type("sub-double");
+  sub_sub_double_type_handle = make_named_scalar_type("sub-sub-double");
 
   //  Mark that sub-double is a subclass of double.
-  scalar_subtype_relations[sub_double_type_handle] = types::SubtypeRelation(sub_double_type_handle, double_type_handle);
+  scalar_subtype_relations[sub_double_type_handle] =
+    types::SubtypeRelation(sub_double_type_handle, double_type_handle);
+
+  //  Mark that sub-sub-double is a subclass of sub-double.
+  scalar_subtype_relations[sub_sub_double_type_handle] =
+    types::SubtypeRelation(sub_sub_double_type_handle, sub_double_type_handle);
 }
 
 void Library::make_known_types() {
@@ -87,6 +93,7 @@ void Library::make_free_functions() {
   make_list_outputs_type();
   make_list_inputs_type();
   make_list_outputs_type2();
+  make_sub_sub_double();
   make_sub_double();
   make_double();
   make_function_as_input();
@@ -451,6 +458,16 @@ void Library::make_sub_double() {
   const auto name = MatlabIdentifier(string_registry.register_string("sub_double"));
   const auto args = store.make_input_destructured_tuple(TypeHandles());
   const auto outs = store.make_output_destructured_tuple(sub_double_type_handle);
+  const auto func = store.make_abstraction(name, args, outs);
+
+  types::Abstraction abstr_copy = store.at(func).abstraction;
+  function_types[abstr_copy] = func;
+}
+
+void Library::make_sub_sub_double() {
+  const auto name = MatlabIdentifier(string_registry.register_string("sub_sub_double"));
+  const auto args = store.make_input_destructured_tuple(TypeHandles());
+  const auto outs = store.make_output_destructured_tuple(sub_sub_double_type_handle);
   const auto func = store.make_abstraction(name, args, outs);
 
   types::Abstraction abstr_copy = store.at(func).abstraction;
