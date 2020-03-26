@@ -11,7 +11,7 @@
 
 #define MT_SHOW_ERROR_PRINT2(msg, a, b) \
   std::cout << "FAIL: " << msg << std::endl; \
-  DebugTypePrinter(store, &str_registry).show2((a), (b));
+  DebugTypePrinter(store, &library, &str_registry).show2((a), (b));
 
 #define MT_ERROR_IF_NON_EQUIV(msg, a, b) \
   if (!eq.related_entry((a), (b))) { \
@@ -22,19 +22,19 @@
 #define MT_ERROR_IF_EQUIV(msg, a, b) \
   if (eq.related_entry((a), (b))) { \
     std::cout << "FAIL: " << msg << std::endl; \
-    DebugTypePrinter(store, &str_registry).show2((a), (b)); \
+    DebugTypePrinter(store, &library, &str_registry).show2((a), (b)); \
   }
 
 #define MT_ERROR_IF_RELATED(relation, msg, a, b) \
   if (relation.related_entry((a), (b))) { \
     std::cout << "FAIL (expected no relation): " << msg << std::endl; \
-    DebugTypePrinter(store, &str_registry).show2((a), (b)); \
+    DebugTypePrinter(store, &library, &str_registry).show2((a), (b)); \
   }
 
 #define MT_ERROR_IF_UNRELATED(relation, msg, a, b) \
   if (!relation.related_entry((a), (b))) { \
     std::cout << "FAIL (expected relation): " << msg << std::endl; \
-    DebugTypePrinter(store, &str_registry).show2((a), (b)); \
+    DebugTypePrinter(store, &library, &str_registry).show2((a), (b)); \
   }
 
 namespace mt {

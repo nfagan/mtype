@@ -89,6 +89,7 @@ void Library::make_free_functions() {
   make_list_outputs_type2();
   make_sub_double();
   make_double();
+  make_function_as_input();
 }
 
 void Library::make_sum() {
@@ -461,6 +462,22 @@ void Library::make_double() {
   const auto args = store.make_input_destructured_tuple(sub_double_type_handle);
   const auto outs = store.make_output_destructured_tuple(double_type_handle);
   const auto func = store.make_abstraction(name, args, outs);
+
+  types::Abstraction abstr_copy = store.at(func).abstraction;
+  function_types[abstr_copy] = func;
+}
+
+void Library::make_function_as_input() {
+  const MatlabIdentifier name(string_registry.register_string("in_func"));
+  const MatlabIdentifier in_name(string_registry.register_string("sum"));
+
+  const auto input_args_type = store.make_input_destructured_tuple(double_type_handle);
+  const auto output_args_type = store.make_output_destructured_tuple(double_type_handle);
+  const auto input_func = store.make_abstraction(in_name, input_args_type, output_args_type);
+
+  const auto input_args = store.make_input_destructured_tuple(input_func);
+  const auto output_args = store.make_output_destructured_tuple(double_type_handle);
+  const auto func = store.make_abstraction(name, input_args, output_args);
 
   types::Abstraction abstr_copy = store.at(func).abstraction;
   function_types[abstr_copy] = func;

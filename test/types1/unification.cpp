@@ -677,7 +677,7 @@ Type::Tag Unifier::type_of(const mt::TypeHandle& handle) const {
 }
 
 DebugTypePrinter Unifier::type_printer() const {
-  return DebugTypePrinter(store, &string_registry);
+  return DebugTypePrinter(store, &library, &string_registry);
 }
 
 void Unifier::emplace_simplification_failure(const Token* lhs_token, const Token* rhs_token,
