@@ -55,6 +55,8 @@ bool TypeRelation::related_same_types(const TypeHandle& a, const TypeHandle& b, 
       return related(value_a.abstraction, value_b.abstraction, rev);
     case Type::Tag::variable:
       return true;
+    case Type::Tag::scheme:
+      return related(value_a.scheme, value_b.scheme, rev);
     default:
       type_printer().show2(a, b);
       std::cout << std::endl;
@@ -156,6 +158,11 @@ bool TypeRelation::related(const types::List& a, const types::List& b, bool rev)
 
 bool TypeRelation::related(const types::Tuple& a, const types::Tuple& b, bool rev) const {
   return element_wise_related(a.members, b.members, rev);
+}
+
+bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool rev) const {
+//  assert(false && "Scheme relation not yet handled.");
+  return related(a.type, b.type, rev);
 }
 
 bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {

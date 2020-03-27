@@ -38,6 +38,9 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
     return;
   }
 
+  if (type_of(func.inputs) != Type::Tag::destructured_tuple) {
+    MT_SHOW1("Func: ", source);
+  }
   assert(type_of(func.inputs) == Type::Tag::destructured_tuple);
   const auto& inputs = store.at(func.inputs).destructured_tuple;
 
@@ -59,6 +62,8 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
       const auto lhs_term = make_term(term.source_token, source);
       const auto rhs_term = make_term(term.source_token, new_abstr_handle);
       substitution->push_type_equation(make_eq(lhs_term, rhs_term));
+
+      registered_funcs[new_abstr_handle] = true;
     }
 
   } else {

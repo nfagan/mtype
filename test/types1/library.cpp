@@ -97,6 +97,7 @@ void Library::make_free_functions() {
   make_sub_double();
   make_double();
   make_function_as_input();
+  make_feval();
 }
 
 void Library::make_sum() {
@@ -452,6 +453,34 @@ void Library::make_binary_operators() {
       function_types[abstr_copy] = func_type;
     }
   }
+}
+
+void Library::make_feval() {
+//  const auto name = MatlabIdentifier(string_registry.register_string("f_eval"));
+//  const auto result_var1 = store.make_fresh_type_variable_reference();
+//  const auto args = store.make_input_destructured_tuple(double_type_handle);
+//  const auto outs = result_var1;
+//  const auto func = store.make_abstraction(name, args, outs);
+//  const auto scheme = store.make_scheme(func, TypeHandles{result_var1});
+//  const auto abstr_copy = store.at(func).abstraction;
+//  function_types[abstr_copy] = scheme;
+
+  const auto name = MatlabIdentifier(string_registry.register_string("f_eval"));
+  const auto arg_var = store.make_fresh_type_variable_reference();
+  const auto result_var = store.make_fresh_type_variable_reference();
+  const auto arg_func_type = store.make_abstraction(arg_var, result_var);
+
+  const auto func_return_arg_type = store.make_input_destructured_tuple(arg_func_type, arg_var);
+  const auto func_return_result_type = result_var;
+  const auto func_return = store.make_abstraction(func_return_arg_type, func_return_result_type);
+
+  const auto func_args = store.make_input_destructured_tuple(TypeHandles{});
+  const auto func_outputs = store.make_output_destructured_tuple(func_return);
+  const auto func = store.make_abstraction(name, func_args, func_outputs);
+  const auto func_scheme = store.make_scheme(func, TypeHandles{arg_var, result_var});
+
+  const auto abstr_copy = store.at(func).abstraction;
+  function_types[abstr_copy] = func_scheme;
 }
 
 void Library::make_sub_double() {

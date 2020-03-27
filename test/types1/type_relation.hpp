@@ -70,6 +70,7 @@ private:
   bool related(const types::List& a, const types::List& b, bool rev) const;
   bool related(const types::Tuple& a, const types::Tuple& b, bool rev) const;
   bool related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const;
+  bool related(const types::Scheme& a, const types::Scheme& b, bool rev) const;
 
   bool related_different_types(const types::DestructuredTuple& a, const TypeHandle& b, bool rev) const;
   bool related_different_types(const types::List& a, const TypeHandle& b, bool rev) const;
