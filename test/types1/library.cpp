@@ -98,7 +98,6 @@ void Library::make_free_functions() {
   make_double();
   make_function_as_input();
   make_feval();
-  make_call();
   make_deal();
 }
 
@@ -458,29 +457,11 @@ void Library::make_binary_operators() {
 }
 
 void Library::make_feval() {
-  const auto name = MatlabIdentifier(string_registry.register_string("f_eval"));
+  const auto name = MatlabIdentifier(string_registry.register_string("feval"));
   const auto arg_var = store.make_fresh_parameters();
   const auto result_var = store.make_fresh_type_variable_reference();
   const auto arg_func_type = store.make_abstraction(arg_var, result_var);
-
-  const auto func_return_arg_type = store.make_input_destructured_tuple(arg_func_type, arg_var);
-  const auto func_return_result_type = result_var;
-  const auto func_return = store.make_abstraction(func_return_arg_type, func_return_result_type);
-
-  const auto func_args = store.make_input_destructured_tuple(TypeHandles{});
-  const auto func_outputs = store.make_output_destructured_tuple(func_return);
-  const auto func = store.make_abstraction(name, func_args, func_outputs);
-  const auto func_scheme = store.make_scheme(func, TypeHandles{arg_var, result_var});
-
-  const auto abstr_copy = store.at(func).abstraction;
-  function_types[abstr_copy] = func_scheme;
-}
-
-void Library::make_call() {
-  const auto name = MatlabIdentifier(string_registry.register_string("call"));
-  const auto arg_var = store.make_fresh_parameters();
-  const auto result_var = store.make_fresh_type_variable_reference();
-  const auto arg_func_type = store.make_abstraction(arg_var, result_var);
+//  const auto scheme_func_type = store.make_scheme(arg_func_type, TypeHandles{});
 
   const auto func_args = store.make_input_destructured_tuple(arg_func_type, arg_var);
   const auto func = store.make_abstraction(name, func_args, result_var);

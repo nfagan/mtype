@@ -51,7 +51,6 @@ private:
   void make_fileparts();
   void make_feval();
   void make_deal();
-  void make_call();
   void make_list_outputs_type();
   void make_list_outputs_type2();
   void make_list_inputs_type();

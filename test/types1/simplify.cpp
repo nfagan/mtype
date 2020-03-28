@@ -114,6 +114,11 @@ bool Simplifier::simplify_different_types(TypeRef lhs, TypeRef rhs, bool rev) {
 }
 
 bool Simplifier::simplify_different_types(const types::Scheme& scheme, TypeRef source, TypeRef rhs, bool rev) {
+//  if (rev) {
+//    check_emplace_simplification_failure(false, source, rhs);
+//    return false;
+//  }
+
   return simplify_make_type_equation(unifier.instantiate(scheme), rhs, rev);
 }
 
