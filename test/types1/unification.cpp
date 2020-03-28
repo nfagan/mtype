@@ -250,12 +250,6 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Assignment& as
 
 TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Scheme& scheme) {
   scheme.type = apply_to(scheme.type, term);
-
-//  for (auto& eq : scheme.constraints) {
-//    eq.lhs.term = apply_to(eq.lhs.term, term);
-//    eq.rhs.term = apply_to(eq.rhs.term, term);
-//  }
-
   return source;
 }
 
@@ -335,12 +329,6 @@ void Unifier::substitute_one(std::vector<TypeHandle>& sources, TermRef term, Ter
 
 TypeHandle Unifier::substitute_one(types::Scheme& scheme, TypeRef source, TermRef term, TermRef lhs, TermRef rhs) {
   scheme.type = substitute_one(scheme.type, term, lhs, rhs);
-
-//  for (auto& eq : scheme.constraints) {
-//    eq.lhs.term = substitute_one(eq.lhs.term, term, lhs, rhs);
-//    eq.rhs.term = substitute_one(eq.rhs.term, term, lhs, rhs);
-//  }
-
   return source;
 }
 
@@ -537,7 +525,7 @@ TypeHandle Unifier::maybe_unify_subscript(TypeRef source, TermRef term, types::S
   } else if (arg0.is_scheme()) {
     return maybe_unify_anonymous_function_call_subscript(source, term, arg0.scheme, sub);
 
-  } else if (type_of(sub.principal_argument) != Type::Tag::variable) {
+  } else if (!arg0.is_variable() && !arg0.is_parameters()) {
     MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
   }
 
