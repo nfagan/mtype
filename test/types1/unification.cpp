@@ -608,8 +608,7 @@ TypeHandle Unifier::maybe_unify_function_call_subscript(TypeRef source,
   const auto tup = store.make_rvalue_destructured_tuple(std::move(args_copy));
   const auto result_type = store.make_fresh_type_variable_reference();
   auto lookup = types::Abstraction::clone(source_func, tup, result_type);
-  auto lookup_handle = store.make_type();
-  store.assign(lookup_handle, Type(std::move(lookup)));
+  auto lookup_handle = store.make_abstraction(std::move(lookup));
 
   const auto sub_lhs_term = make_term(term.source_token, sub.outputs);
   const auto sub_rhs_term = make_term(term.source_token, result_type);
@@ -647,8 +646,7 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, TermRef ter
 
   DestructuredTuple tup(DestructuredTuple::Usage::rvalue, std::move(args));
 
-  auto tup_type = store.make_type();
-  store.assign(tup_type, Type(std::move(tup)));
+  auto tup_type = store.make_destructured_tuple(std::move(tup));
   Abstraction abstraction(sub0.method, tup_type, TypeHandle());
 
   auto maybe_func = library.lookup_function(abstraction);

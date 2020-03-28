@@ -75,16 +75,11 @@ TypeHandle Instantiation::clone(const types::Abstraction& abstr, IV replacing, B
   const auto new_inputs = clone(abstr.inputs, replacing, preserving, cloned);
   const auto new_outputs = clone(abstr.outputs, replacing, preserving, cloned);
   auto new_abstr = types::Abstraction::clone(abstr, new_inputs, new_outputs);
-  const auto new_type = store.make_type();
-  store.assign(new_type, Type(std::move(new_abstr)));
-  return new_type;
+  return store.make_abstraction(std::move(new_abstr));
 }
 
 TypeHandle Instantiation::clone(const types::Tuple& tup, IV replacing, BT preserving, CV cloned) {
-  auto new_tup_handle = store.make_type();
-  types::Tuple new_tup(clone(tup.members, replacing, preserving, cloned));
-  store.assign(new_tup_handle, Type(std::move(new_tup)));
-  return new_tup_handle;
+  return store.make_tuple(clone(tup.members, replacing, preserving, cloned));
 }
 
 std::vector<TypeHandle> Instantiation::clone(const TypeHandles& a, IV replacing, BT preserving, CV cloned) {
@@ -109,9 +104,7 @@ TypeHandle Instantiation::clone(const types::Subscript& sub, IV replacing, BT pr
       arg = clone(arg, replacing, preserving, cloned);
     }
   }
-  auto new_sub = store.make_type();
-  store.assign(new_sub, Type(std::move(sub_b)));
-  return new_sub;
+  return store.make_subscript(std::move(sub_b));
 }
 
 TypeHandle Instantiation::clone(const types::Variable& var, TypeRef source, IV replacing, BT preserving, CV cloned) {
@@ -176,10 +169,7 @@ TypeHandle Instantiation::clone(const types::Scheme& scheme, IV replacing, BT pr
     eq.lhs.term = clone(eq.lhs.term, new_replacing, preserving, cloned);
     eq.rhs.term = clone(eq.rhs.term, new_replacing, preserving, cloned);
   }
-
-  auto scheme_handle = store.make_type();
-  store.assign(scheme_handle, Type(std::move(scheme_b)));
-  return scheme_handle;
+  return store.make_scheme(std::move(scheme_b));
 #endif
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "type.hpp"
+#define MT_PRIVATE_ASSIGN (1)
 
 namespace mt {
 
@@ -57,12 +58,6 @@ public:
     return TypeIdentifier(type_variable_ids++);
   }
 
-  template <typename T, typename... Args>
-  TypeHandle make_type(Args&&... args) {
-    types.emplace_back(Type(T(std::forward<Args>(args)...)));
-    return TypeHandle(types.size()-1);
-  }
-
   template <typename... Args>
   TypeHandle make_tuple(Args&&... args) {
     return make_type<types::Tuple>(std::forward<Args>(args)...);
@@ -117,13 +112,16 @@ public:
     return make_type<types::Scheme>(std::forward<Args>(args)...);
   }
 
+  template <typename... Args>
+  TypeHandle make_subscript(Args&&... args) {
+    return make_type<types::Subscript>(std::forward<Args>(args)...);
+  }
+
   TypeHandle make_concrete() {
     auto t = make_type();
     assign(t, Type(types::Scalar(make_type_identifier())));
     return t;
   }
-
-  void assign(const TypeHandle& at, Type&& type);
 
   std::unordered_map<Type::Tag, double> type_distribution() const {
     std::unordered_map<Type::Tag, double> counts;
@@ -137,6 +135,16 @@ public:
 
     return counts;
   }
+
+#if MT_PRIVATE_ASSIGN
+private:
+#endif
+  template <typename T, typename... Args>
+  TypeHandle make_type(Args&&... args) {
+    types.emplace_back(Type(T(std::forward<Args>(args)...)));
+    return TypeHandle(types.size()-1);
+  }
+  void assign(const TypeHandle& at, Type&& type);
 
 private:
   std::vector<Type> types;

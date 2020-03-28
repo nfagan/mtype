@@ -48,7 +48,6 @@ private:
   void make_free_functions();
   void make_min();
   void make_sum();
-  void make_fileparts();
   void make_feval();
   void make_deal();
   void make_list_outputs_type();

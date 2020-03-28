@@ -79,11 +79,11 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   const Block* function_body = nullptr;
   MatlabScopeHelper scope_helper(*this, node.scope_handle);
 
-  const auto type_handle = type_store.make_type();
-  bind_type_variable_to_function_def(node.def_handle, type_handle);
+  const auto input_handle = type_store.make_input_destructured_tuple(TypeHandles{});
+  const auto output_handle = type_store.make_output_destructured_tuple(TypeHandles{});
 
-  std::vector<TypeHandle> function_inputs;
-  std::vector<TypeHandle> function_outputs;
+  auto& function_inputs = type_store.at(input_handle).destructured_tuple.members;
+  auto& function_outputs = type_store.at(output_handle).destructured_tuple.members;
 
   MatlabIdentifier function_name;
 
@@ -101,13 +101,12 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     function_body = def.body.get();
   }
 
-  const auto input_handle = type_store.make_input_destructured_tuple(std::move(function_inputs));
-  const auto output_handle = type_store.make_output_destructured_tuple(std::move(function_outputs));
+  const auto type_handle = type_store.make_abstraction(function_name, input_handle, output_handle);
+  bind_type_variable_to_function_def(node.def_handle, type_handle);
 
   const auto lhs_term = make_term(&node.source_token, make_fresh_type_variable_reference());
   const auto rhs_term = make_term(&node.source_token, type_handle);
 
-  type_store.assign(type_handle, Type(Abstraction(function_name, input_handle, output_handle)));
   push_type_equation(make_eq(lhs_term, rhs_term));
 
   if (function_body) {
@@ -168,19 +167,18 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
     members.push_back(result.term);
   }
 
-  const auto args_type = type_store.make_rvalue_destructured_tuple(std::move(members));
-  auto func_type = type_store.make_type();
-  auto result_type = make_fresh_type_variable_reference();
-
   MatlabIdentifier function_name;
   store.use<Store::ReadConst>([&](const auto& reader) {
     function_name = reader.at(expr.reference_handle).name;
   });
 
+  const auto args_type = type_store.make_rvalue_destructured_tuple(std::move(members));
+  auto result_type = make_fresh_type_variable_reference();
+  const auto func_type = type_store.make_abstraction(function_name, args_type, result_type);
+
   const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
   const auto func_rhs_term = make_term(&expr.source_token, func_type);
 
-  type_store.assign(func_type, Type(types::Abstraction(function_name, args_type, result_type)));
   push_type_equation(make_eq(func_lhs_term, func_rhs_term));
 
   push_type_equation_term(make_term(&expr.source_token, result_type));
@@ -220,15 +218,13 @@ void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExp
 
     value_category_state.pop_side();
 
-    auto sub_type = type_store.make_type();
-    auto outputs_type = make_fresh_type_variable_reference();
+    const auto outputs_type = make_fresh_type_variable_reference();
+    const auto sub_type = type_store.make_subscript(variable_type_handle, std::move(subscripts), outputs_type);
 
     const auto sub_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
     const auto sub_rhs_term = make_term(&expr.source_token, sub_type);
 
-    type_store.assign(sub_type, Type(Subscript(variable_type_handle, std::move(subscripts), outputs_type)));
     push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
-
     push_type_equation_term(make_term(&expr.source_token, outputs_type));
   }
 }
@@ -395,19 +391,16 @@ void TypeConstraintGenerator::brace_grouping_expr_rhs(const GroupingExpr& expr) 
   using types::List;
   using types::Tuple;
 
-  List list;
-  list.pattern.reserve(expr.components.size());
+  TypeHandles list_pattern;
+  list_pattern.reserve(expr.components.size());
 
   for (const auto& component : expr.components) {
     const auto res = visit_expr(component.expr, expr.source_token);
-    list.pattern.push_back(res.term);
+    list_pattern.push_back(res.term);
   }
 
-  auto list_handle = type_store.make_type();
-  auto tuple_handle = type_store.make_type();
-
-  type_store.assign(list_handle, Type(std::move(list)));
-  type_store.assign(tuple_handle, Type(Tuple(list_handle)));
+  const auto list_handle = type_store.make_list(std::move(list_pattern));
+  const auto tuple_handle = type_store.make_tuple(list_handle);
 
   push_type_equation_term(make_term(&expr.source_token, tuple_handle));
 }

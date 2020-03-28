@@ -89,7 +89,6 @@ void Library::make_known_types() {
 void Library::make_free_functions() {
   make_min();
   make_sum();
-  make_fileparts();
   make_list_outputs_type();
   make_list_inputs_type();
   make_list_outputs_type2();
@@ -102,169 +101,55 @@ void Library::make_free_functions() {
 }
 
 void Library::make_sum() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-
-  const auto args_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-  const auto& d_handle = double_type_handle;
-
   const auto ident = MatlabIdentifier(string_registry.register_string("sum"));
+  const auto args_type = store.make_input_destructured_tuple(double_type_handle);
+  const auto result_type = store.make_output_destructured_tuple(double_type_handle);
+  const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  Abstraction func(ident, args_type, result_type);
-  auto func_copy = func;
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, d_handle)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, d_handle)));
-
-  store.assign(func_type, Type(std::move(func)));
+  auto func_copy = store.at(func_type).abstraction;
   function_types[func_copy] = func_type;
 }
 
 void Library::make_min() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
+  const auto ident = MatlabIdentifier(string_registry.register_string("min"));
+  const auto args_type = store.make_input_destructured_tuple(double_type_handle, string_type_handle);
+  const auto result_type = store.make_output_destructured_tuple(double_type_handle, char_type_handle);
+  const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  const auto args_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-
-  const auto& double_handle = double_type_handle;
-  const auto& char_handle = char_type_handle;
-  const auto& str_handle = string_type_handle;
-  const auto name = std::string("min");
-  const auto ident = MatlabIdentifier(string_registry.register_string(name));
-
-  Abstraction func(ident, args_type, result_type);
-  auto func_copy = func;
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle, str_handle)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, double_handle, char_handle)));
-
-  store.assign(func_type, Type(std::move(func)));
-
-  function_types[func_copy] = func_type;
-}
-
-void Library::make_fileparts() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-
-  const auto args_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-
-  const auto& double_handle = double_type_handle;
-  const auto& char_handle = char_type_handle;
-
-  const auto name = std::string("fileparts");
-  const auto ident = MatlabIdentifier(string_registry.register_string(name));
-
-  Abstraction func(ident, args_type, result_type);
-  auto func_copy = func;
-
-  std::vector<TypeHandle> outputs{char_handle, double_handle, double_handle};
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, char_handle, double_handle)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(outputs))));
-
-  store.assign(func_type, Type(std::move(func)));
-
+  auto func_copy = store.at(func_type).abstraction;
   function_types[func_copy] = func_type;
 }
 
 void Library::make_list_inputs_type() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using types::List;
-
-  const auto args_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-  const auto& double_handle = double_type_handle;
-  const auto list_type = store.make_list(double_handle);
-
   const auto ident = MatlabIdentifier(string_registry.register_string("in_list"));
+  const auto list_type = store.make_list(double_type_handle);
+  const auto args_type = store.make_input_destructured_tuple(double_type_handle, list_type);
+  const auto result_type = store.make_output_destructured_tuple(double_type_handle);
+  const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  Abstraction func(ident, args_type, result_type);
-  auto func_copy = func;
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, TypeHandles{double_handle, list_type})));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, double_handle)));
-  store.assign(func_type, Type(std::move(func)));
-
+  auto func_copy = store.at(func_type).abstraction;
   function_types[func_copy] = func_type;
 }
 
 void Library::make_list_outputs_type() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using types::List;
+  const auto ident = MatlabIdentifier(string_registry.register_string("lists"));
+  const auto list_type = store.make_list(TypeHandles{char_type_handle, double_type_handle});
+  const auto args_type = store.make_input_destructured_tuple(double_type_handle);
+  const auto result_type = store.make_output_destructured_tuple(double_type_handle, list_type);
+  const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  const auto args_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-  const auto list_type = store.make_type();
-
-  const auto& double_handle = double_type_handle;
-  const auto& char_handle = char_type_handle;
-  const auto& string_handle = string_type_handle;
-
-  const auto name = std::string("lists");
-  const auto ident = MatlabIdentifier(string_registry.register_string(name));
-
-  Abstraction func(ident, args_type, result_type);
-  auto func_copy = func;
-
-  std::vector<TypeHandle> outputs{double_handle, list_type};
-  std::vector<TypeHandle> list_pattern{char_handle, double_handle};
-
-  store.assign(list_type, Type(List(std::move(list_pattern))));
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, std::move(outputs))));
-  store.assign(func_type, Type(std::move(func)));
-
+  auto func_copy = store.at(func_type).abstraction;
   function_types[func_copy] = func_type;
 }
 
 void Library::make_list_outputs_type2() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using types::List;
+  const auto ident = MatlabIdentifier(string_registry.register_string("out_list"));
+  const auto list_type = store.make_list(double_type_handle);
+  const auto args_type = store.make_input_destructured_tuple(double_type_handle);
+  const auto result_type = store.make_output_destructured_tuple(list_type);
+  const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  const auto args_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-
-  const auto& double_handle = double_type_handle;
-  const auto& char_handle = char_type_handle;
-  const auto& string_handle = string_type_handle;
-
-  const auto name = std::string("out_list");
-  const auto ident = MatlabIdentifier(string_registry.register_string(name));
-
-  Abstraction func(ident, args_type, result_type);
-  auto func_copy = func;
-
-  auto list_type = store.make_list(double_handle);
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, double_handle)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, list_type)));
-  store.assign(func_type, Type(std::move(func)));
-
+  auto func_copy = store.at(func_type).abstraction;
   function_types[func_copy] = func_type;
 }
 
@@ -283,30 +168,18 @@ void Library::make_builtin_parens_subscript_references() {
                                               string_type_handle, sub_double_type_handle};
 
   for (const auto& referent_type_handle : default_array_types) {
-    const auto args_type = store.make_type();
-    const auto list_type = store.make_type();
-    const auto result_type = store.make_type();
-    const auto func_type = store.make_type();
-
-    Abstraction ref(SubscriptMethod::parens, args_type, result_type);
-    auto ref_copy = ref;
-
-    std::vector<TypeHandle> list_types{double_type_handle};
-
-    //  T(list<double>) -> T
-    store.assign(list_type, Type(List(std::move(list_types))));
-    store.assign(args_type,
-      Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, referent_type_handle, list_type)));
-    store.assign(result_type,
-      Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, referent_type_handle)));
-
-    store.assign(func_type, Type(std::move(ref)));
+    const auto list_type = store.make_list(double_type_handle);
+    const auto args_type = store.make_input_destructured_tuple(referent_type_handle, list_type);
+    const auto result_type = store.make_output_destructured_tuple(referent_type_handle);
+    const auto func_type = store.make_abstraction(SubscriptMethod::parens, args_type, result_type);
+    const auto ref_copy = store.at(func_type).abstraction;
 
     function_types[ref_copy] = func_type;
     types_with_known_subscripts.insert(referent_type_handle);
   }
 }
 
+#if 0
 void Library::make_builtin_parens_tuple_subscript_reference() {
   using types::DestructuredTuple;
   using types::Abstraction;
@@ -349,79 +222,109 @@ void Library::make_builtin_parens_tuple_subscript_reference() {
   assert(func);
 #endif
 }
+#endif
 
 void Library::make_builtin_brace_subscript_reference() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using types::List;
+  const auto ref_var = store.make_fresh_type_variable_reference();
+  const auto tup_type = store.make_tuple(ref_var);
 
-  auto func_scheme = store.make_type();
-  auto ref_var = store.make_fresh_type_variable_reference();
-  auto tup_type = store.make_type();
+  const auto list_subs_type = store.make_list(double_type_handle);
+  const auto args_type = store.make_input_destructured_tuple(tup_type, list_subs_type);
+  const auto result_type = store.make_output_destructured_tuple(ref_var);
+  const auto func_type = store.make_abstraction(SubscriptMethod::brace, args_type, result_type);
+  const auto ref_copy = store.at(func_type).abstraction;
 
-  types::Scheme scheme;
-
-  //  {T}
-  store.assign(tup_type, Type(types::Tuple(ref_var)));
-
-  const auto args_type = store.make_type();
-  const auto list_subs_type = store.make_type();
-  const auto list_result_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-
-  types::Abstraction ref(SubscriptMethod::brace, args_type, result_type);
-  auto ref_copy = ref;
-
-  store.assign(list_subs_type, Type(List(double_type_handle)));  //  list<double>
-  store.assign(list_result_type, Type(List(ref_var)));  //  list<T>
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, tup_type, list_subs_type)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, list_result_type)));
-
-  scheme.type = func_type;
-  scheme.parameters.push_back(ref_var);
-
-  store.assign(func_type, Type(std::move(ref)));
-  store.assign(func_scheme, Type(std::move(scheme)));
-
-  function_types[ref_copy] = func_scheme;
+  const auto scheme = store.make_scheme(func_type, TypeHandles{ref_var});
+  function_types[ref_copy] = scheme;
   types_with_known_subscripts.insert(tup_type);
+//
+//  /*
+//   *
+//   */
+//  using types::DestructuredTuple;
+//  using types::Abstraction;
+//  using types::List;
+//
+//  auto func_scheme = store.make_type();
+//  auto ref_var = store.make_fresh_type_variable_reference();
+//  auto tup_type = store.make_type();
+//
+//  types::Scheme scheme;
+//
+//  //  {T}
+//  store.assign(tup_type, Type(types::Tuple(ref_var)));
+//
+//  const auto args_type = store.make_type();
+//  const auto list_subs_type = store.make_type();
+//  const auto list_result_type = store.make_type();
+//  const auto result_type = store.make_type();
+//  const auto func_type = store.make_type();
+//
+//  types::Abstraction ref(SubscriptMethod::brace, args_type, result_type);
+//  auto ref_copy = ref;
+//
+//  store.assign(list_subs_type, Type(List(double_type_handle)));  //  list<double>
+//  store.assign(list_result_type, Type(List(ref_var)));  //  list<T>
+//
+//  store.assign(args_type,
+//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, tup_type, list_subs_type)));
+//  store.assign(result_type,
+//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, list_result_type)));
+//
+//  scheme.type = func_type;
+//  scheme.parameters.push_back(ref_var);
+//
+//  store.assign(func_type, Type(std::move(ref)));
+//  store.assign(func_scheme, Type(std::move(scheme)));
+//
+//  function_types[ref_copy] = func_scheme;
+//  types_with_known_subscripts.insert(tup_type);
 }
 
 void Library::make_concatenations() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using types::List;
+  const auto tvar = store.make_fresh_type_variable_reference();
+  const auto list_args_type = store.make_list(tvar);
+  const auto args_type = store.make_input_destructured_tuple(list_args_type);
+  const auto result_type = store.make_output_destructured_tuple(tvar);
+  const auto cat = store.make_abstraction(ConcatenationDirection::horizontal, args_type, result_type);
+  const auto scheme = store.make_scheme(cat, TypeHandles{tvar});
 
-  auto func_scheme = store.make_type();
-  auto tvar = store.make_fresh_type_variable_reference(); //  T
-
-  types::Scheme scheme;
-
-  const auto args_type = store.make_type();
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-
-  types::Abstraction cat(ConcatenationDirection::horizontal, args_type, result_type);
-  auto cat_copy = cat;
-
-  auto list_args_type = store.make_list(tvar);  //  list<T>
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, list_args_type)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, tvar)));
-
-  scheme.type = func_type;
-  scheme.parameters.push_back(tvar);
-
-  store.assign(func_type, Type(std::move(cat)));
-  store.assign(func_scheme, Type(std::move(scheme)));
-
-  function_types[cat_copy] = func_scheme;
+  auto cat_copy = store.at(cat).abstraction;
+  function_types[cat_copy] = scheme;
+//
+//  /*
+//   *
+//   */
+//  using types::DestructuredTuple;
+//  using types::Abstraction;
+//  using types::List;
+//
+//  auto func_scheme = store.make_type();
+//  auto tvar = store.make_fresh_type_variable_reference(); //  T
+//
+//  types::Scheme scheme;
+//
+//  const auto args_type = store.make_type();
+//  const auto result_type = store.make_type();
+//  const auto func_type = store.make_type();
+//
+//  types::Abstraction cat(ConcatenationDirection::horizontal, args_type, result_type);
+//  auto cat_copy = cat;
+//
+//  auto list_args_type = store.make_list(tvar);  //  list<T>
+//
+//  store.assign(args_type,
+//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, list_args_type)));
+//  store.assign(result_type,
+//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, tvar)));
+//
+//  scheme.type = func_type;
+//  scheme.parameters.push_back(tvar);
+//
+//  store.assign(func_type, Type(std::move(cat)));
+//  store.assign(func_scheme, Type(std::move(scheme)));
+//
+//  function_types[cat_copy] = func_scheme;
 }
 
 void Library::make_binary_operators() {
@@ -436,22 +339,12 @@ void Library::make_binary_operators() {
 
   for (const auto& op : operators) {
     for (const auto& arg : arg_types) {
-      auto args_type = store.make_type();
-      auto result_type = store.make_type();
-      auto func_type = store.make_type();
+      const auto args_type = store.make_input_destructured_tuple(arg, arg);
+      const auto result_type = store.make_output_destructured_tuple(arg);
+      const auto func_type = store.make_abstraction(op, args_type, result_type);
+      auto func_copy = store.at(func_type).abstraction;
 
-      Abstraction abstr(op, args_type, result_type);
-      Abstraction abstr_copy = abstr;
-
-      const auto& double_handle = double_type_handle;
-
-      store.assign(args_type,
-        Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, arg, arg)));
-      store.assign(result_type,
-        Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, arg)));
-      store.assign(func_type, Type(std::move(abstr)));
-
-      function_types[abstr_copy] = func_type;
+      function_types[func_copy] = func_type;
     }
   }
 }
