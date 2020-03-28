@@ -35,6 +35,7 @@ public:
   void apply(const types::Subscript& subscript, std::stringstream& into) const;
   void apply(const types::Scheme& scheme, std::stringstream& into) const;
   void apply(const types::Assignment& assignment, std::stringstream& into) const;
+  void apply(const types::Parameters& params, std::stringstream& into) const;
   void apply(const std::vector<TypeHandle>& handles, std::stringstream& into, const char* delim = ", ") const;
 
 private:

@@ -36,6 +36,7 @@ private:
   TypeHandle clone(const types::Scheme& scheme, IV replacing, BT preserving, CV cloned);
   TypeHandle clone(const types::Variable& var, TypeRef source, IV replacing, BT preserving, CV cloned);
   TypeHandle clone(const types::Scalar& scl, TypeRef source, IV replacing, BT preserving, CV cloned);
+  TypeHandle clone(const types::Parameters& params, TypeRef source, IV replacing, BT preserving, CV cloned);
 
   std::vector<TypeHandle> clone(const std::vector<TypeHandle>& members, IV replacing, BT preserving, CV cloned);
 

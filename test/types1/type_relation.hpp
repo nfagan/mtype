@@ -17,17 +17,7 @@ public:
 };
 
 class TypeRelation {
-private:
-  struct DestructuredVisitor {
-    DestructuredVisitor(const TypeRelation& relation) : relation(relation) {
-      //
-    }
-    bool operator()(const TypeHandle& a, const TypeHandle& b, bool rev) const {
-      return relation.related(a, b, rev);
-    }
-
-    const TypeRelation& relation;
-  };
+  friend class DestructuredVisitor;
 public:
   struct TypeRelationComparator {
     explicit TypeRelationComparator(const TypeRelation& type_relation) : type_relation(type_relation) {
@@ -41,6 +31,15 @@ public:
 
   struct ArgumentComparator {
     explicit ArgumentComparator(const TypeRelation& type_relation) : type_relation(type_relation) {
+      //
+    }
+
+    bool operator()(const types::Abstraction& a, const types::Abstraction& b) const;
+    const TypeRelation& type_relation;
+  };
+
+  struct NameComparator {
+    explicit NameComparator(const TypeRelation& type_relation) : type_relation(type_relation) {
       //
     }
 
@@ -66,12 +65,13 @@ private:
   bool related_same_types(const TypeHandle& a, const TypeHandle& b, bool rev) const;
 
   bool related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const;
-  bool related(const types::DestructuredTuple& a, const types::DestructuredTuple& b, bool rev) const;
+  bool related(TypeRef lhs, TypeRef rhs, const types::DestructuredTuple& a, const types::DestructuredTuple& b, bool rev) const;
   bool related(const types::List& a, const types::List& b, bool rev) const;
   bool related(const types::Tuple& a, const types::Tuple& b, bool rev) const;
   bool related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const;
   bool related(const types::Scheme& a, const types::Scheme& b, bool rev) const;
 
+  bool related_different_types(const types::Scheme& a, const TypeHandle& b, bool rev) const;
   bool related_different_types(const types::DestructuredTuple& a, const TypeHandle& b, bool rev) const;
   bool related_different_types(const types::List& a, const TypeHandle& b, bool rev) const;
 

@@ -1,5 +1,6 @@
 #include "member_visitor.hpp"
 #include "type_store.hpp"
+#include "debug.hpp"
 
 namespace mt {
 
@@ -11,7 +12,7 @@ int64_t DestructuredMemberVisitor::expect_to_match(const types::DestructuredTupl
   }
 }
 
-bool DestructuredMemberVisitor::expand_members(const DT& a, const DT& b, bool rev) const {
+bool DestructuredMemberVisitor::expand_members(TypeRef lhs, TypeRef rhs, const DT& a, const DT& b, bool rev) const {
   const int64_t num_a = a.size();
   const int64_t num_b = b.size();
 
@@ -19,7 +20,7 @@ bool DestructuredMemberVisitor::expand_members(const DT& a, const DT& b, bool re
   int64_t ib = 0;
 
   while (ia < num_a && ib < num_b) {
-    bool res = recurse_tuple(a, b, &ia, &ib, rev);
+    bool res = recurse_tuple(lhs, rhs, a, b, &ia, &ib, rev);
     if (!res) {
       return false;
     }
@@ -39,7 +40,8 @@ bool DestructuredMemberVisitor::expand_members(const DT& a, const DT& b, bool re
   }
 }
 
-bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t* ia, int64_t* ib, bool rev) const {
+bool DestructuredMemberVisitor::recurse_tuple(TypeRef lhs, TypeRef rhs, const DT& a, const DT& b,
+                                              int64_t* ia, int64_t* ib, bool rev) const {
   assert(*ia < a.size() && *ib < b.size());
 
   const auto& mem_a = a.members[*ia];
@@ -48,7 +50,19 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
   const auto& va = store.at(mem_a);
   const auto& vb = store.at(mem_b);
 
-  if (va.is_list() && !vb.is_list()) {
+  if (va.is_parameters()) {
+    bool success = predicate.parameters(mem_a, rhs, va.parameters, b, *ib, rev);
+    (*ia)++;
+    *ib = b.size();
+    return success;
+
+  } else if (vb.is_parameters()) {
+    bool success = predicate.parameters(mem_b, lhs, vb.parameters, a, *ia, !rev);
+    (*ib)++;
+    *ia = a.size();
+    return success;
+
+  } else if (va.is_list() && !vb.is_list()) {
     if (b.is_definition_usage() && !vb.is_variable()) {
       return false;
     }
@@ -68,14 +82,13 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
 
   } else if (va.is_destructured_tuple()) {
     const int64_t expect_match = expect_to_match(a, va.destructured_tuple);
-    bool success = subrecurse_tuple(va.destructured_tuple, b, ib, expect_match, rev);
+    bool success = subrecurse_tuple(mem_a, rhs, va.destructured_tuple, b, ib, expect_match, rev);
     (*ia)++;
     return success;
 
-
   } else if (vb.is_destructured_tuple()) {
     const int64_t expect_match = expect_to_match(b, vb.destructured_tuple);
-    bool success = subrecurse_tuple(vb.destructured_tuple, a, ia, expect_match, !rev);
+    bool success = subrecurse_tuple(mem_b, lhs, vb.destructured_tuple, a, ia, expect_match, !rev);
     (*ib)++;
     return success;
 
@@ -83,17 +96,17 @@ bool DestructuredMemberVisitor::recurse_tuple(const DT& a, const DT& b, int64_t*
     (*ia)++;
     (*ib)++;
 
-    return predicate(mem_a, mem_b, rev);
+    return predicate.predicate(mem_a, mem_b, rev);
   }
 }
 
-bool DestructuredMemberVisitor::subrecurse_tuple(const DT& child_a, const DT& b,
+bool DestructuredMemberVisitor::subrecurse_tuple(TypeRef lhs, TypeRef rhs, const DT& child_a, const DT& b,
                                                  int64_t* ib, int64_t expect_match, bool rev) const {
   int64_t ia_child = 0;
   bool success = true;
 
   while (success && ia_child < expect_match && ia_child < child_a.size() && *ib < b.size()) {
-    success = recurse_tuple(child_a, b, &ia_child, ib, rev);
+    success = recurse_tuple(lhs, rhs, child_a, b, &ia_child, ib, rev);
   }
 
   return success && ia_child == expect_match;
@@ -119,7 +132,7 @@ bool DestructuredMemberVisitor::subrecurse_list(const types::List& a, int64_t* i
 
   } else {
     *ia = (*ia + 1) % a.size();
-    return predicate(mem_a, mem_b, rev);
+    return predicate.predicate(mem_a, mem_b, rev);
   }
 }
 

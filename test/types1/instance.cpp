@@ -6,7 +6,12 @@ namespace mt {
 void Instantiation::make_instance_variables(const types::Scheme& from_scheme, InstanceVariables& into) {
   for (const auto& param : from_scheme.parameters) {
     if (into.count(param) == 0) {
-      into.emplace(param, store.make_fresh_type_variable_reference());
+      const auto& p = store.at(param);
+      if (p.is_parameters()) {
+        into.emplace(param, store.make_fresh_parameters());
+      } else {
+        into.emplace(param, store.make_fresh_type_variable_reference());
+      }
     }
   }
 }
@@ -53,6 +58,8 @@ TypeHandle Instantiation::clone(const TypeHandle& source, IV replacing, BT prese
       return clone(type.subscript, replacing, preserving, cloned);
     case Type::Tag::scheme:
       return clone(type.scheme, replacing, preserving, cloned);
+    case Type::Tag::parameters:
+      return clone(type.parameters, source, replacing, preserving, cloned);
     default:
       std::cout << to_string(type.tag) << std::endl;
       assert(false && "Unhandled.");
@@ -131,6 +138,14 @@ TypeHandle Instantiation::clone(const types::Variable& var, TypeRef source, IV r
     return source;
   }
 #endif
+}
+
+TypeHandle Instantiation::clone(const types::Parameters& params, TypeRef source, IV replacing, BT preserving, CV cloned) {
+  if (replacing.count(source) > 0) {
+    return replacing.at(source);
+  } else {
+    return source;
+  }
 }
 
 TypeHandle Instantiation::clone(const types::Scalar& scl, TypeRef source, IV replacing, BT preserving, CV cloned) {

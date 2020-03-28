@@ -18,8 +18,9 @@ public:
   store(store),
   string_registry(string_registry),
   arg_comparator(type_eq),
+  name_comparator(type_eq),
   type_equiv_comparator(type_eq),
-  function_types(arg_comparator),
+  function_types(name_comparator),
   types_with_known_subscripts(type_equiv_comparator) {
     //
   }
@@ -49,6 +50,8 @@ private:
   void make_sum();
   void make_fileparts();
   void make_feval();
+  void make_deal();
+  void make_call();
   void make_list_outputs_type();
   void make_list_outputs_type2();
   void make_list_inputs_type();
@@ -67,9 +70,10 @@ private:
   StringRegistry& string_registry;
 
   TypeRelation::ArgumentComparator arg_comparator;
+  TypeRelation::NameComparator name_comparator;
   TypeRelation::TypeRelationComparator type_equiv_comparator;
 
-  std::map<types::Abstraction, TypeHandle, TypeRelation::ArgumentComparator> function_types;
+  std::map<types::Abstraction, TypeHandle, TypeRelation::NameComparator> function_types;
   std::set<TypeHandle, TypeRelation::TypeRelationComparator> types_with_known_subscripts;
 
   std::unordered_map<TypeIdentifier, int64_t, TypeIdentifier::Hash> scalar_type_names;

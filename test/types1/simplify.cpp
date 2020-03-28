@@ -11,6 +11,24 @@
 
 namespace mt {
 
+class DestructuredSimplifier : public DestructuredMemberVisitor::Predicate {
+public:
+  explicit DestructuredSimplifier(Simplifier& simplifier) : simplifier(simplifier) {
+    //
+  }
+
+  bool predicate(const TypeHandle& a, const TypeHandle& b, bool rev) const override {
+    return simplifier.simplify(a, b, rev);
+  }
+
+  virtual bool parameters(TypeRef lhs, TypeRef rhs, const types::Parameters& a,
+                          const types::DestructuredTuple& b, int64_t offset_b, bool rev) const override {
+    return simplifier.simplify_different_types(lhs, rhs, a, b, offset_b, rev);
+  }
+
+  Simplifier& simplifier;
+};
+
 bool Simplifier::simplify_entry(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) {
   lhs_source_term = lhs;
   rhs_source_term = rhs;
@@ -64,31 +82,39 @@ bool Simplifier::simplify_make_type_equation(TypeRef t0, TypeRef t1, bool rev) {
 bool Simplifier::simplify_different_types(TypeRef lhs, TypeRef rhs, bool rev) {
   using Tag = Type::Tag;
 
-  const auto lhs_type = store.type_of(lhs);
-  const auto rhs_type = store.type_of(rhs);
+  const auto& va = store.at(lhs);
+  const auto& vb = store.at(rhs);
 
-  if (lhs_type == Type::Tag::variable || rhs_type == Type::Tag::variable) {
+  if (va.is_variable() || vb.is_variable()) {
     return simplify_make_type_equation(lhs, rhs, rev);
   }
 
-  if (lhs_type == Tag::destructured_tuple) {
-    return simplify_different_types(store.at(lhs).destructured_tuple, lhs, rhs, rev);
+  if (va.is_destructured_tuple()) {
+    return simplify_different_types(va.destructured_tuple, lhs, rhs, rev);
 
-  } else if (rhs_type == Tag::destructured_tuple) {
-    return simplify_different_types(store.at(rhs).destructured_tuple, rhs, lhs, !rev);
+  } else if (vb.is_destructured_tuple()) {
+    return simplify_different_types(vb.destructured_tuple, rhs, lhs, !rev);
 
-  } else if (lhs_type == Tag::list) {
-    return simplify_different_types(store.at(lhs).list, lhs, rhs, rev);
+  } else if (va.is_list()) {
+    return simplify_different_types(va.list, lhs, rhs, rev);
 
-  } else if (rhs_type == Tag::list) {
-    return simplify_different_types(store.at(rhs).list, rhs, lhs, !rev);
+  } else if (vb.is_list()) {
+    return simplify_different_types(vb.list, rhs, lhs, !rev);
+
+  } else if (va.is_scheme()) {
+    return simplify_different_types(va.scheme, lhs, rhs, rev);
+
+  } else if (vb.is_scheme()) {
+    return simplify_different_types(vb.scheme, rhs, lhs, !rev);
 
   } else {
     check_emplace_simplification_failure(false, lhs, rhs);
-//    MT_SHOW2("Unhandled simplify for diff types: ", lhs, rhs);
-//    assert(false);
     return false;
   }
+}
+
+bool Simplifier::simplify_different_types(const types::Scheme& scheme, TypeRef source, TypeRef rhs, bool rev) {
+  return simplify_make_type_equation(unifier.instantiate(scheme), rhs, rev);
 }
 
 bool Simplifier::simplify_different_types(const types::List& list, TypeRef source,
@@ -116,6 +142,23 @@ bool Simplifier::simplify_different_types(const DT& tup, TypeRef source, TypeRef
   return simplify_make_type_equation(source, t, rev);
 }
 
+bool Simplifier::simplify_different_types(TypeRef lhs, TypeRef rhs, const types::Parameters& a,
+                                          const types::DestructuredTuple& b, int64_t offset_b, bool rev) {
+  if (unifier.expanded_parameters.count(lhs) > 0) {
+    assert(false);
+    return true;
+  }
+
+  TypeHandles match_members;
+  for (int64_t i = offset_b; i < b.size(); i++) {
+    match_members.push_back(b.members[i]);
+  }
+
+  const auto lhs_tup = store.make_rvalue_destructured_tuple(std::move(match_members));
+  unifier.expanded_parameters[lhs] = lhs_tup;
+  return true;
+}
+
 bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev) {
   const bool success = unifier.subtype_relationship.related(lhs, rhs, t0, t1, rev);
   check_emplace_simplification_failure(success, lhs, rhs);
@@ -140,7 +183,7 @@ bool Simplifier::simplify(TypeRef lhs, TypeRef rhs, const DT& t0, const DT& t1, 
     success = simplify(t0.members, t1.members, rev);
 
   } else {
-    success = DestructuredMemberVisitor{store, DestructuredSimplifier{*this}}.expand_members(t0, t1, rev);
+    success = DestructuredMemberVisitor{store, DestructuredSimplifier{*this}}.expand_members(lhs, rhs, t0, t1, rev);
   }
 
   check_emplace_simplification_failure(success, lhs, rhs);

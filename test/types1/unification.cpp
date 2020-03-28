@@ -17,7 +17,7 @@
 
 namespace mt {
 
-bool Unifier::is_concrete_argument(const mt::TypeHandle& handle) const {
+bool Unifier::is_concrete_argument(const TypeHandle& handle) const {
   return TypeProperties(store).is_concrete_argument(handle);
 }
 
@@ -134,6 +134,7 @@ bool Unifier::occurs(TypeRef t, TermRef term, TypeRef lhs) const {
     case Type::Tag::scalar:
       return false;
     case Type::Tag::variable:
+    case Type::Tag::parameters:
       return t == lhs;
     default:
     MT_SHOW1("Unhandled occurs: ", t);
@@ -192,6 +193,14 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Variable& var)
 
   if (substitution->bound_terms.count(lookup) > 0) {
     return substitution->bound_terms.at(lookup).term;
+  } else {
+    return source;
+  }
+}
+
+TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Parameters& params) {
+  if (expanded_parameters.count(source) > 0) {
+    return expanded_parameters.at(source);
   } else {
     return source;
   }
@@ -272,6 +281,8 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term) {
       return apply_to(source, term, type.assignment);
     case Type::Tag::scheme:
       return apply_to(source, term, type.scheme);
+    case Type::Tag::parameters:
+      return apply_to(source, term, type.parameters);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -291,6 +302,8 @@ TypeHandle Unifier::substitute_one(TypeRef source, TermRef term, TermRef lhs, Te
   switch (type.tag) {
     case Type::Tag::variable:
       return substitute_one(type.variable, source, term, lhs, rhs);
+    case Type::Tag::parameters:
+      return substitute_one(type.parameters, source, term, lhs, rhs);
     case Type::Tag::scalar:
       return source;
     case Type::Tag::abstraction:
@@ -364,6 +377,15 @@ TypeHandle Unifier::substitute_one(types::Variable& var, TypeRef source,
                                    TermRef term, TermRef lhs, TermRef rhs) {
   if (source == lhs.term) {
     return rhs.term;
+  } else {
+    return source;
+  }
+}
+
+TypeHandle Unifier::substitute_one(types::Parameters& params, TypeRef source,
+                                   TermRef term, TermRef lhs, TermRef rhs) {
+  if (expanded_parameters.count(source) > 0) {
+    return expanded_parameters.at(source);
   } else {
     return source;
   }

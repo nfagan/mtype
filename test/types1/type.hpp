@@ -314,6 +314,10 @@ namespace types {
   };
 
   struct Abstraction {
+    struct HeaderCompare {
+      int operator()(const Abstraction& a, const Abstraction& b) const;
+    };
+
     enum class Type : uint8_t {
       unary_operator = 0,
       binary_operator,
@@ -428,6 +432,19 @@ namespace types {
     TypeHandle outputs;
     TypeHandle inputs;
   };
+
+  struct Parameters {
+    Parameters() = default;
+
+    explicit Parameters(const TypeIdentifier& id) : identifier(id) {
+      //
+    }
+
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Parameters)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Parameters)
+
+    TypeIdentifier identifier;
+  };
 }
 
 /*
@@ -453,7 +470,8 @@ public:
     subscript,
     constant_value,
     scheme,
-    assignment
+    assignment,
+    parameters
   };
 
   Type() : Type(types::Null{}) {
@@ -475,6 +493,7 @@ public:
   MT_DEBUG_TYPE_RVALUE_CTOR(types::ConstantValue, Tag::constant_value, constant_value);
   MT_DEBUG_TYPE_RVALUE_CTOR(types::Scheme, Tag::scheme, scheme);
   MT_DEBUG_TYPE_RVALUE_CTOR(types::Assignment, Tag::assignment, assignment);
+  MT_DEBUG_TYPE_RVALUE_CTOR(types::Parameters, Tag::parameters, parameters);
 
   Type(const Type& other) : tag(other.tag) {
     copy_construct(other);
@@ -517,6 +536,10 @@ public:
     return tag == Tag::scheme;
   }
 
+  [[nodiscard]] bool is_parameters() const {
+    return tag == Tag::parameters;
+  }
+
 private:
   void conditional_default_construct(Tag other_type) noexcept;
   void default_construct() noexcept;
@@ -541,6 +564,7 @@ public:
     types::ConstantValue constant_value;
     types::Scheme scheme;
     types::Assignment assignment;
+    types::Parameters parameters;
   };
 };
 

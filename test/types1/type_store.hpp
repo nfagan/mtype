@@ -41,6 +41,12 @@ public:
     return TypeHandle(types.size() - 1);
   }
 
+  TypeHandle make_fresh_parameters() {
+    auto handle = make_type();
+    assign(handle, Type(types::Parameters(make_type_identifier())));
+    return handle;
+  }
+
   TypeHandle make_fresh_type_variable_reference() {
     auto handle = make_type();
     assign(handle, Type(types::Variable(make_type_identifier())));

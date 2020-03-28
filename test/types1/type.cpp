@@ -5,6 +5,30 @@
 
 namespace mt {
 
+int types::Abstraction::HeaderCompare::operator()(const Abstraction& a, const Abstraction& b) const {
+  if (a.type != b.type) {
+    return a.type < b.type ? -1 : 1;
+  }
+
+  if (a.type == Type::binary_operator && a.binary_operator != b.binary_operator) {
+    return a.binary_operator < b.binary_operator ? -1 : 1;
+
+  } else if (a.type == Type::unary_operator && a.unary_operator != b.unary_operator) {
+    return a.unary_operator < b.unary_operator ? -1 : 1;
+
+  } else if (a.type == Type::subscript_reference && a.subscript_method != b.subscript_method) {
+    return a.subscript_method < b.subscript_method ? -1 : 1;
+
+  } else if (a.type == Type::function && a.name != b.name) {
+    return a.name < b.name ? -1 : 1;
+
+  } else if (a.type == Type::concatenation && a.concatenation_direction != b.concatenation_direction) {
+    return a.concatenation_direction < b.concatenation_direction ? -1 : 1;
+  }
+
+  return 0;
+}
+
 std::size_t TypeIdentifier::Hash::operator()(const TypeIdentifier& id) const {
   return std::hash<int64_t>{}(id.name);
 }
@@ -61,6 +85,8 @@ const char* to_string(Type::Tag tag) {
       return "scheme";
     case Tag::assignment:
       return "assignment";
+    case Tag::parameters:
+      return "parameters";
     default:
       assert(false && "Unhandled.");
   }
@@ -91,6 +117,7 @@ void Type::default_construct() noexcept {
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
     MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::assignment, types::Assignment, assignment)
+    MT_DEBUG_TYPE_DEFAULT_CTOR_CASE(Tag::parameters, types::Parameters, parameters)
   }
 }
 
@@ -116,6 +143,7 @@ void Type::move_construct(Type&& other) noexcept {
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
     MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::assignment, types::Assignment, assignment)
+    MT_DEBUG_TYPE_MOVE_CTOR_CASE(Tag::parameters, types::Parameters, parameters)
   }
 }
 
@@ -141,6 +169,7 @@ void Type::copy_construct(const Type& other) {
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::constant_value, types::ConstantValue, constant_value)
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::scheme, types::Scheme, scheme)
     MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::assignment, types::Assignment, assignment)
+    MT_DEBUG_TYPE_COPY_CTOR_CASE(Tag::parameters, types::Parameters, parameters)
   }
 }
 
@@ -166,6 +195,7 @@ void Type::copy_assign(const Type& other) {
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::constant_value, constant_value)
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::scheme, scheme)
     MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::assignment, assignment)
+    MT_DEBUG_TYPE_COPY_ASSIGN_CASE(Tag::parameters, parameters)
   }
 }
 
@@ -191,6 +221,7 @@ void Type::move_assign(Type&& other) {
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::constant_value, constant_value)
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::scheme, scheme)
     MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::assignment, assignment)
+    MT_DEBUG_TYPE_MOVE_ASSIGN_CASE(Tag::parameters, parameters)
   }
 }
 
@@ -216,6 +247,7 @@ Type::~Type() {
     MT_DEBUG_TYPE_DTOR_CASE(Tag::constant_value, constant_value, ConstantValue)
     MT_DEBUG_TYPE_DTOR_CASE(Tag::scheme, scheme, Scheme)
     MT_DEBUG_TYPE_DTOR_CASE(Tag::assignment, assignment, Assignment)
+    MT_DEBUG_TYPE_DTOR_CASE(Tag::parameters, parameters, Parameters)
   }
 }
 

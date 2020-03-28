@@ -57,6 +57,9 @@ void TypeToString::apply(const Type& t, std::stringstream& into) const {
     case Tag::assignment:
       apply(t.assignment, into);
       break;
+    case Tag::parameters:
+      apply(t.parameters, into);
+      break;
     default:
       assert(false && "Unhandled.");
   }
@@ -215,6 +218,10 @@ void TypeToString::apply(const types::Assignment& assignment, std::stringstream&
   apply(assignment.lhs, stream);
   stream << " = ";
   apply(assignment.rhs, stream);
+}
+
+void TypeToString::apply(const types::Parameters& params, std::stringstream& stream) const {
+  stream << color(style::red) << "P" << params.identifier.name << dflt_color();
 }
 
 void TypeToString::apply_implicit(const DT& tup, const Optional<DT::Usage>& parent_usage, std::stringstream& stream) const {

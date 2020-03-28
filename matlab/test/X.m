@@ -5,7 +5,11 @@ a3 = {min(min(1, ""), ""), min(1, ""), 1, 'c'};
 a1 = {min(1, ""), 'c'};
 % a2 = a1;
 a2 = a3;
-[a2{1}] = a3{1};
+a2{1} = a2{1};
+
+oo = {1};
+zoo = @() deal(sub_double() + sub_double(), {}, call(@(x) x, @(x) x));
+[u0, u1, u2] = zoo();
 
 double_list = {1, 1, 1, min(1, ""), 1};
 z0 = {1, double_list{1}, min(1, "")};
@@ -26,6 +30,8 @@ y1 = in_list( min(1, "c"), out_list(1), 1, 1 );
 
 d = {1};
 a = {1};
+
+% f0(1);
 
 % In an assignment a = b, where b resolves to a list<T>, and a is a variable,
 % a resolves to T.

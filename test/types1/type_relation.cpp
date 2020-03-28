@@ -5,6 +5,22 @@
 
 namespace mt {
 
+class DestructuredVisitor : public DestructuredMemberVisitor::Predicate {
+public:
+  explicit DestructuredVisitor(const TypeRelation& relation) : relation(relation) {
+    //
+  }
+  bool predicate(const TypeHandle& a, const TypeHandle& b, bool rev) const override {
+    return relation.related(a, b, rev);
+  }
+  virtual bool parameters(TypeRef lhs, TypeRef rhs, const types::Parameters& a,
+                          const types::DestructuredTuple& b, int64_t offset_b, bool rev) const override {
+    return relation.related(lhs, rhs, rev);
+  }
+
+  const TypeRelation& relation;
+};
+
 DebugTypePrinter TypeRelation::type_printer() const {
   return DebugTypePrinter(store);
 }
@@ -46,7 +62,7 @@ bool TypeRelation::related_same_types(const TypeHandle& a, const TypeHandle& b, 
     case Type::Tag::scalar:
       return related(a, b, value_a.scalar, value_b.scalar, rev);
     case Type::Tag::destructured_tuple:
-      return related(value_a.destructured_tuple, value_b.destructured_tuple, rev);
+      return related(a, b, value_a.destructured_tuple, value_b.destructured_tuple, rev);
     case Type::Tag::list:
       return related(value_a.list, value_b.list, rev);
     case Type::Tag::tuple:
@@ -84,6 +100,12 @@ bool TypeRelation::related_different_types(const TypeHandle& a, const TypeHandle
 
   } else if (value_b.is_list()) {
     return related_different_types(value_b.list, a, !rev);
+
+  } else if (value_a.is_scheme()) {
+    return related_different_types(value_a.scheme, b, rev);
+
+  } else if (value_b.is_scheme()) {
+    return related_different_types(value_b.scheme, a, !rev);
 
   } else {
     return false;
@@ -190,7 +212,7 @@ bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction
   return related(a.inputs, b.inputs, !rev) && related(a.outputs, b.outputs, rev);
 }
 
-bool TypeRelation::related(const DT& a, const DT& b, bool rev) const {
+bool TypeRelation::related(TypeRef lhs, TypeRef rhs, const DT& a, const DT& b, bool rev) const {
   if (types::DestructuredTuple::mismatching_definition_usages(a, b)) {
     return false;
 
@@ -198,8 +220,12 @@ bool TypeRelation::related(const DT& a, const DT& b, bool rev) const {
     return element_wise_related(a.members, b.members, rev);
 
   } else {
-    return DestructuredMemberVisitor{store, DestructuredVisitor{*this}}.expand_members(a, b, rev);
+    return DestructuredMemberVisitor{store, DestructuredVisitor{*this}}.expand_members(lhs, rhs, a, b, rev);
   }
+}
+
+bool TypeRelation::related_different_types(const types::Scheme& a, const TypeHandle& b, bool rev) const {
+  return related(a.type, b, rev);
 }
 
 bool TypeRelation::related_different_types(const types::DestructuredTuple& a, const TypeHandle& b, bool rev) const {
@@ -221,24 +247,12 @@ bool TypeRelation::TypeRelationComparator::operator()(const TypeHandle& a, const
 bool TypeRelation::ArgumentComparator::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
   using Type = types::Abstraction::Type;
 
-  if (a.type != b.type) {
-    return a.type < b.type;
-  }
-
-  if (a.type == Type::binary_operator && a.binary_operator != b.binary_operator) {
-    return a.binary_operator < b.binary_operator;
-
-  } else if (a.type == Type::unary_operator && a.unary_operator != b.unary_operator) {
-    return a.unary_operator < b.unary_operator;
-
-  } else if (a.type == Type::subscript_reference && a.subscript_method != b.subscript_method) {
-    return a.subscript_method < b.subscript_method;
-
-  } else if (a.type == Type::function && a.name != b.name) {
-    return a.name < b.name;
-
-  } else if (a.type == Type::concatenation && a.concatenation_direction != b.concatenation_direction) {
-    return a.concatenation_direction < b.concatenation_direction;
+  types::Abstraction::HeaderCompare compare{};
+  const auto header_result = compare(a, b);
+  if (header_result == -1) {
+    return true;
+  } else if (header_result == 1) {
+    return false;
   }
 
   const auto& args_a = type_relation.store.at(a.inputs);
@@ -263,8 +277,13 @@ bool TypeRelation::ArgumentComparator::operator()(const types::Abstraction& a, c
   return !related;
 
 #else
-  return !type_relation.related(tup_a, tup_b, false);
+  return !type_relation.related(a.inputs, b.inputs, tup_a, tup_b, false);
 #endif
+}
+
+bool TypeRelation::NameComparator::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
+  types::Abstraction::HeaderCompare compare{};
+  return compare(a, b) == -1;
 }
 
 

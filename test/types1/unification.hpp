@@ -39,6 +39,7 @@ struct UnifyResult {
 };
 
 class Unifier {
+  friend class Simplifier;
 public:
   using BoundVariables = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::HandleHash>;
 public:
@@ -69,6 +70,7 @@ private:
 
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Abstraction& func);
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Variable& var);
+  MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Parameters& params);
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Tuple& tup);
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::DestructuredTuple& tup);
   MT_NODISCARD TypeHandle apply_to(TypeRef source, TermRef term, types::Subscript& sub);
@@ -82,6 +84,7 @@ private:
   void substitute_one(std::vector<TypeHandle>& sources, TermRef term, TermRef lhs, TermRef rhs);
 
   MT_NODISCARD TypeHandle substitute_one(types::Variable& var,           TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD TypeHandle substitute_one(types::Parameters& params,      TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD TypeHandle substitute_one(types::Abstraction& func,       TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD TypeHandle substitute_one(types::Tuple& tup,              TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD TypeHandle substitute_one(types::DestructuredTuple& tup,  TypeRef source, TermRef term, TermRef lhs, TermRef rhs);
@@ -136,6 +139,7 @@ private:
 
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_funcs;
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_assignments;
+  std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash> expanded_parameters;
 
   std::vector<SimplificationFailure> simplification_failures;
   bool any_failures;

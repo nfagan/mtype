@@ -8,17 +8,7 @@ class Unifier;
 class TypeStore;
 
 class Simplifier {
-private:
-  struct DestructuredSimplifier {
-    DestructuredSimplifier(Simplifier& simplifier) : simplifier(simplifier) {
-      //
-    }
-    bool operator()(const TypeHandle& a, const TypeHandle& b, bool rev) {
-      return simplifier.simplify(a, b, rev);
-    }
-
-    Simplifier& simplifier;
-  };
+  friend class DestructuredSimplifier;
 public:
   Simplifier(Unifier& unifier, TypeStore& store) : unifier(unifier), store(store) {
     //
@@ -44,8 +34,11 @@ private:
   bool simplify(TypeRef lhs, TypeRef rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev);
   bool simplify(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, bool rev);
 
+  bool simplify_different_types(const types::Scheme& scheme, TypeRef source, TypeRef rhs, bool rev);
   bool simplify_different_types(const types::List& list, TypeRef source, TypeRef rhs, bool rev);
   bool simplify_different_types(const types::DestructuredTuple& tup, TypeRef source, TypeRef rhs, bool rev);
+  bool simplify_different_types(TypeRef lhs, TypeRef rhs, const types::Parameters& a,
+                                const types::DestructuredTuple& b, int64_t offset_b, bool rev);
   bool simplify_make_type_equation(TypeRef t0, TypeRef t1, bool rev);
 
   void push_make_type_equation(TypeRef t0, TypeRef t1, bool rev);
