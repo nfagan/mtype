@@ -507,15 +507,14 @@ void Unifier::unify_one(TypeEquation eq) {
 
 TypeHandle Unifier::instantiate(const types::Scheme& scheme) {
   auto instance_vars = instantiation.make_instance_variables(scheme);
-  Instantiation::ClonedVariables cloned;
   const auto& bound_terms = substitution->bound_terms;
 
-  const auto instance_handle = instantiation.instantiate(scheme, instance_vars, bound_terms, cloned);
+  const auto instance_handle = instantiation.instantiate(scheme, instance_vars);
   auto instance_constraints = scheme.constraints;
 
   for (auto& constraint : instance_constraints) {
-    constraint.lhs.term = instantiation.clone(constraint.lhs.term, instance_vars, bound_terms, cloned);
-    constraint.rhs.term = instantiation.clone(constraint.rhs.term, instance_vars, bound_terms, cloned);
+    constraint.lhs.term = instantiation.clone(constraint.lhs.term, instance_vars);
+    constraint.rhs.term = instantiation.clone(constraint.rhs.term, instance_vars);
 
     if (constraint.lhs != constraint.rhs) {
       substitution->push_type_equation(constraint);
