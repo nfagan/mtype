@@ -42,6 +42,7 @@ public:
     //
     assignment_state.push_non_assignment_target_rvalue();
     value_category_state.push_rhs();
+    push_monomorphic_anonymous_functions();
   }
 
   void show_type_distribution() const;
@@ -74,6 +75,9 @@ public:
   void assignment_stmt(const AssignmentStmt& stmt) override;
 
   void function_def_node(const FunctionDefNode& node) override;
+
+  void fun_type_node(const FunTypeNode& node) override;
+  void type_annot_macro(const TypeAnnotMacro& macro) override;
 
 private:
   std::vector<TypeHandle> grouping_expr_components(const GroupingExpr& expr);
@@ -131,6 +135,24 @@ private:
     }
   }
 
+  void push_monomorphic_anonymous_functions() {
+    are_anonymous_functions_generic.push_back(false);
+  }
+
+  void push_polymorphic_anonymous_functions() {
+    are_anonymous_functions_generic.push_back(true);
+  }
+
+  void pop_generic_anonymous_function_state() {
+    assert(!are_anonymous_functions_generic.empty());
+    are_anonymous_functions_generic.pop_back();
+  }
+
+  bool are_anonymous_functions_polymorphic() const {
+    assert(!are_anonymous_functions_generic.empty());
+    return are_anonymous_functions_generic.back();
+  }
+
   void push_constraint_repository() {
     constraint_repositories.emplace_back();
   }
@@ -182,6 +204,7 @@ private:
 
   std::vector<TypeEquationTerm> type_eq_terms;
   std::vector<ConstraintRepository> constraint_repositories;
+  std::vector<bool> are_anonymous_functions_generic;
 };
 
 }

@@ -44,6 +44,7 @@ struct FunctionDefNode;
 struct UnionType;
 struct ScalarType;
 struct FunctionType;
+struct FunTypeNode;
 struct TypeBegin;
 struct TypeGiven;
 struct TypeLet;
@@ -99,6 +100,7 @@ public:
   MT_VISITOR_METHOD(union_type, UnionType)
   MT_VISITOR_METHOD(scalar_type, ScalarType)
   MT_VISITOR_METHOD(function_type, FunctionType)
+  MT_VISITOR_METHOD(fun_type_node, FunTypeNode)
   MT_VISITOR_METHOD(type_given, TypeGiven)
   MT_VISITOR_METHOD(type_begin, TypeBegin)
   MT_VISITOR_METHOD(type_let, TypeLet)

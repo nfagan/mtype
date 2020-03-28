@@ -116,6 +116,20 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
 }
 
 /*
+ * TypeAnnot
+ */
+
+void TypeConstraintGenerator::fun_type_node(const FunTypeNode& node) {
+  push_polymorphic_anonymous_functions();
+  node.definition->accept_const(*this);
+  pop_generic_anonymous_function_state();
+}
+
+void TypeConstraintGenerator::type_annot_macro(const TypeAnnotMacro& macro) {
+  macro.annotation->accept_const(*this);
+}
+
+/*
  * Expr
  */
 
@@ -274,8 +288,11 @@ void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExp
 
   type_store.at(func_scheme).scheme.constraints = std::move(stored_constraints.constraints);
 
-//  push_type_equation_term(func_scheme_term);
-  push_type_equation_term(make_term(&expr.source_token, func));
+  if (are_anonymous_functions_polymorphic()) {
+    push_type_equation_term(func_scheme_term);
+  } else {
+    push_type_equation_term(make_term(&expr.source_token, func));
+  }
 }
 
 void TypeConstraintGenerator::binary_operator_expr(const BinaryOperatorExpr& expr) {

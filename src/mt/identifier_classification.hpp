@@ -234,6 +234,9 @@ public:
   SwitchStmt* switch_stmt(SwitchStmt& stmt);
   VariableDeclarationStmt* variable_declaration_stmt(VariableDeclarationStmt& stmt);
 
+  FunTypeNode* fun_type_node(FunTypeNode& node);
+  TypeAnnotMacro* type_annot_macro(TypeAnnotMacro& node);
+
   void if_branch(IfBranch& branch);
   void subscripts(std::vector<Subscript>& subscripts, int64_t begin);
   void subscript(Subscript& sub);

@@ -2175,11 +2175,54 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
     case TokenType::keyword_let:
       return type_let(source_token);
 
+    case TokenType::keyword_fun_type:
+      return type_fun(source_token);
+
     default:
       auto possible_types = type_annotation_block_possible_types();
       add_error(make_error_expected_token_type(source_token, possible_types));
       return NullOpt{};
   }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_fun(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto end_type_err = consume(TokenType::keyword_end_type);
+  if (end_type_err) {
+    add_error(end_type_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto stmt_res = stmt();
+  if (!stmt_res) {
+    return NullOpt{};
+  }
+
+  auto stmt_node = std::move(stmt_res.rvalue());
+  if (!stmt_node->is_assignment_stmt()) {
+    add_error(make_error_non_assignment_stmt_in_fun_declaration(source_token));
+    return NullOpt{};
+  }
+
+  const auto& assign_stmt = dynamic_cast<const AssignmentStmt&>(*stmt_node);
+  if (!assign_stmt.of_expr->is_anonymous_function_expr()) {
+    add_error(make_error_non_anonymous_function_rhs_in_fun_declaration(source_token));
+    return NullOpt{};
+
+  } else if (!assign_stmt.to_expr->is_identifier_reference_expr()) {
+    add_error(make_error_non_identifier_lhs_in_fun_declaration(source_token));
+    return NullOpt{};
+  }
+
+  const auto& ref_expr_lhs = dynamic_cast<const IdentifierReferenceExpr&>(*assign_stmt.to_expr);
+  if (!ref_expr_lhs.subscripts.empty()) {
+    add_error(make_error_non_identifier_lhs_in_fun_declaration(source_token));
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<FunTypeNode>(source_token, std::move(stmt_node));
+  return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
@@ -2444,9 +2487,9 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
   return Optional<BoxedType>(std::move(node));
 }
 
-std::array<TokenType, 3> AstGenerator::type_annotation_block_possible_types() {
-  return std::array<TokenType, 3>{
-    {TokenType::keyword_begin, TokenType::keyword_given, TokenType::keyword_let
+std::array<TokenType, 4> AstGenerator::type_annotation_block_possible_types() {
+  return std::array<TokenType, 4>{
+    {TokenType::keyword_begin, TokenType::keyword_given, TokenType::keyword_let, TokenType::keyword_fun_type
   }};
 }
 
@@ -2693,6 +2736,18 @@ ParseError AstGenerator::make_error_invalid_access_attribute_value(const Token& 
 
 ParseError AstGenerator::make_error_empty_brace_subscript(const Token& at_token) const {
   return ParseError(text, at_token, "`{}` subscripts require arguments.", file_descriptor);
+}
+
+ParseError AstGenerator::make_error_non_assignment_stmt_in_fun_declaration(const Token& at_token) const {
+  return ParseError(text, at_token, "`fun` definition must precede an assignment statement.", file_descriptor);
+}
+
+ParseError AstGenerator::make_error_non_anonymous_function_rhs_in_fun_declaration(const mt::Token& at_token) const {
+  return ParseError(text, at_token, "`fun` definition rhs must be an anonymous function.", file_descriptor);
+}
+
+ParseError AstGenerator::make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const {
+  return ParseError(text, at_token, "`fun` definition lhs must be a scalar identifier.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

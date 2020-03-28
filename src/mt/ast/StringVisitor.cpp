@@ -544,6 +544,17 @@ std::string StringVisitor::function_type(const FunctionType& type) const {
   return outputs + " = " + inputs;
 }
 
+std::string StringVisitor::fun_type_node(const FunTypeNode& node) const {
+  std::string fun_str("fun");
+  maybe_colorize(fun_str, node.source_token.type);
+  const auto t = tab_str();
+  auto tmp_tab_depth = tab_depth;
+  tab_depth = 0;
+  const auto full_str = tab_str() + fun_str + node.definition->accept(*this);
+  tab_depth = tmp_tab_depth;
+  return full_str;
+}
+
 std::string StringVisitor::inline_type(const InlineType& type) const {
   return type.type->accept(*this);
 }

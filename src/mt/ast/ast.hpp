@@ -74,6 +74,10 @@ struct Expr : public AstNode {
     return false;
   }
 
+  virtual bool is_anonymous_function_expr() const {
+    return false;
+  }
+
   virtual bool append_to_compound_identifier(std::vector<int64_t>&) const {
     return false;
   }
@@ -85,6 +89,10 @@ struct Stmt : public AstNode {
 
   void accept(TypePreservingVisitor& vis) override = 0;
   void accept_const(TypePreservingVisitor& vis) const override = 0;
+
+  virtual bool is_assignment_stmt() const {
+    return false;
+  }
 
   bool represents_stmt_or_stmts() const override {
     return true;

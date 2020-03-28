@@ -172,6 +172,7 @@ private:
   Optional<BoxedTypeAnnot> type_begin(const Token& source_token);
   Optional<BoxedTypeAnnot> type_given(const Token& source_token);
   Optional<BoxedTypeAnnot> type_let(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_fun(const Token& source_token);
   Optional<BoxedTypeAnnot> inline_type_annotation(const Token& source_token);
 
   Optional<BoxedType> type(const Token& source_token);
@@ -209,6 +210,9 @@ private:
   ParseError make_error_invalid_boolean_attribute_value(const Token& at_token) const;
   ParseError make_error_invalid_access_attribute_value(const Token& at_token) const;
   ParseError make_error_empty_brace_subscript(const Token& at_token) const;
+  ParseError make_error_non_assignment_stmt_in_fun_declaration(const Token& at_token) const;
+  ParseError make_error_non_anonymous_function_rhs_in_fun_declaration(const Token& at_token) const;
+  ParseError make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
@@ -235,7 +239,7 @@ private:
 
   void add_error(ParseError&& err);
 
-  static std::array<TokenType, 3> type_annotation_block_possible_types();
+  static std::array<TokenType, 4> type_annotation_block_possible_types();
   static std::array<TokenType, 5> sub_block_possible_types();
 
 private:

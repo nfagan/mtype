@@ -838,6 +838,16 @@ ClassDefNode* IdentifierClassifier::class_def_node(ClassDefNode& ref) {
   return &ref;
 }
 
+FunTypeNode* IdentifierClassifier::fun_type_node(FunTypeNode& node) {
+  conditional_reset(node.definition, node.definition->accept(*this));
+  return &node;
+}
+
+TypeAnnotMacro* IdentifierClassifier::type_annot_macro(TypeAnnotMacro& node) {
+  conditional_reset(node.annotation, node.annotation->accept(*this));
+  return &node;
+}
+
 void IdentifierClassifier::transform_root(BoxedRootBlock& block) {
   conditional_reset(block, block->accept(*this));
 }

@@ -55,6 +55,7 @@ TokenType from_symbol(std::string_view s) {
     {"end", TokenType::keyword_end},
     {"for", TokenType::keyword_for},
     {"function", TokenType::keyword_function},
+    {"fun", TokenType::keyword_fun_type},
     {"global", TokenType::keyword_global},
     {"if", TokenType::keyword_if},
     {"otherwise", TokenType::keyword_otherwise},
@@ -247,6 +248,8 @@ const char* to_symbol(TokenType type) {
       return "struct";
     case TokenType::keyword_function_type:
       return "function";
+    case TokenType::keyword_fun_type:
+      return "fun";
     case TokenType::keyword_end_type:
       return "end";
     case TokenType::type_annotation_macro:
@@ -415,6 +418,8 @@ const char* to_string(TokenType type) {
       return "keyword_struct";
     case TokenType::keyword_function_type:
       return "keyword_function_type";
+    case TokenType::keyword_fun_type:
+      return "keyword_fun_type";
     case TokenType::keyword_end_type:
       return "keyword_end_type";
     case TokenType::type_annotation_macro:
@@ -437,8 +442,6 @@ bool represents_literal(TokenType type) {
 
 bool represents_expr_terminator(TokenType type) {
   return represents_stmt_terminator(type) || represents_grouping_terminator(type) || type == TokenType::equal;
-//  return type == TokenType::semicolon || type == TokenType::comma || type == TokenType::new_line ||
-//    type == TokenType::null || type == TokenType::equal || represents_grouping_terminator(type);
 }
 
 bool represents_stmt_terminator(TokenType type) {

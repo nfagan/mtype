@@ -12,6 +12,9 @@ struct TypeAnnotMacro : public TypeAnnot {
   }
   ~TypeAnnotMacro() override = default;
   std::string accept(const StringVisitor& vis) const override;
+  TypeAnnotMacro* accept(IdentifierClassifier& classifier) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
   BoxedTypeAnnot annotation;
@@ -116,6 +119,21 @@ struct FunctionType : public TypeNode {
   Token source_token;
   std::vector<BoxedType> outputs;
   std::vector<BoxedType> inputs;
+};
+
+struct FunTypeNode : public TypeNode {
+  FunTypeNode(const Token& source_token, BoxedStmt definition) :
+  source_token(source_token), definition(std::move(definition)) {
+    //
+  }
+  ~FunTypeNode() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  FunTypeNode* accept(IdentifierClassifier& classifier) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  BoxedStmt definition;
 };
 
 }

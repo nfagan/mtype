@@ -39,7 +39,7 @@ namespace {
 
 const char** typing::keywords(int* count) {
   static const char* keywords[] = {
-    "begin", "export", "given", "let", "namespace", "struct"
+    "begin", "export", "given", "let", "namespace", "struct", "fun"
   };
 
   *count = sizeof(keywords) / sizeof(keywords[0]);

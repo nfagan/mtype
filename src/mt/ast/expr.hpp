@@ -54,6 +54,10 @@ struct AnonymousFunctionExpr : public Expr {
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 
+  bool is_anonymous_function_expr() const override {
+    return true;
+  }
+
   Token source_token;
   std::vector<FunctionInputParameter> inputs;
   BoxedExpr expr;
