@@ -2,6 +2,10 @@
 
 namespace mt {
 
+bool Token::is_null() const {
+  return type == TokenType::null;
+}
+
 std::string Token::pretty_lexeme() const {
   if (type == TokenType::null) {
     return "<null>";

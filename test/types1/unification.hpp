@@ -17,8 +17,8 @@ class DebugTypePrinter;
 class Library;
 
 struct UnifyResult {
-  UnifyResult(std::vector<SimplificationFailure>&& simplify_failures) :
-  simplify_failures(std::move(simplify_failures)), had_error(true) {
+  UnifyResult(UnificationErrors&& errors) :
+  errors(std::move(errors)), had_error(true) {
     //
   }
 
@@ -35,7 +35,7 @@ struct UnifyResult {
   }
 
   bool had_error;
-  std::vector<SimplificationFailure> simplify_failures;
+  UnificationErrors errors;
 };
 
 class Unifier {
@@ -58,11 +58,15 @@ public:
   MT_NODISCARD UnifyResult unify(Substitution* subst);
   DebugTypePrinter type_printer() const;
 
-  void add_error(SimplificationFailure&& err);
+  void add_error(BoxedUnificationError err);
   void emplace_simplification_failure(const Token* lhs_token, const Token* rhs_token,
                                       TypeRef lhs_type, TypeRef rhs_type);
-  SimplificationFailure make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
-    TypeRef lhs_type, TypeRef rhs_type) const;
+  BoxedUnificationError make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+                                                    TypeRef lhs_type, TypeRef rhs_type) const;
+  BoxedUnificationError make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
+                                                    TypeRef lhs_type, TypeRef rhs_type) const;
+  BoxedUnificationError make_unresolved_function_error(const Token* at_token, TypeRef function_type) const;
+  BoxedUnificationError make_invalid_function_invocation_error(const Token* at_token, TypeRef function_type) const;
 
 private:
   void reset(Substitution* subst);
@@ -141,7 +145,7 @@ private:
   std::unordered_map<TypeHandle, bool, TypeHandle::Hash> registered_assignments;
   std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash> expanded_parameters;
 
-  std::vector<SimplificationFailure> simplification_failures;
+  UnificationErrors errors;
   bool any_failures;
 };
 

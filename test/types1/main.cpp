@@ -78,9 +78,9 @@ int main(int argc, char** argv) {
 
   if (unify_res.is_error()) {
     ShowUnificationErrors show(type_store, type_to_string);
-    show.show(unify_res.simplify_failures, contents, file_descriptor, scan_info.row_column_indices);
+    show.show(unify_res.errors, contents, file_descriptor, scan_info.row_column_indices);
 
-    if (unify_res.simplify_failures.empty()) {
+    if (unify_res.errors.empty()) {
       std::cout << "ERROR" << std::endl;
     }
   }

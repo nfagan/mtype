@@ -13,6 +13,7 @@ struct Token {
   std::string_view lexeme;
 
   std::string pretty_lexeme() const;
+  bool is_null() const;
 };
 
 class TokenIterator {

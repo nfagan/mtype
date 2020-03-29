@@ -154,75 +154,29 @@ void Library::make_list_outputs_type2() {
 }
 
 void Library::make_subscript_references() {
-//  make_builtin_parens_tuple_subscript_reference();
   make_builtin_parens_subscript_references();
   make_builtin_brace_subscript_reference();
 }
 
 void Library::make_builtin_parens_subscript_references() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using types::List;
+  const auto ref_var = store.make_fresh_type_variable_reference();
+
+  const auto list_subs_type = store.make_list(double_type_handle);
+  const auto args_type = store.make_input_destructured_tuple(ref_var, list_subs_type);
+  const auto result_type = store.make_output_destructured_tuple(ref_var);
+  const auto func_type = store.make_abstraction(SubscriptMethod::parens, args_type, result_type);
+  const auto ref_copy = store.at(func_type).abstraction;
+
+  const auto scheme = store.make_scheme(func_type, TypeHandles{ref_var});
+  function_types[ref_copy] = scheme;
 
   std::vector<TypeHandle> default_array_types{double_type_handle, char_type_handle,
                                               string_type_handle, sub_double_type_handle};
 
   for (const auto& referent_type_handle : default_array_types) {
-    const auto list_type = store.make_list(double_type_handle);
-    const auto args_type = store.make_input_destructured_tuple(referent_type_handle, list_type);
-    const auto result_type = store.make_output_destructured_tuple(referent_type_handle);
-    const auto func_type = store.make_abstraction(SubscriptMethod::parens, args_type, result_type);
-    const auto ref_copy = store.at(func_type).abstraction;
-
-    function_types[ref_copy] = func_type;
     types_with_known_subscripts.insert(referent_type_handle);
   }
 }
-
-#if 0
-void Library::make_builtin_parens_tuple_subscript_reference() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-  using types::List;
-
-  auto func_scheme = store.make_type();
-  auto ref_var = store.make_fresh_type_variable_reference();
-  auto list_type = store.make_list(ref_var);
-  auto tup_type = store.make_tuple(list_type);
-
-  types::Scheme scheme;
-
-  const auto args_type = store.make_type();
-  const auto list_subs_type = store.make_list(double_type_handle);
-  const auto result_type = store.make_type();
-  const auto func_type = store.make_type();
-
-  types::Abstraction ref(SubscriptMethod::parens, args_type, result_type);
-  auto ref_copy = ref;
-
-  store.assign(args_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, tup_type, list_subs_type)));
-  store.assign(result_type,
-    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, tup_type)));
-
-  scheme.type = func_type;
-  scheme.parameters.push_back(ref_var);
-
-  store.assign(func_type, Type(std::move(ref)));
-  store.assign(func_scheme, Type(std::move(scheme)));
-
-  function_types[ref_copy] = func_scheme;
-  types_with_known_subscripts.insert(tup_type);
-
-#if 0
-  auto test_lookup = store.make_abstraction(SubscriptMethod::parens,
-    store.make_rvalue_destructured_tuple(store.make_tuple(store.make_list(double_type_handle)), double_type_handle), TypeHandle());
-
-  auto func = lookup_function(store.at(test_lookup).abstraction);
-  assert(func);
-#endif
-}
-#endif
 
 void Library::make_builtin_brace_subscript_reference() {
   const auto ref_var = store.make_fresh_type_variable_reference();
@@ -237,48 +191,6 @@ void Library::make_builtin_brace_subscript_reference() {
   const auto scheme = store.make_scheme(func_type, TypeHandles{ref_var});
   function_types[ref_copy] = scheme;
   types_with_known_subscripts.insert(tup_type);
-//
-//  /*
-//   *
-//   */
-//  using types::DestructuredTuple;
-//  using types::Abstraction;
-//  using types::List;
-//
-//  auto func_scheme = store.make_type();
-//  auto ref_var = store.make_fresh_type_variable_reference();
-//  auto tup_type = store.make_type();
-//
-//  types::Scheme scheme;
-//
-//  //  {T}
-//  store.assign(tup_type, Type(types::Tuple(ref_var)));
-//
-//  const auto args_type = store.make_type();
-//  const auto list_subs_type = store.make_type();
-//  const auto list_result_type = store.make_type();
-//  const auto result_type = store.make_type();
-//  const auto func_type = store.make_type();
-//
-//  types::Abstraction ref(SubscriptMethod::brace, args_type, result_type);
-//  auto ref_copy = ref;
-//
-//  store.assign(list_subs_type, Type(List(double_type_handle)));  //  list<double>
-//  store.assign(list_result_type, Type(List(ref_var)));  //  list<T>
-//
-//  store.assign(args_type,
-//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, tup_type, list_subs_type)));
-//  store.assign(result_type,
-//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, list_result_type)));
-//
-//  scheme.type = func_type;
-//  scheme.parameters.push_back(ref_var);
-//
-//  store.assign(func_type, Type(std::move(ref)));
-//  store.assign(func_scheme, Type(std::move(scheme)));
-//
-//  function_types[ref_copy] = func_scheme;
-//  types_with_known_subscripts.insert(tup_type);
 }
 
 void Library::make_concatenations() {
@@ -291,40 +203,6 @@ void Library::make_concatenations() {
 
   auto cat_copy = store.at(cat).abstraction;
   function_types[cat_copy] = scheme;
-//
-//  /*
-//   *
-//   */
-//  using types::DestructuredTuple;
-//  using types::Abstraction;
-//  using types::List;
-//
-//  auto func_scheme = store.make_type();
-//  auto tvar = store.make_fresh_type_variable_reference(); //  T
-//
-//  types::Scheme scheme;
-//
-//  const auto args_type = store.make_type();
-//  const auto result_type = store.make_type();
-//  const auto func_type = store.make_type();
-//
-//  types::Abstraction cat(ConcatenationDirection::horizontal, args_type, result_type);
-//  auto cat_copy = cat;
-//
-//  auto list_args_type = store.make_list(tvar);  //  list<T>
-//
-//  store.assign(args_type,
-//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_inputs, list_args_type)));
-//  store.assign(result_type,
-//    Type(DestructuredTuple(DestructuredTuple::Usage::definition_outputs, tvar)));
-//
-//  scheme.type = func_type;
-//  scheme.parameters.push_back(tvar);
-//
-//  store.assign(func_type, Type(std::move(cat)));
-//  store.assign(func_scheme, Type(std::move(scheme)));
-//
-//  function_types[cat_copy] = func_scheme;
 }
 
 void Library::make_binary_operators() {

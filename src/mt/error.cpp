@@ -25,7 +25,7 @@ inline std::string colorize_message(const std::string& msg) {
 }
 
 bool ParseError::is_null_token() const {
-  return at_token.type == TokenType::null;
+  return at_token.is_null();
 }
 
 std::string ParseError::make_message(bool colorize) const {

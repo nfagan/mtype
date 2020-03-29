@@ -67,9 +67,7 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
     }
 
   } else {
-    std::cout << "ERROR: no such function: ";
-    type_printer().show(source);
-    std::cout << std::endl;
+    add_error(make_unresolved_function_error(term.source_token, source));
   }
 
   registered_funcs[source] = true;
@@ -94,7 +92,7 @@ void Unifier::reset(Substitution* subst) {
   assert(subst);
 
   substitution = subst;
-  simplification_failures.clear();
+  errors.clear();
   any_failures = false;
 }
 
@@ -107,7 +105,7 @@ UnifyResult Unifier::unify(Substitution* subst) {
   }
 
   if (had_error()) {
-    return UnifyResult(std::move(simplification_failures));
+    return UnifyResult(std::move(errors));
   } else {
     return UnifyResult();
   }
@@ -137,7 +135,7 @@ bool Unifier::occurs(TypeRef t, TermRef term, TypeRef lhs) const {
     case Type::Tag::parameters:
       return t == lhs;
     default:
-    MT_SHOW1("Unhandled occurs: ", t);
+      MT_SHOW1("Unhandled occurs: ", t);
       assert(false);
       return true;
   }
@@ -453,44 +451,45 @@ TypeHandle Unifier::substitute_one(types::List& list, TypeRef source,
 void Unifier::unify_one(TypeEquation eq) {
   using Tag = Type::Tag;
 
-  eq.lhs.term = apply_to(eq.lhs.term, eq.lhs);
-  eq.rhs.term = apply_to(eq.rhs.term, eq.rhs);
+  auto lhs = eq.lhs;
+  auto rhs = eq.rhs;
 
-  if (eq.lhs.term == eq.rhs.term) {
+  lhs.term = apply_to(lhs.term, lhs);
+  rhs.term = apply_to(rhs.term, rhs);
+
+  if (lhs.term == rhs.term) {
     return;
   }
 
-  auto lhs_type = type_of(eq.lhs.term);
-  auto rhs_type = type_of(eq.rhs.term);
+  auto lhs_type = type_of(lhs.term);
+  auto rhs_type = type_of(rhs.term);
 
   if (lhs_type != Tag::variable && rhs_type != Tag::variable) {
-    bool success = simplifier.simplify_entry(eq.lhs, eq.rhs);
-
+    const bool success = simplifier.simplify_entry(lhs, rhs);
     if (!success) {
       mark_failure();
     }
 
     return;
-
   } else if (lhs_type != Tag::variable) {
     assert(rhs_type == Tag::variable && "Rhs should be variable.");
-    std::swap(eq.lhs, eq.rhs);
+    std::swap(lhs, rhs);
     std::swap(lhs_type, rhs_type);
   }
 
   assert(lhs_type == Type::Tag::variable);
 
-  if (occurs(eq.rhs.term, eq.rhs, eq.lhs.term)) {
-    MT_SHOW2("No occurrence violation: ", eq.lhs.term, eq.rhs.term);
-    assert(false && "No occurrence violation.");
+  if (occurs(rhs.term, rhs, lhs.term)) {
+    add_error(make_occurs_check_violation(lhs.source_token, rhs.source_token, lhs.term, rhs.term));
+    return;
   }
 
   for (auto& subst_it : substitution->bound_terms) {
     auto& rhs_term = subst_it.second;
-    rhs_term.term = substitute_one(rhs_term.term, rhs_term, eq.lhs, eq.rhs);
+    rhs_term.term = substitute_one(rhs_term.term, rhs_term, lhs, rhs);
   }
 
-  substitution->bound_terms[eq.lhs] = eq.rhs;
+  substitution->bound_terms[lhs] = rhs;
 }
 
 TypeHandle Unifier::instantiate(const types::Scheme& scheme) {
@@ -544,7 +543,7 @@ TypeHandle Unifier::maybe_unify_anonymous_function_call_subscript(TypeRef source
 
   if (sub.subscripts.size() != 1 || sub.subscripts[0].method != SubscriptMethod::parens) {
     registered_funcs[source] = true;
-    std::cout << "ERROR: Expected exactly 1 () subscript." << std::endl;
+    add_error(make_invalid_function_invocation_error(term.source_token, sub.principal_argument));
     return source;
   }
 
@@ -581,7 +580,7 @@ TypeHandle Unifier::maybe_unify_function_call_subscript(TypeRef source,
 
   if (sub.subscripts.size() != 1 || sub.subscripts[0].method != SubscriptMethod::parens) {
     registered_funcs[source] = true;
-    std::cout << "ERROR: Expected exactly 1 () subscript." << std::endl;
+    add_error(make_invalid_function_invocation_error(term.source_token, sub.principal_argument));
     return source;
   }
 
@@ -677,7 +676,7 @@ TypeHandle Unifier::maybe_unify_known_subscript_type(TypeRef source, TermRef ter
       registered_funcs[source] = true;
     }
   } else {
-    MT_SHOW1("ERROR: no such subscript signature: ", sub);
+    add_error(make_unresolved_function_error(term.source_token, source));
     registered_funcs[source] = true;
   }
 
@@ -697,17 +696,30 @@ void Unifier::emplace_simplification_failure(const Token* lhs_token, const Token
   add_error(make_simplification_failure(lhs_token, rhs_token, lhs_type, rhs_type));
 }
 
-SimplificationFailure Unifier::make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+BoxedUnificationError Unifier::make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
                                                            TypeRef lhs_type, TypeRef rhs_type) const {
-  return SimplificationFailure(lhs_token, rhs_token, lhs_type, rhs_type);
+  return std::make_unique<SimplificationFailure>(lhs_token, rhs_token, lhs_type, rhs_type);
 }
 
-void Unifier::add_error(SimplificationFailure&& err) {
-  simplification_failures.emplace_back(std::move(err));
+BoxedUnificationError Unifier::make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
+                                                           TypeRef lhs_type, TypeRef rhs_type) const {
+  return std::make_unique<OccursCheckFailure>(lhs_token, rhs_token, lhs_type, rhs_type);
+}
+
+BoxedUnificationError Unifier::make_unresolved_function_error(const Token* at_token, TypeRef function_type) const {
+  return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
+}
+
+BoxedUnificationError Unifier::make_invalid_function_invocation_error(const Token* at_token, TypeRef function_type) const {
+  return std::make_unique<InvalidFunctionInvocationError>(at_token, function_type);
+}
+
+void Unifier::add_error(BoxedUnificationError err) {
+  errors.emplace_back(std::move(err));
 }
 
 bool Unifier::had_error() const {
-  return any_failures || !simplification_failures.empty();
+  return any_failures || !errors.empty();
 }
 
 void Unifier::mark_failure() {
