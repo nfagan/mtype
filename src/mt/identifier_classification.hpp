@@ -129,11 +129,11 @@ class IdentifierScope {
 
 public:
   IdentifierScope(IdentifierClassifier* classifier,
-                  const MatlabScopeHandle& parse_scope_handle,
+                  MatlabScope* parse_scope,
                   int scope_depth,
                   int parent_index) :
     classifier(classifier),
-    matlab_scope_handle(parse_scope_handle),
+    matlab_scope(parse_scope),
     scope_depth(scope_depth),
     parent_index(parent_index),
     context_uuid(0) {
@@ -159,7 +159,7 @@ private:
                                                   const MatlabIdentifier& last_identifier_component);
 
   IdentifierInfo* lookup_variable(const MatlabIdentifier& id, bool traverse_parent);
-  FunctionReferenceHandle lookup_local_function(const Store::Write& writer, const MatlabIdentifier& name) const;
+  FunctionReferenceHandle lookup_local_function(const MatlabIdentifier& name) const;
 
   bool has_variable(const MatlabIdentifier& id, bool traverse_parent);
 
@@ -186,7 +186,7 @@ private:
 
 private:
   IdentifierClassifier* classifier;
-  MatlabScopeHandle matlab_scope_handle;
+  MatlabScope* matlab_scope;
   int scope_depth;
   int parent_index;
 
@@ -257,7 +257,7 @@ private:
   template <typename T>
   static void conditional_reset(std::unique_ptr<T>& source, T* maybe_new_ptr);
 
-  void push_scope(const MatlabScopeHandle& parse_scope_handle);
+  void push_scope(MatlabScope* parse_scope);
   void pop_scope();
 
   void push_context();

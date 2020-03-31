@@ -68,13 +68,13 @@ FunctionDefHandle Store::emplace_definition(FunctionDef&& def) {
 }
 
 FunctionReferenceHandle Store::make_external_reference(const MatlabIdentifier& to_identifier,
-                                                       const MatlabScopeHandle& in_scope) {
+                                                       const MatlabScope* in_scope) {
   return make_local_reference(to_identifier, FunctionDefHandle(), in_scope);
 }
 
 FunctionReferenceHandle Store::make_local_reference(const MatlabIdentifier& to_identifier,
                                                     const FunctionDefHandle& with_def,
-                                                    const MatlabScopeHandle& in_scope) {
+                                                    const MatlabScope* in_scope) {
   FunctionReference reference(to_identifier, with_def, in_scope);
   function_references.emplace_back(reference);
   return FunctionReferenceHandle(function_references.size() - 1);
@@ -84,35 +84,11 @@ FunctionReferenceHandle Store::make_local_reference(const MatlabIdentifier& to_i
  * Scope components
  */
 
-FunctionReferenceHandle Store::lookup_local_function(const MatlabScopeHandle& in_scope, const MatlabIdentifier& name) const {
-  MatlabScopeHandle read_handle = in_scope;
-
-  while (read_handle.is_valid()) {
-    const auto& scope = at(read_handle);
-    const auto it = scope.local_functions.find(name);
-    if (it == scope.local_functions.end()) {
-      read_handle = scope.parent;
-    } else {
-      return it->second;
-    }
-  }
-
-  return FunctionReferenceHandle();
-}
-
-MatlabScopeHandle Store::make_matlab_scope(const mt::MatlabScopeHandle& parent) {
-  matlab_scopes.emplace_back(parent);
-  return MatlabScopeHandle(matlab_scopes.size() - 1);
-}
-
-const MatlabScope& Store::at(const MatlabScopeHandle& handle) const {
-  assert(handle.index >= 0 && handle.index < int64_t(matlab_scopes.size()) && "Out of bounds scope handle.");
-  return matlab_scopes[handle.index];
-}
-
-MatlabScope& Store::at(const MatlabScopeHandle& handle) {
-  assert(handle.index >= 0 && handle.index < int64_t(matlab_scopes.size()) && "Out of bounds scope handle.");
-  return matlab_scopes[handle.index];
+MatlabScope* Store::make_matlab_scope(const MatlabScope* parent) {
+  auto new_scope = std::make_unique<MatlabScope>(parent);
+  auto scope_ptr = new_scope.get();
+  matlab_scopes.emplace_back(std::move(new_scope));
+  return scope_ptr;
 }
 
 }

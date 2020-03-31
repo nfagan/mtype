@@ -15,8 +15,6 @@ set(sources
         display.cpp
         error.hpp
         error.cpp
-        file_resolution.hpp
-        file_resolution.cpp
         fs.hpp
         handles.hpp
         identifier.hpp

@@ -15,6 +15,7 @@ class IdentifierClassifier;
 
 struct Block;
 struct RootBlock;
+struct MatlabScope;
 
 struct AstNode {
   AstNode() = default;
@@ -159,7 +160,7 @@ struct Block : public AstNode {
 };
 
 struct RootBlock : public AstNode {
-  RootBlock(BoxedBlock block, const MatlabScopeHandle& scope) :
+  RootBlock(BoxedBlock block, MatlabScope* scope) :
   block(std::move(block)), scope(scope) {
     //
   }
@@ -176,7 +177,7 @@ struct RootBlock : public AstNode {
   virtual void accept_const(TypePreservingVisitor&) const override;
 
   BoxedBlock block;
-  MatlabScopeHandle scope;
+  MatlabScope* scope;
 };
 
 }

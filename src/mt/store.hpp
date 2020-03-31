@@ -126,10 +126,6 @@ private:
       auto& at(Args&&... args) {
         return store.at(std::forward<Args>(args)...);
       }
-      template <typename... Args>
-      auto lookup_local_function(Args&&... args) const {
-        return store.lookup_local_function(std::forward<Args>(args)...);
-      }
 
     private:
       Store& store;
@@ -179,7 +175,7 @@ public:
   }
 
 private:
-  MatlabScopeHandle make_matlab_scope(const MatlabScopeHandle& parent);
+  MatlabScope* make_matlab_scope(const MatlabScope* parent);
 
   ClassDefHandle make_class_definition();
   FunctionDefHandle make_function_declaration(FunctionHeader&& header, const FunctionAttributes& attrs);
@@ -189,10 +185,10 @@ private:
   void emplace_definition(const ClassDefHandle& at_handle, ClassDef&& def);
 
   FunctionReferenceHandle make_external_reference(const MatlabIdentifier& to_identifier,
-                                                  const MatlabScopeHandle& in_scope);
+                                                  const MatlabScope* in_scope);
   FunctionReferenceHandle make_local_reference(const MatlabIdentifier& to_identifier,
                                                const FunctionDefHandle& with_def,
-                                               const MatlabScopeHandle& in_scope);
+                                               const MatlabScope* in_scope);
 
   const ClassDef& at(const ClassDefHandle& handle) const;
   ClassDef& at(const ClassDefHandle& handle);
@@ -204,18 +200,13 @@ private:
   FunctionDef& at(const FunctionDefHandle& handle);
   const FunctionReference& at(const FunctionReferenceHandle& handle) const;
 
-  const MatlabScope& at(const MatlabScopeHandle& handle) const;
-  MatlabScope& at(const MatlabScopeHandle& handle);
-
-  FunctionReferenceHandle lookup_local_function(const MatlabScopeHandle& in_scope, const MatlabIdentifier& name) const;
-
 private:
   mutable StoreAccessor accessor;
   std::vector<VariableDef> variable_definitions;
   std::vector<ClassDef> class_definitions;
   std::vector<FunctionDef> function_definitions;
   std::vector<FunctionReference> function_references;
-  std::vector<MatlabScope> matlab_scopes;
+  std::vector<std::unique_ptr<MatlabScope>> matlab_scopes;
 };
 
 }

@@ -16,8 +16,8 @@ public:
   }
   virtual ~AbstractFileResolver() = default;
 
-  virtual std::string which(int64_t identifier, const MatlabScopeHandle& scope_handle) const = 0;
-  virtual std::string which_external(int64_t identifier, const MatlabScopeHandle& scope_handle) const = 0;
+  virtual std::string which(int64_t identifier, const MatlabScope* scope_handle) const = 0;
+  virtual std::string which_external(int64_t identifier, const MatlabScope* scope_handle) const = 0;
 
   static void set_active_file_resolver(std::unique_ptr<AbstractFileResolver> resolver);
   static const std::unique_ptr<AbstractFileResolver>& get_active_file_resolver();
@@ -43,8 +43,8 @@ public:
   }
   ~FileResolver() override = default;
 
-  std::string which(int64_t identifier, const MatlabScopeHandle& scope_handle) const override;
-  std::string which_external(int64_t identifier, const MatlabScopeHandle& scope_handle) const override;
+  std::string which(int64_t identifier, const MatlabScope* scope_handle) const override;
+  std::string which_external(int64_t identifier, const const MatlabScope* scope_handle) const override;
 
 private:
   const StringRegistry* string_registry;

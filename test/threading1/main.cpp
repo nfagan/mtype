@@ -25,6 +25,7 @@ void run_parse(std::mutex& parse_barrier_mutex,
 
   mt::IdentifierClassifier classifier(parse_inputs.string_registry,
                                       parse_inputs.store,
+                                      parse_inputs.file_descriptor,
                                       contents);
 
   auto root_block = std::move(parse_result.value);
@@ -175,6 +176,7 @@ int main(int argc, char** argv) {
 
   std::vector<std::thread> threads;
   std::vector<mt::BoxedRootBlock> root_blocks(num_threads);
+  mt::CodeFileDescriptor null_file_descriptor;
 
   auto thread_t0 = std::chrono::high_resolution_clock::now();
 
@@ -184,7 +186,7 @@ int main(int argc, char** argv) {
       const auto& contents = scan_results[i].contents;
       const bool is_end_terminated = scan_results[i].functions_are_end_terminated;
 
-      mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &store, is_end_terminated);
+      mt::AstGenerator::ParseInputs parse_inputs(&string_registry, &store, &null_file_descriptor, is_end_terminated);
 
       run_parse(parse_barrier_mutex, i, root_blocks, tokens, contents, parse_inputs);
     });
@@ -218,6 +220,7 @@ int main(int argc, char** argv) {
     const auto& contents = scan_results[i].contents;
 
     mt::AstGenerator::ParseInputs serial_parse_inputs(&serial_string_registry, &serial_store,
+                                                      &null_file_descriptor,
                                                       scan_results[i].functions_are_end_terminated);
 
     run_parse(parse_barrier_mutex, i, serial_root_blocks, tokens, contents, serial_parse_inputs);

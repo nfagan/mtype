@@ -53,4 +53,19 @@ void MatlabScope::register_local_variable(const MatlabIdentifier& name, const Va
   local_variables[name] = handle;
 }
 
+FunctionReferenceHandle MatlabScope::lookup_local_function(const MatlabIdentifier& name) const {
+  const MatlabScope* scope = this;
+
+  while (scope) {
+    const auto it = scope->local_functions.find(name);
+    if (it == scope->local_functions.end()) {
+      scope = scope->parent;
+    } else {
+      return it->second;
+    }
+  }
+
+  return FunctionReferenceHandle();
+}
+
 }

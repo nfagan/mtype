@@ -232,7 +232,7 @@ private:
 
   void push_scope();
   void pop_scope();
-  MatlabScopeHandle current_scope_handle() const;
+  MatlabScope* current_scope();
 
   void push_function_attributes(FunctionAttributes&& attrs);
   void pop_function_attributes();
@@ -254,7 +254,7 @@ private:
   BlockDepths block_depths;
   ClassDefState class_state;
 
-  std::vector<MatlabScopeHandle> scope_handles;
+  std::vector<MatlabScope*> scopes;
   std::vector<FunctionAttributes> function_attributes;
 
   bool is_end_terminated_function;

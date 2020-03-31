@@ -40,11 +40,11 @@ struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
                         std::vector<FunctionInputParameter>&& input_identifiers,
                         BoxedExpr expr,
-                        const MatlabScopeHandle& scope_handle) :
+                        MatlabScope* scope) :
     source_token(source_token),
     inputs(std::move(input_identifiers)),
     expr(std::move(expr)),
-    scope_handle(scope_handle) {
+    scope(scope) {
     //
   }
   ~AnonymousFunctionExpr() override = default;
@@ -61,7 +61,7 @@ struct AnonymousFunctionExpr : public Expr {
   Token source_token;
   std::vector<FunctionInputParameter> inputs;
   BoxedExpr expr;
-  MatlabScopeHandle scope_handle;
+  MatlabScope* scope;
 };
 
 struct FunctionReferenceExpr : public Expr {

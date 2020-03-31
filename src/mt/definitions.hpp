@@ -18,7 +18,7 @@ struct Import;
 */
 
 struct MatlabScope {
-  explicit MatlabScope(const MatlabScopeHandle& parent) : parent(parent) {
+  explicit MatlabScope(const MatlabScope* parent) : parent(parent) {
     //
   }
 
@@ -29,7 +29,9 @@ struct MatlabScope {
   void register_local_variable(const MatlabIdentifier& name, const VariableDefHandle& handle);
   void register_import(Import&& import);
 
-  MatlabScopeHandle parent;
+  FunctionReferenceHandle lookup_local_function(const MatlabIdentifier& name) const;
+
+  const MatlabScope* parent;
   std::unordered_map<MatlabIdentifier, FunctionReferenceHandle, MatlabIdentifier::Hash> local_functions;
   std::unordered_map<MatlabIdentifier, VariableDefHandle, MatlabIdentifier::Hash> local_variables;
   std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash> classes;
@@ -189,14 +191,14 @@ struct FunctionDef {
 struct FunctionReference {
   FunctionReference(const MatlabIdentifier& name,
                     FunctionDefHandle def_handle,
-                    const MatlabScopeHandle& scope) :
+                    const MatlabScope* scope) :
     name(name), def_handle(def_handle), scope(scope) {
     //
   }
 
   MatlabIdentifier name;
   FunctionDefHandle def_handle;
-  MatlabScopeHandle scope;
+  const MatlabScope* scope;
 };
 
 struct VariableDef {

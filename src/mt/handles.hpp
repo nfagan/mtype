@@ -73,13 +73,7 @@ public:
   using Handle::Handle;
 };
 
-class MatlabScopeHandle : public detail::Handle<3> {
-public:
-  friend class Store;
-  using Handle::Handle;
-};
-
-class ClassDefHandle : public detail::Handle<4> {
+class ClassDefHandle : public detail::Handle<3> {
 public:
   friend class Store;
   using Handle::Handle;

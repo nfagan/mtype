@@ -22,8 +22,8 @@ private:
   };
 
   struct ScopeStack {
-    static void push(TypeConstraintGenerator& vis, const MatlabScopeHandle& handle) {
-      vis.push_scope(handle);
+    static void push(TypeConstraintGenerator& vis, const MatlabScope* scope) {
+      vis.push_scope(scope);
     }
     static void pop(TypeConstraintGenerator& vis) {
       vis.pop_scope();
@@ -133,14 +133,14 @@ private:
     return function_type_handle;
   }
 
-  void push_scope(const MatlabScopeHandle& handle) {
-    scope_handles.push_back(handle);
+  void push_scope(const MatlabScope* scope) {
+    scopes.push_back(scope);
   }
   void pop_scope() {
-    scope_handles.pop_back();
+    scopes.pop_back();
   }
-  MatlabScopeHandle current_scope_handle() const {
-    return scope_handles.back();
+  const MatlabScope* current_scope() const {
+    return scopes.back();
   }
 
   void push_type_equation(const TypeEquation& eq) {
@@ -211,7 +211,7 @@ private:
   AssignmentSourceState assignment_state;
   ValueCategoryState value_category_state;
 
-  std::vector<MatlabScopeHandle> scope_handles;
+  std::vector<const MatlabScope*> scopes;
 
   std::unordered_map<VariableDefHandle, TypeHandle, VariableDefHandle::Hash> variable_type_handles;
   std::unordered_map<TypeHandle, VariableDefHandle, TypeHandle::Hash> variables;

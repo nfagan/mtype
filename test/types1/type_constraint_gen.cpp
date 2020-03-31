@@ -100,7 +100,7 @@ void TypeConstraintGenerator::gather_function_outputs(const MatlabScope& scope,
 }
 
 void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
-  MatlabScopeHelper scope_helper(*this, node.scope_handle);
+  MatlabScopeHelper scope_helper(*this, node.scope);
 
   const auto input_handle = type_store.make_input_destructured_tuple(TypeHandles{});
   const auto output_handle = type_store.make_output_destructured_tuple(TypeHandles{});
@@ -114,12 +114,10 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
 
   MatlabIdentifier function_name;
   const Block* function_body = nullptr;
+  const auto& scope = *current_scope();
 
   store.use<Store::ReadConst>([&](const auto& reader) {
-    const auto scope_handle = current_scope_handle();
-
     const auto& def = reader.at(node.def_handle);
-    const auto& scope = reader.at(scope_handle);
     function_name = def.header.name;
 
     gather_function_inputs(scope, def.header.inputs, function_inputs);
@@ -322,7 +320,7 @@ void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExp
 }
 
 void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
-  MatlabScopeHelper scope_helper(*this, expr.scope_handle);
+  MatlabScopeHelper scope_helper(*this, expr.scope);
 
   //  Store constraints here.
   if (are_functions_polymorphic()) {
@@ -332,8 +330,9 @@ void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExp
   std::vector<TypeHandle> function_inputs;
   std::vector<TypeHandle> function_outputs;
 
+  const auto& scope = *current_scope();
+
   store.use<Store::ReadConst>([&](const auto& reader) {
-    const auto& scope = reader.at(current_scope_handle());
     gather_function_inputs(scope, expr.inputs, function_inputs);
   });
 

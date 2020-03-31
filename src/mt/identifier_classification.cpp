@@ -175,7 +175,7 @@ IdentifierScope::register_identifier_reference(Store::Write& writer, const Matla
     //  This identifier has not been classified, and has not been assigned or initialized, so it is
     //  either an external function reference or a reference to a function in the current or
     //  a parent's scope.
-    const auto local_func_handle = lookup_local_function(writer, id);
+    const auto local_func_handle = lookup_local_function(id);
     auto new_info = make_function_reference_identifier_info(writer, id, local_func_handle);
     classified_identifiers[id] = new_info;
     return ReferenceResult(true, new_info);
@@ -183,7 +183,7 @@ IdentifierScope::register_identifier_reference(Store::Write& writer, const Matla
   } else if (!local_info) {
     //  This is an identifier in a parent scope, but we need to check to see if any local functions
     //  take precedence over the parent's usage of the identifier.
-    FunctionReferenceHandle maybe_function_ref = lookup_local_function(writer, id);
+    FunctionReferenceHandle maybe_function_ref = lookup_local_function(id);
     if (!maybe_function_ref.is_valid()) {
       //  No local function in the current scope, so it inherits the usage from the parent.
       classified_identifiers[id] = *info;
@@ -256,7 +256,7 @@ IdentifierScope::register_fully_qualified_import(Store::Write& writer,
 IdentifierScope::IdentifierInfo
 IdentifierScope::make_external_function_reference_identifier_info(Store::Write& writer,
                                                                   const MatlabIdentifier& id) {
-  auto ref = writer.make_external_reference(id, matlab_scope_handle);
+  auto ref = writer.make_external_reference(id, matlab_scope);
   IdentifierInfo info(id, IdentifierType::unresolved_external_function, current_context(), ref);
   return info;
 }
@@ -281,9 +281,9 @@ IdentifierScope::make_function_reference_identifier_info(Store::Write& writer,
   }
 }
 
-FunctionReferenceHandle IdentifierScope::lookup_local_function(const Store::Write& writer, const MatlabIdentifier& name) const {
-  if (matlab_scope_handle.is_valid()) {
-    return writer.lookup_local_function(matlab_scope_handle, name);
+FunctionReferenceHandle IdentifierScope::lookup_local_function(const MatlabIdentifier& name) const {
+  if (matlab_scope) {
+    return matlab_scope->lookup_local_function(name);
   } else {
     return FunctionReferenceHandle();
   }
@@ -329,7 +329,7 @@ IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
   //  Begin in non-superclass method application, etc.
   class_state.push_default_state();
   //  New scope with no parent.
-  push_scope(MatlabScopeHandle());
+  push_scope(nullptr);
 }
 
 void IdentifierClassifier::register_new_context() {
@@ -345,9 +345,9 @@ void IdentifierClassifier::pop_context() {
   current_scope()->pop_context();
 }
 
-void IdentifierClassifier::push_scope(const MatlabScopeHandle& parse_scope_handle) {
+void IdentifierClassifier::push_scope(MatlabScope* parse_scope) {
   int parent_index = scope_depth++;
-  IdentifierScope new_scope(this, parse_scope_handle, parent_index, parent_index);
+  IdentifierScope new_scope(this, parse_scope, parent_index, parent_index);
 
   if (scope_depth >= int(scopes.size())) {
     scopes.emplace_back(std::move(new_scope));
@@ -391,7 +391,7 @@ IdentifierClassifier::register_variable_assignment(const Token& source_token, co
     add_error_if_new_identifier(std::move(err), primary_identifier);
 
   } else if (primary_result.was_initialization) {
-    auto& parse_scope = read_write.at(current_scope()->matlab_scope_handle);
+    auto& parse_scope = *current_scope()->matlab_scope;
     parse_scope.register_local_variable(primary_identifier, primary_result.variable_def_handle);
   }
 
@@ -401,7 +401,7 @@ IdentifierClassifier::register_variable_assignment(const Token& source_token, co
 void IdentifierClassifier::register_imports(IdentifierScope* scope) {
   Store::Write read_write(*store);
 
-  const auto& matlab_scope = read_write.at(scope->matlab_scope_handle);
+  const auto& matlab_scope = *scope->matlab_scope;
 
   for (const auto& import : matlab_scope.fully_qualified_imports) {
     //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
@@ -420,7 +420,7 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
 
 void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
   Store::Write read_write(*store);
-  const auto& matlab_scope = read_write.at(scope->matlab_scope_handle);
+  const auto& matlab_scope = *scope->matlab_scope;
 
   for (const auto& it : matlab_scope.local_functions) {
     //  Local functions take precedence over variables.
@@ -467,7 +467,7 @@ void IdentifierClassifier::register_function_parameter(Store::Write& read_write,
     add_error_if_new_identifier(std::move(err), id);
 
   } else if (assign_res.was_initialization) {
-    auto& matlab_scope = read_write.at(current_scope()->matlab_scope_handle);
+    auto& matlab_scope = *current_scope()->matlab_scope;
     matlab_scope.register_local_variable(id, assign_res.variable_def_handle);
   }
 }
@@ -519,7 +519,7 @@ Expr* IdentifierClassifier::function_reference_expr(FunctionReferenceExpr& expr)
 }
 
 Expr* IdentifierClassifier::anonymous_function_expr(AnonymousFunctionExpr& expr) {
-  push_scope(expr.scope_handle);
+  push_scope(expr.scope);
 
   {
     Store::Write writer(*store);
@@ -648,7 +648,7 @@ Expr* IdentifierClassifier::superclass_method_application(mt::IdentifierReferenc
     return &expr;
   }
 
-  const auto scope_handle = current_scope()->matlab_scope_handle;
+  const auto scope_handle = current_scope()->matlab_scope;
 
   const auto function_name_id = string_registry->make_registered_compound_identifier(compound_identifier_components);
   MatlabIdentifier function_name(function_name_id, compound_identifier_components.size());
@@ -786,7 +786,7 @@ VariableDeclarationStmt* IdentifierClassifier::variable_declaration_stmt(Variabl
 }
 
 FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_node) {
-  push_scope(def_node.scope_handle);
+  push_scope(def_node.scope);
 
   //  Local functions take precedence over imports
   register_local_functions(current_scope());

@@ -54,7 +54,7 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
   string_registry = inputs.string_registry;
   store = inputs.store;
 
-  scope_handles.clear();
+  scopes.clear();
   function_attributes.clear();
   parse_errors.clear();
 
@@ -73,9 +73,8 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
 
   if (result) {
     auto block_node = std::move(result.rvalue());
-    auto scope_handle = current_scope_handle();
 
-    auto root_node = std::make_unique<RootBlock>(std::move(block_node), scope_handle);
+    auto root_node = std::make_unique<RootBlock>(std::move(block_node), current_scope());
     return make_success<ParseErrors, BoxedRootBlock>(std::move(root_node));
   } else {
     return make_error<ParseErrors, BoxedRootBlock>(std::move(parse_errors));
@@ -338,12 +337,12 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   }
 
   Optional<std::unique_ptr<Block>> body_res;
-  MatlabScopeHandle child_scope;
+  MatlabScope* child_scope = nullptr;
 
   {
     //  Increment scope, and decrement upon block exit.
     ParseScopeHelper scope_helper(*this);
-    child_scope = current_scope_handle();
+    child_scope = current_scope();
 
     body_res = sub_block();
     if (!body_res) {
@@ -374,7 +373,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   }
 
   Store::ReadMut reader(*store);
-  auto& parent_scope = reader.at(current_scope_handle());
+  auto& parent_scope = *current_scope();
 
   bool register_success = true;
 
@@ -438,7 +437,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   const auto& source_token = iterator.peek();
   iterator.advance();
 
-  const auto parent_scope_handle = current_scope_handle();
+  const auto parent_scope = current_scope();
   BlockStmtScopeHelper scope_helper(&block_depths.class_def);
 
   if (iterator.peek().type == TokenType::left_parens) {
@@ -533,14 +532,10 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   auto class_node = std::make_unique<ClassDefNode>(source_token, class_handle,
     std::move(property_nodes), std::move(method_def_nodes));
 
-  {
-    Store::ReadMut reader(*store);
-    auto& parent_scope = reader.at(parent_scope_handle);
-    bool register_success = parent_scope.register_class(name, class_handle);
-    if (!register_success) {
-      add_error(make_error_duplicate_class_def(source_token));
-      return NullOpt{};
-    }
+  bool register_success = parent_scope->register_class(name, class_handle);
+  if (!register_success) {
+    add_error(make_error_duplicate_class_def(source_token));
+    return NullOpt{};
   }
 
   return Optional<BoxedAstNode>(std::move(class_node));
@@ -1248,7 +1243,7 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
   }
 
   ParseScopeHelper scope_helper(*this);
-  auto scope_handle = current_scope_handle();
+  auto scope_handle = current_scope();
 
   auto input_res = anonymous_function_input_parameters();
   if (!input_res) {
@@ -2581,12 +2576,12 @@ bool AstGenerator::is_within_loop() const {
 
 void AstGenerator::push_scope() {
   Store::Write writer(*store);
-  scope_handles.emplace_back(writer.make_matlab_scope(current_scope_handle()));
+  scopes.emplace_back(writer.make_matlab_scope(current_scope()));
 }
 
 void AstGenerator::pop_scope() {
-  assert(scope_handles.size() > 0 && "No scope to pop.");
-  scope_handles.pop_back();
+  assert(scopes.size() > 0 && "No scope to pop.");
+  scopes.pop_back();
 }
 
 void AstGenerator::push_function_attributes(mt::FunctionAttributes&& attrs) {
@@ -2603,14 +2598,12 @@ void AstGenerator::pop_function_attributes() {
   function_attributes.pop_back();
 }
 
-MatlabScopeHandle AstGenerator::current_scope_handle() const {
-  return scope_handles.empty() ? MatlabScopeHandle() : scope_handles.back();
+MatlabScope* AstGenerator::current_scope() {
+  return scopes.empty() ? nullptr : scopes.back();
 }
 
 void AstGenerator::register_import(mt::Import&& import) {
-  Store::ReadMut reader(*store);
-  auto& scope = reader.at(current_scope_handle());
-  scope.register_import(std::move(import));
+  current_scope()->register_import(std::move(import));
 }
 
 Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
