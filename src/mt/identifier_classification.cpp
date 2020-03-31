@@ -853,7 +853,7 @@ void IdentifierClassifier::transform_root(BoxedRootBlock& block) {
 }
 
 RootBlock* IdentifierClassifier::root_block(RootBlock& block) {
-  push_scope(block.scope_handle);
+  push_scope(block.scope);
 
   register_local_functions(current_scope());
   register_imports(current_scope());

@@ -159,8 +159,8 @@ struct Block : public AstNode {
 };
 
 struct RootBlock : public AstNode {
-  RootBlock(BoxedBlock block, const MatlabScopeHandle& scope_handle) :
-  block(std::move(block)), scope_handle(scope_handle) {
+  RootBlock(BoxedBlock block, const MatlabScopeHandle& scope) :
+  block(std::move(block)), scope(scope) {
     //
   }
   ~RootBlock() override = default;
@@ -176,7 +176,7 @@ struct RootBlock : public AstNode {
   virtual void accept_const(TypePreservingVisitor&) const override;
 
   BoxedBlock block;
-  MatlabScopeHandle scope_handle;
+  MatlabScopeHandle scope;
 };
 
 }

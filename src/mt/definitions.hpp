@@ -189,14 +189,14 @@ struct FunctionDef {
 struct FunctionReference {
   FunctionReference(const MatlabIdentifier& name,
                     FunctionDefHandle def_handle,
-                    const MatlabScopeHandle& scope_handle) :
-    name(name), def_handle(def_handle), scope_handle(scope_handle) {
+                    const MatlabScopeHandle& scope) :
+    name(name), def_handle(def_handle), scope(scope) {
     //
   }
 
   MatlabIdentifier name;
   FunctionDefHandle def_handle;
-  MatlabScopeHandle scope_handle;
+  MatlabScopeHandle scope;
 };
 
 struct VariableDef {

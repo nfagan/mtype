@@ -19,7 +19,7 @@ void TypeConstraintGenerator::show_type_distribution() const {
 }
 
 void TypeConstraintGenerator::root_block(const RootBlock& block) {
-  MatlabScopeHelper scope_helper(*this, block.scope_handle);
+  MatlabScopeHelper scope_helper(*this, block.scope);
   block.block->accept_const(*this);
 }
 
