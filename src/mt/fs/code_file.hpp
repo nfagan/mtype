@@ -21,15 +21,6 @@ enum class CodeFileType {
   unknown,
 };
 
-class CodeDirectoryHandle {
-  //
-};
-
-class CodeDirectory {
-  FilePath absolute_path;
-//  CodeDirectoryHandle parent;
-};
-
 class CodeFileDescriptor {
 public:
   explicit CodeFileDescriptor(FilePath file_path) :
