@@ -330,11 +330,7 @@ void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExp
   std::vector<TypeHandle> function_inputs;
   std::vector<TypeHandle> function_outputs;
 
-  const auto& scope = *current_scope();
-
-  store.use<Store::ReadConst>([&](const auto& reader) {
-    gather_function_inputs(scope, expr.inputs, function_inputs);
-  });
+  gather_function_inputs(*current_scope(), expr.inputs, function_inputs);
 
   const auto input_handle = type_store.make_input_destructured_tuple(std::move(function_inputs));
   const auto output_type = make_fresh_type_variable_reference();
