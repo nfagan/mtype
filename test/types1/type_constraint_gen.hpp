@@ -93,46 +93,12 @@ private:
   void gather_function_outputs(const MatlabScope& scope, const std::vector<MatlabIdentifier>& ids, TypeHandles& into);
 
   MT_NODISCARD TypeEquationTerm visit_expr(const BoxedExpr& expr, const Token& source_token);
+  TypeHandle make_fresh_type_variable_reference();
+  TypeHandle require_bound_type_variable(const VariableDefHandle& variable_def_handle);
 
-  TypeHandle make_fresh_type_variable_reference() {
-    auto var_handle = type_store.make_fresh_type_variable_reference();
-    if (!constraint_repositories.empty()) {
-      constraint_repositories.back().variables.push_back(var_handle);
-    }
-    return var_handle;
-  }
-
-  TypeHandle require_bound_type_variable(const VariableDefHandle& variable_def_handle) {
-    if (variable_type_handles.count(variable_def_handle) > 0) {
-      return variable_type_handles.at(variable_def_handle);
-    }
-
-    const auto variable_type_handle = make_fresh_type_variable_reference();
-    bind_type_variable_to_variable_def(variable_def_handle, variable_type_handle);
-
-    return variable_type_handle;
-  }
-
-  void bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, const TypeHandle& type_handle) {
-    variable_type_handles[def_handle] = type_handle;
-    variables[type_handle] = def_handle;
-  }
-
-  void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, const TypeHandle& type_handle) {
-    function_type_handles[def_handle] = type_handle;
-    functions[type_handle] = def_handle;
-  }
-
-  TypeHandle require_bound_type_variable(const FunctionDefHandle& function_def_handle) {
-    if (function_type_handles.count(function_def_handle) > 0) {
-      return function_type_handles.at(function_def_handle);
-    }
-
-    const auto function_type_handle = make_fresh_type_variable_reference();
-    bind_type_variable_to_function_def(function_def_handle, function_type_handle);
-
-    return function_type_handle;
-  }
+  void bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, TypeRef type_handle);
+  void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, TypeRef type_handle);
+  TypeHandle require_bound_type_variable(const FunctionDefHandle& function_def_handle);
 
   void push_scope(const MatlabScope* scope) {
     scopes.push_back(scope);
@@ -176,11 +142,6 @@ private:
   }
 
   ConstraintRepository& current_constraint_repository() {
-    assert(!constraint_repositories.empty());
-    return constraint_repositories.back();
-  }
-
-  const ConstraintRepository& current_constraint_repository() const {
     assert(!constraint_repositories.empty());
     return constraint_repositories.back();
   }

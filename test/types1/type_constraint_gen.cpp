@@ -564,4 +564,44 @@ TypeEquationTerm TypeConstraintGenerator::visit_expr(const BoxedExpr& expr, cons
   return rhs_term;
 }
 
+TypeHandle TypeConstraintGenerator::make_fresh_type_variable_reference() {
+  auto var_handle = type_store.make_fresh_type_variable_reference();
+  if (!constraint_repositories.empty()) {
+    constraint_repositories.back().variables.push_back(var_handle);
+  }
+  return var_handle;
+}
+
+TypeHandle TypeConstraintGenerator::require_bound_type_variable(const VariableDefHandle& variable_def_handle) {
+  if (variable_type_handles.count(variable_def_handle) > 0) {
+    return variable_type_handles.at(variable_def_handle);
+  }
+
+  const auto variable_type_handle = make_fresh_type_variable_reference();
+  bind_type_variable_to_variable_def(variable_def_handle, variable_type_handle);
+
+  return variable_type_handle;
+}
+
+void TypeConstraintGenerator::bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, TypeRef type_handle) {
+  variable_type_handles[def_handle] = type_handle;
+  variables[type_handle] = def_handle;
+}
+
+void TypeConstraintGenerator::bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, TypeRef type_handle) {
+  function_type_handles[def_handle] = type_handle;
+  functions[type_handle] = def_handle;
+}
+
+TypeHandle TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHandle& function_def_handle) {
+  if (function_type_handles.count(function_def_handle) > 0) {
+    return function_type_handles.at(function_def_handle);
+  }
+
+  const auto function_type_handle = make_fresh_type_variable_reference();
+  bind_type_variable_to_function_def(function_def_handle, function_type_handle);
+
+  return function_type_handle;
+}
+
 }
