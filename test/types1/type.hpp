@@ -347,6 +347,11 @@ namespace types {
     type(Type::function), name(name), inputs(inputs), outputs(outputs) {
       //
     }
+    Abstraction(MatlabIdentifier name, const FunctionDefHandle& def_handle,
+                const TypeHandle& inputs, const TypeHandle& outputs) :
+      type(Type::function), name(name), inputs(inputs), outputs(outputs), def_handle(def_handle) {
+      //
+    }
     Abstraction(ConcatenationDirection dir, const TypeHandle& inputs, const TypeHandle& outputs) :
       type(Type::concatenation), concatenation_direction(dir), inputs(inputs), outputs(outputs) {
       //
@@ -357,11 +362,11 @@ namespace types {
     }
 
     Abstraction(const Abstraction& other) :
-    type(other.type), outputs(other.outputs), inputs(other.inputs) {
+    type(other.type), inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
       conditional_assign_operator(other);
     }
     Abstraction(Abstraction&& other) noexcept :
-    type(other.type), outputs(other.outputs), inputs(other.inputs) {
+    type(other.type), inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
       conditional_assign_operator(other);
     }
 
@@ -369,6 +374,7 @@ namespace types {
       type = other.type;
       outputs = other.outputs;
       inputs = other.inputs;
+      def_handle = other.def_handle;
       conditional_assign_operator(other);
       return *this;
     }
@@ -377,6 +383,7 @@ namespace types {
       type = other.type;
       outputs = other.outputs;
       inputs = other.inputs;
+      def_handle = other.def_handle;
       conditional_assign_operator(other);
       return *this;
     }
@@ -387,6 +394,10 @@ namespace types {
 
     bool is_binary_operator() const {
       return type == Type::binary_operator;
+    }
+
+    bool is_unary_operator() const {
+      return type == Type::unary_operator;
     }
 
     bool is_anonymous() const {
@@ -429,8 +440,9 @@ namespace types {
       ConcatenationDirection concatenation_direction;
     };
 
-    TypeHandle outputs;
     TypeHandle inputs;
+    TypeHandle outputs;
+    FunctionDefHandle def_handle;
   };
 
   struct Parameters {

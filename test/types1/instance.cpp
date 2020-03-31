@@ -49,6 +49,8 @@ TypeHandle Instantiation::clone(const TypeHandle& source, IV replacing) {
       return clone(type.subscript, replacing);
     case Type::Tag::scheme:
       return clone(type.scheme, replacing);
+    case Type::Tag::assignment:
+      return clone(type.assignment, replacing);
     case Type::Tag::parameters:
       return clone(type.parameters, source, replacing);
     default:
@@ -131,6 +133,12 @@ TypeHandle Instantiation::clone(const types::Scheme& scheme, IV replacing) {
     eq.rhs.term = clone(eq.rhs.term, new_replacing);
   }
   return store.make_scheme(std::move(scheme_b));
+}
+
+TypeHandle Instantiation::clone(const types::Assignment& assign, IV replacing) {
+  const auto lhs = clone(assign.lhs, replacing);
+  const auto rhs = clone(assign.rhs, replacing);
+  return store.make_assignment(lhs, rhs);
 }
 
 }

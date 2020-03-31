@@ -1,7 +1,6 @@
 #pragma once
 
 #include "type.hpp"
-#define MT_PRIVATE_ASSIGN (1)
 
 namespace mt {
 
@@ -26,11 +25,11 @@ public:
     return types.size();
   }
 
-  [[nodiscard]] const std::vector<Type>& get_types() const {
+  MT_NODISCARD const std::vector<Type>& get_types() const {
     return types;
   }
 
-  [[nodiscard]] const Type& at(const TypeHandle& handle) const;
+  MT_NODISCARD const Type& at(const TypeHandle& handle) const;
   Type& at(const TypeHandle& handle);
 
   Type::Tag type_of(const TypeHandle& handle) const {
@@ -136,9 +135,7 @@ public:
     return counts;
   }
 
-#if MT_PRIVATE_ASSIGN
 private:
-#endif
   template <typename T, typename... Args>
   TypeHandle make_type(Args&&... args) {
     types.emplace_back(Type(T(std::forward<Args>(args)...)));

@@ -5,6 +5,8 @@
 #include "type_properties.hpp"
 #include <algorithm>
 
+#define MT_REVERSE_UNIFY (0)
+
 #define MT_SHOW1(msg, a) \
   std::cout << (msg); \
   type_printer().show((a)); \
@@ -44,7 +46,13 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
   assert(type_of(func.inputs) == Type::Tag::destructured_tuple);
   const auto& inputs = store.at(func.inputs).destructured_tuple;
 
-  auto maybe_func = library.lookup_function(func);
+  Optional<TypeHandle> maybe_func;
+  if (func.def_handle.is_valid()) {
+    maybe_func = library.lookup_function(func.def_handle);
+  } else {
+    maybe_func = library.lookup_function(func);
+  }
+
   if (maybe_func) {
     const auto& func_ref = store.at(maybe_func.value());
 
@@ -56,7 +64,7 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
     } else {
       assert(func_ref.is_scheme());
       const auto& func_scheme = func_ref.scheme;
-      const auto new_abstr_handle = instantiation.instantiate(func_scheme);
+      const auto new_abstr_handle = instantiate(func_scheme);
       assert(type_of(new_abstr_handle) == Type::Tag::abstraction);
 
       const auto lhs_term = make_term(term.source_token, source);
@@ -99,10 +107,18 @@ void Unifier::reset(Substitution* subst) {
 UnifyResult Unifier::unify(Substitution* subst) {
   reset(subst);
 
+#if MT_REVERSE_UNIFY
+  while (!substitution->type_equations.empty()) {
+    auto eq = substitution->type_equations.back();
+    substitution->type_equations.pop_back();
+    unify_one(eq);
+  }
+#else
   int64_t i = 0;
   while (i < substitution->type_equations.size()) {
     unify_one(substitution->type_equations[i++]);
   }
+#endif
 
   if (had_error()) {
     return UnifyResult(std::move(errors));

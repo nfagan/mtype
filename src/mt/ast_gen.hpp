@@ -175,6 +175,9 @@ private:
   Optional<BoxedTypeAnnot> type_fun(const Token& source_token);
   Optional<BoxedTypeAnnot> inline_type_annotation(const Token& source_token);
 
+  Optional<BoxedTypeAnnot> type_fun_enclosing_function(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_fun_enclosing_anonymous_function(const Token& source_token);
+
   Optional<BoxedType> type(const Token& source_token);
   Optional<BoxedType> function_type(const Token& source_token);
   Optional<BoxedType> one_type(const Token& source_token);

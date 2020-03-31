@@ -38,14 +38,14 @@ public:
   void apply(const types::Parameters& params, std::stringstream& into) const;
   void apply(const std::vector<TypeHandle>& handles, std::stringstream& into, const char* delim = ", ") const;
 
-private:
-  void apply_implicit(const DT& tup, const Optional<DT::Usage>& parent_usage, std::stringstream& into) const;
-  void apply_name(const types::Abstraction& abstr, std::stringstream& into) const;
-
   const char* color(const char* color_code) const;
   std::string color(const std::string& color_code) const;
   const char* dflt_color() const;
   std::string list_color() const;
+
+private:
+  void apply_implicit(const DT& tup, const Optional<DT::Usage>& parent_usage, std::stringstream& into) const;
+  void apply_name(const types::Abstraction& abstr, std::stringstream& into) const;
 
 private:
   const TypeStore& store;

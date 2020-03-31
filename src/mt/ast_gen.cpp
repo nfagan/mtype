@@ -2185,15 +2185,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
   }
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::type_fun(const mt::Token& source_token) {
-  iterator.advance();
-
-  auto end_type_err = consume(TokenType::keyword_end_type);
-  if (end_type_err) {
-    add_error(end_type_err.rvalue());
-    return NullOpt{};
-  }
-
+Optional<BoxedTypeAnnot> AstGenerator::type_fun_enclosing_anonymous_function(const Token& source_token) {
   auto stmt_res = stmt();
   if (!stmt_res) {
     return NullOpt{};
@@ -2223,6 +2215,32 @@ Optional<BoxedTypeAnnot> AstGenerator::type_fun(const mt::Token& source_token) {
 
   auto node = std::make_unique<FunTypeNode>(source_token, std::move(stmt_node));
   return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_fun_enclosing_function(const Token& source_token) {
+  auto func_res = function_def();
+  if (!func_res) {
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<FunTypeNode>(source_token, std::move(func_res.rvalue()));
+  return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_fun(const mt::Token& source_token) {
+  iterator.advance();
+
+  auto end_type_err = consume(TokenType::keyword_end_type);
+  if (end_type_err) {
+    add_error(end_type_err.rvalue());
+    return NullOpt{};
+  }
+
+  if (iterator.peek().type == TokenType::keyword_function) {
+    return type_fun_enclosing_function(source_token);
+  } else {
+    return type_fun_enclosing_anonymous_function(source_token);
+  }
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {

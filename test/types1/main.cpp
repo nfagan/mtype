@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
 
   type_visitor.show_type_distribution();
   type_visitor.show_variable_types(type_to_string);
+  type_visitor.show_local_function_types(type_to_string);
 
   if (unify_res.is_error()) {
     ShowUnificationErrors show(type_store, type_to_string);

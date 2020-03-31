@@ -122,7 +122,7 @@ struct FunctionType : public TypeNode {
 };
 
 struct FunTypeNode : public TypeNode {
-  FunTypeNode(const Token& source_token, BoxedStmt definition) :
+  FunTypeNode(const Token& source_token, BoxedAstNode definition) :
   source_token(source_token), definition(std::move(definition)) {
     //
   }
@@ -133,7 +133,7 @@ struct FunTypeNode : public TypeNode {
   void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
-  BoxedStmt definition;
+  BoxedAstNode definition;
 };
 
 }

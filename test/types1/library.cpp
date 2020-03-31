@@ -39,6 +39,15 @@ Optional<TypeHandle> Library::lookup_function(const types::Abstraction& func) co
   return func_it == function_types.end() ? NullOpt{} : Optional<TypeHandle>(func_it->second);
 }
 
+Optional<TypeHandle> Library::lookup_function(const FunctionDefHandle& func) const {
+  const auto func_it = local_function_types.find(func);
+  return func_it == local_function_types.end() ? NullOpt{} : Optional<TypeHandle>(func_it->second);
+}
+
+void Library::emplace_local_function_type(const FunctionDefHandle& handle, TypeRef type) {
+  local_function_types[handle] = type;
+}
+
 bool Library::is_known_subscript_type(const TypeHandle& handle) const {
   return types_with_known_subscripts.count(handle) > 0;
 }
@@ -68,6 +77,7 @@ void Library::make_builtin_types() {
   char_type_handle = make_named_scalar_type("char");
   sub_double_type_handle = make_named_scalar_type("sub-double");
   sub_sub_double_type_handle = make_named_scalar_type("sub-sub-double");
+  logical_type_handle = make_named_scalar_type("logical");
 
   //  Mark that sub-double is a subclass of double.
   scalar_subtype_relations[sub_double_type_handle] =
@@ -98,6 +108,7 @@ void Library::make_free_functions() {
   make_function_as_input();
   make_feval();
   make_deal();
+  make_logicals();
 }
 
 void Library::make_sum() {
@@ -213,7 +224,7 @@ void Library::make_binary_operators() {
                                         BinaryOperator::times, BinaryOperator::matrix_times,
                                         BinaryOperator::right_divide, BinaryOperator::colon};
 
-  TypeHandles arg_types{double_type_handle, sub_double_type_handle};
+  TypeHandles arg_types{sub_double_type_handle, double_type_handle};
 
   for (const auto& op : operators) {
     for (const auto& arg : arg_types) {
@@ -253,6 +264,17 @@ void Library::make_deal() {
 
   const auto abstr_copy = store.at(func).abstraction;
   function_types[abstr_copy] = func_scheme;
+}
+
+void Library::make_logicals() {
+  auto tru = make_simple_function("true", {}, {logical_type_handle});
+  auto fls = make_simple_function("false", {}, {logical_type_handle});
+
+  const auto tru_copy = store.at(tru).abstraction;
+  const auto fls_copy = store.at(fls).abstraction;
+
+  function_types[tru_copy] = tru;
+  function_types[fls_copy] = fls;
 }
 
 void Library::make_sub_double() {
@@ -309,6 +331,14 @@ TypeHandle Library::make_named_scalar_type(const char* name) {
 
   scalar_type_names[type.identifier] = name_id;
   return type_handle;
+}
+
+TypeHandle Library::make_simple_function(const char* name, TypeHandles&& args, TypeHandles&& outs) {
+  auto input_tup = store.make_input_destructured_tuple(std::move(args));
+  auto output_tup = store.make_output_destructured_tuple(std::move(outs));
+  MatlabIdentifier name_ident(string_registry.register_string(name));
+
+  return store.make_abstraction(name_ident, input_tup, output_tup);
 }
 
 }

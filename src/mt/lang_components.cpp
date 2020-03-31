@@ -30,6 +30,42 @@ const char* to_symbol(SubscriptMethod method) {
   }
 }
 
+const char* to_string(UnaryOperator op) {
+  switch (op) {
+    case UnaryOperator::unary_plus:
+      return "unary_plus";
+    case UnaryOperator::unary_minus:
+      return "unary_minus";
+    case UnaryOperator::op_not:
+      return "op_not";
+    case UnaryOperator::transpose:
+      return "transpose";
+    case UnaryOperator::conjugate_transpose:
+      return "conjugate_transpose";
+    default:
+      assert(false && "Unhandled.");
+      return "";
+  }
+}
+
+const char* to_symbol(UnaryOperator op) {
+  switch (op) {
+    case UnaryOperator::unary_plus:
+      return "+";
+    case UnaryOperator::unary_minus:
+      return "-";
+    case UnaryOperator::op_not:
+      return "~";
+    case UnaryOperator::transpose:
+      return ".'";
+    case UnaryOperator::conjugate_transpose:
+      return "'";
+    default:
+      assert(false && "Unhandled.");
+      return "";
+  }
+}
+
 const char* to_string(BinaryOperator op) {
   switch (op) {
     case BinaryOperator::plus:
@@ -74,6 +110,56 @@ const char* to_string(BinaryOperator op) {
       return "not_equal";
     case BinaryOperator::colon:
       return "colon";
+    default:
+      assert(false && "Unhandled");
+      return "";
+  }
+}
+
+const char* to_symbol(BinaryOperator op) {
+  switch (op) {
+    case BinaryOperator::plus:
+      return "+";
+    case BinaryOperator::minus:
+      return "-";
+    case BinaryOperator::times:
+      return ".*";
+    case BinaryOperator::matrix_times:
+      return "*";
+    case BinaryOperator::right_divide:
+      return "./";
+    case BinaryOperator::left_divide:
+      return ".\\";
+    case BinaryOperator::matrix_right_divide:
+      return "/";
+    case BinaryOperator::matrix_left_divide:
+      return "\\";
+    case BinaryOperator::power:
+      return ".^";
+    case BinaryOperator::matrix_power:
+      return "^";
+    case BinaryOperator::op_and:
+      return "&";
+    case BinaryOperator::op_or:
+      return "|";
+    case BinaryOperator::and_and:
+      return "&&";
+    case BinaryOperator::or_or:
+      return "||";
+    case BinaryOperator::less:
+      return "<";
+    case BinaryOperator::greater:
+      return ">";
+    case BinaryOperator::less_equal:
+      return "<=";
+    case BinaryOperator::greater_equal:
+      return ">=";
+    case BinaryOperator::equal_equal:
+      return "==";
+    case BinaryOperator::not_equal:
+      return "~=";
+    case BinaryOperator::colon:
+      return ":";
     default:
       assert(false && "Unhandled");
       return "";
@@ -246,7 +332,8 @@ UnaryOperator unary_operator_from_token_type(TokenType type) {
     case TokenType::apostrophe:
       return UnaryOperator::conjugate_transpose;
     default:
-      return UnaryOperator::unknown;
+      assert(false && "Unhandled.");
+      return UnaryOperator::unary_plus;
   }
 }
 

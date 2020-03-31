@@ -33,7 +33,7 @@ private:
 
 public:
   explicit TypeConstraintGenerator(Substitution& substitution, Store& store, TypeStore& type_store,
-                                   const Library& library, StringRegistry& string_registry) :
+                                   Library& library, StringRegistry& string_registry) :
     substitution(substitution),
     store(store),
     type_store(type_store),
@@ -42,11 +42,12 @@ public:
     //
     assignment_state.push_non_assignment_target_rvalue();
     value_category_state.push_rhs();
-    push_monomorphic_anonymous_functions();
+    push_monomorphic_functions();
   }
 
   void show_type_distribution() const;
   void show_variable_types(const TypeToString& printer) const;
+  void show_local_function_types(const TypeToString& printer) const;
 
   void root_block(const RootBlock& block) override;
   void block(const Block& block) override;
@@ -59,9 +60,11 @@ public:
   void literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) override;
 
   void function_call_expr(const FunctionCallExpr& expr) override;
+  void function_reference_expr(const FunctionReferenceExpr& expr) override;
+
+  void unary_operator_expr(const UnaryOperatorExpr& expr) override;
   void binary_operator_expr(const BinaryOperatorExpr& expr) override;
   void variable_reference_expr(const VariableReferenceExpr& expr) override;
-  void function_reference_expr(const FunctionReferenceExpr& expr) override;
 
   void anonymous_function_expr(const AnonymousFunctionExpr& expr) override;
 
@@ -79,13 +82,16 @@ public:
   void fun_type_node(const FunTypeNode& node) override;
   void type_annot_macro(const TypeAnnotMacro& macro) override;
 
+  void if_stmt(const IfStmt& stmt) override;
+  void if_branch(const IfBranch& branch);
+
 private:
   std::vector<TypeHandle> grouping_expr_components(const GroupingExpr& expr);
 
   void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypeHandles& into);
   void gather_function_outputs(const MatlabScope& scope, const std::vector<MatlabIdentifier>& ids, TypeHandles& into);
 
-  TypeEquationTerm visit_expr(const BoxedExpr& expr, const Token& source_token);
+  MT_NODISCARD TypeEquationTerm visit_expr(const BoxedExpr& expr, const Token& source_token);
 
   TypeHandle make_fresh_type_variable_reference() {
     auto var_handle = type_store.make_fresh_type_variable_reference();
@@ -116,6 +122,17 @@ private:
     functions[type_handle] = def_handle;
   }
 
+  TypeHandle require_bound_type_variable(const FunctionDefHandle& function_def_handle) {
+    if (function_type_handles.count(function_def_handle) > 0) {
+      return function_type_handles.at(function_def_handle);
+    }
+
+    const auto function_type_handle = make_fresh_type_variable_reference();
+    bind_type_variable_to_function_def(function_def_handle, function_type_handle);
+
+    return function_type_handle;
+  }
+
   void push_scope(const MatlabScopeHandle& handle) {
     scope_handles.push_back(handle);
   }
@@ -135,22 +152,22 @@ private:
     }
   }
 
-  void push_monomorphic_anonymous_functions() {
-    are_anonymous_functions_generic.push_back(false);
+  void push_monomorphic_functions() {
+    are_functions_generic.push_back(false);
   }
 
-  void push_polymorphic_anonymous_functions() {
-    are_anonymous_functions_generic.push_back(true);
+  void push_polymorphic_functions() {
+    are_functions_generic.push_back(true);
   }
 
-  void pop_generic_anonymous_function_state() {
-    assert(!are_anonymous_functions_generic.empty());
-    are_anonymous_functions_generic.pop_back();
+  void pop_generic_function_state() {
+    assert(!are_functions_generic.empty());
+    are_functions_generic.pop_back();
   }
 
-  bool are_anonymous_functions_polymorphic() const {
-    assert(!are_anonymous_functions_generic.empty());
-    return are_anonymous_functions_generic.back();
+  bool are_functions_polymorphic() const {
+    assert(!are_functions_generic.empty());
+    return are_functions_generic.back();
   }
 
   void push_constraint_repository() {
@@ -188,7 +205,7 @@ private:
 
   Store& store;
   TypeStore& type_store;
-  const Library& library;
+  Library& library;
   const StringRegistry& string_registry;
 
   AssignmentSourceState assignment_state;
@@ -204,7 +221,7 @@ private:
 
   std::vector<TypeEquationTerm> type_eq_terms;
   std::vector<ConstraintRepository> constraint_repositories;
-  std::vector<bool> are_anonymous_functions_generic;
+  std::vector<bool> are_functions_generic;
 };
 
 }

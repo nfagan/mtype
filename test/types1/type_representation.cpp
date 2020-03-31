@@ -145,7 +145,10 @@ void TypeToString::apply_name(const types::Abstraction& abstr, std::stringstream
     }
 
   } else if (abstr.is_binary_operator()) {
-    stream << to_string(abstr.binary_operator);
+    stream << to_symbol(abstr.binary_operator);
+
+  } else if (abstr.is_unary_operator()) {
+    stream << to_symbol(abstr.unary_operator);
 
   } else if (abstr.type == types::Abstraction::Type::subscript_reference) {
     stream << to_symbol(abstr.subscript_method);

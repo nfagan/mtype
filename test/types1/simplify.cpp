@@ -114,12 +114,12 @@ bool Simplifier::simplify_different_types(TypeRef lhs, TypeRef rhs, bool rev) {
 }
 
 bool Simplifier::simplify_different_types(const types::Scheme& scheme, TypeRef source, TypeRef rhs, bool rev) {
-//  if (rev) {
-//    check_emplace_simplification_failure(false, source, rhs);
-//    return false;
-//  }
-
+#if 1
   return simplify_make_type_equation(unifier.instantiate(scheme), rhs, rev);
+#else
+  check_emplace_simplification_failure(false, source, rhs);
+  return false;
+#endif
 }
 
 bool Simplifier::simplify_different_types(const types::List& list, TypeRef source,
@@ -135,10 +135,6 @@ bool Simplifier::simplify_different_types(const types::List& list, TypeRef sourc
   }
 
   check_emplace_simplification_failure(false, source, rhs);
-
-//  MT_SHOW2("ERROR: Cannot simplify list with type:", source, rhs);
-//  assert(false);
-
   return false;
 }
 

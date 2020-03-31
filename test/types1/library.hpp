@@ -27,10 +27,13 @@ public:
 
   void make_known_types();
   Optional<TypeHandle> lookup_function(const types::Abstraction& func) const;
+  Optional<TypeHandle> lookup_function(const FunctionDefHandle& def_handle) const;
   bool is_known_subscript_type(const TypeHandle& handle) const;
 
   Optional<std::string> type_name(const TypeHandle& type) const;
   Optional<std::string> type_name(const types::Scalar& scl) const;
+
+  void emplace_local_function_type(const FunctionDefHandle& handle, TypeRef type);
 
   //  Test a <: b
   bool subtype_related(TypeRef lhs, TypeRef rhs) const;
@@ -49,6 +52,7 @@ private:
   void make_sum();
   void make_feval();
   void make_deal();
+  void make_logicals();
   void make_list_outputs_type();
   void make_list_outputs_type2();
   void make_list_inputs_type();
@@ -56,6 +60,7 @@ private:
   void make_sub_double();
   void make_double();
 
+  TypeHandle make_simple_function(const char* name, TypeHandles&& args, TypeHandles&& outs);
   TypeHandle make_named_scalar_type(const char* name);
 
 private:
@@ -72,6 +77,7 @@ private:
 
   std::map<types::Abstraction, TypeHandle, TypeRelation::NameComparator> function_types;
   std::set<TypeHandle, TypeRelation::TypeRelationComparator> types_with_known_subscripts;
+  std::unordered_map<FunctionDefHandle, TypeHandle, FunctionDefHandle::Hash> local_function_types;
 
   std::unordered_map<TypeIdentifier, int64_t, TypeIdentifier::Hash> scalar_type_names;
   std::unordered_map<TypeHandle, types::SubtypeRelation, TypeHandle::Hash> scalar_subtype_relations;
@@ -80,6 +86,7 @@ public:
   TypeHandle double_type_handle;
   TypeHandle char_type_handle;
   TypeHandle string_type_handle;
+  TypeHandle logical_type_handle;
   TypeHandle sub_double_type_handle;
   TypeHandle sub_sub_double_type_handle;
 };

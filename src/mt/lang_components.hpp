@@ -68,8 +68,7 @@ enum class UnaryOperator : uint8_t {
   unary_minus,
   op_not,
   transpose,
-  conjugate_transpose,
-  unknown
+  conjugate_transpose
 };
 
 enum class BinaryOperator : unsigned int {
@@ -122,8 +121,12 @@ int precedence(BinaryOperator op);
 
 const char* to_string(IdentifierType type);
 const char* to_string(BinaryOperator op);
+const char* to_string(UnaryOperator op);
 
 const char* to_symbol(SubscriptMethod method);
 const char* to_symbol(ConcatenationDirection dir);
+
+const char* to_symbol(BinaryOperator op);
+const char* to_symbol(UnaryOperator op);
 
 }

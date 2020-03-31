@@ -30,6 +30,7 @@ private:
   TypeHandle clone(const types::List& list, IV replacing);
   TypeHandle clone(const types::Subscript& sub, IV replacing);
   TypeHandle clone(const types::Scheme& scheme, IV replacing);
+  TypeHandle clone(const types::Assignment& assign, IV replacing);
   TypeHandle clone(const types::Variable& var, TypeRef source, IV replacing);
   TypeHandle clone(const types::Scalar& scl, TypeRef source, IV replacing);
   TypeHandle clone(const types::Parameters& params, TypeRef source, IV replacing);
