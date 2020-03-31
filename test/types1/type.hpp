@@ -520,35 +520,35 @@ public:
 
   ~Type();
 
-  [[nodiscard]] bool is_scalar() const {
+  MT_NODISCARD bool is_scalar() const {
     return tag == Tag::scalar;
   }
 
-  [[nodiscard]] bool is_tuple() const {
+  MT_NODISCARD bool is_tuple() const {
     return tag == Tag::tuple;
   }
 
-  [[nodiscard]] bool is_variable() const {
+  MT_NODISCARD bool is_variable() const {
     return tag == Tag::variable;
   }
 
-  [[nodiscard]] bool is_destructured_tuple() const {
+  MT_NODISCARD bool is_destructured_tuple() const {
     return tag == Tag::destructured_tuple;
   }
 
-  [[nodiscard]] bool is_list() const {
+  MT_NODISCARD bool is_list() const {
     return tag == Tag::list;
   }
 
-  [[nodiscard]] bool is_abstraction() const {
+  MT_NODISCARD bool is_abstraction() const {
     return tag == Tag::abstraction;
   }
 
-  [[nodiscard]] bool is_scheme() const {
+  MT_NODISCARD bool is_scheme() const {
     return tag == Tag::scheme;
   }
 
-  [[nodiscard]] bool is_parameters() const {
+  MT_NODISCARD bool is_parameters() const {
     return tag == Tag::parameters;
   }
 

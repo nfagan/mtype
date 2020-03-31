@@ -3,6 +3,7 @@
 #include "path.hpp"
 #include "../Optional.hpp"
 #include "../Result.hpp"
+#include "../utility.hpp"
 
 namespace mt {
 
@@ -59,8 +60,8 @@ public:
   ~DirectoryIterator();
 
   void close();
-  [[nodiscard]] Status open();
-  [[nodiscard]] Result<Status, Optional<DirectoryEntry>> next() const;
+  MT_NODISCARD Status open();
+  MT_NODISCARD Result<Status, Optional<DirectoryEntry>> next() const;
 
 private:
   FilePath directory_path;
