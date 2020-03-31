@@ -372,10 +372,6 @@ const IdentifierScope* IdentifierClassifier::scope_at(int index) const {
   return index < 0 ? nullptr : &scopes[index];
 }
 
-const IdentifierScope* IdentifierClassifier::current_scope() const {
-  return scope_at(scope_depth);
-}
-
 IdentifierScope* IdentifierClassifier::current_scope() {
   return scope_at(scope_depth);
 }
@@ -391,19 +387,16 @@ IdentifierClassifier::register_variable_assignment(const Token& source_token, co
     add_error_if_new_identifier(std::move(err), primary_identifier);
 
   } else if (primary_result.was_initialization) {
-    auto& parse_scope = *current_scope()->matlab_scope;
-    parse_scope.register_local_variable(primary_identifier, primary_result.variable_def_handle);
+    auto parse_scope = current_scope()->matlab_scope;
+    parse_scope->register_local_variable(primary_identifier, primary_result.variable_def_handle);
   }
 
   return primary_result;
 }
 
 void IdentifierClassifier::register_imports(IdentifierScope* scope) {
-  Store::Write read_write(*store);
-
-  const auto& matlab_scope = *scope->matlab_scope;
-
-  for (const auto& import : matlab_scope.fully_qualified_imports) {
+  for (const auto& import : scope->matlab_scope->fully_qualified_imports) {
+    Store::Write read_write(*store);
     //  Fully qualified imports take precedence over variables, but cannot shadow local functions.
     auto complete_identifier_id = string_registry->make_registered_compound_identifier(import.identifier_components);
 
@@ -419,10 +412,8 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
 }
 
 void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
-  Store::Write read_write(*store);
-  const auto& matlab_scope = *scope->matlab_scope;
-
-  for (const auto& it : matlab_scope.local_functions) {
+  for (const auto& it : scope->matlab_scope->local_functions) {
+    Store::Write read_write(*store);
     //  Local functions take precedence over variables.
     const auto& ref_handle = it.second;
     const auto& def_handle = read_write.at(ref_handle).def_handle;
@@ -467,8 +458,7 @@ void IdentifierClassifier::register_function_parameter(Store::Write& read_write,
     add_error_if_new_identifier(std::move(err), id);
 
   } else if (assign_res.was_initialization) {
-    auto& matlab_scope = *current_scope()->matlab_scope;
-    matlab_scope.register_local_variable(id, assign_res.variable_def_handle);
+    current_scope()->matlab_scope->register_local_variable(id, assign_res.variable_def_handle);
   }
 }
 
@@ -648,16 +638,14 @@ Expr* IdentifierClassifier::superclass_method_application(mt::IdentifierReferenc
     return &expr;
   }
 
-  const auto scope_handle = current_scope()->matlab_scope;
-
   const auto function_name_id = string_registry->make_registered_compound_identifier(compound_identifier_components);
   MatlabIdentifier function_name(function_name_id, compound_identifier_components.size());
   FunctionReferenceHandle function_reference_handle;
 
-  {
-    Store::Write read_write(*store);
-    function_reference_handle = read_write.make_external_reference(function_name, scope_handle);
-  }
+  store->use<Store::Write>([&](auto& read_write) {
+    const auto scope = current_scope()->matlab_scope;
+    function_reference_handle = read_write.make_external_reference(function_name, scope);
+  });
 
   class_state.push_non_superclass_method_application();
   auto* func_node = make_function_call_expr(expr, subscript_end, function_reference_handle);

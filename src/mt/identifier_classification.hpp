@@ -267,7 +267,6 @@ private:
   IdentifierScope* scope_at(int index);
   const IdentifierScope* scope_at(int index) const;
   IdentifierScope* current_scope();
-  const IdentifierScope* current_scope() const;
 
   void register_function_parameter(Store::Write& read_write, const Token& source_token,
     const MatlabIdentifier& identifier);
