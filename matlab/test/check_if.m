@@ -6,4 +6,11 @@ else
   c = b;
 end
 
+switch ( a )
+  case true
+    c = strcmp( a, 'c' );
+  case false
+    c = b;
+end
+
 end

@@ -84,6 +84,7 @@ public:
 
   void if_stmt(const IfStmt& stmt) override;
   void if_branch(const IfBranch& branch);
+  void switch_stmt(const SwitchStmt& stmt) override;
 
 private:
   std::vector<TypeHandle> grouping_expr_components(const GroupingExpr& expr);

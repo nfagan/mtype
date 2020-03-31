@@ -535,6 +535,21 @@ void TypeConstraintGenerator::if_branch(const IfBranch& branch) {
   branch.block->accept_const(*this);
 }
 
+void TypeConstraintGenerator::switch_stmt(const SwitchStmt& stmt) {
+  auto condition_term = visit_expr(stmt.condition_expr, stmt.source_token);
+
+  for (const auto& switch_case : stmt.cases) {
+    auto case_term = visit_expr(switch_case.expr, switch_case.source_token);
+    push_type_equation(make_eq(condition_term, case_term));
+
+    switch_case.block->accept_const(*this);
+  }
+
+  if (stmt.otherwise) {
+    stmt.otherwise->accept_const(*this);
+  }
+}
+
 /*
  * Util
  */
