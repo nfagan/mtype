@@ -18,6 +18,10 @@ struct Import;
 */
 
 struct MatlabScope {
+  using FunctionMap = std::unordered_map<MatlabIdentifier, FunctionReferenceHandle, MatlabIdentifier::Hash>;
+  using VariableMap = std::unordered_map<MatlabIdentifier, VariableDefHandle, MatlabIdentifier::Hash>;
+  using ClassMap = std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash>;
+
   explicit MatlabScope(const MatlabScope* parent) : parent(parent) {
     //
   }
@@ -28,13 +32,18 @@ struct MatlabScope {
   bool register_class(const MatlabIdentifier& name, const ClassDefHandle& handle);
   void register_local_variable(const MatlabIdentifier& name, const VariableDefHandle& handle);
   void register_import(Import&& import);
+  void register_imported_function(const MatlabIdentifier& name, const FunctionReferenceHandle& handle);
 
   FunctionReferenceHandle lookup_local_function(const MatlabIdentifier& name) const;
+  FunctionReferenceHandle lookup_imported_function(const MatlabIdentifier& name) const;
+
+  bool has_imported_function(const MatlabIdentifier& name) const;
 
   const MatlabScope* parent;
-  std::unordered_map<MatlabIdentifier, FunctionReferenceHandle, MatlabIdentifier::Hash> local_functions;
-  std::unordered_map<MatlabIdentifier, VariableDefHandle, MatlabIdentifier::Hash> local_variables;
-  std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash> classes;
+  FunctionMap local_functions;
+  VariableMap local_variables;
+  ClassMap classes;
+  FunctionMap imported_functions;
   std::vector<Import> fully_qualified_imports;
   std::vector<Import> wildcard_imports;
 };

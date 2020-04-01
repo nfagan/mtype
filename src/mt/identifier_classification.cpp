@@ -405,7 +405,9 @@ void IdentifierClassifier::register_imports(IdentifierScope* scope) {
 
     auto res = scope->register_fully_qualified_import(read_write, complete_identifier, import_alias);
 
-    if (!res.success) {
+    if (res.success && res.info.type == IdentifierType::unresolved_external_function) {
+      scope->matlab_scope->register_imported_function(complete_identifier, res.info.function_reference);
+    } else {
       add_error(make_error_shadowed_import(import.source_token, res.info.type));
     }
   }

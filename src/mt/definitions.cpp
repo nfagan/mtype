@@ -31,6 +31,10 @@ void MatlabScope::register_import(Import&& import) {
   }
 }
 
+void MatlabScope::register_imported_function(const MatlabIdentifier& name, const FunctionReferenceHandle& handle) {
+  imported_functions[name] = handle;
+}
+
 bool MatlabScope::register_class(const MatlabIdentifier& name, const ClassDefHandle& handle) {
   if (classes.count(name) > 0) {
     return false;
@@ -66,6 +70,25 @@ FunctionReferenceHandle MatlabScope::lookup_local_function(const MatlabIdentifie
   }
 
   return FunctionReferenceHandle();
+}
+
+FunctionReferenceHandle MatlabScope::lookup_imported_function(const MatlabIdentifier& name) const {
+  const MatlabScope* scope = this;
+
+  while (scope) {
+    const auto it = scope->imported_functions.find(name);
+    if (it == scope->imported_functions.end()) {
+      scope = scope->parent;
+    } else {
+      return it->second;
+    }
+  }
+
+  return FunctionReferenceHandle();
+}
+
+bool MatlabScope::has_imported_function(const MatlabIdentifier& name) const {
+  return lookup_imported_function(name).is_valid();
 }
 
 }

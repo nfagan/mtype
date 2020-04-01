@@ -1,16 +1,11 @@
 function c = check_if(cond, a, b)
 
+import shared_utils.general.parsestruct;
+
 if ( cond )
   c = a;
 else
-  c = b;
-end
-
-switch ( a )
-  case true
-    c = strcmp( a, 'c' );
-  case false
-    c = b;
+  c = parsestruct( cond );
 end
 
 end

@@ -27,7 +27,6 @@ enum class IdentifierType : uint8_t {
   variable_assignment_or_initialization,
   local_function,
   unresolved_external_function,
-  resolved_external_function,
   unknown
 };
 

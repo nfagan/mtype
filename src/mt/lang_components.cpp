@@ -176,8 +176,6 @@ const char* to_string(IdentifierType type) {
       return "local_function";
     case IdentifierType::unresolved_external_function:
       return "unresolved_external_function";
-    case IdentifierType::resolved_external_function:
-      return "resolved_external_function";
     case IdentifierType::unknown:
       return "unknown";
     default:
