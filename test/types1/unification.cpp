@@ -31,7 +31,7 @@ bool Unifier::is_known_subscript_type(TypeRef handle) const {
   return is_concrete_argument(handle) && library.is_known_subscript_type(handle);
 }
 
-void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstraction& func) {
+void Unifier::check_push_function(TypeRef source, TermRef term, const types::Abstraction& func) {
   if (registered_funcs.count(source) > 0) {
     return;
   }
@@ -234,7 +234,7 @@ TypeHandle Unifier::apply_to(TypeRef source, TermRef term, types::Abstraction& f
   func.inputs = apply_to(func.inputs, term);
   func.outputs = apply_to(func.outputs, term);
 
-  check_push_func(source, term, func);
+  check_push_function(source, term, func);
 
   return source;
 }
@@ -359,7 +359,7 @@ TypeHandle Unifier::substitute_one(types::Abstraction& func, TypeRef source, Ter
   func.inputs = substitute_one(func.inputs, term, lhs, rhs);
   func.outputs = substitute_one(func.outputs, term, lhs, rhs);
 
-  check_push_func(source, term, func);
+  check_push_function(source, term, func);
 
   return source;
 }
@@ -620,7 +620,7 @@ TypeHandle Unifier::maybe_unify_function_call_subscript(TypeRef source,
   const auto arg_rhs_term = make_term(term.source_token, lookup_handle);
   substitution->push_type_equation(make_eq(arg_lhs_term, arg_rhs_term));
 
-  check_push_func(lookup_handle, term, store.at(lookup_handle).abstraction);
+  check_push_function(lookup_handle, term, store.at(lookup_handle).abstraction);
   registered_funcs[source] = true;
 
   return source;

@@ -84,8 +84,8 @@ FunctionReferenceHandle Store::make_local_reference(const MatlabIdentifier& to_i
  * Scope components
  */
 
-MatlabScope* Store::make_matlab_scope(const MatlabScope* parent) {
-  auto new_scope = std::make_unique<MatlabScope>(parent);
+MatlabScope* Store::make_matlab_scope(const MatlabScope* parent, const CodeFileDescriptor* file_descriptor) {
+  auto new_scope = std::make_unique<MatlabScope>(parent, file_descriptor);
   auto scope_ptr = new_scope.get();
   matlab_scopes.push_back(std::move(new_scope));
   return scope_ptr;

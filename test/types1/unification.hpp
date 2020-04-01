@@ -118,7 +118,7 @@ private:
     const types::Scheme& scheme, types::Subscript& sub);
 
   void check_assignment(TypeRef source, TermRef term, const types::Assignment& assignment);
-  void check_push_func(TypeRef source, TermRef term, const types::Abstraction& func);
+  void check_push_function(TypeRef source, TermRef term, const types::Abstraction& func);
 
   bool is_known_subscript_type(TypeRef handle) const;
   bool is_concrete_argument(TypeRef handle) const;

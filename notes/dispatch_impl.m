@@ -52,7 +52,6 @@ void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstrac
   if (func_info.is_fully_qualified_import()) {
     path_lookup(func_info.name, func_info.file_descriptor);
   }
-
 }
 
 void path_lookup(func_name, file_descriptor) {

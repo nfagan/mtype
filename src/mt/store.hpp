@@ -13,6 +13,8 @@
 
 namespace mt {
 
+class CodeFileDescriptor;
+
 namespace detail {
   using DefaultMutex = std::mutex;
 }
@@ -175,7 +177,7 @@ public:
   }
 
 private:
-  MatlabScope* make_matlab_scope(const MatlabScope* parent);
+  MatlabScope* make_matlab_scope(const MatlabScope* parent, const CodeFileDescriptor* file_descriptor);
 
   ClassDefHandle make_class_definition();
   FunctionDefHandle make_function_declaration(FunctionHeader&& header, const FunctionAttributes& attrs);

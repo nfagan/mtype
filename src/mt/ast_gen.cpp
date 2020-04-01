@@ -2575,8 +2575,9 @@ bool AstGenerator::is_within_loop() const {
 }
 
 void AstGenerator::push_scope() {
+  const auto curr_scope = current_scope();
   Store::Write writer(*store);
-  scopes.push_back(writer.make_matlab_scope(current_scope()));
+  scopes.push_back(writer.make_matlab_scope(curr_scope, file_descriptor));
 }
 
 void AstGenerator::pop_scope() {

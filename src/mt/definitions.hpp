@@ -12,6 +12,7 @@
 namespace mt {
 
 struct Import;
+class CodeFileDescriptor;
 
 /*
 * MatlabScope
@@ -22,7 +23,8 @@ struct MatlabScope {
   using VariableMap = std::unordered_map<MatlabIdentifier, VariableDefHandle, MatlabIdentifier::Hash>;
   using ClassMap = std::unordered_map<MatlabIdentifier, ClassDefHandle, MatlabIdentifier::Hash>;
 
-  explicit MatlabScope(const MatlabScope* parent) : parent(parent) {
+  explicit MatlabScope(const MatlabScope* parent, const CodeFileDescriptor* file_descriptor) :
+  parent(parent), file_descriptor(file_descriptor) {
     //
   }
 
@@ -40,6 +42,8 @@ struct MatlabScope {
   bool has_imported_function(const MatlabIdentifier& name) const;
 
   const MatlabScope* parent;
+  const CodeFileDescriptor* file_descriptor;
+
   FunctionMap local_functions;
   VariableMap local_variables;
   ClassMap classes;
