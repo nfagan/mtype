@@ -36,11 +36,6 @@ public:
     return at(handle).tag;
   }
 
-  TypeHandle make_type() {
-    types.emplace_back();
-    return TypeHandle(types.size() - 1);
-  }
-
   TypeHandle make_fresh_parameters() {
     auto handle = make_type();
     assign(handle, Type(types::Parameters(make_type_identifier())));
@@ -136,11 +131,17 @@ public:
   }
 
 private:
+  TypeHandle make_type() {
+    types.emplace_back();
+    return TypeHandle(types.size() - 1);
+  }
+
   template <typename T, typename... Args>
   TypeHandle make_type(Args&&... args) {
     types.emplace_back(Type(T(std::forward<Args>(args)...)));
     return TypeHandle(types.size()-1);
   }
+
   void assign(const TypeHandle& at, Type&& type);
 
 private:
