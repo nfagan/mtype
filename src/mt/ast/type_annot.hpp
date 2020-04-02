@@ -11,6 +11,7 @@ struct TypeAnnotMacro : public TypeAnnot {
     //
   }
   ~TypeAnnotMacro() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   TypeAnnotMacro* accept(IdentifierClassifier& classifier) override;
   void accept_const(TypePreservingVisitor& vis) const override;
@@ -25,7 +26,10 @@ struct InlineType : public TypeAnnot {
     //
   }
   ~InlineType() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   BoxedType type;
 };
@@ -40,7 +44,10 @@ struct TypeLet : public TypeAnnot {
     //
   }
   ~TypeLet() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
   int64_t identifier;
@@ -57,7 +64,10 @@ struct TypeGiven : public TypeAnnot {
     //
   }
   ~TypeGiven() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
   std::vector<int64_t> identifiers;
@@ -70,51 +80,63 @@ struct TypeBegin : public TypeAnnot {
     //
   }
   ~TypeBegin() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
   bool is_exported;
   std::vector<BoxedTypeAnnot> contents;
 };
 
-struct UnionType : public TypeNode {
-  explicit UnionType(std::vector<BoxedType>&& members) : members(std::move(members)) {
+struct UnionTypeNode : public TypeNode {
+  explicit UnionTypeNode(std::vector<BoxedType>&& members) : members(std::move(members)) {
     //
   }
-  ~UnionType() override = default;
+  ~UnionTypeNode() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   std::vector<BoxedType> members;
 };
 
-struct ScalarType : public TypeNode {
-  ScalarType(const Token& source_token,
-             int64_t identifier,
-             std::vector<BoxedType>&& arguments) :
-             source_token(source_token),
-             identifier(identifier),
-             arguments(std::move(arguments)) {
+struct ScalarTypeNode : public TypeNode {
+  ScalarTypeNode(const Token& source_token,
+                 int64_t identifier,
+                 std::vector<BoxedType>&& arguments) :
+                 source_token(source_token),
+                 identifier(identifier),
+                 arguments(std::move(arguments)) {
     //
   }
-  ~ScalarType() override = default;
+  ~ScalarTypeNode() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
   int64_t identifier;
   std::vector<BoxedType> arguments;
 };
 
-struct FunctionType : public TypeNode {
-  FunctionType(const Token& source_token,
-               std::vector<BoxedType>&& outputs,
-               std::vector<BoxedType>&& inputs) :
-               source_token(source_token),
-               outputs(std::move(outputs)),
-               inputs(std::move(inputs)) {
+struct FunctionTypeNode : public TypeNode {
+  FunctionTypeNode(const Token& source_token,
+                   std::vector<BoxedType>&& outputs,
+                   std::vector<BoxedType>&& inputs) :
+                   source_token(source_token),
+                   outputs(std::move(outputs)),
+                   inputs(std::move(inputs)) {
     //
   }
-  ~FunctionType() override = default;
+  ~FunctionTypeNode() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
   std::vector<BoxedType> outputs;
@@ -127,6 +149,7 @@ struct FunTypeNode : public TypeNode {
     //
   }
   ~FunTypeNode() override = default;
+
   std::string accept(const StringVisitor& vis) const override;
   FunTypeNode* accept(IdentifierClassifier& classifier) override;
   void accept_const(TypePreservingVisitor& vis) const override;

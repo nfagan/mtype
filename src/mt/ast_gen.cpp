@@ -2395,7 +2395,7 @@ Optional<BoxedType> AstGenerator::type(const mt::Token& source_token) {
     union_type_members.emplace_back(next_type_res.rvalue());
   }
 
-  auto union_type_node = std::make_unique<UnionType>(std::move(union_type_members));
+  auto union_type_node = std::make_unique<UnionTypeNode>(std::move(union_type_members));
   return Optional<BoxedType>(std::move(union_type_node));
 }
 
@@ -2473,8 +2473,8 @@ Optional<BoxedType> AstGenerator::function_type(const mt::Token& source_token) {
     return NullOpt{};
   }
 
-  auto type_node = std::make_unique<FunctionType>(source_token,
-    output_res.rvalue(), input_res.rvalue());
+  auto type_node = std::make_unique<FunctionTypeNode>(source_token,
+                                                      output_res.rvalue(), input_res.rvalue());
   return Optional<BoxedType>(std::move(type_node));
 }
 
@@ -2496,7 +2496,7 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
 
   int64_t identifier = string_registry->register_string(source_token.lexeme);
 
-  auto node = std::make_unique<ScalarType>(source_token, identifier, std::move(arguments));
+  auto node = std::make_unique<ScalarTypeNode>(source_token, identifier, std::move(arguments));
   return Optional<BoxedType>(std::move(node));
 }
 

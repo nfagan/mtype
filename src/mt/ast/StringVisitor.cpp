@@ -526,11 +526,11 @@ std::string StringVisitor::end_operator_expr(const EndOperatorExpr&) const {
   return "end";
 }
 
-std::string StringVisitor::union_type(const UnionType& type) const {
+std::string StringVisitor::union_type_node(const UnionTypeNode& type) const {
   return visit_array(type.members, " | ");
 }
 
-std::string StringVisitor::scalar_type(const ScalarType& type) const {
+std::string StringVisitor::scalar_type_node(const ScalarTypeNode& type) const {
   auto str = std::string(string_registry->at(type.identifier));
   if (!type.arguments.empty()) {
     str += ("<" + visit_array(type.arguments, ", ") + ">");
@@ -538,7 +538,7 @@ std::string StringVisitor::scalar_type(const ScalarType& type) const {
   return str;
 }
 
-std::string StringVisitor::function_type(const FunctionType& type) const {
+std::string StringVisitor::function_type_node(const FunctionTypeNode& type) const {
   auto outputs = "[" + visit_array(type.outputs, ", ") + "]";
   auto inputs = "(" + visit_array(type.inputs, ", ") + ")";
   return outputs + " = " + inputs;

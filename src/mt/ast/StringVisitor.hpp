@@ -60,9 +60,9 @@ public:
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;
   std::string end_operator_expr(const EndOperatorExpr& expr) const;
 
-  std::string union_type(const UnionType& type) const;
-  std::string scalar_type(const ScalarType& type) const;
-  std::string function_type(const FunctionType& type) const;
+  std::string union_type_node(const UnionTypeNode& type) const;
+  std::string scalar_type_node(const ScalarTypeNode& type) const;
+  std::string function_type_node(const FunctionTypeNode& type) const;
   std::string type_begin(const TypeBegin& begin) const;
   std::string type_given(const TypeGiven& given) const;
   std::string type_let(const TypeLet& let) const;

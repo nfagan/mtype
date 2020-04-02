@@ -33,28 +33,107 @@ std::string InlineType::accept(const StringVisitor& vis) const {
   return vis.inline_type(*this);
 }
 
+void InlineType::accept_const(TypePreservingVisitor& vis) const {
+  vis.inline_type(*this);
+}
+
+void InlineType::accept(TypePreservingVisitor& vis) {
+  vis.inline_type(*this);
+}
+
+/*
+ * TypeGiven
+ */
+
 std::string TypeGiven::accept(const StringVisitor& vis) const {
   return vis.type_given(*this);
 }
+
+void TypeGiven::accept_const(TypePreservingVisitor& vis) const {
+  vis.type_given(*this);
+}
+
+void TypeGiven::accept(TypePreservingVisitor& vis) {
+  vis.type_given(*this);
+}
+
+/*
+ * TypeLet
+ */
 
 std::string TypeLet::accept(const StringVisitor& vis) const {
   return vis.type_let(*this);
 }
 
+void TypeLet::accept_const(TypePreservingVisitor& vis) const {
+  vis.type_let(*this);
+}
+
+void TypeLet::accept(TypePreservingVisitor& vis) {
+  vis.type_let(*this);
+}
+
+/*
+ * TypeBegin
+ */
+
 std::string TypeBegin::accept(const StringVisitor& vis) const {
   return vis.type_begin(*this);
 }
 
-std::string UnionType::accept(const StringVisitor& vis) const {
-  return vis.union_type(*this);
+void TypeBegin::accept_const(TypePreservingVisitor& vis) const {
+  vis.type_begin(*this);
 }
 
-std::string ScalarType::accept(const StringVisitor& vis) const {
-  return vis.scalar_type(*this);
+void TypeBegin::accept(TypePreservingVisitor& vis) {
+  vis.type_begin(*this);
 }
 
-std::string FunctionType::accept(const StringVisitor& vis) const {
-  return vis.function_type(*this);
+/*
+ * UnionTypeNode
+ */
+
+std::string UnionTypeNode::accept(const StringVisitor& vis) const {
+  return vis.union_type_node(*this);
+}
+
+void UnionTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.union_type_node(*this);
+}
+
+void UnionTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.union_type_node(*this);
+}
+
+/*
+ * ScalarTypeNode
+ */
+
+std::string ScalarTypeNode::accept(const StringVisitor& vis) const {
+  return vis.scalar_type_node(*this);
+}
+
+void ScalarTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.scalar_type_node(*this);
+}
+void ScalarTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.scalar_type_node(*this);
+}
+
+/*
+ * FunctionTypeNode
+ */
+
+std::string FunctionTypeNode::accept(const StringVisitor& vis) const {
+  return vis.function_type_node(*this);
+}
+
+void FunctionTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.function_type_node(*this);
+}
+
+void FunctionTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.function_type_node(*this);
 }
 
 /*
