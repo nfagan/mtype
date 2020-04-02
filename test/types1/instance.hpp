@@ -7,7 +7,7 @@ namespace mt {
 
 class Instantiation {
 public:
-  using InstanceVariables = std::unordered_map<TypeHandle, TypeHandle, TypeHandle::Hash>;
+  using InstanceVariables = std::unordered_map<Type*, Type*>;
   using IV = InstanceVariables&;
 
 public:
@@ -15,27 +15,27 @@ public:
     //
   }
 
-  TypeHandle instantiate(const types::Scheme& scheme);
-  TypeHandle instantiate(const types::Scheme& scheme, IV replacing);
+  Type* instantiate(const types::Scheme& scheme);
+  Type* instantiate(const types::Scheme& scheme, IV replacing);
 
-  TypeHandle clone(const TypeHandle& handle, IV replacing);
+  Type* clone(Type* source, IV replacing);
   InstanceVariables make_instance_variables(const types::Scheme& from_scheme);
 
 private:
   void make_instance_variables(const types::Scheme& from_scheme, InstanceVariables& into);
 
-  TypeHandle clone(const types::Abstraction& abstr, IV replacing);
-  TypeHandle clone(const types::DestructuredTuple& tup, IV replacing);
-  TypeHandle clone(const types::Tuple& tup, IV replacing);
-  TypeHandle clone(const types::List& list, IV replacing);
-  TypeHandle clone(const types::Subscript& sub, IV replacing);
-  TypeHandle clone(const types::Scheme& scheme, IV replacing);
-  TypeHandle clone(const types::Assignment& assign, IV replacing);
-  TypeHandle clone(const types::Variable& var, TypeRef source, IV replacing);
-  TypeHandle clone(const types::Scalar& scl, TypeRef source, IV replacing);
-  TypeHandle clone(const types::Parameters& params, TypeRef source, IV replacing);
+  Type* clone(const types::Abstraction& abstr, IV replacing);
+  Type* clone(const types::DestructuredTuple& tup, IV replacing);
+  Type* clone(const types::Tuple& tup, IV replacing);
+  Type* clone(const types::List& list, IV replacing);
+  Type* clone(const types::Subscript& sub, IV replacing);
+  Type* clone(const types::Scheme& scheme, IV replacing);
+  Type* clone(const types::Assignment& assign, IV replacing);
+  Type* clone(const types::Variable& var, Type* source, IV replacing);
+  Type* clone(const types::Scalar& scl, Type* source, IV replacing);
+  Type* clone(const types::Parameters& params, Type* source, IV replacing);
 
-  std::vector<TypeHandle> clone(const std::vector<TypeHandle>& members, IV replacing);
+  TypePtrs clone(const TypePtrs& members, IV replacing);
 
 private:
   TypeStore& store;

@@ -11,7 +11,7 @@ public:
   EquivalenceRelation() = default;
   ~EquivalenceRelation() override = default;
 
-  bool related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const override;
+  bool related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const override;
 };
 
 class SubtypeRelation : public TypeRelationship {
@@ -21,7 +21,7 @@ public:
   }
   ~SubtypeRelation() override = default;
 
-  bool related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const override;
+  bool related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const override;
 
 private:
   const Library& library;

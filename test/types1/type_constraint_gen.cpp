@@ -34,7 +34,7 @@ void TypeConstraintGenerator::show_local_function_types(const TypeToString& prin
 
   for (const auto& func_it : function_type_handles) {
     const auto& def_handle = func_it.first;
-    const auto& maybe_type = substitution.bound_type(func_it.second);
+    const auto& maybe_type = substitution.bound_type(make_term(nullptr, func_it.second));
     const auto& type = maybe_type ? maybe_type.value() : func_it.second;
 
     std::string name;
@@ -54,7 +54,7 @@ void TypeConstraintGenerator::show_variable_types(const TypeToString& printer) c
 
   for (const auto& var_it : variable_type_handles) {
     const auto& def_handle = var_it.first;
-    const auto& maybe_type = substitution.bound_type(var_it.second);
+    const auto& maybe_type = substitution.bound_type(make_term(nullptr, var_it.second));
     const auto& type = maybe_type ? maybe_type.value() : var_it.second;
 
     std::string name;
@@ -70,7 +70,7 @@ void TypeConstraintGenerator::show_variable_types(const TypeToString& printer) c
 
 void TypeConstraintGenerator::gather_function_inputs(const MatlabScope& scope,
                                                      const FunctionInputParameters& inputs,
-                                                     TypeHandles& into) {
+                                                     TypePtrs& into) {
   for (const auto& input : inputs) {
     if (!input.is_ignored) {
       assert(input.name.full_name() >= 0);
@@ -88,7 +88,7 @@ void TypeConstraintGenerator::gather_function_inputs(const MatlabScope& scope,
 
 void TypeConstraintGenerator::gather_function_outputs(const MatlabScope& scope,
                                                       const std::vector<MatlabIdentifier>& ids,
-                                                      TypeHandles& into) {
+                                                      TypePtrs& into) {
   for (const auto& output : ids) {
     assert(output.full_name() >= 0);
 
@@ -102,11 +102,11 @@ void TypeConstraintGenerator::gather_function_outputs(const MatlabScope& scope,
 void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   MatlabScopeHelper scope_helper(*this, node.scope);
 
-  const auto input_handle = type_store.make_input_destructured_tuple(TypeHandles{});
-  const auto output_handle = type_store.make_output_destructured_tuple(TypeHandles{});
+  const auto input_handle = type_store.make_input_destructured_tuple(TypePtrs{});
+  const auto output_handle = type_store.make_output_destructured_tuple(TypePtrs{});
 
-  auto& function_inputs = type_store.at(input_handle).destructured_tuple.members;
-  auto& function_outputs = type_store.at(output_handle).destructured_tuple.members;
+  auto& function_inputs = MT_DT_MUT_REF(*input_handle).members;
+  auto& function_outputs = MT_DT_MUT_REF(*output_handle).members;
 
   if (are_functions_polymorphic()) {
     push_constraint_repository();
@@ -136,14 +136,14 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     type_store.make_abstraction(function_name, node.def_handle, input_handle, output_handle);
   const auto func_var = require_bound_type_variable(node.def_handle);
 
-  TypeHandle rhs_term_type = type_handle;
+  auto rhs_term_type = type_handle;
 
   if (are_functions_polymorphic()) {
     auto current_constraints = std::move(current_constraint_repository());
     pop_constraint_repository();
 
-    const auto func_scheme = type_store.make_scheme(type_handle, TypeHandles{});
-    auto& scheme = type_store.at(func_scheme).scheme;
+    const auto func_scheme = type_store.make_scheme(type_handle, TypePtrs{});
+    auto& scheme = MT_SCHEME_MUT_REF(*func_scheme);
     scheme.constraints = std::move(current_constraints.constraints);
     scheme.parameters = std::move(current_constraints.variables);
 
@@ -176,17 +176,17 @@ void TypeConstraintGenerator::type_annot_macro(const TypeAnnotMacro& macro) {
  */
 
 void TypeConstraintGenerator::number_literal_expr(const NumberLiteralExpr& expr) {
-  assert(library.double_type_handle.is_valid());
+  assert(library.double_type_handle);
   push_type_equation_term(make_term(&expr.source_token, library.double_type_handle));
 }
 
 void TypeConstraintGenerator::char_literal_expr(const CharLiteralExpr& expr) {
-  assert(library.char_type_handle.is_valid());
+  assert(library.char_type_handle);
   push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
 }
 
 void TypeConstraintGenerator::string_literal_expr(const StringLiteralExpr& expr) {
-  assert(library.string_type_handle.is_valid());
+  assert(library.string_type_handle);
   push_type_equation_term(make_term(&expr.source_token, library.string_type_handle));
 }
 
@@ -197,12 +197,12 @@ void TypeConstraintGenerator::dynamic_field_reference_expr(const DynamicFieldRef
 }
 
 void TypeConstraintGenerator::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) {
-  assert(library.char_type_handle.is_valid());
+  assert(library.char_type_handle);
   push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
 }
 
 void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
-  std::vector<TypeHandle> members;
+  TypePtrs members;
   members.reserve(expr.arguments.size());
 
   for (const auto& arg : expr.arguments) {
@@ -226,7 +226,7 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
   const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
 
 #if MT_SCHEME_FUNC_CALL
-  const auto scheme_type = type_store.make_scheme(func_type, TypeHandles{});
+  const auto scheme_type = type_store.make_scheme(func_type, TypePtrs{});
   const auto func_rhs_term = make_term(&expr.source_token, scheme_type);
 #else
   const auto func_rhs_term = make_term(&expr.source_token, func_type);
@@ -262,7 +262,7 @@ void TypeConstraintGenerator::function_reference_expr(const FunctionReferenceExp
     const auto lhs_term = make_term(&expr.source_token, current_type);
 
 #if MT_SCHEME_FUNC_REF
-    const auto scheme = type_store.make_scheme(func, TypeHandles{});
+    const auto scheme = type_store.make_scheme(func, TypePtrs{});
     const auto rhs_term = make_term(&expr.source_token, scheme);
 #else
     const auto rhs_term = make_term(&expr.source_token, func);
@@ -295,7 +295,7 @@ void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExp
 
     for (const auto& sub : expr.subscripts) {
       auto method = sub.method;
-      std::vector<TypeHandle> args;
+      TypePtrs args;
       args.reserve(sub.arguments.size());
 
       for (const auto& arg_expr : sub.arguments) {
@@ -327,8 +327,8 @@ void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExp
     push_constraint_repository();
   }
 
-  std::vector<TypeHandle> function_inputs;
-  std::vector<TypeHandle> function_outputs;
+  TypePtrs function_inputs;
+  TypePtrs function_outputs;
 
   gather_function_inputs(*current_scope(), expr.inputs, function_inputs);
 
@@ -348,10 +348,10 @@ void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExp
     auto stored_constraints = std::move(current_constraint_repository());
     pop_constraint_repository();
 
-    const auto func_scheme = type_store.make_scheme(func, TypeHandles{});
+    const auto func_scheme = type_store.make_scheme(func, TypePtrs{});
     const auto func_scheme_term = make_term(&expr.source_token, func_scheme);
 
-    auto& scheme = type_store.at(func_scheme).scheme;
+    auto& scheme = MT_SCHEME_MUT_REF(*func_scheme);
     scheme.constraints = std::move(stored_constraints.constraints);
     scheme.parameters = std::move(stored_constraints.variables);
 
@@ -412,8 +412,8 @@ void TypeConstraintGenerator::grouping_expr(const GroupingExpr& expr) {
   }
 }
 
-std::vector<TypeHandle> TypeConstraintGenerator::grouping_expr_components(const GroupingExpr& expr) {
-  std::vector<TypeHandle> members;
+TypePtrs TypeConstraintGenerator::grouping_expr_components(const GroupingExpr& expr) {
+  TypePtrs members;
   members.reserve(expr.components.size());
 
   for (const auto& component : expr.components) {
@@ -438,8 +438,8 @@ void TypeConstraintGenerator::bracket_grouping_expr_lhs(const GroupingExpr& expr
 
 void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
   auto last_dir = ConcatenationDirection::vertical;
-  std::vector<TypeHandles> arg_handles;
-  std::vector<TypeHandle> result_handles;
+  std::vector<TypePtrs> arg_handles;
+  TypePtrs result_handles;
 
   arg_handles.emplace_back();
   result_handles.push_back(make_fresh_type_variable_reference());
@@ -471,7 +471,7 @@ void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr
 }
 
 void TypeConstraintGenerator::brace_grouping_expr_rhs(const GroupingExpr& expr) {
-  TypeHandles list_pattern;
+  TypePtrs list_pattern;
   list_pattern.reserve(expr.components.size());
 
   for (const auto& component : expr.components) {
@@ -564,7 +564,7 @@ TypeEquationTerm TypeConstraintGenerator::visit_expr(const BoxedExpr& expr, cons
   return rhs_term;
 }
 
-TypeHandle TypeConstraintGenerator::make_fresh_type_variable_reference() {
+Type* TypeConstraintGenerator::make_fresh_type_variable_reference() {
   auto var_handle = type_store.make_fresh_type_variable_reference();
   if (!constraint_repositories.empty()) {
     constraint_repositories.back().variables.push_back(var_handle);
@@ -572,7 +572,7 @@ TypeHandle TypeConstraintGenerator::make_fresh_type_variable_reference() {
   return var_handle;
 }
 
-TypeHandle TypeConstraintGenerator::require_bound_type_variable(const VariableDefHandle& variable_def_handle) {
+Type* TypeConstraintGenerator::require_bound_type_variable(const VariableDefHandle& variable_def_handle) {
   if (variable_type_handles.count(variable_def_handle) > 0) {
     return variable_type_handles.at(variable_def_handle);
   }
@@ -583,17 +583,17 @@ TypeHandle TypeConstraintGenerator::require_bound_type_variable(const VariableDe
   return variable_type_handle;
 }
 
-void TypeConstraintGenerator::bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, TypeRef type_handle) {
+void TypeConstraintGenerator::bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, Type* type_handle) {
   variable_type_handles[def_handle] = type_handle;
   variables[type_handle] = def_handle;
 }
 
-void TypeConstraintGenerator::bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, TypeRef type_handle) {
+void TypeConstraintGenerator::bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle) {
   function_type_handles[def_handle] = type_handle;
   functions[type_handle] = def_handle;
 }
 
-TypeHandle TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHandle& function_def_handle) {
+Type* TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHandle& function_def_handle) {
   if (function_type_handles.count(function_def_handle) > 0) {
     return function_type_handles.at(function_def_handle);
   }

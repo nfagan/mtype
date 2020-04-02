@@ -6,46 +6,25 @@ namespace mt {
 
 class TypeStore {
 public:
-  TypeStore() : type_variable_ids(0) {
-    //
-  }
+  TypeStore() = delete;
 
-  explicit TypeStore(int64_t cap) : type_variable_ids(0) {
-    reserve(cap);
+  explicit TypeStore(int64_t cap) : capacity(cap), type_variable_ids(0) {
+    reserve();
   }
 
   TypeStore(const TypeStore& other) = delete;
   TypeStore& operator=(const TypeStore& other) = delete;
 
-  void reserve(int64_t cap) {
-    types.reserve(cap);
-  }
-
   int64_t size() const {
     return types.size();
   }
 
-  MT_NODISCARD const std::vector<Type>& get_types() const {
-    return types;
+  Type* make_fresh_parameters() {
+    return make_type<types::Parameters>(make_type_identifier());
   }
 
-  MT_NODISCARD const Type& at(const TypeHandle& handle) const;
-  Type& at(const TypeHandle& handle);
-
-  Type::Tag type_of(const TypeHandle& handle) const {
-    return at(handle).tag;
-  }
-
-  TypeHandle make_fresh_parameters() {
-    auto handle = make_type();
-    assign(handle, Type(types::Parameters(make_type_identifier())));
-    return handle;
-  }
-
-  TypeHandle make_fresh_type_variable_reference() {
-    auto handle = make_type();
-    assign(handle, Type(types::Variable(make_type_identifier())));
-    return handle;
+  Type* make_fresh_type_variable_reference() {
+    return make_type<types::Variable>(make_type_identifier());
   }
 
   TypeIdentifier make_type_identifier() {
@@ -53,99 +32,87 @@ public:
   }
 
   template <typename... Args>
-  TypeHandle make_tuple(Args&&... args) {
+  Type* make_tuple(Args&&... args) {
     return make_type<types::Tuple>(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_destructured_tuple(Args&&... args) {
+  Type* make_destructured_tuple(Args&&... args) {
     return make_type<types::DestructuredTuple>(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_output_destructured_tuple(Args&&... args) {
+  Type* make_output_destructured_tuple(Args&&... args) {
     using Use = types::DestructuredTuple::Usage;
     return make_type<types::DestructuredTuple>(Use::definition_outputs, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_input_destructured_tuple(Args&&... args) {
+  Type* make_input_destructured_tuple(Args&&... args) {
     using Use = types::DestructuredTuple::Usage;
     return make_type<types::DestructuredTuple>(Use::definition_inputs, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_rvalue_destructured_tuple(Args&&... args) {
+  Type* make_rvalue_destructured_tuple(Args&&... args) {
     using Use = types::DestructuredTuple::Usage;
     return make_type<types::DestructuredTuple>(Use::rvalue, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_lvalue_destructured_tuple(Args&&... args) {
+  Type* make_lvalue_destructured_tuple(Args&&... args) {
     using Use = types::DestructuredTuple::Usage;
-    return make_type<types::DestructuredTuple>(Use::rvalue, std::forward<Args>(args)...);
+    return make_type<types::DestructuredTuple>(Use::lvalue, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_list(Args&&... args) {
+  Type* make_list(Args&&... args) {
     return make_type<types::List>(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_assignment(Args&&... args) {
+  Type* make_assignment(Args&&... args) {
     return make_type<types::Assignment>(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_abstraction(Args&&... args) {
+  Type* make_abstraction(Args&&... args) {
     return make_type<types::Abstraction>(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_scheme(Args&&... args) {
+  Type* make_scheme(Args&&... args) {
     return make_type<types::Scheme>(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  TypeHandle make_subscript(Args&&... args) {
+  Type* make_subscript(Args&&... args) {
     return make_type<types::Subscript>(std::forward<Args>(args)...);
   }
 
-  TypeHandle make_concrete() {
-    auto t = make_type();
-    assign(t, Type(types::Scalar(make_type_identifier())));
-    return t;
+  Type* make_concrete() {
+    return make_type<types::Scalar>(make_type_identifier());
   }
 
-  std::unordered_map<Type::Tag, double> type_distribution() const {
-    std::unordered_map<Type::Tag, double> counts;
-
-    for (const auto& type : types) {
-      if (counts.count(type.tag) == 0) {
-        counts[type.tag] = 0.0;
-      }
-      counts[type.tag] = counts[type.tag] + 1.0;
-    }
-
-    return counts;
-  }
+  std::unordered_map<Type::Tag, double> type_distribution() const;
 
 private:
-  TypeHandle make_type() {
-    types.emplace_back();
-    return TypeHandle(types.size() - 1);
+  void reserve() {
+    types.reserve(capacity);
   }
+
 
   template <typename T, typename... Args>
-  TypeHandle make_type(Args&&... args) {
-    types.emplace_back(Type(T(std::forward<Args>(args)...)));
-    return TypeHandle(types.size()-1);
+  Type* make_type(Args&&... args) {
+    auto type = std::make_unique<T>(std::forward<Args>(args)...);
+    auto ptr = type.get();
+    types.push_back(std::move(type));
+    return ptr;
   }
 
-  void assign(const TypeHandle& at, Type&& type);
-
 private:
-  std::vector<Type> types;
+  std::vector<std::unique_ptr<Type>> types;
+  std::size_t capacity;
   int64_t type_variable_ids;
 };
 

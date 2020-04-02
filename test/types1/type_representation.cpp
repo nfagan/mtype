@@ -1,5 +1,4 @@
 #include "type_representation.hpp"
-#include "type_store.hpp"
 #include "library.hpp"
 #include "mt/display.hpp"
 #include <cassert>
@@ -26,59 +25,14 @@ const char* tuple_usage_shorthand(types::DestructuredTuple::Usage usage) {
 
 }
 
-void TypeToString::apply(const Type& t, std::stringstream& into) const {
-  using Tag = Type::Tag;
-
-  switch (t.tag) {
-    case Tag::scalar:
-      apply(t.scalar, into);
-      break;
-    case Tag::variable:
-      apply(t.variable, into);
-      break;
-    case Tag::abstraction:
-      apply(t.abstraction, into);
-      break;
-    case Tag::destructured_tuple:
-      apply(t.destructured_tuple, into);
-      break;
-    case Tag::tuple:
-      apply(t.tuple, into);
-      break;
-    case Tag::list:
-      apply(t.list, into);
-      break;
-    case Tag::subscript:
-      apply(t.subscript, into);
-      break;
-    case Tag::scheme:
-      apply(t.scheme, into);
-      break;
-    case Tag::assignment:
-      apply(t.assignment, into);
-      break;
-    case Tag::parameters:
-      apply(t.parameters, into);
-      break;
-    default:
-      assert(false && "Unhandled.");
-  }
+void TypeToString::apply(const Type* t, std::stringstream& into) const {
+  t->accept(*this, into);
 }
 
-std::string TypeToString::apply(const Type& t) const {
+std::string TypeToString::apply(const Type* t) const {
   std::stringstream into;
   apply(t, into);
   return into.str();
-}
-
-std::string TypeToString::apply(const TypeHandle& handle) const {
-  std::stringstream into;
-  apply(handle, into);
-  return into.str();
-}
-
-void TypeToString::apply(const TypeHandle& handle, std::stringstream& into) const {
-  apply(store.at(handle), into);
 }
 
 void TypeToString::apply(const types::Scalar& scl, std::stringstream& stream) const {
@@ -150,13 +104,13 @@ void TypeToString::apply_name(const types::Abstraction& abstr, std::stringstream
   } else if (abstr.is_unary_operator()) {
     stream << to_symbol(abstr.unary_operator);
 
-  } else if (abstr.type == types::Abstraction::Type::subscript_reference) {
+  } else if (abstr.kind == types::Abstraction::Kind::subscript_reference) {
     stream << to_symbol(abstr.subscript_method);
 
-  } else if (abstr.type == types::Abstraction::Type::concatenation) {
+  } else if (abstr.kind == types::Abstraction::Kind::concatenation) {
     stream << to_symbol(abstr.concatenation_direction);
 
-  } else if (abstr.type == types::Abstraction::Type::anonymous_function) {
+  } else if (abstr.kind == types::Abstraction::Kind::anonymous_function) {
     stream << "@";
   }
 
@@ -180,7 +134,16 @@ void TypeToString::apply(const types::Tuple& tup, std::stringstream& stream) con
   stream << "}";
 }
 
-void TypeToString::apply(const std::vector<TypeHandle>& handles, std::stringstream& stream, const char* delim) const {
+void TypeToString::apply(const types::Union& union_type, std::stringstream& into) const {
+  apply(union_type.members, into, " | ");
+}
+
+void TypeToString::apply(const types::ConstantValue& val, std::stringstream& into) const {
+  //  @TODO: Implement this.
+  into << "<constant>";
+}
+
+void TypeToString::apply(const TypePtrs& handles, std::stringstream& stream, const char* delim) const {
   for (int64_t i = 0; i < handles.size(); i++) {
     apply(handles[i], stream);
     if (i < handles.size()-1) {
@@ -237,8 +200,8 @@ void TypeToString::apply_implicit(const DT& tup, const Optional<DT::Usage>& pare
   for (int64_t i = 0; i < num_use; i++) {
     const auto& handle = tup.members[i];
 
-    if (store.type_of(handle) == Type::Tag::destructured_tuple) {
-      apply_implicit(store.at(handle).destructured_tuple, Optional<DT::Usage>(tup.usage), stream);
+    if (handle->is_destructured_tuple()) {
+      apply_implicit(MT_DT_REF(*handle), Optional<DT::Usage>(tup.usage), stream);
     } else {
       apply(handle, stream);
     }

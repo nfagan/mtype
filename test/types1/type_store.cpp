@@ -1,21 +1,18 @@
 #include "type_store.hpp"
-#include <cassert>
 
 namespace mt {
 
-void TypeStore::assign(const TypeHandle& at, Type&& type) {
-  assert(at.is_valid() && at.get_index() < types.size());
-  types[at.get_index()] = std::move(type);
-}
+std::unordered_map<Type::Tag, double> TypeStore::type_distribution() const {
+  std::unordered_map<Type::Tag, double> counts;
+  for (const auto& ptr : types) {
+    auto tag = ptr->tag;
+    if (counts.count(tag) == 0) {
+      counts[tag] = 0.0;
+    }
+    counts[tag] = counts[tag] + 1.0;
+  }
 
-const Type& TypeStore::at(const TypeHandle& handle) const {
-  assert(handle.is_valid() && handle.get_index() < types.size());
-  return types[handle.get_index()];
-}
-
-Type& TypeStore::at(const TypeHandle& handle) {
-  assert(handle.is_valid() && handle.get_index() < types.size());
-  return types[handle.get_index()];
+  return counts;
 }
 
 }

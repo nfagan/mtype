@@ -4,18 +4,15 @@
 
 namespace mt {
 
-bool Library::subtype_related(TypeRef lhs, TypeRef rhs) const {
-  const auto& a = store.at(lhs);
-  const auto& b = store.at(rhs);
-
-  if (a.is_scalar() && b.is_scalar()) {
-    return subtype_related(lhs, rhs, a.scalar, b.scalar);
+bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
+  if (lhs->is_scalar() && rhs->is_scalar()) {
+    return subtype_related(lhs, rhs, MT_SCALAR_REF(*lhs), MT_SCALAR_REF(*rhs));
   } else {
     return false;
   }
 }
 
-bool Library::subtype_related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b) const {
+bool Library::subtype_related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const {
   if (a.identifier == b.identifier) {
     return true;
   }
@@ -34,31 +31,36 @@ bool Library::subtype_related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, 
   return false;
 }
 
-Optional<TypeHandle> Library::lookup_function(const types::Abstraction& func) const {
+Optional<Type*> Library::lookup_function(const types::Abstraction& func) const {
   const auto func_it = function_types.find(func);
-  return func_it == function_types.end() ? NullOpt{} : Optional<TypeHandle>(func_it->second);
+  return func_it == function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
 }
 
-Optional<TypeHandle> Library::lookup_function(const FunctionDefHandle& func) const {
+Optional<Type*> Library::lookup_function(const FunctionDefHandle& func) const {
   const auto func_it = local_function_types.find(func);
-  return func_it == local_function_types.end() ? NullOpt{} : Optional<TypeHandle>(func_it->second);
+  return func_it == local_function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
 }
 
-void Library::emplace_local_function_type(const FunctionDefHandle& handle, TypeRef type) {
+void Library::emplace_local_function_type(const FunctionDefHandle& handle, Type* type) {
   local_function_types[handle] = type;
 }
 
-bool Library::is_known_subscript_type(const TypeHandle& handle) const {
-  return types_with_known_subscripts.count(handle) > 0;
+bool Library::is_known_subscript_type(const Type* handle) const {
+  for (const auto& t : types_with_known_subscripts) {
+    if (type_eq.related_entry(t, handle)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-Optional<std::string> Library::type_name(const TypeHandle& handle) const {
-  const auto& type = store.at(handle);
-  if (!type.is_scalar()) {
+Optional<std::string> Library::type_name(const Type* type) const {
+  if (!type->is_scalar()) {
     return NullOpt{};
   }
 
-  return type_name(type.scalar);
+  return type_name(MT_SCALAR_REF(*type));
 }
 
 Optional<std::string> Library::type_name(const mt::types::Scalar& scl) const {
@@ -117,7 +119,7 @@ void Library::make_sum() {
   const auto result_type = store.make_output_destructured_tuple(double_type_handle);
   const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  auto func_copy = store.at(func_type).abstraction;
+  const auto func_copy = MT_ABSTR_REF(*func_type);
   function_types[func_copy] = func_type;
 }
 
@@ -127,7 +129,7 @@ void Library::make_min() {
   const auto result_type = store.make_output_destructured_tuple(double_type_handle, char_type_handle);
   const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  auto func_copy = store.at(func_type).abstraction;
+  const auto func_copy = MT_ABSTR_REF(*func_type);
   function_types[func_copy] = func_type;
 }
 
@@ -138,18 +140,18 @@ void Library::make_list_inputs_type() {
   const auto result_type = store.make_output_destructured_tuple(double_type_handle);
   const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  auto func_copy = store.at(func_type).abstraction;
+  const auto func_copy = MT_ABSTR_REF(*func_type);
   function_types[func_copy] = func_type;
 }
 
 void Library::make_list_outputs_type() {
   const auto ident = MatlabIdentifier(string_registry.register_string("lists"));
-  const auto list_type = store.make_list(TypeHandles{char_type_handle, double_type_handle});
+  const auto list_type = store.make_list(TypePtrs{char_type_handle, double_type_handle});
   const auto args_type = store.make_input_destructured_tuple(double_type_handle);
   const auto result_type = store.make_output_destructured_tuple(double_type_handle, list_type);
   const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  auto func_copy = store.at(func_type).abstraction;
+  const auto func_copy = MT_ABSTR_REF(*func_type);
   function_types[func_copy] = func_type;
 }
 
@@ -160,7 +162,7 @@ void Library::make_list_outputs_type2() {
   const auto result_type = store.make_output_destructured_tuple(list_type);
   const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
-  auto func_copy = store.at(func_type).abstraction;
+  const auto func_copy = MT_ABSTR_REF(*func_type);
   function_types[func_copy] = func_type;
 }
 
@@ -176,16 +178,16 @@ void Library::make_builtin_parens_subscript_references() {
   const auto args_type = store.make_input_destructured_tuple(ref_var, list_subs_type);
   const auto result_type = store.make_output_destructured_tuple(ref_var);
   const auto func_type = store.make_abstraction(SubscriptMethod::parens, args_type, result_type);
-  const auto ref_copy = store.at(func_type).abstraction;
+  const auto ref_copy = MT_ABSTR_REF(*func_type);
 
-  const auto scheme = store.make_scheme(func_type, TypeHandles{ref_var});
+  const auto scheme = store.make_scheme(func_type, TypePtrs{ref_var});
   function_types[ref_copy] = scheme;
 
-  std::vector<TypeHandle> default_array_types{double_type_handle, char_type_handle,
-                                              string_type_handle, sub_double_type_handle};
+  TypePtrs default_array_types{double_type_handle, char_type_handle,
+                               string_type_handle, sub_double_type_handle};
 
   for (const auto& referent_type_handle : default_array_types) {
-    types_with_known_subscripts.insert(referent_type_handle);
+    add_type_with_known_subscript(referent_type_handle);
   }
 }
 
@@ -197,11 +199,14 @@ void Library::make_builtin_brace_subscript_reference() {
   const auto args_type = store.make_input_destructured_tuple(tup_type, list_subs_type);
   const auto result_type = store.make_output_destructured_tuple(ref_var);
   const auto func_type = store.make_abstraction(SubscriptMethod::brace, args_type, result_type);
-  const auto ref_copy = store.at(func_type).abstraction;
+  const auto ref_copy = MT_ABSTR_REF(*func_type);
 
-  const auto scheme = store.make_scheme(func_type, TypeHandles{ref_var});
+  const auto scheme = store.make_scheme(func_type, TypePtrs{ref_var});
   function_types[ref_copy] = scheme;
-  types_with_known_subscripts.insert(tup_type);
+  add_type_with_known_subscript(tup_type);
+
+  auto tup2 = store.make_tuple(store.make_fresh_type_variable_reference());
+  assert(is_known_subscript_type(tup2));
 }
 
 void Library::make_concatenations() {
@@ -210,9 +215,9 @@ void Library::make_concatenations() {
   const auto args_type = store.make_input_destructured_tuple(list_args_type);
   const auto result_type = store.make_output_destructured_tuple(tvar);
   const auto cat = store.make_abstraction(ConcatenationDirection::horizontal, args_type, result_type);
-  const auto scheme = store.make_scheme(cat, TypeHandles{tvar});
+  const auto scheme = store.make_scheme(cat, TypePtrs{tvar});
 
-  auto cat_copy = store.at(cat).abstraction;
+  auto cat_copy = MT_ABSTR_REF(*cat);
   function_types[cat_copy] = scheme;
 }
 
@@ -224,14 +229,14 @@ void Library::make_binary_operators() {
                                         BinaryOperator::times, BinaryOperator::matrix_times,
                                         BinaryOperator::right_divide, BinaryOperator::colon};
 
-  TypeHandles arg_types{sub_double_type_handle, double_type_handle};
+  TypePtrs arg_types{sub_double_type_handle, double_type_handle};
 
   for (const auto& op : operators) {
     for (const auto& arg : arg_types) {
       const auto args_type = store.make_input_destructured_tuple(arg, arg);
       const auto result_type = store.make_output_destructured_tuple(arg);
       const auto func_type = store.make_abstraction(op, args_type, result_type);
-      auto func_copy = store.at(func_type).abstraction;
+      const auto func_copy = MT_ABSTR_REF(*func_type);
 
       function_types[func_copy] = func_type;
     }
@@ -243,13 +248,12 @@ void Library::make_feval() {
   const auto arg_var = store.make_fresh_parameters();
   const auto result_var = store.make_fresh_type_variable_reference();
   const auto arg_func_type = store.make_abstraction(arg_var, result_var);
-//  const auto scheme_func_type = store.make_scheme(arg_func_type, TypeHandles{});
 
   const auto func_args = store.make_input_destructured_tuple(arg_func_type, arg_var);
   const auto func = store.make_abstraction(name, func_args, result_var);
-  const auto func_scheme = store.make_scheme(func, TypeHandles{arg_var, result_var});
+  const auto func_scheme = store.make_scheme(func, TypePtrs{arg_var, result_var});
 
-  const auto abstr_copy = store.at(func).abstraction;
+  const auto abstr_copy = MT_ABSTR_REF(*func);
   function_types[abstr_copy] = func_scheme;
 }
 
@@ -260,9 +264,9 @@ void Library::make_deal() {
   const auto func_args = store.make_input_destructured_tuple(arg_var);
   const auto func_outs = store.make_output_destructured_tuple(arg_var);
   const auto func = store.make_abstraction(name, func_args, func_outs);
-  const auto func_scheme = store.make_scheme(func, TypeHandles{arg_var});
+  const auto func_scheme = store.make_scheme(func, TypePtrs{arg_var});
 
-  const auto abstr_copy = store.at(func).abstraction;
+  const auto abstr_copy = MT_ABSTR_REF(*func);
   function_types[abstr_copy] = func_scheme;
 }
 
@@ -270,8 +274,8 @@ void Library::make_logicals() {
   auto tru = make_simple_function("true", {}, {logical_type_handle});
   auto fls = make_simple_function("false", {}, {logical_type_handle});
 
-  const auto tru_copy = store.at(tru).abstraction;
-  const auto fls_copy = store.at(fls).abstraction;
+  const auto tru_copy = MT_ABSTR_REF(*tru);
+  const auto fls_copy = MT_ABSTR_REF(*fls);
 
   function_types[tru_copy] = tru;
   function_types[fls_copy] = fls;
@@ -279,21 +283,21 @@ void Library::make_logicals() {
 
 void Library::make_sub_double() {
   const auto name = MatlabIdentifier(string_registry.register_string("sub_double"));
-  const auto args = store.make_input_destructured_tuple(TypeHandles());
+  const auto args = store.make_input_destructured_tuple(TypePtrs());
   const auto outs = store.make_output_destructured_tuple(sub_double_type_handle);
   const auto func = store.make_abstraction(name, args, outs);
 
-  types::Abstraction abstr_copy = store.at(func).abstraction;
+  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
   function_types[abstr_copy] = func;
 }
 
 void Library::make_sub_sub_double() {
   const auto name = MatlabIdentifier(string_registry.register_string("sub_sub_double"));
-  const auto args = store.make_input_destructured_tuple(TypeHandles());
+  const auto args = store.make_input_destructured_tuple(TypePtrs());
   const auto outs = store.make_output_destructured_tuple(sub_sub_double_type_handle);
   const auto func = store.make_abstraction(name, args, outs);
 
-  types::Abstraction abstr_copy = store.at(func).abstraction;
+  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
   function_types[abstr_copy] = func;
 }
 
@@ -303,7 +307,7 @@ void Library::make_double() {
   const auto outs = store.make_output_destructured_tuple(double_type_handle);
   const auto func = store.make_abstraction(name, args, outs);
 
-  types::Abstraction abstr_copy = store.at(func).abstraction;
+  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
   function_types[abstr_copy] = func;
 }
 
@@ -319,26 +323,30 @@ void Library::make_function_as_input() {
   const auto output_args = store.make_output_destructured_tuple(double_type_handle);
   const auto func = store.make_abstraction(name, input_args, output_args);
 
-  types::Abstraction abstr_copy = store.at(func).abstraction;
+  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
   function_types[abstr_copy] = func;
 }
 
-TypeHandle Library::make_named_scalar_type(const char* name) {
+Type* Library::make_named_scalar_type(const char* name) {
   const auto name_id = string_registry.register_string(name);
   const auto type_handle = store.make_concrete();
-  assert(store.type_of(type_handle) == Type::Tag::scalar);
-  const auto& type = store.at(type_handle).scalar;
+  assert(type_handle->is_scalar());
+  const auto& type = MT_SCALAR_REF(*type_handle);
 
   scalar_type_names[type.identifier] = name_id;
   return type_handle;
 }
 
-TypeHandle Library::make_simple_function(const char* name, TypeHandles&& args, TypeHandles&& outs) {
+Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs) {
   auto input_tup = store.make_input_destructured_tuple(std::move(args));
   auto output_tup = store.make_output_destructured_tuple(std::move(outs));
   MatlabIdentifier name_ident(string_registry.register_string(name));
 
   return store.make_abstraction(name_ident, input_tup, output_tup);
+}
+
+void Library::add_type_with_known_subscript(const Type* t) {
+  types_with_known_subscripts.push_back(t);
 }
 
 }

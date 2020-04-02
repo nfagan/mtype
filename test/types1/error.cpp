@@ -98,7 +98,7 @@ void ShowUnificationErrors::show(const UnificationError& err, int64_t index, std
 void ShowUnificationErrors::show(const UnificationErrors& errs, std::string_view text,
   const CodeFileDescriptor& descriptor, const TextRowColumnIndices& row_col_indices) const {
 
-  for (int64_t i = 0; i < errs.size(); i++) {
+  for (int64_t i = 0; i < int64_t(errs.size()); i++) {
     show(*errs[i], i+1, text, descriptor, row_col_indices);
   }
 }

@@ -12,8 +12,8 @@ public:
     //
   }
 public:
-  bool is_concrete_argument(const TypeHandle& arg) const;
-  bool are_concrete_arguments(const std::vector<TypeHandle>& args) const;
+  bool is_concrete_argument(const Type* arg) const;
+  bool are_concrete_arguments(const TypePtrs & args) const;
 
 private:
   bool is_concrete_argument(const types::Scheme& scheme) const;

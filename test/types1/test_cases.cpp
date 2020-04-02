@@ -11,7 +11,7 @@
 
 #define MT_SHOW_ERROR_PRINT2(msg, a, b) \
   std::cout << "FAIL: " << msg << std::endl; \
-  DebugTypePrinter(store, &library, &str_registry).show2((a), (b));
+  DebugTypePrinter(&library, &str_registry).show2((a), (b));
 
 #define MT_ERROR_IF_NON_EQUIV(msg, a, b) \
   if (!eq.related_entry((a), (b))) { \
@@ -22,19 +22,19 @@
 #define MT_ERROR_IF_EQUIV(msg, a, b) \
   if (eq.related_entry((a), (b))) { \
     std::cout << "FAIL: " << msg << std::endl; \
-    DebugTypePrinter(store, &library, &str_registry).show2((a), (b)); \
+    DebugTypePrinter(&library, &str_registry).show2((a), (b)); \
   }
 
 #define MT_ERROR_IF_RELATED(relation, msg, a, b) \
   if (relation.related_entry((a), (b))) { \
     std::cout << "FAIL (expected no relation): " << msg << std::endl; \
-    DebugTypePrinter(store, &library, &str_registry).show2((a), (b)); \
+    DebugTypePrinter(&library, &str_registry).show2((a), (b)); \
   }
 
 #define MT_ERROR_IF_UNRELATED(relation, msg, a, b) \
   if (!relation.related_entry((a), (b))) { \
     std::cout << "FAIL (expected relation): " << msg << std::endl; \
-    DebugTypePrinter(store, &library, &str_registry).show2((a), (b)); \
+    DebugTypePrinter(&library, &str_registry).show2((a), (b)); \
   }
 
 namespace mt {
@@ -43,12 +43,12 @@ void test_subtyping() {
   using Use = types::DestructuredTuple::Usage;
 
   StringRegistry str_registry;
-  TypeStore store;
+  TypeStore store(1e5);
   Library library(store, str_registry);
   SubtypeRelation subtype_relation(library);
   library.make_known_types();
   TypeRelation relation(subtype_relation, store);
-  TypeRelation::ArgumentComparator arg_compare(relation);
+  TypeRelation::ArgumentLess arg_compare(relation);
 
   const auto& d_handle = library.double_type_handle;
   const auto& sub_d_handle = library.sub_double_type_handle;
@@ -68,7 +68,7 @@ void test_subtyping() {
   const auto list_subtype = store.make_list(sub_d_handle);
   const auto list_type = store.make_list(d_handle);
 
-  const auto mult_double = store.make_rvalue_destructured_tuple(TypeHandles{d_handle, d_handle});
+  const auto mult_double = store.make_rvalue_destructured_tuple(TypePtrs{d_handle, d_handle});
   const auto wrap_list = store.make_rvalue_destructured_tuple(list_type);
 
   MT_ERROR_IF_UNRELATED(relation, "", sub_d_handle, d_handle)
@@ -95,7 +95,7 @@ void test_equivalence_debug() {
   using Use = types::DestructuredTuple::Usage;
 
   StringRegistry str_registry;
-  TypeStore store;
+  TypeStore store(1e5);
   EquivalenceRelation equiv;
   TypeRelation eq(equiv, store);
   Library library(store, str_registry);
@@ -104,43 +104,43 @@ void test_equivalence_debug() {
   const auto& d_handle = library.double_type_handle;
   const auto& c_handle = library.char_type_handle;
 
-  auto tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle});
-  auto tup2 = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, c_handle});
-  auto tup3 = store.make_destructured_tuple(Use::rvalue, TypeHandles{c_handle});
-  auto tup4 = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle});
+  auto tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{d_handle, d_handle});
+  auto tup2 = store.make_destructured_tuple(Use::rvalue, TypePtrs{d_handle, c_handle});
+  auto tup3 = store.make_destructured_tuple(Use::rvalue, TypePtrs{c_handle});
+  auto tup4 = store.make_destructured_tuple(Use::rvalue, TypePtrs{d_handle});
   auto rec_tup = store.make_destructured_tuple(Use::rvalue, tup);
   auto rec_tup2 = store.make_destructured_tuple(Use::rvalue, tup2);
   auto rec_tup3 = store.make_destructured_tuple(Use::rvalue, tup3);
   auto rec_tup4 = store.make_destructured_tuple(Use::rvalue, tup4);
-  auto empty_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{});
-  auto out_tup = store.make_destructured_tuple(Use::definition_outputs, TypeHandles{c_handle, d_handle});
-  auto out_tup2 = store.make_destructured_tuple(Use::definition_outputs, TypeHandles{d_handle, c_handle});
-  auto wrap_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{out_tup});
+  auto empty_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{});
+  auto out_tup = store.make_destructured_tuple(Use::definition_outputs, TypePtrs{c_handle, d_handle});
+  auto out_tup2 = store.make_destructured_tuple(Use::definition_outputs, TypePtrs{d_handle, c_handle});
+  auto wrap_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{out_tup});
 
-  auto wrap_out_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{out_tup, c_handle});
-  auto match_in_tup = store.make_destructured_tuple(Use::definition_inputs, TypeHandles{c_handle, c_handle});
+  auto wrap_out_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{out_tup, c_handle});
+  auto match_in_tup = store.make_destructured_tuple(Use::definition_inputs, TypePtrs{c_handle, c_handle});
 
-  auto mixed_wrap_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{tup, d_handle, tup2});
-  auto flat_mixed_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle, d_handle, d_handle, c_handle});
+  auto mixed_wrap_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{tup, d_handle, tup2});
+  auto flat_mixed_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{d_handle, d_handle, d_handle, d_handle, c_handle});
 
-  auto list1 = store.make_list(TypeHandles{c_handle, d_handle});
-  auto tup_list1 = store.make_destructured_tuple(Use::rvalue, TypeHandles{list1});
-  auto tup_match_list1 = store.make_destructured_tuple(Use::rvalue, TypeHandles{c_handle, d_handle});
-  auto rec_tup_match_list1 = store.make_destructured_tuple(Use::rvalue, TypeHandles{tup_match_list1, tup_match_list1});
-  auto rec_tup_match_list2 = store.make_destructured_tuple(Use::rvalue, TypeHandles{c_handle, rec_tup4, c_handle, d_handle});
+  auto list1 = store.make_list(TypePtrs{c_handle, d_handle});
+  auto tup_list1 = store.make_destructured_tuple(Use::rvalue, TypePtrs{list1});
+  auto tup_match_list1 = store.make_destructured_tuple(Use::rvalue, TypePtrs{c_handle, d_handle});
+  auto rec_tup_match_list1 = store.make_destructured_tuple(Use::rvalue, TypePtrs{tup_match_list1, tup_match_list1});
+  auto rec_tup_match_list2 = store.make_destructured_tuple(Use::rvalue, TypePtrs{c_handle, rec_tup4, c_handle, d_handle});
 
-  auto input_tup = store.make_destructured_tuple(Use::definition_inputs, TypeHandles{c_handle, d_handle});
-  auto match_input_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{tup3, tup4});
+  auto input_tup = store.make_destructured_tuple(Use::definition_inputs, TypePtrs{c_handle, d_handle});
+  auto match_input_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{tup3, tup4});
 
-  auto flat_l_tup = store.make_destructured_tuple(Use::lvalue, TypeHandles{c_handle});
-  auto wrap_l_tup = store.make_destructured_tuple(Use::lvalue, TypeHandles{flat_l_tup});
+  auto flat_l_tup = store.make_destructured_tuple(Use::lvalue, TypePtrs{c_handle});
+  auto wrap_l_tup = store.make_destructured_tuple(Use::lvalue, TypePtrs{flat_l_tup});
 
-  auto mixed_rec_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, rec_tup, d_handle});
-  auto flat_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle, d_handle, d_handle});
+  auto mixed_rec_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{d_handle, rec_tup, d_handle});
+  auto flat_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{d_handle, d_handle, d_handle, d_handle});
 
   // list[dt-r[dt-r[s0]], s0, dt-o[s0, s2]]
-  auto mixed_list1 = store.make_list(TypeHandles{rec_tup4, d_handle, out_tup2});
-  auto test_list1 = store.make_list(TypeHandles{d_handle, d_handle, d_handle});
+  auto mixed_list1 = store.make_list(TypePtrs{rec_tup4, d_handle, out_tup2});
+  auto test_list1 = store.make_list(TypePtrs{d_handle, d_handle, d_handle});
   auto wrap_list1 = store.make_destructured_tuple(Use::definition_inputs, test_list1);
   auto wrap_list2 = store.make_destructured_tuple(Use::rvalue, mixed_list1);
 
@@ -150,7 +150,7 @@ void test_equivalence_debug() {
   auto wrap_in_list = store.make_destructured_tuple(Use::definition_inputs, list_double);
 
   auto list_tup_double_char = store.make_list(tup2);
-  auto list_double_char = store.make_list(TypeHandles{d_handle, c_handle});
+  auto list_double_char = store.make_list(TypePtrs{d_handle, c_handle});
 
   if (!eq.related_entry(mixed_wrap_tup, flat_mixed_tup)) {
     MT_SHOW_ERROR("Flattened type sequence not equal equivalent nested sequence.");
@@ -237,7 +237,7 @@ void test_equivalence() {
   using Use = types::DestructuredTuple::Usage;
 
   StringRegistry str_registry;
-  TypeStore store;
+  TypeStore store(1e5);
   EquivalenceRelation equiv;
   TypeRelation eq(equiv, store);
   Library library(store, str_registry);
@@ -249,17 +249,17 @@ void test_equivalence() {
   auto tup = store.make_destructured_tuple(Use::rvalue, d_handle);
   auto rec_tup = store.make_destructured_tuple(Use::rvalue, tup);
   auto mult_double_tup = store.make_destructured_tuple(Use::rvalue, d_handle, d_handle);
-  auto mult_rec_double_tup = store.make_destructured_tuple(Use::rvalue, TypeHandles{d_handle, d_handle, rec_tup});
+  auto mult_rec_double_tup = store.make_destructured_tuple(Use::rvalue, TypePtrs{d_handle, d_handle, rec_tup});
   auto list_double = store.make_list(d_handle);
   auto tup_list_double_rvalue = store.make_destructured_tuple(Use::rvalue, list_double);
   auto tup_list_double_lvalue = store.make_destructured_tuple(Use::lvalue, list_double);
 
-  auto list_pattern = store.make_list(TypeHandles{d_handle, d_handle, c_handle});
+  auto list_pattern = store.make_list(TypePtrs{d_handle, d_handle, c_handle});
   auto tup_list_pattern = store.make_destructured_tuple(Use::rvalue, list_pattern);
-  auto tup_match_pattern = store.make_destructured_tuple(Use::lvalue, TypeHandles{d_handle, d_handle, c_handle});
-  auto tup_wrong_pattern = store.make_destructured_tuple(Use::lvalue, TypeHandles{d_handle, d_handle, c_handle, d_handle});
+  auto tup_match_pattern = store.make_destructured_tuple(Use::lvalue, TypePtrs{d_handle, d_handle, c_handle});
+  auto tup_wrong_pattern = store.make_destructured_tuple(Use::lvalue, TypePtrs{d_handle, d_handle, c_handle, d_handle});
 
-  auto nest_tup_pattern = store.make_destructured_tuple(Use::lvalue, TypeHandles{tup_match_pattern, tup_match_pattern});
+  auto nest_tup_pattern = store.make_destructured_tuple(Use::lvalue, TypePtrs{tup_match_pattern, tup_match_pattern});
 
   if (!eq.related_entry(tup, rec_tup)) {
     MT_SHOW_ERROR("Failed to match r value tuples.");

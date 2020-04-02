@@ -3,16 +3,78 @@
 #include "mt/mt.hpp"
 #include <cstdint>
 #include <iostream>
+#include <sstream>
 
 namespace mt {
 
-struct TypeHandle : public detail::Handle<100> {
-  friend class TypeStore;
-  using Handle::Handle;
+class TypeToString;
+
+struct Type {
+  enum class Tag : uint8_t {
+    null = 0,
+    variable,
+    scalar,
+    abstraction,
+    union_type,
+    tuple,
+    destructured_tuple,
+    list,
+    subscript,
+    constant_value,
+    scheme,
+    assignment,
+    parameters
+  };
+
+  Type() : tag(Tag::null) {
+    //
+  }
+
+  explicit Type(Tag tag) : tag(tag) {
+    //
+  }
+
+  virtual ~Type() = default;
+
+  virtual std::size_t bytes() const = 0;
+  virtual void accept(const TypeToString& to_str, std::stringstream& into) const = 0;
+
+  MT_NODISCARD bool is_scalar() const {
+    return tag == Tag::scalar;
+  }
+
+  MT_NODISCARD bool is_tuple() const {
+    return tag == Tag::tuple;
+  }
+
+  MT_NODISCARD bool is_variable() const {
+    return tag == Tag::variable;
+  }
+
+  MT_NODISCARD bool is_destructured_tuple() const {
+    return tag == Tag::destructured_tuple;
+  }
+
+  MT_NODISCARD bool is_list() const {
+    return tag == Tag::list;
+  }
+
+  MT_NODISCARD bool is_abstraction() const {
+    return tag == Tag::abstraction;
+  }
+
+  MT_NODISCARD bool is_scheme() const {
+    return tag == Tag::scheme;
+  }
+
+  MT_NODISCARD bool is_parameters() const {
+    return tag == Tag::parameters;
+  }
+
+  Tag tag;
 };
 
-using TypeHandles = std::vector<TypeHandle>;
-using TypeRef = const TypeHandle&;
+using TypePtrs = std::vector<Type*>;
 
 struct TypeIdentifier {
   struct Hash {
@@ -38,34 +100,37 @@ struct TypeIdentifier {
 };
 
 struct TypeEquationTerm {
-  struct HandleHash {
-    std::size_t operator()(const TypeEquationTerm& t) const {
-      return TypeHandle::Hash{}(t.term);
-    }
+  struct TypeHash {
+    std::size_t operator()(const TypeEquationTerm& t) const;
   };
 
-  TypeEquationTerm() : source_token(nullptr) {
+  struct TypeLess {
+    bool operator()(const TypeEquationTerm& a, const TypeEquationTerm& b) const;
+  };
+
+  TypeEquationTerm() : source_token(nullptr), term(nullptr) {
     //
   }
 
-  TypeEquationTerm(const Token* source_token, const TypeHandle& term) :
+  TypeEquationTerm(const Token* source_token, Type* term) :
     source_token(source_token), term(term) {
     //
   }
 
-  friend bool operator==(const TypeEquationTerm& a, const TypeEquationTerm& b) {
+  friend inline bool operator==(const TypeEquationTerm& a, const TypeEquationTerm& b) {
     return a.term == b.term;
   }
-  friend bool operator!=(const TypeEquationTerm& a, const TypeEquationTerm& b) {
+
+  friend inline bool operator!=(const TypeEquationTerm& a, const TypeEquationTerm& b) {
     return a.term != b.term;
   }
 
   const Token* source_token;
-  TypeHandle term;
+  Type* term;
 };
 
 using TermRef = const TypeEquationTerm&;
-using BoundTerms = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::HandleHash>;
+using BoundTerms = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::TypeHash>;
 
 struct TypeEquation {
   TypeEquation(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) : lhs(lhs), rhs(rhs) {
@@ -76,23 +141,21 @@ struct TypeEquation {
   TypeEquationTerm rhs;
 };
 
-TypeEquationTerm make_term(const Token* source_token, const TypeHandle& term);
+TypeEquationTerm make_term(const Token* source_token, Type* term);
 TypeEquation make_eq(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs);
 
 namespace types {
-  struct Null {
-    //
-  };
-
   struct SubtypeRelation {
-    SubtypeRelation() = default;
+    SubtypeRelation() : source(nullptr) {
+      //
+    }
 
-    SubtypeRelation(const TypeHandle& source, const TypeHandle& supertype) :
+    SubtypeRelation(Type* source, Type* supertype) :
     source(source), supertypes{supertype} {
       //
     }
 
-    SubtypeRelation(const TypeHandle& source, TypeHandles&& supertypes) :
+    SubtypeRelation(Type* source, TypePtrs&& supertypes) :
     source(source), supertypes(std::move(supertypes)) {
       //
     }
@@ -100,12 +163,12 @@ namespace types {
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(SubtypeRelation)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SubtypeRelation)
 
-    TypeHandle source;
-    TypeHandles supertypes;
+    Type* source;
+    TypePtrs supertypes;
   };
 
-  struct ConstantValue {
-    enum class Type {
+  struct ConstantValue : public Type {
+    enum class Kind {
       int_value = 0,
       double_value
     };
@@ -113,17 +176,29 @@ namespace types {
     ConstantValue() : ConstantValue(int64_t(0)) {
       //
     }
-    explicit ConstantValue(int64_t val) : type(Type::int_value), int_value(val) {
+
+    explicit ConstantValue(int64_t val) :
+      Type(Type::Tag::constant_value), kind(Kind::int_value), int_value(val) {
       //
     }
-    explicit ConstantValue(double val) : type(Type::double_value), double_value(val) {
+
+    explicit ConstantValue(double val) :
+      Type(Type::Tag::constant_value), kind(Kind::double_value), double_value(val) {
       //
     }
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(ConstantValue)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(ConstantValue)
 
-    Type type;
+    ~ConstantValue() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(ConstantValue);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+    Kind kind;
 
     union {
       int64_t int_value;
@@ -131,11 +206,20 @@ namespace types {
     };
   };
 
-  struct Variable {
-    Variable() = default;
-    explicit Variable(const TypeIdentifier& id) : identifier(id) {
+  struct Variable : public Type {
+    Variable() : Type(Type::Tag::variable) {
       //
     }
+    explicit Variable(const TypeIdentifier& id) : Type(Type::Tag::variable), identifier(id) {
+      //
+    }
+    ~Variable() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(Variable);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Variable)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Variable)
@@ -143,87 +227,141 @@ namespace types {
     TypeIdentifier identifier;
   };
 
-  struct Scheme {
-    Scheme() = default;
-    Scheme(const TypeHandle& type, std::vector<TypeHandle>&& params) :
-    type(type), parameters(std::move(params)) {
+  struct Scheme : public Type {
+    Scheme() : Type(Type::Tag::scheme), type(nullptr) {
+      //
+    }
+
+    Scheme(Type* type, TypePtrs&& params) :
+    Type(Type::Tag::scheme), type(type), parameters(std::move(params)) {
       //
     }
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Scheme)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Scheme)
 
-    TypeHandle type;
-    std::vector<TypeHandle> parameters;
+    ~Scheme() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(Scheme);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+    Type* type;
+    TypePtrs parameters;
     std::vector<TypeEquation> constraints;
   };
 
-  struct Scalar {
-    Scalar() = default;
-    explicit Scalar(const TypeIdentifier& id) : identifier(id) {
+  struct Scalar : public Type {
+    Scalar() : Type(Type::Tag::scalar) {
       //
     }
+    explicit Scalar(const TypeIdentifier& id) : Type(Type::Tag::scalar), identifier(id) {
+      //
+    }
+
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Scalar)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Scalar)
+
+    ~Scalar() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(Scalar);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
     TypeIdentifier identifier;
   };
 
-  struct Union {
-    Union() = default;
-    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Union)
-    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Union)
-
-    std::vector<TypeHandle> members;
-  };
-
-  struct List {
-    List() = default;
-
-    explicit List(const TypeHandle& arg) : pattern{arg} {
+  struct Union : public Type {
+    Union() : Type(Type::Tag::union_type) {
       //
     }
 
-    explicit List(std::vector<TypeHandle>&& pattern) : pattern(std::move(pattern)) {
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Union)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Union)
+
+    ~Union() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(Union);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+    TypePtrs members;
+  };
+
+  struct List : public Type {
+    List() : Type(Type::Tag::list) {
+      //
+    }
+
+    explicit List(Type* arg) : Type(Type::Tag::list), pattern{arg} {
+      //
+    }
+
+    explicit List(TypePtrs&& pattern) : Type(Type::Tag::list), pattern(std::move(pattern)) {
       //
     }
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(List)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(List)
 
+    ~List() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(List);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
     int64_t size() const {
       return pattern.size();
     }
 
-    std::vector<TypeHandle> pattern;
+    TypePtrs pattern;
   };
 
-  struct Subscript {
+  struct Subscript : public Type {
     struct Sub {
-      Sub(SubscriptMethod method, std::vector<TypeHandle>&& args) :
+      Sub(SubscriptMethod method, TypePtrs&& args) :
       method(method), arguments(std::move(args)) {
         //
       }
 
       SubscriptMethod method;
-      std::vector<TypeHandle> arguments;
+      TypePtrs arguments;
     };
 
-    Subscript(const TypeHandle& arg, std::vector<Sub>&& subs, const TypeHandle& outputs) :
-    principal_argument(arg), subscripts(std::move(subs)), outputs(outputs) {
+    Subscript(Type* arg, std::vector<Sub>&& subs, Type* outputs) :
+    Type(Type::Tag::subscript), principal_argument(arg), subscripts(std::move(subs)), outputs(outputs) {
       //
     }
 
-    Subscript() = default;
+    Subscript() : Type(Type::Tag::subscript), principal_argument(nullptr), outputs(nullptr) {
+      //
+    }
+
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Subscript)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Subscript)
 
-    TypeHandle principal_argument;
+    ~Subscript() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(Subscript);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+    Type* principal_argument;
     std::vector<Sub> subscripts;
-    TypeHandle outputs;
+    Type* outputs;
   };
 
-  struct DestructuredTuple {
+  struct DestructuredTuple : public Type {
     enum class Usage : uint8_t {
       rvalue,
       lvalue,
@@ -231,21 +369,26 @@ namespace types {
       definition_inputs,
     };
 
-    DestructuredTuple() : usage(Usage::definition_inputs) {
+    DestructuredTuple() : Type(Type::Tag::destructured_tuple), usage(Usage::definition_inputs) {
       //
     }
-    DestructuredTuple(Usage usage, const TypeHandle& a, const TypeHandle& b) :
-    usage(usage), members{a, b} {
+    DestructuredTuple(Usage usage, Type* a, Type* b) :
+    Type(Type::Tag::destructured_tuple), usage(usage), members{a, b} {
       //
     }
-    DestructuredTuple(Usage usage, const TypeHandle& a) :
-    usage(usage), members{a} {
+    DestructuredTuple(Usage usage, Type* a) :
+    Type(Type::Tag::destructured_tuple), usage(usage), members{a} {
       //
     }
-    DestructuredTuple(Usage usage, std::vector<TypeHandle>&& members) :
-    usage(usage), members(std::move(members)) {
+    DestructuredTuple(Usage usage, TypePtrs&& members) :
+    Type(Type::Tag::destructured_tuple), usage(usage), members(std::move(members)) {
       //
     }
+
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(DestructuredTuple)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(DestructuredTuple)
+
+    ~DestructuredTuple() override = default;
 
     bool is_lvalue() const {
       return usage == Usage::lvalue;
@@ -282,43 +425,71 @@ namespace types {
       return members.size();
     }
 
+    std::size_t bytes() const override {
+      return sizeof(DestructuredTuple);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
     Usage usage;
-    std::vector<TypeHandle> members;
+    TypePtrs members;
   };
 
-  struct Tuple {
-    Tuple() = default;
-    explicit Tuple(const TypeHandle& handle) : members{handle} {
+  struct Tuple : public Type {
+    Tuple() : Type(Type::Tag::tuple) {
       //
     }
-    explicit Tuple(std::vector<TypeHandle>&& members) : members(std::move(members)) {
+
+    explicit Tuple(Type* handle) : Type(Type::Tag::tuple), members{handle} {
       //
     }
+    explicit Tuple(TypePtrs&& members) : Type(Type::Tag::tuple), members(std::move(members)) {
+      //
+    }
+
+    ~Tuple() override = default;
 
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Tuple)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Tuple)
 
-    std::vector<TypeHandle> members;
+    std::size_t bytes() const override {
+      return sizeof(Tuple);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+    TypePtrs members;
   };
 
-  struct Assignment {
-    Assignment() = default;
-    Assignment(const TypeHandle& lhs, const TypeHandle& rhs) : lhs(lhs), rhs(rhs) {
+  struct Assignment : public Type {
+    Assignment() : Type(Type::Tag::assignment), lhs(nullptr), rhs(nullptr) {
       //
     }
+    Assignment(Type* lhs, Type* rhs) : Type(Type::Tag::assignment), lhs(lhs), rhs(rhs) {
+      //
+    }
+
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Assignment)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Assignment)
 
-    TypeHandle lhs;
-    TypeHandle rhs;
+    ~Assignment() override = default;
+
+    std::size_t bytes() const override {
+      return sizeof(Assignment);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+    Type* lhs;
+    Type* rhs;
   };
 
-  struct Abstraction {
+  struct Abstraction : public mt::Type {
     struct HeaderCompare {
       int operator()(const Abstraction& a, const Abstraction& b) const;
     };
 
-    enum class Type : uint8_t {
+    enum class Kind : uint8_t {
       unary_operator = 0,
       binary_operator,
       subscript_reference,
@@ -327,51 +498,63 @@ namespace types {
       anonymous_function
     };
 
-    Abstraction() : type(Type::function) {
+    Abstraction() : Abstraction(MatlabIdentifier(), nullptr, nullptr) {
       //
     }
 
-    Abstraction(BinaryOperator binary_operator, const TypeHandle& args, const TypeHandle& result) :
-    type(Type::binary_operator), binary_operator(binary_operator), inputs{args}, outputs{result} {
+    Abstraction(BinaryOperator binary_operator, Type* args, Type* result) :
+      Type(Type::Tag::abstraction), kind(Kind::binary_operator),
+      binary_operator(binary_operator), inputs{args}, outputs{result} {
       //
     }
-    Abstraction(UnaryOperator unary_operator, const TypeHandle& arg, const TypeHandle& result) :
-    type(Type::unary_operator), unary_operator(unary_operator), inputs{arg}, outputs{result} {
+
+    Abstraction(UnaryOperator unary_operator, Type* arg, Type* result) :
+      Type(Type::Tag::abstraction), kind(Kind::unary_operator),
+      unary_operator(unary_operator), inputs{arg}, outputs{result} {
       //
     }
-    Abstraction(SubscriptMethod subscript_method, const TypeHandle& args, const TypeHandle& result) :
-    type(Type::subscript_reference), subscript_method(subscript_method), inputs{args}, outputs{result} {
+    Abstraction(SubscriptMethod subscript_method, Type* args, Type* result) :
+      Type(Type::Tag::abstraction), kind(Kind::subscript_reference),
+      subscript_method(subscript_method), inputs{args}, outputs{result} {
       //
     }
-    Abstraction(MatlabIdentifier name, const TypeHandle& inputs, const TypeHandle& outputs) :
-    type(Type::function), name(name), inputs(inputs), outputs(outputs) {
+    Abstraction(MatlabIdentifier name, Type* inputs, Type* outputs) :
+      Type(Type::Tag::abstraction), kind(Kind::function),
+      name(name), inputs(inputs), outputs(outputs) {
       //
     }
-    Abstraction(MatlabIdentifier name, const FunctionDefHandle& def_handle,
-                const TypeHandle& inputs, const TypeHandle& outputs) :
-      type(Type::function), name(name), inputs(inputs), outputs(outputs), def_handle(def_handle) {
+    Abstraction(MatlabIdentifier name, const FunctionDefHandle& def_handle, Type* inputs, Type* outputs) :
+      Type(Type::Tag::abstraction), kind(Kind::function),
+      name(name), inputs(inputs), outputs(outputs), def_handle(def_handle) {
       //
     }
-    Abstraction(ConcatenationDirection dir, const TypeHandle& inputs, const TypeHandle& outputs) :
-      type(Type::concatenation), concatenation_direction(dir), inputs(inputs), outputs(outputs) {
+    Abstraction(ConcatenationDirection dir, Type* inputs, Type* outputs) :
+      Type(Type::Tag::abstraction), kind(Kind::concatenation),
+      concatenation_direction(dir), inputs(inputs), outputs(outputs) {
       //
     }
-    Abstraction(const TypeHandle& inputs, const TypeHandle& outputs) :
-      type(Type::anonymous_function), inputs(inputs), outputs(outputs) {
+    Abstraction(Type* inputs, Type* outputs) :
+      Type(Type::Tag::abstraction), kind(Kind::anonymous_function),
+      inputs(inputs), outputs(outputs) {
       //
     }
 
     Abstraction(const Abstraction& other) :
-    type(other.type), inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
-      conditional_assign_operator(other);
-    }
-    Abstraction(Abstraction&& other) noexcept :
-    type(other.type), inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
+      Type(Type::Tag::abstraction), kind(other.kind),
+      inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
       conditional_assign_operator(other);
     }
 
+    Abstraction(Abstraction&& other) noexcept :
+      Type(Type::Tag::abstraction), kind(other.kind),
+      inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
+      conditional_assign_operator(other);
+    }
+
+    ~Abstraction() override = default;
+
     Abstraction& operator=(const Abstraction& other) {
-      type = other.type;
+      kind = other.kind;
       outputs = other.outputs;
       inputs = other.inputs;
       def_handle = other.def_handle;
@@ -380,7 +563,7 @@ namespace types {
     }
 
     Abstraction& operator=(Abstraction&& other) noexcept {
-      type = other.type;
+      kind = other.kind;
       outputs = other.outputs;
       inputs = other.inputs;
       def_handle = other.def_handle;
@@ -389,22 +572,28 @@ namespace types {
     }
 
     bool is_function() const {
-      return type == Type::function;
+      return kind == Kind::function;
     }
 
     bool is_binary_operator() const {
-      return type == Type::binary_operator;
+      return kind == Kind::binary_operator;
     }
 
     bool is_unary_operator() const {
-      return type == Type::unary_operator;
+      return kind == Kind::unary_operator;
     }
 
     bool is_anonymous() const {
-      return type == Type::anonymous_function;
+      return kind == Kind::anonymous_function;
     }
 
-    static Abstraction clone(const Abstraction& a, const TypeHandle& inputs, const TypeHandle& outputs) {
+    std::size_t bytes() const override {
+      return sizeof(Abstraction);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+    static Abstraction clone(const Abstraction& a, Type* inputs, Type* outputs) {
       auto b = a;
       b.inputs = inputs;
       b.outputs = outputs;
@@ -413,24 +602,24 @@ namespace types {
 
   private:
     void conditional_assign_operator(const Abstraction& other) {
-      if (other.type == Type::binary_operator) {
+      if (other.kind == Kind::binary_operator) {
         binary_operator = other.binary_operator;
 
-      } else if (other.type == Type::unary_operator) {
+      } else if (other.kind == Kind::unary_operator) {
         unary_operator = other.unary_operator;
 
-      } else if (other.type == Type::subscript_reference) {
+      } else if (other.kind == Kind::subscript_reference) {
         subscript_method = other.subscript_method;
 
-      } else if (other.type == Type::function) {
+      } else if (other.kind == Kind::function) {
         name = other.name;
 
-      } else if (other.type == Type::concatenation) {
+      } else if (other.kind == Kind::concatenation) {
         concatenation_direction = other.concatenation_direction;
       }
     }
   public:
-    Type type;
+    Kind kind;
 
     union {
       BinaryOperator binary_operator;
@@ -440,150 +629,59 @@ namespace types {
       ConcatenationDirection concatenation_direction;
     };
 
-    TypeHandle inputs;
-    TypeHandle outputs;
+    Type* inputs;
+    Type* outputs;
     FunctionDefHandle def_handle;
   };
 
-  struct Parameters {
-    Parameters() = default;
-
-    explicit Parameters(const TypeIdentifier& id) : identifier(id) {
+  struct Parameters : public Type {
+    Parameters() : Type(Type::Tag::parameters) {
       //
     }
 
+    explicit Parameters(const TypeIdentifier& id) : Type(Type::Tag::parameters), identifier(id) {
+      //
+    }
+
+    ~Parameters() override = default;
+
     MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Parameters)
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Parameters)
+
+    std::size_t bytes() const override {
+      return sizeof(Parameters);
+    }
+
+    void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
     TypeIdentifier identifier;
   };
 }
 
-/*
- * DebugType
- */
-
-#define MT_DEBUG_TYPE_RVALUE_CTOR(type, t, member) \
-  explicit Type(type&& v) : tag(t) { \
-    new (&member) type(std::move(v)); \
-  }
-
-class Type {
-public:
-  enum class Tag : uint8_t {
-    null = 0,
-    variable,
-    scalar,
-    abstraction,
-    union_type,
-    tuple,
-    destructured_tuple,
-    list,
-    subscript,
-    constant_value,
-    scheme,
-    assignment,
-    parameters
-  };
-
-  Type() : Type(types::Null{}) {
-    //
-  }
-
-  explicit Type(types::Null&& null) : tag(Tag::null) {
-    //
-  }
-
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Variable, Tag::variable, variable);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Scalar, Tag::scalar, scalar);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Abstraction, Tag::abstraction, abstraction);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Union, Tag::union_type, union_type);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Tuple, Tag::tuple, tuple);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::DestructuredTuple, Tag::destructured_tuple, destructured_tuple);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::List, Tag::list, list);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Subscript, Tag::subscript, subscript);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::ConstantValue, Tag::constant_value, constant_value);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Scheme, Tag::scheme, scheme);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Assignment, Tag::assignment, assignment);
-  MT_DEBUG_TYPE_RVALUE_CTOR(types::Parameters, Tag::parameters, parameters);
-
-  Type(const Type& other) : tag(other.tag) {
-    copy_construct(other);
-  }
-
-  Type(Type&& other) noexcept : tag(other.tag) {
-    move_construct(std::move(other));
-  }
-
-  Type& operator=(const Type& other);
-  Type& operator=(Type&& other) noexcept;
-
-  ~Type();
-
-  MT_NODISCARD bool is_scalar() const {
-    return tag == Tag::scalar;
-  }
-
-  MT_NODISCARD bool is_tuple() const {
-    return tag == Tag::tuple;
-  }
-
-  MT_NODISCARD bool is_variable() const {
-    return tag == Tag::variable;
-  }
-
-  MT_NODISCARD bool is_destructured_tuple() const {
-    return tag == Tag::destructured_tuple;
-  }
-
-  MT_NODISCARD bool is_list() const {
-    return tag == Tag::list;
-  }
-
-  MT_NODISCARD bool is_abstraction() const {
-    return tag == Tag::abstraction;
-  }
-
-  MT_NODISCARD bool is_scheme() const {
-    return tag == Tag::scheme;
-  }
-
-  MT_NODISCARD bool is_parameters() const {
-    return tag == Tag::parameters;
-  }
-
-private:
-  void conditional_default_construct(Tag other_type) noexcept;
-  void default_construct() noexcept;
-  void move_construct(Type&& other) noexcept;
-  void copy_construct(const Type& other);
-  void copy_assign(const Type& other);
-  void move_assign(Type&& other);
-
-public:
-  Tag tag;
-
-  union {
-    types::Null null;
-    types::Variable variable;
-    types::Scalar scalar;
-    types::Union union_type;
-    types::Abstraction abstraction;
-    types::Tuple tuple;
-    types::DestructuredTuple destructured_tuple;
-    types::List list;
-    types::Subscript subscript;
-    types::ConstantValue constant_value;
-    types::Scheme scheme;
-    types::Assignment assignment;
-    types::Parameters parameters;
-  };
-};
-
 const char* to_string(Type::Tag tag);
 const char* to_string(types::DestructuredTuple::Usage usage);
 std::ostream& operator<<(std::ostream& stream, Type::Tag tag);
 
-}
+#define MT_DT_REF(a) static_cast<const mt::types::DestructuredTuple&>((a))
+#define MT_ABSTR_REF(a) static_cast<const mt::types::Abstraction&>((a))
+#define MT_VAR_REF(a) static_cast<const mt::types::Variable&>((a))
+#define MT_SCHEME_REF(a) static_cast<const mt::types::Scheme&>((a))
+#define MT_SCALAR_REF(a) static_cast<const mt::types::Scalar&>((a))
+#define MT_TUPLE_REF(a) static_cast<const mt::types::Tuple&>((a))
+#define MT_PARAMS_REF(a) static_cast<const mt::types::Parameters&>((a))
+#define MT_SUBS_REF(a) static_cast<const mt::types::Subscript&>((a))
+#define MT_LIST_REF(a) static_cast<const mt::types::List&>((a))
+#define MT_ASSIGN_REF(a) static_cast<const mt::types::Assignment&>((a))
 
-#undef MT_DEBUG_TYPE_RVALUE_CTOR
+#define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
+#define MT_ABSTR_MUT_REF(a) static_cast<mt::types::Abstraction&>((a))
+#define MT_VAR_MUT_REF(a) static_cast<mt::types::Variable&>((a))
+#define MT_SCHEME_MUT_REF(a) static_cast<mt::types::Scheme&>((a))
+#define MT_SCALAR_MUT_REF(a) static_cast<mt::types::Scalar&>((a))
+#define MT_TUPLE_MUT_REF(a) static_cast<mt::types::Tuple&>((a))
+#define MT_PARAMS_MUT_REF(a) static_cast<mt::types::Parameters&>((a))
+#define MT_SUBS_MUT_REF(a) static_cast<mt::types::Subscript&>((a))
+#define MT_LIST_MUT_REF(a) static_cast<mt::types::List&>((a))
+#define MT_ASSIGN_MUT_REF(a) static_cast<mt::types::Assignment&>((a))
+
+}

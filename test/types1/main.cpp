@@ -12,7 +12,7 @@ std::string get_source_file_path(int argc, char** argv) {
   if (argc < 2) {
 //    return "/Users/Nick/Documents/MATLAB/repositories/fieldtrip/ft_databrowser.m";
 //    return "/Users/Nick/repositories/cpp/mt/matlab/test/X.m";
-    return "/Users/Nick/Desktop/another.m";
+    return "/Users/Nick/Desktop/stress3.m";
   } else {
     return argv[1];
   }
@@ -68,13 +68,13 @@ int main(int argc, char** argv) {
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
   std::cout << elapsed << " (ms)" << std::endl;
 
-  TypeToString type_to_string(type_store, &library, &str_registry);
+  TypeToString type_to_string(&library, &str_registry);
   type_to_string.explicit_destructured_tuples = false;
   type_to_string.arrow_function_notation = true;
   type_to_string.max_num_type_variables = 3;
 
-  type_visitor.show_type_distribution();
-  type_visitor.show_variable_types(type_to_string);
+//  type_visitor.show_type_distribution();
+//  type_visitor.show_variable_types(type_to_string);
   type_visitor.show_local_function_types(type_to_string);
 
   if (unify_res.is_error()) {
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
   std::cout << "Subs size: " << substitution.num_bound_terms() << std::endl;
   std::cout << "Num types: " << type_store.size() << std::endl;
   std::cout << "Type size: " << sizeof(mt::Type) << std::endl;
-  std::cout << "Vec size: " << sizeof(TypeHandles) << std::endl;
+  std::cout << "Vec size: " << sizeof(TypePtrs) << std::endl;
 
   mt::run_all();
 

@@ -12,20 +12,18 @@ class TypeToString {
 public:
   using DT = types::DestructuredTuple;
 
-  explicit TypeToString(const TypeStore& store, const Library* library) : TypeToString(store, library, nullptr) {
+  explicit TypeToString(const Library* library) : TypeToString(library, nullptr) {
     //
   }
 
-  TypeToString(const TypeStore& store, const Library* library, const StringRegistry* string_registry) :
-    store(store), library(library), string_registry(string_registry),
+  TypeToString(const Library* library, const StringRegistry* string_registry) :
+    library(library), string_registry(string_registry),
     rich_text(true), explicit_destructured_tuples(true), arrow_function_notation(false), max_num_type_variables(-1) {
     //
   }
 
-  MT_NODISCARD std::string apply(const Type& t) const;
-  MT_NODISCARD std::string apply(const TypeHandle& handle) const;
-  void apply(const TypeHandle& handle, std::stringstream& into) const;
-  void apply(const Type& type, std::stringstream& into) const;
+  MT_NODISCARD std::string apply(const Type* t) const;
+  void apply(const Type* handle, std::stringstream& into) const;
   void apply(const types::Scalar& scl, std::stringstream& into) const;
   void apply(const types::Tuple& tup, std::stringstream& into) const;
   void apply(const types::Variable& var, std::stringstream& into) const;
@@ -36,7 +34,9 @@ public:
   void apply(const types::Scheme& scheme, std::stringstream& into) const;
   void apply(const types::Assignment& assignment, std::stringstream& into) const;
   void apply(const types::Parameters& params, std::stringstream& into) const;
-  void apply(const std::vector<TypeHandle>& handles, std::stringstream& into, const char* delim = ", ") const;
+  void apply(const types::Union& union_type, std::stringstream& into) const;
+  void apply(const types::ConstantValue& val, std::stringstream& into) const;
+  void apply(const TypePtrs& handles, std::stringstream& into, const char* delim = ", ") const;
 
   const char* color(const char* color_code) const;
   std::string color(const std::string& color_code) const;
@@ -48,7 +48,6 @@ private:
   void apply_name(const types::Abstraction& abstr, std::stringstream& into) const;
 
 private:
-  const TypeStore& store;
   const Library* library;
   const StringRegistry* string_registry;
 

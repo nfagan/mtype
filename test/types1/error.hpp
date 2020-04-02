@@ -18,7 +18,8 @@ struct UnificationError {
 };
 
 struct SimplificationFailure : public UnificationError {
-  SimplificationFailure(const Token* lhs_token, const Token* rhs_token, TypeRef lhs_type, TypeRef rhs_type) :
+  SimplificationFailure(const Token* lhs_token, const Token* rhs_token,
+                        const Type* lhs_type, const Type* rhs_type) :
   lhs_token(lhs_token), rhs_token(rhs_token), lhs_type(lhs_type), rhs_type(rhs_type) {
     //
   }
@@ -29,12 +30,13 @@ struct SimplificationFailure : public UnificationError {
 
   const Token* lhs_token;
   const Token* rhs_token;
-  TypeHandle lhs_type;
-  TypeHandle rhs_type;
+  const Type* lhs_type;
+  const Type* rhs_type;
 };
 
 struct OccursCheckFailure : public UnificationError {
-  OccursCheckFailure(const Token* lhs_token, const Token* rhs_token, TypeRef lhs_type, TypeRef rhs_type) :
+  OccursCheckFailure(const Token* lhs_token, const Token* rhs_token,
+                     const Type* lhs_type, const Type* rhs_type) :
   lhs_token(lhs_token), rhs_token(rhs_token), lhs_type(lhs_type), rhs_type(rhs_type) {
     //
   }
@@ -45,12 +47,12 @@ struct OccursCheckFailure : public UnificationError {
 
   const Token* lhs_token;
   const Token* rhs_token;
-  TypeHandle lhs_type;
-  TypeHandle rhs_type;
+  const Type* lhs_type;
+  const Type* rhs_type;
 };
 
 struct UnresolvedFunctionError : public UnificationError {
-  UnresolvedFunctionError(const Token* at_token, TypeRef function_type) :
+  UnresolvedFunctionError(const Token* at_token, const Type* function_type) :
   at_token(at_token), function_type(function_type) {
     //
   }
@@ -59,11 +61,11 @@ struct UnresolvedFunctionError : public UnificationError {
   Token get_source_token() const override;
 
   const Token* at_token;
-  TypeHandle function_type;
+  const Type* function_type;
 };
 
 struct InvalidFunctionInvocationError : public UnificationError {
-  InvalidFunctionInvocationError(const Token* at_token, TypeRef function_type) :
+  InvalidFunctionInvocationError(const Token* at_token, const Type* function_type) :
   at_token(at_token), function_type(function_type) {
     //
   }
@@ -72,7 +74,7 @@ struct InvalidFunctionInvocationError : public UnificationError {
   Token get_source_token() const override;
 
   const Token* at_token;
-  TypeHandle function_type;
+  const Type* function_type;
 };
 
 using BoxedUnificationError = std::unique_ptr<UnificationError>;

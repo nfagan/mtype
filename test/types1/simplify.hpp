@@ -20,32 +20,32 @@ public:
 private:
   using DT = types::DestructuredTuple;
 
-  bool simplify(TypeRef lhs, TypeRef rhs, bool rev);
+  bool simplify(Type* lhs, Type* rhs, bool rev);
 
-  bool simplify_same_types(TypeRef lhs, TypeRef rhs, bool rev);
-  bool simplify_different_types(TypeRef lhs, TypeRef rhs, bool rev);
+  bool simplify_same_types(Type* lhs, Type* rhs, bool rev);
+  bool simplify_different_types(Type* lhs, Type* rhs, bool rev);
 
-  bool simplify(TypeRef lhs, TypeRef rhs, const types::Abstraction& t0, const types::Abstraction& t1, bool rev);
-  bool simplify(TypeRef lhs, TypeRef rhs, const DT& t0, const DT& t1, bool rev);
-  bool simplify(TypeRef lhs, TypeRef rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev);
+  bool simplify(Type* lhs, Type* rhs, const types::Abstraction& t0, const types::Abstraction& t1, bool rev);
+  bool simplify(Type* lhs, Type* rhs, const DT& t0, const DT& t1, bool rev);
+  bool simplify(Type* lhs, Type* rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev);
   bool simplify(const types::List& t0, const types::List& t1, bool rev);
-  bool simplify(TypeRef lhs, TypeRef rhs, const types::Scheme& t0, const types::Scheme& t1, bool rev);
+  bool simplify(Type* lhs, Type* rhs, const types::Scheme& t0, const types::Scheme& t1, bool rev);
   bool simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev);
-  bool simplify(TypeRef lhs, TypeRef rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev);
-  bool simplify(const std::vector<TypeHandle>& t0, const std::vector<TypeHandle>& t1, bool rev);
+  bool simplify(Type* lhs, Type* rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev);
+  bool simplify(const TypePtrs& t0, const TypePtrs& t1, bool rev);
 
-  bool simplify_different_types(const types::Scheme& scheme, TypeRef source, TypeRef rhs, bool rev);
-  bool simplify_different_types(const types::List& list, TypeRef source, TypeRef rhs, bool rev);
-  bool simplify_different_types(const types::DestructuredTuple& tup, TypeRef source, TypeRef rhs, bool rev);
-  bool simplify_different_types(TypeRef lhs, TypeRef rhs, const types::Parameters& a,
+  bool simplify_different_types(const types::Scheme& scheme, Type* source, Type* rhs, bool rev);
+  bool simplify_different_types(const types::List& list, Type* rhs, bool rev);
+  bool simplify_different_types(const types::DestructuredTuple& tup, Type* source, Type* rhs, bool rev);
+  bool simplify_different_types(Type* lhs, Type* rhs, const types::Parameters& a,
                                 const types::DestructuredTuple& b, int64_t offset_b, bool rev);
-  bool simplify_make_type_equation(TypeRef t0, TypeRef t1, bool rev);
+  bool simplify_make_type_equation(Type* t0, Type* t1, bool rev);
 
-  void push_make_type_equation(TypeRef t0, TypeRef t1, bool rev);
-  void push_make_type_equations(const TypeHandles& t0, const TypeHandles& t1, int64_t num, bool rev);
-  void push_type_equation(TypeEquation&& eq);
+  void push_make_type_equation(Type* t0, Type* t1, bool rev);
+  void push_make_type_equations(const TypePtrs& t0, const TypePtrs& t1, int64_t num, bool rev);
+  void push_type_equation(const TypeEquation& eq);
 
-  void check_emplace_simplification_failure(bool success, TypeRef lhs, TypeRef rhs);
+  void check_emplace_simplification_failure(bool success, const Type* lhs, const Type* rhs);
 
   const Token* lhs_source_token();
   const Token* rhs_source_token();

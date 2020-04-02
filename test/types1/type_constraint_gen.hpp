@@ -17,7 +17,7 @@ class TypeToString;
 class TypeConstraintGenerator : public TypePreservingVisitor {
 private:
   struct ConstraintRepository {
-    std::vector<TypeHandle> variables;
+    std::vector<Type*> variables;
     std::vector<TypeEquation> constraints;
   };
 
@@ -87,18 +87,18 @@ public:
   void switch_stmt(const SwitchStmt& stmt) override;
 
 private:
-  std::vector<TypeHandle> grouping_expr_components(const GroupingExpr& expr);
+  std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);
 
-  void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypeHandles& into);
-  void gather_function_outputs(const MatlabScope& scope, const std::vector<MatlabIdentifier>& ids, TypeHandles& into);
+  void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypePtrs& into);
+  void gather_function_outputs(const MatlabScope& scope, const std::vector<MatlabIdentifier>& ids, TypePtrs& into);
 
   MT_NODISCARD TypeEquationTerm visit_expr(const BoxedExpr& expr, const Token& source_token);
-  TypeHandle make_fresh_type_variable_reference();
-  TypeHandle require_bound_type_variable(const VariableDefHandle& variable_def_handle);
+  Type* make_fresh_type_variable_reference();
+  Type* require_bound_type_variable(const VariableDefHandle& variable_def_handle);
 
-  void bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, TypeRef type_handle);
-  void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, TypeRef type_handle);
-  TypeHandle require_bound_type_variable(const FunctionDefHandle& function_def_handle);
+  void bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, Type* type_handle);
+  void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle);
+  Type* require_bound_type_variable(const FunctionDefHandle& function_def_handle);
 
   void push_scope(const MatlabScope* scope) {
     scopes.push_back(scope);
@@ -175,11 +175,11 @@ private:
 
   std::vector<const MatlabScope*> scopes;
 
-  std::unordered_map<VariableDefHandle, TypeHandle, VariableDefHandle::Hash> variable_type_handles;
-  std::unordered_map<TypeHandle, VariableDefHandle, TypeHandle::Hash> variables;
+  std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_type_handles;
+  std::unordered_map<Type*, VariableDefHandle> variables;
 
-  std::unordered_map<FunctionDefHandle, TypeHandle, FunctionDefHandle::Hash> function_type_handles;
-  std::unordered_map<TypeHandle, FunctionDefHandle, TypeHandle::Hash> functions;
+  std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> function_type_handles;
+  std::unordered_map<Type*, FunctionDefHandle> functions;
 
   std::vector<TypeEquationTerm> type_eq_terms;
   std::vector<ConstraintRepository> constraint_repositories;

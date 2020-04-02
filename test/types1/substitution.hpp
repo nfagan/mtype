@@ -18,8 +18,7 @@ public:
   }
 
   void push_type_equation(const TypeEquation& eq);
-  void push_type_equation(TypeEquation&& eq);
-  Optional<TypeHandle> bound_type(const TypeHandle& for_type) const;
+  Optional<Type*> bound_type(const TypeEquationTerm& for_type) const;
 
 private:
   std::vector<TypeEquation> type_equations;

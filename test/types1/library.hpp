@@ -19,25 +19,23 @@ public:
   string_registry(string_registry),
   arg_comparator(type_eq),
   name_comparator(type_eq),
-  type_equiv_comparator(type_eq),
-  function_types(name_comparator),
-  types_with_known_subscripts(type_equiv_comparator) {
+  function_types(name_comparator) {
     //
   }
 
   void make_known_types();
-  Optional<TypeHandle> lookup_function(const types::Abstraction& func) const;
-  Optional<TypeHandle> lookup_function(const FunctionDefHandle& def_handle) const;
-  bool is_known_subscript_type(const TypeHandle& handle) const;
+  Optional<Type*> lookup_function(const types::Abstraction& func) const;
+  Optional<Type*> lookup_function(const FunctionDefHandle& def_handle) const;
+  bool is_known_subscript_type(const Type* type) const;
 
-  Optional<std::string> type_name(const TypeHandle& type) const;
+  Optional<std::string> type_name(const Type* type) const;
   Optional<std::string> type_name(const types::Scalar& scl) const;
 
-  void emplace_local_function_type(const FunctionDefHandle& handle, TypeRef type);
+  void emplace_local_function_type(const FunctionDefHandle& handle, Type* type);
 
   //  Test a <: b
-  bool subtype_related(TypeRef lhs, TypeRef rhs) const;
-  bool subtype_related(TypeRef lhs, TypeRef rhs, const types::Scalar& a, const types::Scalar& b) const;
+  bool subtype_related(const Type* lhs, const Type* rhs) const;
+  bool subtype_related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const;
 
 private:
   void make_builtin_types();
@@ -60,8 +58,10 @@ private:
   void make_sub_double();
   void make_double();
 
-  TypeHandle make_simple_function(const char* name, TypeHandles&& args, TypeHandles&& outs);
-  TypeHandle make_named_scalar_type(const char* name);
+  void add_type_with_known_subscript(const Type* t);
+
+  Type* make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs);
+  Type* make_named_scalar_type(const char* name);
 
 private:
   SubtypeRelation subtype_relation;
@@ -71,24 +71,23 @@ private:
   TypeStore& store;
   StringRegistry& string_registry;
 
-  TypeRelation::ArgumentComparator arg_comparator;
-  TypeRelation::NameComparator name_comparator;
-  TypeRelation::TypeRelationComparator type_equiv_comparator;
+  TypeRelation::ArgumentLess arg_comparator;
+  TypeRelation::NameLess name_comparator;
 
-  std::map<types::Abstraction, TypeHandle, TypeRelation::NameComparator> function_types;
-  std::set<TypeHandle, TypeRelation::TypeRelationComparator> types_with_known_subscripts;
-  std::unordered_map<FunctionDefHandle, TypeHandle, FunctionDefHandle::Hash> local_function_types;
+  std::map<types::Abstraction, Type*, TypeRelation::NameLess> function_types;
+  std::vector<const Type*> types_with_known_subscripts;
+  std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> local_function_types;
 
   std::unordered_map<TypeIdentifier, int64_t, TypeIdentifier::Hash> scalar_type_names;
-  std::unordered_map<TypeHandle, types::SubtypeRelation, TypeHandle::Hash> scalar_subtype_relations;
+  std::unordered_map<const Type*, types::SubtypeRelation> scalar_subtype_relations;
 
 public:
-  TypeHandle double_type_handle;
-  TypeHandle char_type_handle;
-  TypeHandle string_type_handle;
-  TypeHandle logical_type_handle;
-  TypeHandle sub_double_type_handle;
-  TypeHandle sub_sub_double_type_handle;
+  Type* double_type_handle;
+  Type* char_type_handle;
+  Type* string_type_handle;
+  Type* logical_type_handle;
+  Type* sub_double_type_handle;
+  Type* sub_sub_double_type_handle;
 };
 
 }

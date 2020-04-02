@@ -9,12 +9,12 @@ namespace mt {
 
 class DebugTypePrinter {
 public:
-  explicit DebugTypePrinter(const TypeStore& store) : DebugTypePrinter(store, nullptr, nullptr) {
+  DebugTypePrinter() : DebugTypePrinter(nullptr, nullptr) {
     //
   }
 
-  DebugTypePrinter(const TypeStore& store, const Library* library, const StringRegistry* string_registry) :
-  store(store), library(library), string_registry(string_registry), colorize(true) {
+  DebugTypePrinter(const Library* library, const StringRegistry* string_registry) :
+  library(library), string_registry(string_registry), colorize(true) {
     //
   }
 
@@ -36,13 +36,12 @@ public:
 
 private:
   TypeToString to_string_impl() const {
-    TypeToString impl(store, library, string_registry);
+    TypeToString impl(library, string_registry);
     impl.rich_text = colorize;
     return impl;
   }
 
 private:
-  const TypeStore& store;
   const Library* library;
   const StringRegistry* string_registry;
 

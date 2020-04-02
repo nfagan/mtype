@@ -3,19 +3,18 @@
 
 namespace mt {
 
-bool TypeProperties::is_concrete_argument(const TypeHandle& handle) const {
+bool TypeProperties::is_concrete_argument(const Type* type) const {
   using Tag = Type::Tag;
-  const auto& type = store.at(handle);
 
-  switch (type.tag) {
+  switch (type->tag) {
     case Tag::destructured_tuple:
-      return is_concrete_argument(type.destructured_tuple);
+      return is_concrete_argument(MT_DT_REF(*type));
     case Tag::list:
-      return is_concrete_argument(type.list);
+      return is_concrete_argument(MT_LIST_REF(*type));
     case Tag::abstraction:
-      return is_concrete_argument(type.abstraction);
+      return is_concrete_argument(MT_ABSTR_REF(*type));
     case Tag::scheme:
-      return is_concrete_argument(type.scheme);
+      return is_concrete_argument(MT_SCHEME_REF(*type));
     case Tag::tuple:
     case Tag::scalar:
       return true;
@@ -24,7 +23,7 @@ bool TypeProperties::is_concrete_argument(const TypeHandle& handle) const {
   }
 }
 
-bool TypeProperties::are_concrete_arguments(const std::vector<TypeHandle>& args) const {
+bool TypeProperties::are_concrete_arguments(const TypePtrs& args) const {
   for (const auto& arg : args) {
     if (!is_concrete_argument(arg)) {
       return false;
