@@ -2,6 +2,7 @@
 #include "unification.hpp"
 #include "member_visitor.hpp"
 #include "debug.hpp"
+#include "../token.hpp"
 #include <cassert>
 
 #define MT_SHOW2(msg, a, b) \
@@ -77,8 +78,6 @@ bool Simplifier::simplify_make_type_equation(Type* t0, Type* t1, bool rev) {
 }
 
 bool Simplifier::simplify_different_types(Type* lhs, Type* rhs, bool rev) {
-  using Tag = Type::Tag;
-
   if (lhs->is_variable() || rhs->is_variable()) {
     return simplify_make_type_equation(lhs, rhs, rev);
   }
@@ -107,7 +106,7 @@ bool Simplifier::simplify_different_types(Type* lhs, Type* rhs, bool rev) {
   }
 }
 
-bool Simplifier::simplify_different_types(const types::Scheme& scheme, Type* source, Type* rhs, bool rev) {
+bool Simplifier::simplify_different_types(const types::Scheme& scheme, Type*, Type* rhs, bool rev) {
 #if 1
   return simplify_make_type_equation(unifier.instantiate(scheme), rhs, rev);
 #else
@@ -129,13 +128,13 @@ bool Simplifier::simplify_different_types(const types::List& list, Type* rhs, bo
   return false;
 }
 
-bool Simplifier::simplify_different_types(const DT& tup, Type* source, Type* rhs, bool rev) {
+bool Simplifier::simplify_different_types(const DT&, Type* source, Type* rhs, bool rev) {
   const auto t = store.make_rvalue_destructured_tuple(rhs);
   return simplify_make_type_equation(source, t, rev);
 }
 
-bool Simplifier::simplify_different_types(Type* lhs, Type* rhs, const types::Parameters& a,
-                                          const types::DestructuredTuple& b, int64_t offset_b, bool rev) {
+bool Simplifier::simplify_different_types(Type* lhs, Type*, const types::Parameters&,
+                                          const types::DestructuredTuple& b, int64_t offset_b, bool) {
   if (unifier.expanded_parameters.count(lhs) > 0) {
     assert(false);
     return true;
@@ -204,7 +203,7 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
   return true;
 }
 
-bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scheme& t0, const types::Scheme& t1, bool rev) {
+bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scheme&, const types::Scheme&, bool rev) {
   EquivalenceRelation equiv;
   TypeRelation relate(equiv, store);
   return relate.related_entry(lhs, rhs, rev);
@@ -214,7 +213,7 @@ bool Simplifier::simplify(const types::Subscript& t0, const types::Subscript& t1
   if (t0.subscripts.size() != t1.subscripts.size()) {
     return false;
   }
-  for (int64_t i = 0; i < t0.subscripts.size(); i++) {
+  for (int64_t i = 0; i < int64_t(t0.subscripts.size()); i++) {
     const auto& args0 = t0.subscripts[i];
     const auto& args1 = t1.subscripts[i];
 
@@ -245,7 +244,7 @@ bool Simplifier::simplify(const TypePtrs& t0, const TypePtrs& t1, bool rev) {
 }
 
 void Simplifier::push_make_type_equations(const TypePtrs& t0, const TypePtrs& t1, int64_t num, bool rev) {
-  assert(num >= 0 && num <= t0.size() && num <= t1.size() && "out of bounds read.");
+  assert(num >= 0 && num <= int64_t(t0.size()) && num <= int64_t(t1.size()) && "out of bounds read.");
   for (int64_t i = 0; i < num; i++) {
     push_make_type_equation(t0[i], t1[i], rev);
   }

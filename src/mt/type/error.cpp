@@ -1,8 +1,9 @@
 #include "error.hpp"
 #include "type_representation.hpp"
-#include "type_store.hpp"
-#include "mt/text.hpp"
-#include "mt/display.hpp"
+#include "../display.hpp"
+#include "../text.hpp"
+#include "../token.hpp"
+#include "../fs.hpp"
 
 namespace mt {
 

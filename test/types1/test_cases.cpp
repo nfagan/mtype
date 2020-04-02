@@ -1,9 +1,5 @@
 #include "test_cases.hpp"
-#include "type_store.hpp"
-#include "type_relation.hpp"
-#include "type_relationships.hpp"
-#include "debug.hpp"
-#include "library.hpp"
+#include "mt/mt.hpp"
 #include <cassert>
 
 #define MT_SHOW_ERROR(msg) \
@@ -40,8 +36,6 @@
 namespace mt {
 
 void test_subtyping() {
-  using Use = types::DestructuredTuple::Usage;
-
   StringRegistry str_registry;
   TypeStore store(1e5);
   Library library(store, str_registry);

@@ -3,6 +3,7 @@
 #include "library.hpp"
 #include "debug.hpp"
 #include "type_properties.hpp"
+#include "../string.hpp"
 #include <algorithm>
 
 #define MT_REVERSE_UNIFY (0)
@@ -20,12 +21,12 @@
 namespace mt {
 
 bool Unifier::is_concrete_argument(const Type* handle) const {
-  TypeProperties props(store);
+  TypeProperties props;
   return props.is_concrete_argument(handle);
 }
 
 bool Unifier::are_concrete_arguments(const mt::TypePtrs& handles) const {
-  TypeProperties props(store);
+  TypeProperties props;
   return props.are_concrete_arguments(handles);
 }
 
@@ -113,7 +114,7 @@ UnifyResult Unifier::unify(Substitution* subst) {
   }
 #else
   int64_t i = 0;
-  while (i < substitution->type_equations.size()) {
+  while (i < substitution->num_type_equations()) {
     unify_one(substitution->type_equations[i++]);
   }
 #endif
@@ -198,7 +199,7 @@ bool Unifier::occurs(const types::Scheme& scheme, TermRef term, const Type* lhs)
   return occurs(scheme.type, term, lhs);
 }
 
-Type* Unifier::apply_to(types::Variable& var, TermRef term) {
+Type* Unifier::apply_to(types::Variable& var, TermRef) {
   TypeEquationTerm lookup(nullptr, &var);
 
   if (substitution->bound_terms.count(lookup) > 0) {
@@ -208,7 +209,7 @@ Type* Unifier::apply_to(types::Variable& var, TermRef term) {
   }
 }
 
-Type* Unifier::apply_to(types::Parameters& params, TermRef term) {
+Type* Unifier::apply_to(types::Parameters& params, TermRef) {
   if (expanded_parameters.count(&params) > 0) {
     return expanded_parameters.at(&params);
   } else {
@@ -366,7 +367,7 @@ Type* Unifier::substitute_one(types::DestructuredTuple& tup, TermRef term, TermR
   return &tup;
 }
 
-Type* Unifier::substitute_one(types::Variable& var, TermRef term, TermRef lhs, TermRef rhs) {
+Type* Unifier::substitute_one(types::Variable& var, TermRef, TermRef lhs, TermRef rhs) {
   auto source = &var;
 
   if (source == lhs.term) {
@@ -376,7 +377,7 @@ Type* Unifier::substitute_one(types::Variable& var, TermRef term, TermRef lhs, T
   }
 }
 
-Type* Unifier::substitute_one(types::Parameters& params, TermRef term, TermRef lhs, TermRef rhs) {
+Type* Unifier::substitute_one(types::Parameters& params, TermRef, TermRef, TermRef) {
   auto source = &params;
 
   if (expanded_parameters.count(source) > 0) {
@@ -564,7 +565,8 @@ Type* Unifier::maybe_unify_anonymous_function_call_subscript(Type* source,
   substitution->push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
 
   auto copy_args = sub0.arguments;
-  const auto arg_lhs_term = make_term(term.source_token, store.make_rvalue_destructured_tuple(std::move(copy_args)));
+  auto new_inputs = store.make_rvalue_destructured_tuple(std::move(copy_args));
+  const auto arg_lhs_term = make_term(term.source_token, new_inputs);
   const auto arg_rhs_term = make_term(term.source_token, source_func.inputs);
   substitution->push_type_equation(make_eq(arg_lhs_term, arg_rhs_term));
 
@@ -707,7 +709,8 @@ BoxedUnificationError Unifier::make_unresolved_function_error(const Token* at_to
   return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
 }
 
-BoxedUnificationError Unifier::make_invalid_function_invocation_error(const Token* at_token, const Type* function_type) const {
+BoxedUnificationError Unifier::make_invalid_function_invocation_error(const Token* at_token,
+                                                                      const Type* function_type) const {
   return std::make_unique<InvalidFunctionInvocationError>(at_token, function_type);
 }
 

@@ -3,11 +3,17 @@
 #include "type.hpp"
 #include "type_relation.hpp"
 #include "type_relationships.hpp"
+#include "../Optional.hpp"
+#include "../handles.hpp"
 #include <map>
+#include <unordered_map>
+#include <vector>
 
 namespace mt {
 
 class TypeStore;
+class StringRegistry;
+class FunctionDefHandle;
 
 class Library {
   friend class Unifier;

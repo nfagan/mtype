@@ -1,10 +1,13 @@
 #pragma once
 
-#include "mt/mt.hpp"
 #include "type.hpp"
 #include "unification.hpp"
 #include "type_store.hpp"
 #include "library.hpp"
+#include "../ast.hpp"
+#include "../store.hpp"
+#include "../ast/visitor.hpp"
+#include "../traversal.hpp"
 #include <cassert>
 #include <memory>
 #include <set>

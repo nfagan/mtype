@@ -36,7 +36,7 @@ bool TypeProperties::is_concrete_argument(const types::DestructuredTuple& tup) c
   return are_concrete_arguments(tup.members);
 }
 
-bool TypeProperties::is_concrete_argument(const mt::types::Abstraction& abstr) const {
+bool TypeProperties::is_concrete_argument(const mt::types::Abstraction&) const {
   return true;
 }
 

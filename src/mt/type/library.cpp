@@ -1,5 +1,6 @@
 #include "library.hpp"
 #include "type_store.hpp"
+#include "../string.hpp"
 #include <cassert>
 
 namespace mt {
@@ -204,9 +205,6 @@ void Library::make_builtin_brace_subscript_reference() {
   const auto scheme = store.make_scheme(func_type, TypePtrs{ref_var});
   function_types[ref_copy] = scheme;
   add_type_with_known_subscript(tup_type);
-
-  auto tup2 = store.make_tuple(store.make_fresh_type_variable_reference());
-  assert(is_known_subscript_type(tup2));
 }
 
 void Library::make_concatenations() {

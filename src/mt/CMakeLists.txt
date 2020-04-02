@@ -58,3 +58,4 @@ configure_common()
 
 add_subdirectory(ast)
 add_subdirectory(fs)
+add_subdirectory(type)

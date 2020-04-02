@@ -1,7 +1,8 @@
 #pragma once
 
 #include "type_store.hpp"
-#include "type.hpp"
+#include "types.hpp"
+#include <unordered_map>
 
 namespace mt {
 

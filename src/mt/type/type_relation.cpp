@@ -13,8 +13,8 @@ public:
   bool predicate(const Type* a, const Type* b, bool rev) const override {
     return relation.related(a, b, rev);
   }
-  bool parameters(const Type* lhs, const Type* rhs, const types::Parameters& a,
-                  const types::DestructuredTuple& b, int64_t offset_b, bool rev) const override {
+  bool parameters(const Type* lhs, const Type* rhs, const types::Parameters&,
+                  const types::DestructuredTuple&, int64_t, bool rev) const override {
     return relation.related(lhs, rhs, rev);
   }
 
@@ -27,7 +27,7 @@ DebugTypePrinter TypeRelation::type_printer() const {
 
 bool TypeRelation::element_wise_related(const TypePtrs& a, const TypePtrs& b, bool rev) const {
   const int64_t size_a = a.size();
-  if (size_a != b.size()) {
+  if (size_a != int64_t(b.size())) {
     return false;
   }
   for (int64_t i = 0; i < size_a; i++) {
@@ -116,8 +116,8 @@ bool TypeRelation::related_list(const TypePtrs& a, const TypePtrs& b, int64_t* i
     return *ia == num_a;
 
   } else {
-    assert(*ia < a.size() && *ib < b.size());
-    assert(num_a <= a.size() && num_b <= b.size());
+    assert(*ia < int64_t(a.size()) && *ib < int64_t(b.size()));
+    assert(num_a <= int64_t(a.size()) && num_b <= int64_t(b.size()));
   }
 
   const auto& va = a[*ia];
@@ -228,8 +228,6 @@ bool TypeRelation::related_different_types(const types::List& a, const Type* b, 
 }
 
 bool TypeRelation::ArgumentLess::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
-  using Type = types::Abstraction::Kind;
-
   types::Abstraction::HeaderCompare compare{};
   const auto header_result = compare(a, b);
   if (header_result == -1) {

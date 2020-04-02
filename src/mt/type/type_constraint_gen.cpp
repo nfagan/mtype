@@ -2,6 +2,7 @@
 #include "type_constraint_gen.hpp"
 #include "debug.hpp"
 #include "type_representation.hpp"
+#include "../string.hpp"
 
 #define MT_SCHEME_FUNC_REF (1)
 #define MT_SCHEME_FUNC_CALL (1)
@@ -444,7 +445,7 @@ void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr
   arg_handles.emplace_back();
   result_handles.push_back(make_fresh_type_variable_reference());
 
-  for (int64_t i = 0; i < expr.components.size(); i++) {
+  for (int64_t i = 0; i < int64_t(expr.components.size()); i++) {
     const auto& component = expr.components[i];
     const auto res = visit_expr(component.expr, expr.source_token);
     const auto current_dir = concatenation_direction_from_token_type(component.delimiter);

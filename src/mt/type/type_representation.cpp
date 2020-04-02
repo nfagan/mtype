@@ -1,6 +1,7 @@
 #include "type_representation.hpp"
 #include "library.hpp"
-#include "mt/display.hpp"
+#include "../display.hpp"
+#include "../string.hpp"
 #include <cassert>
 
 namespace mt {
@@ -138,15 +139,16 @@ void TypeToString::apply(const types::Union& union_type, std::stringstream& into
   apply(union_type.members, into, " | ");
 }
 
-void TypeToString::apply(const types::ConstantValue& val, std::stringstream& into) const {
+void TypeToString::apply(const types::ConstantValue&, std::stringstream& into) const {
   //  @TODO: Implement this.
   into << "<constant>";
 }
 
 void TypeToString::apply(const TypePtrs& handles, std::stringstream& stream, const char* delim) const {
-  for (int64_t i = 0; i < handles.size(); i++) {
+  const int64_t sz = handles.size();
+  for (int64_t i = 0; i < sz; i++) {
     apply(handles[i], stream);
-    if (i < handles.size()-1) {
+    if (i < sz-1) {
       stream << delim;
     }
   }
@@ -171,7 +173,7 @@ void TypeToString::apply(const types::Subscript& subscript, std::stringstream& s
 
 void TypeToString::apply(const types::Scheme& scheme, std::stringstream& stream) const {
   stream << color(style::yellow) << "given" << dflt_color() << " <";
-  if (max_num_type_variables < 0 || scheme.parameters.size() <= max_num_type_variables) {
+  if (max_num_type_variables < 0 || int(scheme.parameters.size()) <= max_num_type_variables) {
     apply(scheme.parameters, stream, ", ");
   } else {
     stream << color(style::red) << scheme.parameters.size() << dflt_color();

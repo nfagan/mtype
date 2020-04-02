@@ -7,7 +7,7 @@ namespace mt {
  * TypeEquivalence
  */
 
-bool EquivalenceRelation::related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const {
+bool EquivalenceRelation::related(const Type*, const Type*, const types::Scalar& a, const types::Scalar& b, bool) const {
   return a.identifier == b.identifier;
 }
 

@@ -1,10 +1,6 @@
 #include "mt/mt.hpp"
-#include "type_constraint_gen.hpp"
-#include "test_cases.hpp"
-#include "library.hpp"
 #include "util.hpp"
-#include "type_representation.hpp"
-#include "debug.hpp"
+#include "test_cases.hpp"
 #include <chrono>
 
 namespace {
@@ -78,7 +74,7 @@ int main(int argc, char** argv) {
   type_visitor.show_local_function_types(type_to_string);
 
   if (unify_res.is_error()) {
-    ShowUnificationErrors show(type_store, type_to_string);
+    ShowUnificationErrors show(type_to_string);
     show.show(unify_res.errors, contents, file_descriptor, scan_info.row_column_indices);
 
     if (unify_res.errors.empty()) {

@@ -1,11 +1,12 @@
 #pragma once
 
-#include "type.hpp"
+#include "types.hpp"
 
 namespace mt {
 
 class Unifier;
 class TypeStore;
+struct Token;
 
 class Simplifier {
   friend class DestructuredSimplifier;

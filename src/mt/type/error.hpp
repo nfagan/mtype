@@ -10,6 +10,8 @@ struct Token;
 class TypeStore;
 class TypeToString;
 class ShowUnificationErrors;
+class CodeFileDescriptor;
+class TextRowColumnIndices;
 
 struct UnificationError {
   virtual std::string get_text(const ShowUnificationErrors& shower) const = 0;
@@ -82,8 +84,8 @@ using UnificationErrors = std::vector<BoxedUnificationError>;
 
 class ShowUnificationErrors {
 public:
-  ShowUnificationErrors(const TypeStore& store, const TypeToString& type_to_string) :
-  store(store), type_to_string(type_to_string), rich_text(true) {
+  ShowUnificationErrors(const TypeToString& type_to_string) :
+  type_to_string(type_to_string), rich_text(true) {
     //
   }
 
@@ -95,7 +97,6 @@ public:
   const char* stylize(const char* code) const;
 
 private:
-  const TypeStore& store;
   static constexpr int context_amount = 50;
 
 public:

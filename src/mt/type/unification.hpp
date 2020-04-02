@@ -1,8 +1,6 @@
 #pragma once
 
-#include "mt/mt.hpp"
-#include "type.hpp"
-#include "type_store.hpp"
+#include "types.hpp"
 #include "instance.hpp"
 #include "simplify.hpp"
 #include "error.hpp"
@@ -12,12 +10,13 @@
 
 namespace mt {
 
-class TypeConstraintGenerator;
 class DebugTypePrinter;
 class Library;
+class StringRegistry;
+class TypeStore;
 
 struct UnifyResult {
-  UnifyResult(UnificationErrors&& errors) :
+  explicit UnifyResult(UnificationErrors&& errors) :
   had_error(true), errors(std::move(errors)) {
     //
   }

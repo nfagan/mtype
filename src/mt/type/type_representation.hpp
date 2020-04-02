@@ -1,12 +1,14 @@
 #pragma once
 
-#include "type.hpp"
+#include "types.hpp"
+#include "../Optional.hpp"
 #include <sstream>
 
 namespace mt {
 
 class TypeStore;
 class Library;
+class StringRegistry;
 
 class TypeToString {
 public:

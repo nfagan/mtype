@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #ifdef _MSC_VER
 #define MT_IS_MSVC (1)
 #else
