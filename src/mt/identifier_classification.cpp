@@ -770,7 +770,11 @@ TryStmt* IdentifierClassifier::try_stmt(TryStmt& stmt) {
 
   if (stmt.catch_block) {
     auto& catch_block = stmt.catch_block.value();
-    conditional_reset(catch_block.expr, catch_block.expr->accept(*this));
+
+    if (catch_block.expr) {
+      conditional_reset(catch_block.expr, catch_block.expr->accept(*this));
+    }
+
     block_new_context(catch_block.block);
 
   } else {

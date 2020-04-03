@@ -514,10 +514,6 @@ void TypeConstraintGenerator::assignment_stmt(const AssignmentStmt& stmt) {
   push_type_equation(make_eq(lhs_term, rhs_term));
 }
 
-/*
- * Stmt
- */
-
 void TypeConstraintGenerator::if_stmt(const IfStmt& stmt) {
   if_branch(stmt.if_branch);
   for (const auto& elseif_branch : stmt.elseif_branches) {
@@ -556,7 +552,11 @@ void TypeConstraintGenerator::try_stmt(const TryStmt& stmt) {
 
   if (stmt.catch_block) {
     const auto& catch_block = stmt.catch_block.value();
-    (void) visit_expr(catch_block.expr, catch_block.source_token);
+
+    if (catch_block.expr) {
+      (void) visit_expr(catch_block.expr, catch_block.source_token);
+    }
+
     catch_block.block->accept_const(*this);
   }
 }

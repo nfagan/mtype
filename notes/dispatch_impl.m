@@ -41,6 +41,11 @@ class SearchPath {
 
 ---
 
+struct FunctionInfo {
+  MatlabIdentifier name;
+  
+}
+
 void Unifier::check_push_func(TypeRef source, TermRef term, const types::Abstraction& func) {
 
   if (!is_concrete_argument(func.inputs) || func.is_anonymous()) {
