@@ -232,6 +232,7 @@ public:
   ForStmt* for_stmt(ForStmt& stmt);
   WhileStmt* while_stmt(WhileStmt& stmt);
   SwitchStmt* switch_stmt(SwitchStmt& stmt);
+  TryStmt* try_stmt(TryStmt& stmt);
   VariableDeclarationStmt* variable_declaration_stmt(VariableDeclarationStmt& stmt);
 
   FunTypeNode* fun_type_node(FunTypeNode& node);
@@ -250,6 +251,10 @@ public:
   }
 
   const ParseErrors& get_warnings() const {
+    return warnings;
+  }
+
+  ParseErrors& get_warnings() {
     return warnings;
   }
 

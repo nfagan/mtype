@@ -551,6 +551,16 @@ void TypeConstraintGenerator::switch_stmt(const SwitchStmt& stmt) {
   }
 }
 
+void TypeConstraintGenerator::try_stmt(const TryStmt& stmt) {
+  stmt.try_block->accept_const(*this);
+
+  if (stmt.catch_block) {
+    const auto& catch_block = stmt.catch_block.value();
+    (void) visit_expr(catch_block.expr, catch_block.source_token);
+    catch_block.block->accept_const(*this);
+  }
+}
+
 /*
  * Util
  */

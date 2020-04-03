@@ -4,6 +4,13 @@
 #include <chrono>
 
 namespace {
+
+void show_parse_errors(const mt::ParseErrors& errs, const mt::TextRowColumnIndices& inds) {
+  mt::ShowParseErrors show(&inds);
+  show.is_rich_text = true;
+  show.show(errs);
+}
+
 std::string get_source_file_path(int argc, char** argv) {
   if (argc < 2) {
 //    return "/Users/Nick/Documents/MATLAB/repositories/fieldtrip/ft_databrowser.m";
@@ -32,16 +39,17 @@ int main(int argc, char** argv) {
 
   Store store;
   StringRegistry str_registry;
-  AstGenerator::ParseInputs parse_inputs(&str_registry, &store,
-                                         &file_descriptor, scan_info.functions_are_end_terminated);
+  AstGenerator::ParseInputs parse_inputs(&str_registry, &store, &file_descriptor,
+    scan_info.functions_are_end_terminated);
 
   auto parse_result = parse_file(tokens, contents, parse_inputs);
   if (!parse_result) {
-    ShowParseErrors show(&scan_info.row_column_indices);
-    show.is_rich_text = true;
-    show.show(parse_result.error.errors);
+    show_parse_errors(parse_result.error.errors, scan_info.row_column_indices);
     std::cout << "Failed to parse file." << std::endl;
     return -1;
+
+  } else if (!parse_result.value.warnings.empty()) {
+    show_parse_errors(parse_result.value.warnings, scan_info.row_column_indices);
   }
 
   auto t0 = std::chrono::high_resolution_clock::now();

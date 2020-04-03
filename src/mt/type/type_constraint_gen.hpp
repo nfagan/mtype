@@ -88,6 +88,7 @@ public:
   void if_stmt(const IfStmt& stmt) override;
   void if_branch(const IfBranch& branch);
   void switch_stmt(const SwitchStmt& stmt) override;
+  void try_stmt(const TryStmt& stmt) override;
 
 private:
   std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);

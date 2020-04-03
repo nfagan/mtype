@@ -21,7 +21,8 @@ FileParseResult parse_file(const std::vector<Token>& tokens, std::string_view co
     return make_error<FileParseError, FileParseSuccess>(std::move(errs));
   }
 
-  return make_success<FileParseError, FileParseSuccess>(std::move(root_block));
+  auto& warnings = classifier.get_warnings();
+  return make_success<FileParseError, FileParseSuccess>(std::move(root_block), std::move(warnings));
 }
 
 FileScanResult scan_file(const std::string& file_path) {

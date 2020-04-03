@@ -73,6 +73,7 @@ struct TryStmt : public Stmt {
   ~TryStmt() override = default;
 
   std::string accept(const StringVisitor& vis) const override;
+  TryStmt* accept(IdentifierClassifier& classifier) override;
   void accept(TypePreservingVisitor& vis) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 

@@ -38,11 +38,13 @@ using FileScanResult = Result<FileScanError, FileScanSuccess>;
 struct FileParseSuccess {
   FileParseSuccess() = default;
 
-  FileParseSuccess(BoxedRootBlock root) : root_block(std::move(root)) {
+  FileParseSuccess(BoxedRootBlock root, ParseErrors&& warnings) :
+  root_block(std::move(root)), warnings(std::move(warnings)) {
     //
   }
 
   BoxedRootBlock root_block;
+  ParseErrors warnings;
 };
 
 struct FileParseError {

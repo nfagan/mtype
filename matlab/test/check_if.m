@@ -5,7 +5,15 @@ import shared_utils.general.parsestruct;
 if ( cond )
   c = a;
 else
-  c = parsestruct( cond );
+  c = parsestruct( a );
 end
+
+try
+  z = 2;
+catch a
+  z = 3;
+end
+
+e = z;
 
 end

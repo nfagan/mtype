@@ -764,6 +764,23 @@ SwitchStmt* IdentifierClassifier::switch_stmt(SwitchStmt& stmt) {
   return &stmt;
 }
 
+TryStmt* IdentifierClassifier::try_stmt(TryStmt& stmt) {
+  current_scope()->push_variable_assignment_context();
+  block_new_context(stmt.try_block);
+
+  if (stmt.catch_block) {
+    auto& catch_block = stmt.catch_block.value();
+    conditional_reset(catch_block.expr, catch_block.expr->accept(*this));
+    block_new_context(catch_block.block);
+
+  } else {
+    register_new_context();
+  }
+
+  current_scope()->pop_variable_assignment_context();
+  return &stmt;
+}
+
 VariableDeclarationStmt* IdentifierClassifier::variable_declaration_stmt(VariableDeclarationStmt& stmt) {
   for (const auto& identifier : stmt.identifiers) {
     const auto assign_res = register_variable_assignment(stmt.source_token, identifier);

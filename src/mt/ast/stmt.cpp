@@ -66,6 +66,10 @@ std::string TryStmt::accept(const StringVisitor& vis) const {
   return vis.try_stmt(*this);
 }
 
+TryStmt* TryStmt::accept(IdentifierClassifier& classifier) {
+  return classifier.try_stmt(*this);
+}
+
 /*
  * SwitchStmt
  */
