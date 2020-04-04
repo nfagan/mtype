@@ -29,9 +29,7 @@ struct Type {
     parameters
   };
 
-  Type() : tag(Tag::null) {
-    //
-  }
+  Type() = delete;
 
   explicit Type(Tag tag) : tag(tag) {
     //

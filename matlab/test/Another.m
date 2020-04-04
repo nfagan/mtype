@@ -30,10 +30,6 @@ classdef Another < dynamicprops
     
     function a = test(obj)
       a = test( obj );
-      
-%       function a = test(obj)
-%         a = 2;
-%       end
     end
   end
   

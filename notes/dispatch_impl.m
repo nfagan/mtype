@@ -73,4 +73,13 @@ void path_lookup(func_name, file_descriptor) {
   }
 }
 
+MethodStore {
+  TypedFunctionReference {
+    FunctionReference ref;
+    Type* type;
+  }
+  
+  map<Class*, set<TypedFunctionInfo>> methods;
+}
+
 %}
