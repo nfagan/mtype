@@ -5,6 +5,7 @@
 #include "type_relationships.hpp"
 #include "../Optional.hpp"
 #include "../handles.hpp"
+#include "../store.hpp"
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -18,10 +19,11 @@ class FunctionDefHandle;
 class Library {
   friend class Unifier;
 public:
-  explicit Library(TypeStore& store, StringRegistry& string_registry) :
+  explicit Library(TypeStore& store, const Store& def_store, StringRegistry& string_registry) :
   subtype_relation(*this),
   type_eq(equiv_relation, store),
   store(store),
+  def_store(def_store),
   string_registry(string_registry),
   arg_comparator(type_eq),
   name_comparator(type_eq),
@@ -31,7 +33,6 @@ public:
 
   void make_known_types();
   Optional<Type*> lookup_function(const types::Abstraction& func) const;
-  Optional<Type*> lookup_function(const FunctionDefHandle& def_handle) const;
   bool is_known_subscript_type(const Type* type) const;
 
   Optional<std::string> type_name(const Type* type) const;
@@ -64,6 +65,8 @@ private:
   void make_sub_double();
   void make_double();
 
+  Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
+
   void add_type_with_known_subscript(const Type* t);
 
   Type* make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs);
@@ -75,6 +78,7 @@ private:
   TypeRelation type_eq;
 
   TypeStore& store;
+  const Store& def_store;
   StringRegistry& string_registry;
 
   TypeRelation::ArgumentLess arg_comparator;
@@ -85,7 +89,7 @@ private:
   std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> local_function_types;
 
   std::unordered_map<TypeIdentifier, int64_t, TypeIdentifier::Hash> scalar_type_names;
-  std::unordered_map<const Type*, types::SubtypeRelation> scalar_subtype_relations;
+  std::unordered_map<const Type*, types::Class> scalar_subtype_relations;
 
 public:
   Type* double_type_handle;

@@ -1,5 +1,6 @@
 #include "directory.hpp"
 #include <dirent.h>
+#include <cstring>
 
 namespace mt {
 
@@ -41,7 +42,7 @@ DirectoryEntry DirectoryEntry::from_platform_handle(detail::PlatformHandle* hand
 
   const auto type = type_from_platform_directory_entry(platform_entry);
   const char* name = platform_entry->d_name;
-  const auto name_size = platform_entry->d_namlen;
+  const auto name_size = std::strlen(name);
 
   return DirectoryEntry(type, name, name_size);
 }

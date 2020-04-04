@@ -1,4 +1,5 @@
 #include "keyword.hpp"
+#include <cstring>
 
 namespace mt {
 

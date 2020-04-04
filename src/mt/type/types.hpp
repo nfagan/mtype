@@ -9,26 +9,26 @@
 namespace mt::types {
 
 /*
- * SubtypeRelation
+ * Class
  */
 
-struct SubtypeRelation {
-  SubtypeRelation() : source(nullptr) {
+struct Class {
+  Class() : source(nullptr) {
     //
   }
 
-  SubtypeRelation(Type* source, Type* supertype) :
+  Class(Type* source, Type* supertype) :
     source(source), supertypes{supertype} {
     //
   }
 
-  SubtypeRelation(Type* source, TypePtrs&& supertypes) :
+  Class(Type* source, TypePtrs&& supertypes) :
     source(source), supertypes(std::move(supertypes)) {
     //
   }
 
-  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(SubtypeRelation)
-  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SubtypeRelation)
+  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Class)
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Class)
 
   Type* source;
   TypePtrs supertypes;
@@ -434,9 +434,9 @@ struct Abstraction : public mt::Type {
     name(name), inputs(inputs), outputs(outputs) {
     //
   }
-  Abstraction(MatlabIdentifier name, const FunctionDefHandle& def_handle, Type* inputs, Type* outputs) :
+  Abstraction(MatlabIdentifier name, const FunctionReferenceHandle& ref_handle, Type* inputs, Type* outputs) :
     Type(Type::Tag::abstraction), kind(Kind::function),
-    name(name), inputs(inputs), outputs(outputs), def_handle(def_handle) {
+    name(name), inputs(inputs), outputs(outputs), ref_handle(ref_handle) {
     //
   }
   Abstraction(ConcatenationDirection dir, Type* inputs, Type* outputs) :
@@ -452,13 +452,13 @@ struct Abstraction : public mt::Type {
 
   Abstraction(const Abstraction& other) :
     Type(Type::Tag::abstraction), kind(other.kind),
-    inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
+    inputs(other.inputs), outputs(other.outputs), ref_handle(other.ref_handle) {
     conditional_assign_operator(other);
   }
 
   Abstraction(Abstraction&& other) noexcept :
     Type(Type::Tag::abstraction), kind(other.kind),
-    inputs(other.inputs), outputs(other.outputs), def_handle(other.def_handle) {
+    inputs(other.inputs), outputs(other.outputs), ref_handle(other.ref_handle) {
     conditional_assign_operator(other);
   }
 
@@ -468,7 +468,7 @@ struct Abstraction : public mt::Type {
     kind = other.kind;
     outputs = other.outputs;
     inputs = other.inputs;
-    def_handle = other.def_handle;
+    ref_handle = other.ref_handle;
     conditional_assign_operator(other);
     return *this;
   }
@@ -477,7 +477,7 @@ struct Abstraction : public mt::Type {
     kind = other.kind;
     outputs = other.outputs;
     inputs = other.inputs;
-    def_handle = other.def_handle;
+    ref_handle = other.ref_handle;
     conditional_assign_operator(other);
     return *this;
   }
@@ -542,7 +542,7 @@ public:
 
   Type* inputs;
   Type* outputs;
-  FunctionDefHandle def_handle;
+  FunctionReferenceHandle ref_handle;
 };
 
 /*

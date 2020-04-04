@@ -17,7 +17,7 @@ std::size_t TypeIdentifier::Hash::operator()(const TypeIdentifier& id) const {
 
 std::size_t TypeEquationTerm::TypeHash::operator()(const TypeEquationTerm& t) const {
   return std::hash<Type*>{}(t.term);
-};
+}
 
 bool TypeEquationTerm::TypeLess::operator()(const TypeEquationTerm& a, const TypeEquationTerm& b) const {
   return a.term < b.term;

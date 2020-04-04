@@ -44,13 +44,7 @@ void Unifier::check_push_function(Type* source, TermRef term, const types::Abstr
   }
 
   assert(func.inputs->is_destructured_tuple());
-
-  Optional<Type*> maybe_func;
-  if (func.def_handle.is_valid()) {
-    maybe_func = library.lookup_function(func.def_handle);
-  } else {
-    maybe_func = library.lookup_function(func);
-  }
+  auto maybe_func = library.lookup_function(func);
 
   if (maybe_func) {
     const auto func_ref = maybe_func.value();

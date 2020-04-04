@@ -33,12 +33,21 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs, const types::Sca
 }
 
 Optional<Type*> Library::lookup_function(const types::Abstraction& func) const {
-  const auto func_it = function_types.find(func);
-  return func_it == function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
+  FunctionDefHandle def_handle;
+  if (func.ref_handle.is_valid()) {
+    def_handle = def_store.get(func.ref_handle).def_handle;
+  }
+
+  if (def_handle.is_valid()) {
+    return lookup_local_function(def_handle);
+  } else {
+    const auto func_it = function_types.find(func);
+    return func_it == function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
+  }
 }
 
-Optional<Type*> Library::lookup_function(const FunctionDefHandle& func) const {
-  const auto func_it = local_function_types.find(func);
+Optional<Type*> Library::lookup_local_function(const FunctionDefHandle& def_handle) const {
+  const auto func_it = local_function_types.find(def_handle);
   return func_it == local_function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
 }
 
@@ -84,11 +93,11 @@ void Library::make_builtin_types() {
 
   //  Mark that sub-double is a subclass of double.
   scalar_subtype_relations[sub_double_type_handle] =
-    types::SubtypeRelation(sub_double_type_handle, double_type_handle);
+    types::Class(sub_double_type_handle, double_type_handle);
 
   //  Mark that sub-sub-double is a subclass of sub-double.
   scalar_subtype_relations[sub_sub_double_type_handle] =
-    types::SubtypeRelation(sub_sub_double_type_handle, sub_double_type_handle);
+    types::Class(sub_sub_double_type_handle, sub_double_type_handle);
 }
 
 void Library::make_known_types() {

@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
 
   //  Reserve space
   TypeStore type_store(1e5);
-  Library library(type_store, str_registry);
+  Library library(type_store, store, str_registry);
   library.make_known_types();
 
   Substitution substitution;

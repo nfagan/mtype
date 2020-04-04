@@ -134,7 +134,7 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   }
 
   const auto type_handle =
-    type_store.make_abstraction(function_name, node.def_handle, input_handle, output_handle);
+    type_store.make_abstraction(function_name, node.ref_handle, input_handle, output_handle);
   const auto func_var = require_bound_type_variable(node.def_handle);
 
   auto rhs_term_type = type_handle;
@@ -211,18 +211,11 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
     members.push_back(result.term);
   }
 
-  MatlabIdentifier function_name;
-  FunctionDefHandle def_handle;
-
-  store.use<Store::ReadConst>([&](const auto& reader) {
-    const auto& ref = reader.at(expr.reference_handle);
-    def_handle = ref.def_handle;
-    function_name = ref.name;
-  });
+  const auto ref = store.get(expr.reference_handle);
 
   const auto args_type = type_store.make_rvalue_destructured_tuple(std::move(members));
   auto result_type = make_fresh_type_variable_reference();
-  const auto func_type = type_store.make_abstraction(function_name, def_handle, args_type, result_type);
+  const auto func_type = type_store.make_abstraction(ref.name, expr.reference_handle, args_type, result_type);
 
   const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
 
@@ -235,8 +228,8 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
 
   push_type_equation(make_eq(func_lhs_term, func_rhs_term));
 
-  if (def_handle.is_valid()) {
-    const auto local_func_var = require_bound_type_variable(def_handle);
+  if (ref.def_handle.is_valid()) {
+    const auto local_func_var = require_bound_type_variable(ref.def_handle);
     const auto local_func_term = make_term(&expr.source_token, local_func_var);
     push_type_equation(make_eq(local_func_term, func_rhs_term));
   }
@@ -245,21 +238,14 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
 }
 
 void TypeConstraintGenerator::function_reference_expr(const FunctionReferenceExpr& expr) {
-  MatlabIdentifier name;
-  FunctionDefHandle def_handle;
-
-  store.use<Store::ReadConst>([&](const auto& reader) {
-    const auto& ref = reader.at(expr.handle);
-    def_handle = ref.def_handle;
-    name = ref.name;
-  });
+  auto ref = store.get(expr.handle);
 
   auto inputs = make_fresh_type_variable_reference();
   auto outputs = make_fresh_type_variable_reference();
-  auto func = type_store.make_abstraction(name, def_handle, inputs, outputs);
+  auto func = type_store.make_abstraction(ref.name, expr.handle, inputs, outputs);
 
-  if (def_handle.is_valid()) {
-    const auto current_type = require_bound_type_variable(def_handle);
+  if (ref.def_handle.is_valid()) {
+    const auto current_type = require_bound_type_variable(ref.def_handle);
     const auto lhs_term = make_term(&expr.source_token, current_type);
 
 #if MT_SCHEME_FUNC_REF

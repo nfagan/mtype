@@ -2,6 +2,7 @@
 
 #include "types.hpp"
 #include <utility>
+#include <memory>
 
 namespace mt {
 

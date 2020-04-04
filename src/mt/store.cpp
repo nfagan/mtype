@@ -62,6 +62,12 @@ const FunctionReference& Store::at(const FunctionReferenceHandle& handle) const 
   return function_references[handle.index];
 }
 
+FunctionReference Store::get(const FunctionReferenceHandle& handle) const {
+  Store::ReadConst reader(*this);
+  assert(handle.is_valid() && handle.index < int64_t(function_references.size()));
+  return function_references[handle.index];
+}
+
 FunctionDefHandle Store::emplace_definition(FunctionDef&& def) {
   function_definitions.emplace_back(std::move(def));
   return FunctionDefHandle(function_definitions.size() - 1);

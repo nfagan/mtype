@@ -203,7 +203,7 @@ struct FunctionDef {
 
 struct FunctionReference {
   FunctionReference(const MatlabIdentifier& name,
-                    FunctionDefHandle def_handle,
+                    const FunctionDefHandle& def_handle,
                     const MatlabScope* scope) :
     name(name), def_handle(def_handle), scope(scope) {
     //

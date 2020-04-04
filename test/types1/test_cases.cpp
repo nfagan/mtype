@@ -36,13 +36,13 @@
 namespace mt {
 
 void test_subtyping() {
+  Store def_store;
   StringRegistry str_registry;
   TypeStore store(1e5);
-  Library library(store, str_registry);
+  Library library(store, def_store, str_registry);
   SubtypeRelation subtype_relation(library);
   library.make_known_types();
   TypeRelation relation(subtype_relation, store);
-  TypeRelation::ArgumentLess arg_compare(relation);
 
   const auto& d_handle = library.double_type_handle;
   const auto& sub_d_handle = library.sub_double_type_handle;
@@ -88,11 +88,12 @@ void test_subtyping() {
 void test_equivalence_debug() {
   using Use = types::DestructuredTuple::Usage;
 
+  Store def_store;
   StringRegistry str_registry;
   TypeStore store(1e5);
   EquivalenceRelation equiv;
   TypeRelation eq(equiv, store);
-  Library library(store, str_registry);
+  Library library(store, def_store, str_registry);
   library.make_known_types();
 
   const auto& d_handle = library.double_type_handle;
@@ -230,11 +231,12 @@ void test_equivalence() {
 
   using Use = types::DestructuredTuple::Usage;
 
+  Store def_store;
   StringRegistry str_registry;
   TypeStore store(1e5);
   EquivalenceRelation equiv;
   TypeRelation eq(equiv, store);
-  Library library(store, str_registry);
+  Library library(store, def_store, str_registry);
   library.make_known_types();
 
   const auto& d_handle = library.double_type_handle;
