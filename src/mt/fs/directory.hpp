@@ -69,4 +69,8 @@ private:
   detail::PlatformHandle* platform_handle;
 };
 
+namespace fs {
+  bool directory_exists(const FilePath& path);
+}
+
 }

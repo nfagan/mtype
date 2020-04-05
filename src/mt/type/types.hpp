@@ -5,6 +5,23 @@
 #include "../lang_components.hpp"
 #include "../identifier.hpp"
 #include "../handles.hpp"
+#include "../definitions.hpp"
+#include "../Optional.hpp"
+
+namespace mt {
+struct TypedFunctionReference {
+  struct NameHash {
+    std::size_t operator()(const TypedFunctionReference& a) const;
+  };
+
+  TypedFunctionReference() : ref(MatlabIdentifier(), FunctionDefHandle(), nullptr), type(nullptr) {
+    //
+  }
+
+  FunctionReference ref;
+  Type* type;
+};
+}
 
 namespace mt::types {
 
@@ -12,23 +29,37 @@ namespace mt::types {
  * Class
  */
 
-struct Class {
-  Class() : source(nullptr) {
+struct Class : public Type {
+  Class() : Class(nullptr) {
     //
   }
 
+  //  No supertypes.
+  explicit Class(Type* source) : Type(Type::Tag::class_type), source(source) {
+    //
+  }
+
+  //  One supertype.
   Class(Type* source, Type* supertype) :
-    source(source), supertypes{supertype} {
+    Type(Type::Tag::class_type), source(source), supertypes{supertype} {
     //
   }
 
   Class(Type* source, TypePtrs&& supertypes) :
-    source(source), supertypes(std::move(supertypes)) {
+    Type(Type::Tag::class_type), source(source), supertypes(std::move(supertypes)) {
     //
   }
 
   MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Class)
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Class)
+
+  ~Class() override = default;
+
+  std::size_t bytes() const override {
+    return sizeof(Class);
+  }
+
+  void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   Type* source;
   TypePtrs supertypes;
@@ -330,6 +361,8 @@ struct DestructuredTuple : public Type {
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  Optional<Type*> first_non_destructured_tuple_member() const;
+
   Usage usage;
   TypePtrs members;
 };
@@ -398,6 +431,9 @@ struct Assignment : public Type {
 struct Abstraction : public mt::Type {
   struct HeaderCompare {
     int operator()(const Abstraction& a, const Abstraction& b) const;
+  };
+  struct HeaderLess {
+    bool operator()(const Abstraction& a, const Abstraction& b) const;
   };
 
   enum class Kind : uint8_t {
@@ -588,6 +624,9 @@ namespace mt {
 #define MT_SUBS_REF(a) static_cast<const mt::types::Subscript&>((a))
 #define MT_LIST_REF(a) static_cast<const mt::types::List&>((a))
 #define MT_ASSIGN_REF(a) static_cast<const mt::types::Assignment&>((a))
+#define MT_CLASS_REF(a) static_cast<const mt::types::Class&>((a))
+
+#define MT_CLASS_PTR(a) static_cast<const mt::types::Class*>((a))
 
 #define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
 #define MT_ABSTR_MUT_REF(a) static_cast<mt::types::Abstraction&>((a))
@@ -599,3 +638,6 @@ namespace mt {
 #define MT_SUBS_MUT_REF(a) static_cast<mt::types::Subscript&>((a))
 #define MT_LIST_MUT_REF(a) static_cast<mt::types::List&>((a))
 #define MT_ASSIGN_MUT_REF(a) static_cast<mt::types::Assignment&>((a))
+#define MT_CLASS_MUT_REF(a) static_cast<mt::types::Class&>((a))
+
+#define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))

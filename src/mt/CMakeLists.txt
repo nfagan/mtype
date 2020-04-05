@@ -9,6 +9,7 @@ set(sources
         character.hpp
         character.cpp
         character_traits.hpp
+        config.hpp
         definitions.hpp
         definitions.cpp
         display.hpp
@@ -31,6 +32,8 @@ set(sources
         Result.hpp
         scan.hpp
         scan.cpp
+        search_path.hpp
+        search_path.cpp
         string.hpp
         string.cpp
         text.hpp

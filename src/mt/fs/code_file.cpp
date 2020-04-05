@@ -46,4 +46,14 @@ CodeFileType code_file_type_from_root_block(const RootBlock& root) {
   }
 }
 
+bool CodeFileDescriptor::represents_known_file() const {
+  switch (file_type) {
+    case CodeFileType::none:
+    case CodeFileType::unknown:
+      return false;
+    default:
+      return true;
+  }
+}
+
 }

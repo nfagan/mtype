@@ -40,6 +40,8 @@ std::vector<std::string_view> split(std::string_view view, const Character& deli
 std::vector<std::string> split_copy(const char* str, int64_t len, const Character& delim);
 std::vector<std::string> split_whitespace_copy(const char* str, int64_t len, bool preserve = false);
 
+std::string utf8_reverse(const std::string& str);
+
 std::string ptr_to_hex_string(const void* ptr);
 
 template <typename T>
@@ -58,6 +60,7 @@ std::string join(const std::vector<T>& strs, const std::string& by) {
   return result;
 }
 
-std::vector<int64_t> find_character(const char* str, int64_t len, const Character& delim);
+std::vector<int64_t> find_characters(const char* str, int64_t len, const Character& delim);
+int64_t find_character(const char* str, int64_t len, const Character& search);
 
 }

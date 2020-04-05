@@ -9,6 +9,7 @@
 #include "token_manipulation.hpp"
 #include "ast/StringVisitor.hpp"
 #include "ast/visitor.hpp"
+#include "search_path.hpp"
 
 #include "type/types.hpp"
 #include "type/type_constraint_gen.hpp"

@@ -149,7 +149,34 @@ std::vector<std::string> split_whitespace_copy(const char* str, int64_t len, boo
   return split_whitespace<std::string>(str, len, preserve);
 }
 
-std::vector<int64_t> find_character(const char* str, int64_t len, const Character& look_for) {
+std::string utf8_reverse(const std::string& str) {
+  std::string res;
+  res.resize(str.size());
+
+  int64_t end_idx = str.size()-1;
+  char* res_ptr = res.data();
+  res_ptr[str.size()] = '\0';
+
+  CharacterIterator it(str.data(), str.size());
+
+  while (it.has_next()) {
+    const auto c = std::string_view(it.advance());
+    const auto* c_ptr = c.data();
+    const int sz = c.size();
+
+    for (int i = 0; i < sz; i++) {
+      const auto off = end_idx - sz + i + 1;
+      assert(off >= 0);
+      res_ptr[off] = c_ptr[i];
+    }
+
+    end_idx -= sz;
+  }
+
+  return res;
+}
+
+std::vector<int64_t> find_characters(const char* str, int64_t len, const Character& look_for) {
   CharacterIterator it(str, len);
   std::vector<int64_t> result;
 
@@ -164,6 +191,22 @@ std::vector<int64_t> find_character(const char* str, int64_t len, const Characte
   }
 
   return result;
+}
+
+int64_t find_character(const char* str, int64_t len, const Character& search) {
+  CharacterIterator it(str, len);
+
+  while (it.has_next()) {
+    auto c = it.peek();
+
+    if (c == search) {
+      return it.next_index();
+    }
+
+    it.advance();
+  }
+
+  return -1;
 }
 
 std::string ptr_to_hex_string(const void* ptr) {

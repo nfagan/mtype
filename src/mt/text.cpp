@@ -82,7 +82,7 @@ MarkTextResult mark_text(std::string_view text, int64_t start, int64_t stop, int
   std::string_view subset_text(text.data() + begin_ind, len);
 
   auto lines = split(subset_text, Character('\n'));
-  auto new_line_inds = find_character(subset_text.data(), subset_text.size(), Character('\n'));
+  auto new_line_inds = find_characters(subset_text.data(), subset_text.size(), Character('\n'));
 
   auto cumulative_inds = new_line_inds;
   cumulative_inds.insert(cumulative_inds.begin(), -1);

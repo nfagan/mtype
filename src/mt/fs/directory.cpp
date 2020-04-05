@@ -1,6 +1,8 @@
 #include "directory.hpp"
+#include "../config.hpp"
 #include <dirent.h>
 #include <cstring>
+#include <sys/stat.h>
 
 namespace mt {
 
@@ -106,5 +108,22 @@ void DirectoryIterator::close() {
   }
   is_open = false;
 }
+
+#if defined(MT_UNIX)
+bool fs::directory_exists(const FilePath& path) {
+  struct stat sb;
+  const int status = stat(path.c_str(), &sb);
+  if (status != 0) {
+    return false;
+  }
+  return (sb.st_mode & S_IFMT) == S_IFDIR;
+}
+#elif defined(MT_WIN)
+/*
+ * @TODO
+ */
+#else
+#error "Expected one of Unix or Windows for OS."
+#endif
 
 }

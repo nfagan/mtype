@@ -38,6 +38,7 @@ public:
   void apply(const types::Parameters& params, std::stringstream& into) const;
   void apply(const types::Union& union_type, std::stringstream& into) const;
   void apply(const types::ConstantValue& val, std::stringstream& into) const;
+  void apply(const types::Class& cls, std::stringstream& into) const;
   void apply(const TypePtrs& handles, std::stringstream& into, const char* delim = ", ") const;
 
   const char* color(const char* color_code) const;

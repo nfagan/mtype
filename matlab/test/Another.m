@@ -44,8 +44,8 @@ classdef Another < dynamicprops
   end
 end
 
-function c = test(x)
+function [c, x] = test(x)
 
-c = 1;
+c = [1] + [1];
 
 end

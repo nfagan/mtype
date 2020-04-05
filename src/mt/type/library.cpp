@@ -1,6 +1,8 @@
 #include "library.hpp"
 #include "type_store.hpp"
 #include "../string.hpp"
+#include "../fs/code_file.hpp"
+#include "../fs/path.hpp"
 #include <cassert>
 
 namespace mt {
@@ -18,12 +20,12 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs, const types::Sca
     return true;
   }
 
-  const auto& sub_it = scalar_subtype_relations.find(lhs);
-  if (sub_it == scalar_subtype_relations.end()) {
+  const auto& sub_it = class_wrappers.find(lhs);
+  if (sub_it == class_wrappers.end()) {
     return false;
   }
 
-  for (const auto& supertype : sub_it->second.supertypes) {
+  for (const auto& supertype : sub_it->second->supertypes) {
     if (supertype == rhs || subtype_related(supertype, rhs)) {
       return true;
     }
@@ -32,23 +34,100 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs, const types::Sca
   return false;
 }
 
-Optional<Type*> Library::lookup_function(const types::Abstraction& func) const {
-  FunctionDefHandle def_handle;
-  if (func.ref_handle.is_valid()) {
-    def_handle = def_store.get(func.ref_handle).def_handle;
+Library::FunctionSearchResult Library::search_function(const types::Abstraction& func) const {
+  const auto def_handle = maybe_extract_function_def(func);
+
+  if (def_handle.is_valid()) {
+    return lookup_local_function(def_handle);
   }
+
+  if (!func.inputs->is_destructured_tuple()) {
+    return FunctionSearchResult(Optional<Type*>(NullOpt{}));
+  }
+
+  auto maybe_method = method_dispatch(func);
+  if (maybe_method) {
+    return maybe_method;
+  }
+
+  if (func.is_function() && func.ref_handle.is_valid()) {
+    auto ref = def_store.get(func.ref_handle);
+    auto str_name = string_registry.at(ref.name.full_name());
+    const auto& file_descriptor = *ref.scope->file_descriptor;
+
+    Optional<const SearchPath::Candidate*> maybe_func_file;
+
+    if (file_descriptor.represents_known_file()) {
+      const auto containing_dir = fs::directory_name(file_descriptor.file_path);
+      maybe_func_file = search_path.search_for(str_name, containing_dir);
+    } else {
+      maybe_func_file = search_path.search_for(str_name);
+    }
+
+    if (maybe_func_file) {
+      return FunctionSearchResult(maybe_func_file);
+    }
+  }
+
+  return lookup_pre_defined_external_function(func);
+}
+
+FunctionDefHandle Library::maybe_extract_function_def(const types::Abstraction& func) const {
+  if (func.ref_handle.is_valid()) {
+    return def_store.get(func.ref_handle).def_handle;
+  } else {
+    return FunctionDefHandle();
+  }
+}
+
+Optional<Type*> Library::method_dispatch(const types::Abstraction& func) const {
+  const auto& args = MT_DT_REF(*func.inputs).members;
+
+  for (const auto& arg : args) {
+    Type* arg_lookup = arg;
+
+    if (arg_lookup->is_destructured_tuple()) {
+      auto maybe_lookup = MT_DT_REF(*arg_lookup).first_non_destructured_tuple_member();
+      if (!maybe_lookup) {
+        //  Ill-formed search; arguments had an empty destructured tuple.
+        return NullOpt{};
+      }
+
+      arg_lookup = maybe_lookup.value();
+    }
+
+    const auto maybe_class = class_for_type(arg_lookup);
+
+    if (maybe_class) {
+      const auto maybe_method = method_store.lookup_method(maybe_class.value(), func);
+
+      if (maybe_method) {
+        return Optional<Type*>(maybe_method.value());
+      }
+    }
+  }
+
+  return NullOpt{};
+}
+
+Optional<Type*> Library::lookup_function(const types::Abstraction& func) const {
+  const auto def_handle = maybe_extract_function_def(func);
 
   if (def_handle.is_valid()) {
     return lookup_local_function(def_handle);
   } else {
-    const auto func_it = function_types.find(func);
-    return func_it == function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
+    return lookup_pre_defined_external_function(func);
   }
 }
 
 Optional<Type*> Library::lookup_local_function(const FunctionDefHandle& def_handle) const {
   const auto func_it = local_function_types.find(def_handle);
   return func_it == local_function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
+}
+
+Optional<Type*> Library::lookup_pre_defined_external_function(const types::Abstraction& func) const {
+  const auto func_it = function_types.find(func);
+  return func_it == function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
 }
 
 void Library::emplace_local_function_type(const FunctionDefHandle& handle, Type* type) {
@@ -83,6 +162,27 @@ Optional<std::string> Library::type_name(const mt::types::Scalar& scl) const {
   }
 }
 
+Optional<types::Class*> Library::class_wrapper(const Type* type) const {
+  auto it = class_wrappers.find(type);
+  if (it == class_wrappers.end()) {
+    return NullOpt{};
+  }
+  return Optional<types::Class*>(it->second);
+}
+
+Optional<const types::Class*> Library::class_for_type(const Type* type) const {
+  if (type->is_class()) {
+    return Optional<const types::Class*>(MT_CLASS_PTR(type));
+  } else {
+    auto maybe_wrapper = class_wrapper(type);
+    if (maybe_wrapper) {
+      return Optional<const types::Class*>(maybe_wrapper.value());
+    }
+  }
+
+  return NullOpt{};
+}
+
 void Library::make_builtin_types() {
   double_type_handle = make_named_scalar_type("double");
   string_type_handle = make_named_scalar_type("string");
@@ -90,22 +190,27 @@ void Library::make_builtin_types() {
   sub_double_type_handle = make_named_scalar_type("sub-double");
   sub_sub_double_type_handle = make_named_scalar_type("sub-sub-double");
   logical_type_handle = make_named_scalar_type("logical");
+  double_type_class = store.make_class(double_type_handle);
+
+  auto sub_double_class_wrapper = store.make_class(sub_double_type_handle, double_type_handle);
+  auto sub_sub_double_class_wrapper = store.make_class(sub_sub_double_type_handle, sub_double_type_handle);
 
   //  Mark that sub-double is a subclass of double.
-  scalar_subtype_relations[sub_double_type_handle] =
-    types::Class(sub_double_type_handle, double_type_handle);
+  class_wrappers[sub_double_type_handle] = sub_double_class_wrapper;
 
   //  Mark that sub-sub-double is a subclass of sub-double.
-  scalar_subtype_relations[sub_sub_double_type_handle] =
-    types::Class(sub_sub_double_type_handle, sub_double_type_handle);
+  class_wrappers[sub_sub_double_type_handle] = sub_sub_double_class_wrapper;
+
+  //  Add double class wrapper.
+  class_wrappers[double_type_handle] = MT_CLASS_MUT_PTR(double_type_class);
 }
 
 void Library::make_known_types() {
   make_builtin_types();
   make_subscript_references();
-  make_binary_operators();
   make_free_functions();
   make_concatenations();
+  make_double_methods();
 }
 
 void Library::make_free_functions() {
@@ -228,28 +333,6 @@ void Library::make_concatenations() {
   function_types[cat_copy] = scheme;
 }
 
-void Library::make_binary_operators() {
-  using types::DestructuredTuple;
-  using types::Abstraction;
-
-  std::vector<BinaryOperator> operators{BinaryOperator::plus, BinaryOperator::minus,
-                                        BinaryOperator::times, BinaryOperator::matrix_times,
-                                        BinaryOperator::right_divide, BinaryOperator::colon};
-
-  TypePtrs arg_types{sub_double_type_handle, double_type_handle};
-
-  for (const auto& op : operators) {
-    for (const auto& arg : arg_types) {
-      const auto args_type = store.make_input_destructured_tuple(arg, arg);
-      const auto result_type = store.make_output_destructured_tuple(arg);
-      const auto func_type = store.make_abstraction(op, args_type, result_type);
-      const auto func_copy = MT_ABSTR_REF(*func_type);
-
-      function_types[func_copy] = func_type;
-    }
-  }
-}
-
 void Library::make_feval() {
   const auto name = MatlabIdentifier(string_registry.register_string("feval"));
   const auto arg_var = store.make_fresh_parameters();
@@ -334,6 +417,27 @@ void Library::make_function_as_input() {
   function_types[abstr_copy] = func;
 }
 
+void Library::make_double_methods() {
+  std::vector<BinaryOperator> operators{BinaryOperator::plus, BinaryOperator::minus,
+                                        BinaryOperator::times, BinaryOperator::matrix_times,
+                                        BinaryOperator::right_divide, BinaryOperator::colon};
+
+  TypePtrs arg_types{double_type_handle};
+
+  for (const auto& op : operators) {
+    for (const auto& arg : arg_types) {
+      const auto args_type = store.make_input_destructured_tuple(arg, arg);
+      const auto result_type = store.make_output_destructured_tuple(arg);
+      const auto func_type = store.make_abstraction(op, args_type, result_type);
+      const auto func_copy = MT_ABSTR_REF(*func_type);
+
+      auto class_wrapper = class_for_type(arg);
+      assert(class_wrapper);  //  wrapper should have already been created.
+      method_store.add_method(class_wrapper.value(), func_copy, func_type);
+    }
+  }
+}
+
 Type* Library::make_named_scalar_type(const char* name) {
   const auto name_id = string_registry.register_string(name);
   const auto type_handle = store.make_concrete();
@@ -354,6 +458,46 @@ Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&
 
 void Library::add_type_with_known_subscript(const Type* t) {
   types_with_known_subscripts.push_back(t);
+}
+
+/*
+ * MethodStore
+ */
+
+bool MethodStore::has_method(const types::Class* cls, const types::Abstraction& ref) const {
+  if (methods.count(cls) == 0) {
+    return false;
+  }
+
+  return methods.at(cls).count(ref) > 0;
+}
+
+Optional<Type*> MethodStore::lookup_method(const types::Class* cls, const types::Abstraction& by_header) const {
+  if (methods.count(cls) == 0) {
+    return NullOpt{};
+  }
+
+  const auto& methods_this_class = methods.at(cls);
+  const auto& method_it = methods_this_class.find(by_header);
+
+  if (method_it == methods_this_class.end()) {
+    return NullOpt{};
+  }
+
+  return Optional<Type*>(method_it->second);
+}
+
+void MethodStore::add_method(const types::Class* to_class, const types::Abstraction& ref, Type* type) {
+  auto& methods_this_class = require_methods(to_class);
+  assert(methods_this_class.count(ref) == 0);
+  methods_this_class[ref] = type;
+}
+
+MethodStore::TypedMethods& MethodStore::require_methods(const types::Class* for_class) {
+  if (methods.count(for_class) == 0) {
+    methods[for_class] = {};
+  }
+  return methods.at(for_class);
 }
 
 }

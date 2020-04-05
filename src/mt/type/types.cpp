@@ -5,6 +5,22 @@
 namespace mt {
 
 /*
+ * TypedFunctionReference
+ */
+
+std::size_t TypedFunctionReference::NameHash::operator()(const TypedFunctionReference& a) const {
+  return MatlabIdentifier::Hash{}(a.ref.name);
+}
+
+/*
+ * Class
+ */
+
+void types::Class::accept(const TypeToString& to_str, std::stringstream& into) const {
+  to_str.apply(*this, into);
+}
+
+/*
  * Variable
  */
 
@@ -50,6 +66,18 @@ void types::Tuple::accept(const TypeToString& to_str, std::stringstream& into) c
 
 void types::DestructuredTuple::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+Optional<Type*> types::DestructuredTuple::first_non_destructured_tuple_member() const {
+  for (const auto& m : members) {
+    if (m->is_destructured_tuple()) {
+      return MT_DT_REF(*m).first_non_destructured_tuple_member();
+    } else {
+      return Optional<Type*>(m);
+    }
+  }
+
+  return NullOpt{};
 }
 
 /*
@@ -126,6 +154,10 @@ int types::Abstraction::HeaderCompare::operator()(const Abstraction& a, const Ab
   }
 
   return 0;
+}
+
+bool types::Abstraction::HeaderLess::operator()(const Abstraction& a, const Abstraction& b) const {
+  return HeaderCompare{}(a, b) == -1;
 }
 
 /*

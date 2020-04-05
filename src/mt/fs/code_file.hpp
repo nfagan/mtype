@@ -33,6 +33,8 @@ public:
   }
   ~CodeFileDescriptor() = default;
 
+  bool represents_known_file() const;
+
 public:
   CodeFileType file_type;
   FilePath file_path;

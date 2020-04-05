@@ -8,8 +8,12 @@ namespace mt {
 
 class FilePath {
 public:
+  struct Hash {
+    std::size_t operator()(const FilePath& a) const;
+  };
+public:
   FilePath() = default;
-  explicit FilePath(const std::string& component) : component(component) {
+  explicit FilePath(std::string component) : component(std::move(component)) {
     //
   }
 
@@ -33,8 +37,23 @@ public:
     return stream << file_path.component;
   }
 
+  inline friend bool operator==(const FilePath& a, const FilePath& b) {
+    return a.component == b.component;
+  }
+
+  inline friend bool operator!=(const FilePath& a, const FilePath& b) {
+    return a.component != b.component;
+  }
+
 private:
   std::string component;
 };
+
+namespace fs {
+  extern const char* const separator;
+
+  FilePath join(const FilePath& a, const FilePath& b);
+  FilePath directory_name(const FilePath& a);
+}
 
 }

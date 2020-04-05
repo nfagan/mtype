@@ -1,6 +1,12 @@
-function save_path(paths)
+function p = save_path(paths)
 
 %   SAVE_PATH -- Save Matlab search path to text file.
+%
+%     mt.save_path( {dir1, dir2} ); saves a text file 'path.txt'
+%     containing new-line delimited directory paths `dir1` and `dir2`. 
+%
+%     The file is saved in the directory given by 
+%     `fullfile(mt.project_dir(), 'data')`.
 %
 %     See also mt.build_entry_point
 
@@ -10,9 +16,8 @@ end
 
 p = strjoin( paths, newline() );
 
-data_path = fullfile( fileparts(fileparts(which('mt.save_path'))), 'data' );
-file_name = 'path.txt';
-file_path = fullfile( data_path, file_name );
+[file_path, data_path] = mt.path_filepath();
+mt.require_directory( data_path );
 
 fid = fopen( file_path, 'w' );
 cleanup = onCleanup( @() fclose(fid) );

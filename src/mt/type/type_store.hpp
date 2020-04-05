@@ -92,6 +92,11 @@ public:
     return make_type<types::Subscript>(std::forward<Args>(args)...);
   }
 
+  template <typename... Args>
+  types::Class* make_class(Args&&... args) {
+    return make_type<types::Class>(std::forward<Args>(args)...);
+  }
+
   Type* make_concrete() {
     return make_type<types::Scalar>(make_type_identifier());
   }
@@ -105,7 +110,7 @@ private:
 
 
   template <typename T, typename... Args>
-  Type* make_type(Args&&... args) {
+  T* make_type(Args&&... args) {
     auto type = std::make_unique<T>(std::forward<Args>(args)...);
     auto ptr = type.get();
     types.push_back(std::move(type));

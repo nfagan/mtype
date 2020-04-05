@@ -36,6 +36,8 @@ const char* to_string(Type::Tag tag) {
       return "assignment";
     case Tag::parameters:
       return "parameters";
+    case Tag::class_type:
+      return "class_type";
     default:
       assert(false && "Unhandled.");
   }

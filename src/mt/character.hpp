@@ -41,18 +41,18 @@ private:
 
 class Character {
 public:
-  Character() = default;
+  Character() noexcept = default;
   ~Character() = default;
-  Character(const Character& other) = default;
+  Character(const Character& other) noexcept = default;
 
-  explicit Character(char c) {
+  explicit Character(char c) noexcept {
     static_assert(std::is_trivially_copyable<mt::Character>::value, "Expected class to be trivially copyable.");
     zero_units();
     units[0] = c;
   }
 
   //  From (up-to-4) byte sequence.
-  explicit Character(const char* str, int n_units) {
+  explicit Character(const char* str, int n_units) noexcept {
     zero_units();
 
     n_units = check_length(n_units);
@@ -62,7 +62,7 @@ public:
     }
   }
 
-  explicit Character(const char* str) : Character(str, std::strlen(str)) {
+  explicit Character(const char* str) noexcept : Character(str, std::strlen(str)) {
     //
   }
 

@@ -144,6 +144,11 @@ void TypeToString::apply(const types::ConstantValue&, std::stringstream& into) c
   into << "<constant>";
 }
 
+void TypeToString::apply(const types::Class& cls, std::stringstream& into) const {
+  into << "class: ";
+  apply(cls.source, into);
+}
+
 void TypeToString::apply(const TypePtrs& handles, std::stringstream& stream, const char* delim) const {
   const int64_t sz = handles.size();
   for (int64_t i = 0; i < sz; i++) {

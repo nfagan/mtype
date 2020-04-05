@@ -44,10 +44,11 @@ void Unifier::check_push_function(Type* source, TermRef term, const types::Abstr
   }
 
   assert(func.inputs->is_destructured_tuple());
-  auto maybe_func = library.lookup_function(func);
+  const auto search_result = library.search_function(func);
 
-  if (maybe_func) {
-    const auto func_ref = maybe_func.value();
+  if (search_result.resolved_type) {
+    //  This function has a known type.
+    const auto func_ref = search_result.resolved_type.value();
 
     if (func_ref->is_abstraction()) {
       const auto lhs_term = make_term(term.source_token, source);
@@ -66,6 +67,9 @@ void Unifier::check_push_function(Type* source, TermRef term, const types::Abstr
 
       registered_funcs[new_abstr_handle] = true;
     }
+
+  } else if (search_result.external_function_candidate) {
+    //  This function was located in at least one file.
 
   } else {
     add_error(make_unresolved_function_error(term.source_token, source));

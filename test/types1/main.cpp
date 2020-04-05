@@ -20,6 +20,13 @@ std::string get_source_file_path(int argc, char** argv) {
     return argv[1];
   }
 }
+
+mt::Optional<mt::SearchPath> get_search_path() {
+  using namespace mt;
+  FilePath path_file = fs::join(FilePath(MT_MATLAB_DATA_DIR), FilePath("path.txt"));
+  return SearchPath::build_from_path_file(path_file);
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -52,11 +59,19 @@ int main(int argc, char** argv) {
     show_parse_errors(parse_result.value.warnings, scan_info.row_column_indices);
   }
 
+  const auto maybe_search_path = get_search_path();
+  if (!maybe_search_path) {
+    std::cout << "Failed to build search path." << std::endl;
+    return -1;
+  }
+
+  const auto& search_path = maybe_search_path.value();
+
   auto t0 = std::chrono::high_resolution_clock::now();
 
   //  Reserve space
   TypeStore type_store(1e5);
-  Library library(type_store, store, str_registry);
+  Library library(type_store, store, search_path, str_registry);
   library.make_known_types();
 
   Substitution substitution;
@@ -93,8 +108,6 @@ int main(int argc, char** argv) {
   std::cout << "Num type eqs: " << substitution.num_type_equations() << std::endl;
   std::cout << "Subs size: " << substitution.num_bound_terms() << std::endl;
   std::cout << "Num types: " << type_store.size() << std::endl;
-  std::cout << "Type size: " << sizeof(mt::Type) << std::endl;
-  std::cout << "Vec size: " << sizeof(TypePtrs) << std::endl;
 
   mt::run_all();
 
