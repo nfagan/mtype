@@ -63,8 +63,8 @@ const FunctionReference& Store::at(const FunctionReferenceHandle& handle) const 
 }
 
 FunctionReference Store::get(const FunctionReferenceHandle& handle) const {
-  Store::ReadConst reader(*this);
   assert(handle.is_valid() && handle.index < int64_t(function_references.size()));
+  Store::ReadConst reader(*this);
   return function_references[handle.index];
 }
 

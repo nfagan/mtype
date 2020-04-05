@@ -27,18 +27,13 @@ public:
   };
 
 public:
-  SearchPath() : SearchPath(std::vector<FilePath>()) {
-    //
-  }
-
-  SearchPath(std::vector<FilePath>&& directories) :
-  directories(std::move(directories)), is_within_private_directory(false) {
+  SearchPath() : is_within_private_directory(false) {
     //
   }
 
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SearchPath)
 
-  MT_NODISCARD DirectoryIterator::Status build();
+  MT_NODISCARD DirectoryIterator::Status build(const std::vector<FilePath>& directories);
   Optional<const Candidate*> search_for(const std::string& name) const;
   Optional<const Candidate*> search_for(const std::string& name, const FilePath& from_directory) const;
 
@@ -71,7 +66,6 @@ private:
 
 
 private:
-  std::vector<FilePath> directories;
   CandidateMap candidate_files;
   std::unordered_map<FilePath, CandidateMap, FilePath::Hash> private_candidates;
 

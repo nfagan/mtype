@@ -82,4 +82,21 @@ MethodStore {
   map<Class*, set<TypedFunctionInfo>> methods;
 }
 
+
+When resolving the type of an external function:
+
+1. Require a type variable for the function, hashing based on the
+   Candidate*
+
+2. Push the type variable and candidate to an array of pending external
+   functions, if not already pushed.
+
+3. After unifying, for each pending candidate:
+    a) Check whether the file associated with the candidate has been
+       parsed. If so, it should have a type associated with it.
+    b) Otherwise, parse the file, and extract its type signature.
+    c) Push a type equation relating the type variable in 1. to the
+       signature in b).
+    d) If the function is generic, its constraints must be collected.
+
 %}

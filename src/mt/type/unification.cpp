@@ -35,11 +35,7 @@ bool Unifier::is_known_subscript_type(const Type* handle) const {
 }
 
 void Unifier::check_push_function(Type* source, TermRef term, const types::Abstraction& func) {
-  if (registered_funcs.count(source) > 0) {
-    return;
-  }
-
-  if (!is_concrete_argument(func.inputs) || func.is_anonymous()) {
+  if (registered_funcs.count(source) > 0 || func.is_anonymous() || !is_concrete_argument(func.inputs)) {
     return;
   }
 

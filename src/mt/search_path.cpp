@@ -16,7 +16,7 @@ namespace {
   }
 }
 
-DirectoryIterator::Status SearchPath::build() {
+DirectoryIterator::Status SearchPath::build(const std::vector<FilePath>& directories) {
   for (int64_t i = 0; i < int64_t(directories.size()); i++) {
     auto status = build_one(directories[i], i, std::string());
     if (status != DirectoryIterator::Status::success) {
@@ -191,8 +191,8 @@ Optional<SearchPath> SearchPath::build_from_path_file(const FilePath& file) {
     directories.emplace_back(std::string(p));
   }
 
-  SearchPath search_path(std::move(directories));
-  auto res = search_path.build();
+  SearchPath search_path;
+  auto res = search_path.build(directories);
 
   if (res != DirectoryIterator::Status::success) {
     return NullOpt{};
