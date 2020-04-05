@@ -116,7 +116,7 @@ private:
 
   MT_NODISCARD Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
   MT_NODISCARD Optional<Type*> lookup_pre_defined_external_function(const types::Abstraction& func) const;
-  MT_NODISCARD Optional<Type*> method_dispatch(const types::Abstraction& func) const;
+  MT_NODISCARD Optional<Type*> method_dispatch(const types::Abstraction& func, const TypePtrs& args) const;
   MT_NODISCARD FunctionDefHandle maybe_extract_function_def(const types::Abstraction& func) const;
 
   void add_type_with_known_subscript(const Type* t);

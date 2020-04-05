@@ -41,11 +41,10 @@ Library::FunctionSearchResult Library::search_function(const types::Abstraction&
     return lookup_local_function(def_handle);
   }
 
-  if (!func.inputs->is_destructured_tuple()) {
-    return FunctionSearchResult(Optional<Type*>(NullOpt{}));
-  }
+  //  `search_function` assumes `func`'s arguments are concrete. See unification.cpp.
+  assert(func.inputs->is_destructured_tuple());
 
-  auto maybe_method = method_dispatch(func);
+  auto maybe_method = method_dispatch(func, MT_DT_REF(*func.inputs).members);
   if (maybe_method) {
     return maybe_method;
   }
@@ -80,9 +79,7 @@ FunctionDefHandle Library::maybe_extract_function_def(const types::Abstraction& 
   }
 }
 
-Optional<Type*> Library::method_dispatch(const types::Abstraction& func) const {
-  const auto& args = MT_DT_REF(*func.inputs).members;
-
+Optional<Type*> Library::method_dispatch(const types::Abstraction& func, const TypePtrs& args) const {
   for (const auto& arg : args) {
     Type* arg_lookup = arg;
 
