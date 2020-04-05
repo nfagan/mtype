@@ -27,34 +27,34 @@ public:
   };
 
 public:
-  SearchPath() : is_within_private_directory(false) {
+  SearchPath() : is_within_private_directory(false), private_directory_parent(nullptr) {
     //
   }
 
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SearchPath)
 
   MT_NODISCARD DirectoryIterator::Status build(const std::vector<FilePath>& directories);
+
   Optional<const Candidate*> search_for(const std::string& name) const;
   Optional<const Candidate*> search_for(const std::string& name, const FilePath& from_directory) const;
 
-  int64_t size() const {
-    return candidate_files.size() + private_candidates.size();
-  }
+  int64_t size() const;
 
   static Optional<SearchPath> build_from_path_file(const FilePath& file);
 
 private:
   using CandidateMap = std::unordered_map<std::string, Candidate>;
+  using Status = DirectoryIterator::Status;
 
-  MT_NODISCARD DirectoryIterator::Status build_one(const FilePath& path, int64_t precedence,
-                                                   const std::string& parent_package);
+  MT_NODISCARD Status build_one(const FilePath& path, int64_t precedence, const std::string& parent_package);
+
   void maybe_add_file(const FilePath& path, int64_t precedence,
                       const std::string& parent_package, const DirectoryEntry& entry);
 
-  DirectoryIterator::Status traverse_package(const FilePath& path, int64_t precedence,
-                                             const std::string& parent_package, const DirectoryEntry& entry);
-  DirectoryIterator::Status traverse_private_directory(const FilePath& path, int64_t precedence,
-                                                       const std::string& parent_package, const DirectoryEntry& entry);
+  Status traverse_package(const FilePath& path, int64_t precedence,
+                          const std::string& parent_package, const DirectoryEntry& entry);
+  Status traverse_private_directory(const FilePath& path, int64_t precedence,
+                                    const std::string& parent_package, const DirectoryEntry& entry);
 
   CandidateMap& require_private_candidate_map(const FilePath& for_private_directory_parent);
 
@@ -70,7 +70,7 @@ private:
   std::unordered_map<FilePath, CandidateMap, FilePath::Hash> private_candidates;
 
   bool is_within_private_directory;
-  FilePath private_directory_parent;
+  const FilePath* private_directory_parent;
 };
 
 }

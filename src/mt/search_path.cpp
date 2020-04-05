@@ -81,7 +81,7 @@ DirectoryIterator::Status SearchPath::build_one(const FilePath& path, int64_t pr
 DirectoryIterator::Status SearchPath::traverse_private_directory(const FilePath& path, int64_t precedence,
                                                                  const std::string& parent_package, const DirectoryEntry& entry) {
   auto joined_path = fs::join(path, FilePath(entry.name));
-  private_directory_parent = path;
+  private_directory_parent = &path;
   is_within_private_directory = true;
   auto status = build_one(joined_path, precedence, parent_package);
   is_within_private_directory = false;
@@ -117,7 +117,7 @@ void SearchPath::maybe_add_file(const FilePath& path, int64_t precedence,
     Candidate candidate(precedence, candidate_file);
 
     if (is_within_private_directory) {
-      auto& private_map = require_private_candidate_map(private_directory_parent);
+      auto& private_map = require_private_candidate_map(*private_directory_parent);
       SearchPath::add_to_candidate_map(private_map, candidate_name, candidate);
 
     } else {
@@ -169,6 +169,10 @@ void SearchPath::add_to_candidate_map(SearchPath::CandidateMap& files,
     //  Existing name.
     candidate_it->second.alternates.push_back(candidate);
   }
+}
+
+int64_t SearchPath::size() const {
+  return candidate_files.size() + private_candidates.size();
 }
 
 Optional<SearchPath> SearchPath::build_from_path_file(const FilePath& file) {
