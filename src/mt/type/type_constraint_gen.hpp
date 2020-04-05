@@ -84,6 +84,9 @@ public:
 
   void fun_type_node(const FunTypeNode& node) override;
   void type_annot_macro(const TypeAnnotMacro& macro) override;
+  void type_assertion(const TypeAssertion& assertion) override;
+  void function_type_node(const FunctionTypeNode& node) override;
+  void scalar_type_node(const ScalarTypeNode& node) override;
 
   void if_stmt(const IfStmt& stmt) override;
   void if_branch(const IfBranch& branch);

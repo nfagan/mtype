@@ -79,10 +79,13 @@ public:
   void make_known_types();
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
   MT_NODISCARD FunctionSearchResult search_function(const types::Abstraction& func) const;
+
   bool is_known_subscript_type(const Type* type) const;
+  bool is_known_scalar_type(int64_t name_id) const;
 
   MT_NODISCARD Optional<std::string> type_name(const Type* type) const;
   MT_NODISCARD Optional<std::string> type_name(const types::Scalar& scl) const;
+  Optional<Type*> named_scalar_type(int64_t name) const;
 
   void emplace_local_function_type(const FunctionDefHandle& handle, Type* type);
 
@@ -141,6 +144,7 @@ private:
   std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> local_function_types;
 
   std::unordered_map<TypeIdentifier, int64_t, TypeIdentifier::Hash> scalar_type_names;
+  std::unordered_map<int64_t, Type*> named_scalar_types;
   std::unordered_map<const Type*, types::Class*> class_wrappers;
 
   MethodStore method_store;

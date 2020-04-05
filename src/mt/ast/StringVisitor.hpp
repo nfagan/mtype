@@ -69,6 +69,7 @@ public:
   std::string inline_type(const InlineType& type) const;
   std::string type_annot_macro(const TypeAnnotMacro& type) const;
   std::string fun_type_node(const FunTypeNode& node) const;
+  std::string type_assertion(const TypeAssertion& assertion) const;
 
 private:
   std::string class_def(const ClassDef& def) const;

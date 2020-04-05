@@ -854,6 +854,11 @@ FunTypeNode* IdentifierClassifier::fun_type_node(FunTypeNode& node) {
   return &node;
 }
 
+TypeAssertion* IdentifierClassifier::type_assertion(TypeAssertion& node) {
+  conditional_reset(node.node, node.node->accept(*this));
+  return &node;
+}
+
 TypeAnnotMacro* IdentifierClassifier::type_annot_macro(TypeAnnotMacro& node) {
   conditional_reset(node.annotation, node.annotation->accept(*this));
   return &node;

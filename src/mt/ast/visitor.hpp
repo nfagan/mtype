@@ -50,15 +50,7 @@ struct TypeGiven;
 struct TypeLet;
 struct InlineType;
 struct TypeAnnotMacro;
-
-//  std::string union_type(const UnionType& type) const;
-//  std::string scalar_type(const ScalarType& type) const;
-//  std::string function_type(const FunctionType& type) const;
-//  std::string type_begin(const TypeBegin& begin) const;
-//  std::string type_given(const TypeGiven& given) const;
-//  std::string type_let(const TypeLet& let) const;
-//  std::string inline_type(const InlineType& type) const;
-//  std::string type_annot_macro(const TypeAnnotMacro& type) const;
+struct TypeAssertion;
 
 class TypePreservingVisitor {
 public:
@@ -106,6 +98,7 @@ public:
   MT_VISITOR_METHOD(type_let, TypeLet)
   MT_VISITOR_METHOD(inline_type, InlineType)
   MT_VISITOR_METHOD(type_annot_macro, TypeAnnotMacro)
+  MT_VISITOR_METHOD(type_assertion, TypeAssertion)
 };
 
 #undef MT_VISITOR_METHOD

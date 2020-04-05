@@ -7,6 +7,10 @@
 
 namespace mt {
 
+bool Library::is_known_scalar_type(int64_t name_id) const {
+  return named_scalar_types.count(name_id) > 0;
+}
+
 bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   if (lhs->is_scalar() && rhs->is_scalar()) {
     return subtype_related(lhs, rhs, MT_SCALAR_REF(*lhs), MT_SCALAR_REF(*rhs));
@@ -159,6 +163,11 @@ Optional<std::string> Library::type_name(const mt::types::Scalar& scl) const {
   }
 }
 
+Optional<Type*> Library::named_scalar_type(int64_t name) const {
+  const auto it = named_scalar_types.find(name);
+  return it == named_scalar_types.end() ? NullOpt{} : Optional<Type*>(it->second);
+}
+
 Optional<types::Class*> Library::class_wrapper(const Type* type) const {
   auto it = class_wrappers.find(type);
   if (it == class_wrappers.end()) {
@@ -184,7 +193,7 @@ void Library::make_builtin_types() {
   double_type_handle = make_named_scalar_type("double");
   string_type_handle = make_named_scalar_type("string");
   char_type_handle = make_named_scalar_type("char");
-  sub_double_type_handle = make_named_scalar_type("sub-double");
+  sub_double_type_handle = make_named_scalar_type("sub_double");
   sub_sub_double_type_handle = make_named_scalar_type("sub-sub-double");
   logical_type_handle = make_named_scalar_type("logical");
   double_type_class = store.make_class(double_type_handle);
@@ -442,6 +451,7 @@ Type* Library::make_named_scalar_type(const char* name) {
   const auto& type = MT_SCALAR_REF(*type_handle);
 
   scalar_type_names[type.identifier] = name_id;
+  named_scalar_types[name_id] = type_handle;
   return type_handle;
 }
 

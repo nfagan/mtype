@@ -77,7 +77,8 @@ TokenType from_symbol(std::string_view s) {
     {"let", TokenType::keyword_let},
     {"namespace", TokenType::keyword_namespace},
     {"struct", TokenType::keyword_struct},
-    {"@T", TokenType::type_annotation_macro}
+    {"@T", TokenType::type_annotation_macro},
+    {"::", TokenType::double_colon}
   };
 
   const auto it = symbol_map.find(std::string(s));
@@ -124,6 +125,8 @@ const char* to_symbol(TokenType type) {
       return "~";
     case TokenType::colon:
       return ":";
+    case TokenType::double_colon:
+      return "::";
     case TokenType::semicolon:
       return ";";
     case TokenType::period:
@@ -294,6 +297,8 @@ const char* to_string(TokenType type) {
       return "tilde";
     case TokenType::colon:
       return "colon";
+    case TokenType::double_colon:
+      return "double_colon";
     case TokenType::semicolon:
       return "semicolon";
     case TokenType::period:

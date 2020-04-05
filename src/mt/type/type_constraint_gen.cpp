@@ -156,6 +156,8 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   const auto lhs_term = make_term(&node.source_token, func_var);
   const auto rhs_term = make_term(&node.source_token, rhs_term_type);
   push_type_equation(make_eq(lhs_term, rhs_term));
+
+  push_type_equation_term(rhs_term);
 }
 
 /*
@@ -170,6 +172,45 @@ void TypeConstraintGenerator::fun_type_node(const FunTypeNode& node) {
 
 void TypeConstraintGenerator::type_annot_macro(const TypeAnnotMacro& macro) {
   macro.annotation->accept_const(*this);
+}
+
+void TypeConstraintGenerator::type_assertion(const TypeAssertion& assertion) {
+  assertion.has_type->accept_const(*this);
+  auto expected_type = pop_type_equation_term();
+
+  assertion.node->accept_const(*this);
+  auto actual_type = pop_type_equation_term();
+
+  push_type_equation(make_eq(expected_type, actual_type));
+}
+
+void TypeConstraintGenerator::function_type_node(const FunctionTypeNode& node) {
+  TypePtrs args;
+  for (const auto& arg : node.inputs) {
+    arg->accept_const(*this);
+    args.push_back(pop_type_equation_term().term);
+  }
+
+  TypePtrs outputs;
+  for (const auto& out : node.outputs) {
+    out->accept_const(*this);
+    outputs.push_back(pop_type_equation_term().term);
+  }
+
+  auto input_tup = type_store.make_input_destructured_tuple(std::move(args));
+  auto output_tup = type_store.make_output_destructured_tuple(std::move(outputs));
+
+  auto abstr = type_store.make_abstraction(input_tup, output_tup);
+  auto term = make_term(&node.source_token, abstr);
+  push_type_equation_term(term);
+}
+
+void TypeConstraintGenerator::scalar_type_node(const ScalarTypeNode& node) {
+  assert(node.arguments.empty() && "Args not yet handled.");
+  auto maybe_known_scalar_type = library.named_scalar_type(node.identifier);
+  assert(maybe_known_scalar_type && "Unknown scalar type.");
+
+  push_type_equation_term(make_term(&node.source_token, maybe_known_scalar_type.value()));
 }
 
 /*

@@ -2173,11 +2173,37 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
     case TokenType::keyword_fun_type:
       return type_fun(source_token);
 
+    case TokenType::double_colon:
+      return type_assertion(source_token);
+
     default:
       auto possible_types = type_annotation_block_possible_types();
       add_error(make_error_expected_token_type(source_token, possible_types));
       return NullOpt{};
   }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token) {
+  iterator.advance();
+
+  auto type_res = type(iterator.peek());
+  if (!type_res) {
+    return NullOpt{};
+  }
+
+  auto err = consume(TokenType::keyword_end_type);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto func_res = function_def();
+  if (!func_res) {
+    return NullOpt{};
+  }
+
+  auto assert_node = std::make_unique<TypeAssertion>(source_token, func_res.rvalue(), type_res.rvalue());
+  return Optional<BoxedTypeAnnot>(std::move(assert_node));
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::type_fun_enclosing_anonymous_function(const Token& source_token) {
@@ -2500,9 +2526,10 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
   return Optional<BoxedType>(std::move(node));
 }
 
-std::array<TokenType, 4> AstGenerator::type_annotation_block_possible_types() {
-  return std::array<TokenType, 4>{
-    {TokenType::keyword_begin, TokenType::keyword_given, TokenType::keyword_let, TokenType::keyword_fun_type
+std::array<TokenType, 5> AstGenerator::type_annotation_block_possible_types() {
+  return std::array<TokenType, 5>{
+    {TokenType::keyword_begin, TokenType::keyword_given, TokenType::keyword_let,
+     TokenType::keyword_fun_type, TokenType::double_colon
   }};
 }
 

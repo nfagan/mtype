@@ -299,6 +299,12 @@ Optional<ScanError> Scanner::handle_punctuation(std::vector<Token>& tokens) {
       type = TokenType::double_vertical_bar;
       size = 2;
     }
+  } else if (is_within_type_annotation() && curr == ':') {
+    if (iterator.peek() == ':') {
+      iterator.advance();
+      type = TokenType::double_colon;
+      size = 2;
+    }
   }
 
   auto grouping_character_err = update_grouping_character_depth(curr, start);

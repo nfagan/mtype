@@ -52,6 +52,7 @@ enum class TokenType : unsigned int {
   new_line,
   question,
   quote,
+  double_colon,
   //  Ident + literals
   identifier,
   char_literal,

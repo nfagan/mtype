@@ -21,6 +21,24 @@ struct TypeAnnotMacro : public TypeAnnot {
   BoxedTypeAnnot annotation;
 };
 
+struct TypeAssertion : public TypeAnnot {
+  TypeAssertion(const Token& source_token, BoxedAstNode node, BoxedType has_type) :
+  source_token(source_token), node(std::move(node)), has_type(std::move(has_type)) {
+    //
+  }
+
+  ~TypeAssertion() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  TypeAssertion* accept(IdentifierClassifier& classifier) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  BoxedAstNode node;
+  BoxedType has_type;
+};
+
 struct InlineType : public TypeAnnot {
   explicit InlineType(BoxedType type) : type(std::move(type)) {
     //

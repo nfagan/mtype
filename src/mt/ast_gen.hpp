@@ -173,6 +173,7 @@ private:
   Optional<BoxedTypeAnnot> type_given(const Token& source_token);
   Optional<BoxedTypeAnnot> type_let(const Token& source_token);
   Optional<BoxedTypeAnnot> type_fun(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_assertion(const Token& source_token);
   Optional<BoxedTypeAnnot> inline_type_annotation(const Token& source_token);
 
   Optional<BoxedTypeAnnot> type_fun_enclosing_function(const Token& source_token);
@@ -242,7 +243,7 @@ private:
 
   void add_error(ParseError&& err);
 
-  static std::array<TokenType, 4> type_annotation_block_possible_types();
+  static std::array<TokenType, 5> type_annotation_block_possible_types();
   static std::array<TokenType, 5> sub_block_possible_types();
 
 private:

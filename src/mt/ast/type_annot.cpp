@@ -26,6 +26,26 @@ void TypeAnnotMacro::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * TypeAssertion
+ */
+
+std::string TypeAssertion::accept(const StringVisitor& vis) const {
+  return vis.type_assertion(*this);
+}
+
+TypeAssertion* TypeAssertion::accept(IdentifierClassifier& classifier) {
+  return classifier.type_assertion(*this);
+}
+
+void TypeAssertion::accept_const(TypePreservingVisitor& vis) const {
+  vis.type_assertion(*this);
+}
+
+void TypeAssertion::accept(TypePreservingVisitor& vis) {
+  vis.type_assertion(*this);
+}
+
+/*
  * InlineType
  */
 

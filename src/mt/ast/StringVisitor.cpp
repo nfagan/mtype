@@ -555,6 +555,10 @@ std::string StringVisitor::fun_type_node(const FunTypeNode& node) const {
   return full_str;
 }
 
+std::string StringVisitor::type_assertion(const TypeAssertion& assertion) const {
+  return ":: " + assertion.has_type->accept(*this) + "\n" + assertion.node->accept(*this);
+}
+
 std::string StringVisitor::inline_type(const InlineType& type) const {
   return type.type->accept(*this);
 }
