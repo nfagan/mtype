@@ -45,6 +45,7 @@ public:
   std::string color(const std::string& color_code) const;
   const char* dflt_color() const;
   std::string list_color() const;
+  const char* right_arrow() const;
 
 private:
   void apply_implicit(const DT& tup, const Optional<DT::Usage>& parent_usage, std::stringstream& into) const;

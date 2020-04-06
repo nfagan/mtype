@@ -66,11 +66,7 @@ void TypeToString::apply(const types::Abstraction& abstr, std::stringstream& str
     apply(abstr.inputs, stream);
     stream << ")";
 
-    if (rich_text) {
-      stream << " → ";
-    } else {
-      stream << " -> ";
-    }
+    stream << " " << right_arrow() << " ";
 
     stream << "[";
     apply(abstr.outputs, stream);
@@ -166,13 +162,14 @@ void TypeToString::apply(const types::List& list, std::stringstream& stream) con
 }
 
 void TypeToString::apply(const types::Subscript& subscript, std::stringstream& stream) const {
-  stream << "()(";
   apply(subscript.principal_argument, stream);
-  stream << "(";
   for (const auto& sub : subscript.subscripts) {
+    stream << to_symbol(sub.method) << "(";
     apply(sub.arguments, stream, ", ");
+    stream << ")";
   }
-  stream << ")) -> ";
+
+  stream << " " << right_arrow() << " ";
   apply(subscript.outputs, stream);
 }
 
@@ -233,6 +230,10 @@ const char* TypeToString::dflt_color() const {
 
 std::string TypeToString::list_color() const {
   return color(style::color_code(41));
+}
+
+const char* TypeToString::right_arrow() const {
+  return rich_text ? "→" : "->";
 }
 
 }

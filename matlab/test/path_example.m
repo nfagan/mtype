@@ -1,14 +1,12 @@
-% @T :: [double] = (double)
-function x = path_example(z)
+% @T :: [double] = (double, double)
+function x = path_example(z, y)
 
-import shared_utils.general.parsestruct;
-
-x = child( z );
+x = child( y, z );
 
 end
 
-function z = child(a)
+function z = child(a, y)
 
-z = a * a;
+z = a * y;
 
 end
