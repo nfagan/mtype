@@ -11,20 +11,20 @@ namespace mt {
  * PresumedSuperclassMethodReferenceExpr
  */
 
-void PresumedSuperclassMethodReferenceExpr::accept(TypePreservingVisitor& visitor) {
-  visitor.presumed_superclass_method_reference_expr(*this);
+void SuperclassMethodReferenceExpr::accept(TypePreservingVisitor& visitor) {
+  visitor.superclass_method_reference_expr(*this);
 }
 
-void PresumedSuperclassMethodReferenceExpr::accept_const(TypePreservingVisitor& visitor) const {
-  visitor.presumed_superclass_method_reference_expr(*this);
+void SuperclassMethodReferenceExpr::accept_const(TypePreservingVisitor& visitor) const {
+  visitor.superclass_method_reference_expr(*this);
 }
 
-Expr* PresumedSuperclassMethodReferenceExpr::accept(IdentifierClassifier& classifier) {
-  return classifier.presumed_superclass_method_reference_expr(*this);
+Expr* SuperclassMethodReferenceExpr::accept(IdentifierClassifier& classifier) {
+  return classifier.superclass_method_reference_expr(*this);
 }
 
-std::string PresumedSuperclassMethodReferenceExpr::accept(const StringVisitor& vis) const {
-  return vis.presumed_superclass_method_reference_expr(*this);
+std::string SuperclassMethodReferenceExpr::accept(const StringVisitor& vis) const {
+  return vis.superclass_method_reference_expr(*this);
 }
 
 /*

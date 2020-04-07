@@ -14,6 +14,10 @@ namespace {
     return std::strcmp(a, b) == 0;
   }
 
+  bool matches_path(const char* arg) {
+    return matches(arg, "--path") || matches(arg, "-p");
+  }
+
   bool matches_path_file(const char* arg) {
     return matches(arg, "--path-file") || matches(arg, "-pf");
   }
@@ -42,12 +46,26 @@ namespace {
     return matches(arg, "--hide-diagnostics") || matches(arg, "-hd");
   }
 
+  bool matches_show_class_source_type(const char* arg) {
+    return matches(arg, "--show-class-source") || matches(arg, "-scs");
+  }
+
   Optional<int> parse_int(const char* arg) {
     try {
       return Optional<int>(std::stoi(arg));
     } catch (...) {
       return NullOpt{};
     }
+  }
+
+  std::vector<FilePath> get_split_paths(const std::string& arg) {
+    auto split = mt::split(arg.c_str(), arg.size(), Character(':'));
+    std::vector<FilePath> result;
+    result.reserve(split.size());
+    for (const auto& s : split) {
+      result.emplace_back(std::string(s));
+    }
+    return result;
   }
 }
 
@@ -65,6 +83,11 @@ void Arguments::parse(int argc, char** argv) {
 
     if (i < end_less1 && matches_path_file(arg)) {
       search_path_file_path = FilePath(argv[i + 1]);
+      incr++;
+
+    } else if (i < end_less1 && matches_path(arg)) {
+      use_search_path_file = false;
+      search_paths = get_split_paths(argv[i + 1]);
       incr++;
 
     } else if (i < end_less1 && matches_store_capacity(arg)) {
@@ -92,6 +115,9 @@ void Arguments::parse(int argc, char** argv) {
 
     } else if (matches_hide_diagnostics(arg)) {
       show_diagnostics = false;
+
+    } else if (matches_show_class_source_type(arg)) {
+      show_class_source_type = true;
 
     } else if (is_argument(arg)) {
       std::cout << "Unrecognized or invalid argument: " << arg << std::endl;

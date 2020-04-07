@@ -80,6 +80,33 @@ struct InvalidFunctionInvocationError : public UnificationError {
   const Type* function_type;
 };
 
+struct NonConstantFieldReferenceExprError : public UnificationError {
+  NonConstantFieldReferenceExprError(const Token* at_token, const Type* arg_type) :
+  at_token(at_token), arg_type(arg_type) {
+    //
+  }
+  ~NonConstantFieldReferenceExprError() override = default;
+  std::string get_text(const ShowUnificationErrors& shower) const override;
+  Token get_source_token() const override;
+
+  const Token* at_token;
+  const Type* arg_type;
+};
+
+struct NonexistentFieldReferenceError : public UnificationError {
+  NonexistentFieldReferenceError(const Token* at_token, const Type* arg_type, const Type* field_type) :
+    at_token(at_token), arg_type(arg_type), field_type(field_type) {
+    //
+  }
+  ~NonexistentFieldReferenceError() override = default;
+  std::string get_text(const ShowUnificationErrors& shower) const override;
+  Token get_source_token() const override;
+
+  const Token* at_token;
+  const Type* arg_type;
+  const Type* field_type;
+};
+
 using BoxedUnificationError = std::unique_ptr<UnificationError>;
 using UnificationErrors = std::vector<BoxedUnificationError>;
 
@@ -126,6 +153,7 @@ public:
   void show(const UnificationErrors& errs, const TokenSourceMap& source_data) const;
 
   const char* stylize(const char* code) const;
+  std::string stylize(const std::string& str, const char* style) const;
 
 private:
   static constexpr int context_amount = 50;

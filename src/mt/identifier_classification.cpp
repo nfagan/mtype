@@ -523,7 +523,7 @@ Expr* IdentifierClassifier::anonymous_function_expr(AnonymousFunctionExpr& expr)
   return &expr;
 }
 
-Expr* IdentifierClassifier::presumed_superclass_method_reference_expr(PresumedSuperclassMethodReferenceExpr& expr) {
+Expr* IdentifierClassifier::superclass_method_reference_expr(SuperclassMethodReferenceExpr& expr) {
   class_state.push_superclass_method_application();
   conditional_reset(expr.superclass_reference_expr, expr.superclass_reference_expr->accept(*this));
   class_state.pop_superclass_method_application();

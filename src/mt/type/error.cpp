@@ -69,6 +69,37 @@ Token InvalidFunctionInvocationError::get_source_token() const {
 }
 
 /*
+ * NonConstantFieldReferenceExprError
+ */
+
+std::string NonConstantFieldReferenceExprError::get_text(const ShowUnificationErrors& shower) const {
+  const auto func_str = shower.type_to_string.apply(arg_type);
+  std::string msg = "Expected a constant expression for record field reference, but got: ";
+  std::string text = shower.stylize(style::red) + msg + shower.stylize(style::dflt);
+  return text + func_str;
+}
+
+Token NonConstantFieldReferenceExprError::get_source_token() const {
+  return *at_token;
+}
+
+/*
+ * NonexistentFieldReferenceError
+ */
+
+std::string NonexistentFieldReferenceError::get_text(const ShowUnificationErrors& shower) const {
+  const auto arg_str = shower.type_to_string.apply(arg_type);
+  const auto field_str = shower.type_to_string.apply(field_type);
+  const std::string field_msg = shower.stylize("Reference to non-exist field ", style::red) + field_str;
+  const std::string of_msg = shower.stylize(" of ", style::red) + arg_str;
+  return field_msg + of_msg;
+}
+
+Token NonexistentFieldReferenceError::get_source_token() const {
+  return *at_token;
+}
+
+/*
  * ShowUnificationErrors
  */
 
@@ -111,6 +142,10 @@ void ShowUnificationErrors::show(const UnificationErrors& errs, const TokenSourc
 
 const char* ShowUnificationErrors::stylize(const char* code) const {
   return rich_text ? code : "";
+}
+
+std::string ShowUnificationErrors::stylize(const std::string& str, const char* style) const {
+  return stylize(style) + str + stylize(style::dflt);
 }
 
 /*

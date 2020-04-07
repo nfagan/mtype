@@ -13,6 +13,48 @@ std::size_t TypedFunctionReference::NameHash::operator()(const TypedFunctionRefe
 }
 
 /*
+ * Record
+ */
+
+void types::Record::accept(const TypeToString& to_str, std::stringstream& into) const {
+  return to_str.apply(*this, into);
+}
+
+std::size_t types::Record::bytes() const {
+  return sizeof(types::Record);
+}
+
+int64_t types::Record::num_fields() const {
+  return fields.size();
+}
+
+const types::Record::Field* types::Record::find_field(const types::ConstantValue& val) const {
+  using Kind = types::ConstantValue::Kind;
+
+  if (val.kind != Kind::char_value) {
+    return nullptr;
+  }
+
+  for (const auto& field : fields) {
+    const auto& name = field.name;
+    if (!name->is_constant_value()) {
+      continue;
+    }
+
+    const auto& name_ref = MT_CONST_VAL_REF(*name);
+    if (name_ref.kind == Kind::char_value && *name_ref.char_value == *val.char_value) {
+      return &field;
+    }
+  }
+
+  return nullptr;
+}
+
+bool types::Record::has_field(const types::ConstantValue& val) const {
+  return find_field(val) != nullptr;
+}
+
+/*
  * Class
  */
 

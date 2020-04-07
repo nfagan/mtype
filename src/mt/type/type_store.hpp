@@ -34,6 +34,11 @@ public:
   }
 
   template <typename... Args>
+  Type* make_constant_value(Args&&... args) {
+    return make_type<types::ConstantValue>(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   Type* make_tuple(Args&&... args) {
     return make_type<types::Tuple>(std::forward<Args>(args)...);
   }
@@ -99,6 +104,11 @@ public:
 
   Type* make_concrete() {
     return make_type<types::Scalar>(make_type_identifier());
+  }
+
+  template <typename... Args>
+  Type* make_record(Args&&... args) {
+    return make_type<types::Record>(std::forward<Args>(args)...);
   }
 
   std::unordered_map<Type::Tag, double> type_distribution() const;

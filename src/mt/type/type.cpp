@@ -38,6 +38,8 @@ const char* to_string(Type::Tag tag) {
       return "parameters";
     case Tag::class_type:
       return "class_type";
+    case Tag::record:
+      return "record";
     default:
       assert(false && "Unhandled.");
   }

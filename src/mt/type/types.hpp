@@ -6,9 +6,13 @@
 #include "../identifier.hpp"
 #include "../handles.hpp"
 #include "../definitions.hpp"
-#include "../Optional.hpp"
+#include <string_view>
 
 namespace mt {
+
+template <typename T>
+class Optional;
+
 struct TypedFunctionReference {
   struct NameHash {
     std::size_t operator()(const TypedFunctionReference& a) const;
@@ -26,27 +30,66 @@ struct TypedFunctionReference {
 namespace mt::types {
 
 /*
+ * Record
+ */
+
+struct ConstantValue;
+
+struct Record : public Type {
+  struct Field {
+    Type* name;
+    Type* type;
+  };
+
+  using Fields = std::vector<Field>;
+
+  Record() : Type(Type::Tag::record) {
+    //
+  }
+
+  explicit Record(Fields&& fields) : Type(Type::Tag::record), fields(std::move(fields)) {
+    //
+  }
+
+  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Record)
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Record)
+
+  ~Record() override = default;
+
+  std::size_t bytes() const override;
+  int64_t num_fields() const;
+
+  const Field* find_field(const types::ConstantValue& val) const;
+  bool has_field(const types::ConstantValue& val) const;
+
+  void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  Fields fields;
+};
+
+/*
  * Class
  */
 
 struct Class : public Type {
-  Class() : Class(nullptr) {
+  Class() : Class(MatlabIdentifier(), nullptr) {
     //
   }
 
   //  No supertypes.
-  explicit Class(Type* source) : Type(Type::Tag::class_type), source(source) {
+  explicit Class(const MatlabIdentifier& name, Type* source) :
+  Type(Type::Tag::class_type), name(name), source(source) {
     //
   }
 
   //  One supertype.
-  Class(Type* source, Type* supertype) :
-    Type(Type::Tag::class_type), source(source), supertypes{supertype} {
+  Class(const MatlabIdentifier& name, Type* source, Type* supertype) :
+    Type(Type::Tag::class_type), name(name), source(source), supertypes{supertype} {
     //
   }
 
-  Class(Type* source, TypePtrs&& supertypes) :
-    Type(Type::Tag::class_type), source(source), supertypes(std::move(supertypes)) {
+  Class(const MatlabIdentifier& name, Type* source, TypePtrs&& supertypes) :
+    Type(Type::Tag::class_type), name(name), source(source), supertypes(std::move(supertypes)) {
     //
   }
 
@@ -61,6 +104,7 @@ struct Class : public Type {
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  MatlabIdentifier name;
   Type* source;
   TypePtrs supertypes;
 };
@@ -72,7 +116,8 @@ struct Class : public Type {
 struct ConstantValue : public Type {
   enum class Kind {
     int_value = 0,
-    double_value
+    double_value,
+    char_value,
   };
 
   ConstantValue() : ConstantValue(int64_t(0)) {
@@ -86,6 +131,11 @@ struct ConstantValue : public Type {
 
   explicit ConstantValue(double val) :
     Type(Type::Tag::constant_value), kind(Kind::double_value), double_value(val) {
+    //
+  }
+
+  explicit ConstantValue(const std::string_view* val) :
+    Type(Type::Tag::constant_value), kind(Kind::char_value), char_value(val) {
     //
   }
 
@@ -105,6 +155,7 @@ struct ConstantValue : public Type {
   union {
     int64_t int_value;
     double double_value;
+    const std::string_view* char_value;
   };
 };
 
@@ -625,6 +676,8 @@ namespace mt {
 #define MT_LIST_REF(a) static_cast<const mt::types::List&>((a))
 #define MT_ASSIGN_REF(a) static_cast<const mt::types::Assignment&>((a))
 #define MT_CLASS_REF(a) static_cast<const mt::types::Class&>((a))
+#define MT_RECORD_REF(a) static_cast<const mt::types::Record&>((a))
+#define MT_CONST_VAL_REF(a) static_cast<const mt::types::ConstantValue&>((a))
 
 #define MT_CLASS_PTR(a) static_cast<const mt::types::Class*>((a))
 #define MT_TYPE_PTR(a) static_cast<const Type*>((a))
@@ -640,6 +693,8 @@ namespace mt {
 #define MT_LIST_MUT_REF(a) static_cast<mt::types::List&>((a))
 #define MT_ASSIGN_MUT_REF(a) static_cast<mt::types::Assignment&>((a))
 #define MT_CLASS_MUT_REF(a) static_cast<mt::types::Class&>((a))
+#define MT_RECORD_MUT_REF(a) static_cast<mt::types::Record&>((a))
+#define MT_CONST_VAL_MUT_REF(a) static_cast<mt::types::ConstantValue&>((a))
 
 #define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

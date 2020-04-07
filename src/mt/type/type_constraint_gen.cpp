@@ -236,9 +236,21 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
     name = reader.at(node.handle).name;
   });
 
-  const auto str_name = string_registry.at(name.full_name());
-  const auto scalar_type = library.make_named_scalar_type(str_name.c_str());
-  auto class_type = type_store.make_class(scalar_type);
+  types::Record::Fields fields;
+  for (const auto& prop : node.properties) {
+    const auto name_type = type_store.make_constant_value(&prop.source_token.lexeme);
+    const auto prop_type = make_fresh_type_variable_reference();
+    fields.push_back(types::Record::Field{name_type, prop_type});
+
+    if (prop.initializer) {
+      auto init_term = visit_expr(prop.initializer, prop.source_token);
+      auto prop_term = make_term(&prop.source_token, prop_type);
+      push_type_equation(make_eq(init_term, prop_term));
+    }
+  }
+
+  auto record_type = type_store.make_record(std::move(fields));
+  auto class_type = type_store.make_class(name, record_type);
 
   ClassDefState::EnclosingClassHelper class_helper(class_state, node.handle, class_type, name);
 
@@ -326,8 +338,8 @@ void TypeConstraintGenerator::dynamic_field_reference_expr(const DynamicFieldRef
 }
 
 void TypeConstraintGenerator::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) {
-  assert(library.char_type_handle);
-  push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
+  const auto const_type = type_store.make_constant_value(&expr.source_token.lexeme);
+  push_type_equation_term(make_term(&expr.source_token, const_type));
 }
 
 void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
@@ -475,6 +487,10 @@ void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExp
   } else {
     push_type_equation_term(make_term(&expr.source_token, func));
   }
+}
+
+void TypeConstraintGenerator::superclass_method_reference_expr(const SuperclassMethodReferenceExpr& expr) {
+  expr.superclass_reference_expr->accept_const(*this);
 }
 
 void TypeConstraintGenerator::binary_operator_expr(const BinaryOperatorExpr& expr) {

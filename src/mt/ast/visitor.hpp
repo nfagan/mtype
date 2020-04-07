@@ -9,7 +9,7 @@ namespace mt {
 struct RootBlock;
 struct Block;
 
-struct PresumedSuperclassMethodReferenceExpr;
+struct SuperclassMethodReferenceExpr;
 struct AnonymousFunctionExpr;
 struct FunctionReferenceExpr;
 struct ColonSubscriptExpr;
@@ -57,7 +57,7 @@ public:
   MT_VISITOR_METHOD(root_block, RootBlock)
   MT_VISITOR_METHOD(block, Block)
 
-  MT_VISITOR_METHOD(presumed_superclass_method_reference_expr, PresumedSuperclassMethodReferenceExpr)
+  MT_VISITOR_METHOD(superclass_method_reference_expr, SuperclassMethodReferenceExpr)
   MT_VISITOR_METHOD(anonymous_function_expr, AnonymousFunctionExpr)
   MT_VISITOR_METHOD(function_reference_expr, FunctionReferenceExpr)
   MT_VISITOR_METHOD(colon_subscript_expr, ColonSubscriptExpr)

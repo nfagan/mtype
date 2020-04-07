@@ -34,6 +34,8 @@ private:
   bool simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev);
   bool simplify(const types::List& t0, const types::List& t1, bool rev);
   bool simplify(const types::Class& t0, const types::Class& t1, bool rev);
+  bool simplify(const types::Record& t0, const types::Record& t1, bool rev);
+  bool simplify(const types::ConstantValue& t0, const types::ConstantValue& t1, bool rev);
   bool simplify(const TypePtrs& t0, const TypePtrs& t1, bool rev);
 
   bool simplify_different_types(const types::Scheme& scheme, Type* source, Type* rhs, bool rev);

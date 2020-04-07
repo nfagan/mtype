@@ -27,7 +27,8 @@ struct Type {
     scheme,
     assignment,
     parameters,
-    class_type
+    class_type,
+    record
   };
 
   Type() = delete;
@@ -75,6 +76,14 @@ struct Type {
 
   MT_NODISCARD bool is_class() const {
     return tag == Tag::class_type;
+  }
+
+  MT_NODISCARD bool is_record() const {
+    return tag == Tag::record;
+  }
+
+  MT_NODISCARD bool is_constant_value() const {
+    return tag == Tag::constant_value;
   }
 
   Tag tag;

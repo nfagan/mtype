@@ -223,7 +223,7 @@ public:
   Expr* unary_operator_expr(UnaryOperatorExpr& expr);
   Expr* anonymous_function_expr(AnonymousFunctionExpr& expr);
   Expr* function_reference_expr(FunctionReferenceExpr& expr);
-  Expr* presumed_superclass_method_reference_expr(PresumedSuperclassMethodReferenceExpr& expr);
+  Expr* superclass_method_reference_expr(SuperclassMethodReferenceExpr& expr);
   ClassDefNode* class_def_node(ClassDefNode& ref);
 
   IfStmt* if_stmt(IfStmt& stmt);

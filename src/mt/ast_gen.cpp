@@ -1534,8 +1534,8 @@ Optional<BoxedExpr> AstGenerator::presumed_superclass_method_reference_expr(cons
   auto compound_identifier = string_registry->make_registered_compound_identifier(compound_identifier_components);
   MatlabIdentifier invoking_argument(compound_identifier);
 
-  auto node = std::make_unique<PresumedSuperclassMethodReferenceExpr>(source_token,
-    invoking_argument, std::move(superclass_method_expr));
+  auto node = std::make_unique<SuperclassMethodReferenceExpr>(source_token,
+                                                              invoking_argument, std::move(superclass_method_expr));
 
   return Optional<BoxedExpr>(std::move(node));
 }

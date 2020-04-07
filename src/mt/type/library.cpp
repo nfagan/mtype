@@ -197,10 +197,17 @@ void Library::make_builtin_types() {
   sub_double_type_handle = make_named_scalar_type("sub_double");
   sub_sub_double_type_handle = make_named_scalar_type("sub-sub-double");
   logical_type_handle = make_named_scalar_type("logical");
-  double_type_class = store.make_class(double_type_handle);
 
-  auto sub_double_class_wrapper = store.make_class(sub_double_type_handle, double_type_handle);
-  auto sub_sub_double_class_wrapper = store.make_class(sub_sub_double_type_handle, sub_double_type_handle);
+  auto double_class_name = MatlabIdentifier(string_registry.register_string("double"));
+  auto sub_double_class_name = MatlabIdentifier(string_registry.register_string("sub_double"));
+  auto sub_sub_double_class_name = MatlabIdentifier(string_registry.register_string("sub-sub-double"));
+
+  double_type_class = store.make_class(double_class_name, double_type_handle);
+
+  auto sub_double_class_wrapper = store.make_class(sub_double_class_name,
+    sub_double_type_handle, double_type_handle);
+  auto sub_sub_double_class_wrapper = store.make_class(sub_sub_double_class_name,
+    sub_sub_double_type_handle, sub_double_type_handle);
 
   //  Mark that sub-double is a subclass of double.
   class_wrappers[sub_double_type_handle] = sub_double_class_wrapper;

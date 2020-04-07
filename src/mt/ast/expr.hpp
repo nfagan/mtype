@@ -15,16 +15,16 @@ struct VariableDef;
 struct FunctionInputParameter;
 struct IdentifierReferenceExpr;
 
-struct PresumedSuperclassMethodReferenceExpr : public Expr {
-  PresumedSuperclassMethodReferenceExpr(const Token& source_token,
-                                        const MatlabIdentifier& invoking_argument_name,
-                                        BoxedExpr superclass_reference_expr) :
-                                        source_token(source_token),
-                                        invoking_argument_name(invoking_argument_name),
-                                        superclass_reference_expr(std::move(superclass_reference_expr)) {
+struct SuperclassMethodReferenceExpr : public Expr {
+  SuperclassMethodReferenceExpr(const Token& source_token,
+                                const MatlabIdentifier& invoking_argument_name,
+                                BoxedExpr superclass_reference_expr) :
+                                source_token(source_token),
+                                invoking_argument_name(invoking_argument_name),
+                                superclass_reference_expr(std::move(superclass_reference_expr)) {
     //
   }
-  ~PresumedSuperclassMethodReferenceExpr() override = default;
+  ~SuperclassMethodReferenceExpr() override = default;
 
   std::string accept(const StringVisitor& vis) const override;
   Expr* accept(IdentifierClassifier& classifier) override;

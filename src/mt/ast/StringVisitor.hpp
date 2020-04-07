@@ -41,7 +41,7 @@ public:
   std::string command_stmt(const CommandStmt& stmt) const;
   std::string variable_declaration_stmt(const VariableDeclarationStmt& stmt) const;
 
-  std::string presumed_superclass_method_reference_expr(const PresumedSuperclassMethodReferenceExpr& expr) const;
+  std::string superclass_method_reference_expr(const SuperclassMethodReferenceExpr& expr) const;
   std::string variable_reference_expr(const VariableReferenceExpr& expr) const;
   std::string function_call_expr(const FunctionCallExpr& expr) const;
   std::string function_reference_expr(const FunctionReferenceExpr& expr) const;

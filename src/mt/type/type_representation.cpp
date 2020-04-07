@@ -135,14 +135,50 @@ void TypeToString::apply(const types::Union& union_type, std::stringstream& into
   apply(union_type.members, into, " | ");
 }
 
-void TypeToString::apply(const types::ConstantValue&, std::stringstream& into) const {
-  //  @TODO: Implement this.
-  into << "<constant>";
+void TypeToString::apply(const types::ConstantValue& val, std::stringstream& into) const {
+  switch (val.kind) {
+    case types::ConstantValue::Kind::int_value:
+      into << val.int_value;
+      break;
+    case types::ConstantValue::Kind::double_value:
+      into << val.double_value;
+      break;
+    case types::ConstantValue::Kind::char_value:
+      into << "\"";
+      into << *val.char_value;
+      into << "\"";
+      break;
+  }
 }
 
 void TypeToString::apply(const types::Class& cls, std::stringstream& into) const {
-  into << "class: ";
-  apply(cls.source, into);
+  std::string name;
+  if (string_registry) {
+    name = string_registry->at(cls.name.full_name());
+  } else {
+    name = "(class)";
+  }
+
+  into << class_color() << name << dflt_color();
+
+  if (show_class_source_type) {
+    apply(cls.source, into);
+  }
+}
+
+void TypeToString::apply(const types::Record& record, std::stringstream& into) const {
+  into << "{";
+  int64_t i = 0;
+  for (const auto& field : record.fields) {
+    apply(field.name, into);
+    into << ": ";
+    apply(field.type, into);
+
+    if (i++ < int64_t(record.fields.size()-1)) {
+      into << ", ";
+    }
+  }
+  into << "}";
 }
 
 void TypeToString::apply(const TypePtrs& handles, std::stringstream& stream, const char* delim) const {
@@ -230,6 +266,10 @@ const char* TypeToString::dflt_color() const {
 
 std::string TypeToString::list_color() const {
   return color(style::color_code(41));
+}
+
+std::string TypeToString::class_color() const {
+  return color(style::color_code(42));
 }
 
 const char* TypeToString::right_arrow() const {

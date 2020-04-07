@@ -14,10 +14,14 @@ void show_parse_errors(const mt::ParseErrors& errs, const mt::TextRowColumnIndic
 template <typename... Args>
 mt::TypeToString make_type_to_string(Args&&... args) {
   mt::TypeToString type_to_string(std::forward<Args>(args)...);
+  return type_to_string;
+}
+
+void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::Arguments& args) {
   type_to_string.explicit_destructured_tuples = false;
   type_to_string.arrow_function_notation = true;
   type_to_string.max_num_type_variables = 3;
-  return type_to_string;
+  type_to_string.show_class_source_type = args.show_class_source_type;
 }
 
 bool locate_root_identifiers(const std::vector<std::string>& idents,
@@ -52,7 +56,13 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  const auto maybe_search_path = SearchPath::build_from_path_file(arguments.search_path_file_path);
+  Optional<SearchPath> maybe_search_path;
+  if (arguments.use_search_path_file) {
+    maybe_search_path = SearchPath::build_from_path_file(arguments.search_path_file_path);
+  } else {
+    maybe_search_path = SearchPath::build_from_paths(arguments.search_paths);
+  }
+
   if (!maybe_search_path) {
     std::cout << "Failed to build search path." << std::endl;
     return -1;
@@ -77,7 +87,8 @@ int main(int argc, char** argv) {
   Library library(type_store, store, search_path, str_registry);
   library.make_known_types();
 
-  const auto type_to_string = make_type_to_string(&library, &str_registry);
+  auto type_to_string = make_type_to_string(&library, &str_registry);
+  configure_type_to_string(type_to_string, arguments);
 
   Substitution substitution;
   Unifier unifier(type_store, library, str_registry);
@@ -97,8 +108,12 @@ int main(int argc, char** argv) {
   std::vector<std::unique_ptr<Token>> temporary_source_tokens;
 
   TokenSourceMap source_data_by_token;
+  double constraint_time = 0;
+  double unify_time = 0;
 
   while (external_it != external_functions.candidates.end()) {
+    using clock = std::chrono::high_resolution_clock;
+
     const auto candidate_it = external_it++;
     const auto& candidate = candidate_it->first;
     const auto& file_path = candidate->defining_file;
@@ -147,7 +162,10 @@ int main(int argc, char** argv) {
     const auto* root_ptr = root_block.get();
     root_blocks.emplace_back(std::move(root_block));
 
+    const auto constraint_t0 = clock::now();
     root_ptr->accept_const(constraint_generator);
+    const auto constraint_t1 = clock::now();
+    constraint_time += std::chrono::duration<double>(constraint_t1 - constraint_t0).count() * 1e3;
 
     Optional<Type*> maybe_local_func;
     Optional<FunctionDefNode*> maybe_top_level_func;
@@ -196,8 +214,11 @@ int main(int argc, char** argv) {
       }
     }
 
+    const auto unify_t0 = clock::now();
     auto unify_res = unifier.unify(&substitution, &external_functions);
     external_it = external_functions.candidates.begin();
+    const auto unify_t1 = clock::now();
+    unify_time += std::chrono::duration<double>(unify_t1 - unify_t0).count() * 1e3;
 
     if (unify_res.is_error()) {
       ShowUnificationErrors show(type_to_string);
@@ -234,6 +255,8 @@ int main(int argc, char** argv) {
     std::cout << "Num external functions: " << external_functions.candidates.size() << std::endl;
     std::cout << "Parse / check time: " << check_elapsed_ms << " (ms)" << std::endl;
     std::cout << "Build path time: " << build_search_path_elapsed_ms << " (ms)" << std::endl;
+    std::cout << "Unify time: " << unify_time << " (ms)" << std::endl;
+    std::cout << "Constraint gen time: " << constraint_time << " (ms)" << std::endl;
     std::cout << "Total time: " << full_elapsed_ms << " (ms)" << std::endl;
   }
 

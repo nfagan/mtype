@@ -145,6 +145,10 @@ bool Unifier::occurs(const Type* type, TermRef term, const Type* lhs) const {
       return occurs(MT_SCHEME_REF(*type), term, lhs);
     case Type::Tag::class_type:
       return occurs(MT_CLASS_REF(*type), term, lhs);
+    case Type::Tag::record:
+      return occurs(MT_RECORD_REF(*type), term, lhs);
+    case Type::Tag::constant_value:
+      return occurs(MT_CONST_VAL_REF(*type), term, lhs);
     case Type::Tag::scalar:
       return false;
     case Type::Tag::variable:
@@ -204,6 +208,21 @@ bool Unifier::occurs(const types::Scheme& scheme, TermRef term, const Type* lhs)
 
 bool Unifier::occurs(const types::Class& class_type, TermRef term, const Type* lhs) const {
   return occurs(class_type.source, term, lhs);
+}
+
+bool Unifier::occurs(const types::Record& record, TermRef term, const Type* lhs) const {
+  for (const auto& field : record.fields) {
+    if (occurs(field.name, term, lhs)) {
+      return true;
+    } else if (occurs(field.type, term, lhs)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Unifier::occurs(const types::ConstantValue&, TermRef, const Type*) const {
+  return false;
 }
 
 Type* Unifier::apply_to(types::Variable& var, TermRef) {
@@ -276,6 +295,19 @@ Type* Unifier::apply_to(types::Class& class_type, TermRef term) {
   return &class_type;
 }
 
+Type* Unifier::apply_to(types::Record& record, TermRef term) {
+  for (auto& field : record.fields) {
+    field.name = apply_to(field.name, term);
+    field.type = apply_to(field.type, term);
+  }
+  return &record;
+}
+
+Type* Unifier::apply_to(types::ConstantValue& val, TermRef) {
+  //  Nothing to do yet.
+  return &val;
+}
+
 Type* Unifier::apply_to(Type* source, TermRef term) {
   switch (source->tag) {
     case Type::Tag::variable:
@@ -300,6 +332,10 @@ Type* Unifier::apply_to(Type* source, TermRef term) {
       return apply_to(MT_PARAMS_MUT_REF(*source), term);
     case Type::Tag::class_type:
       return apply_to(MT_CLASS_MUT_REF(*source), term);
+    case Type::Tag::record:
+      return apply_to(MT_RECORD_MUT_REF(*source), term);
+    case Type::Tag::constant_value:
+      return apply_to(MT_CONST_VAL_MUT_REF(*source), term);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -337,6 +373,10 @@ Type* Unifier::substitute_one(Type* source, TermRef term, TermRef lhs, TermRef r
       return substitute_one(MT_SCHEME_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::class_type:
       return substitute_one(MT_CLASS_MUT_REF(*source), term, lhs, rhs);
+    case Type::Tag::record:
+      return substitute_one(MT_RECORD_MUT_REF(*source), term, lhs, rhs);
+    case Type::Tag::constant_value:
+      return substitute_one(MT_CONST_VAL_MUT_REF(*source), term, lhs, rhs);
     default:
       MT_SHOW1("Unhandled: ", source);
       assert(false);
@@ -367,6 +407,19 @@ Type* Unifier::substitute_one(types::Assignment& assignment, TermRef term, TermR
   check_assignment(&assignment, term, assignment);
 
   return &assignment;
+}
+
+Type* Unifier::substitute_one(types::Record& record, TermRef term, TermRef lhs, TermRef rhs) {
+  for (auto& field : record.fields) {
+    field.name = substitute_one(field.name, term, lhs, rhs);
+    field.type = substitute_one(field.type, term, lhs, rhs);
+  }
+  return &record;
+}
+
+Type* Unifier::substitute_one(types::ConstantValue& val, TermRef, TermRef, TermRef) {
+  //  Nothing to do yet.
+  return &val;
 }
 
 Type* Unifier::substitute_one(types::Abstraction& func, TermRef term, TermRef lhs, TermRef rhs) {
@@ -550,6 +603,9 @@ Type* Unifier::maybe_unify_subscript(Type* source, TermRef term, types::Subscrip
   } else if (arg0->is_scheme()) {
     return maybe_unify_anonymous_function_call_subscript(source, term, MT_SCHEME_REF(*arg0), sub);
 
+  } else if (arg0->is_class()) {
+    maybe_unify_subscripted_class(source, term, MT_CLASS_REF(*arg0), sub);
+
   } else if (!arg0->is_variable() && !arg0->is_parameters()) {
     MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
   }
@@ -707,6 +763,59 @@ Type* Unifier::maybe_unify_known_subscript_type(Type* source, TermRef term, type
   return source;
 }
 
+void Unifier::maybe_unify_subscripted_class(Type* source, TermRef term,
+                                            const types::Class& primary_arg, types::Subscript& sub) {
+  if (registered_funcs.count(source) > 0) {
+    return;
+  }
+
+  assert(!sub.subscripts.empty() && "Expected at least one subscript.");
+  const auto& sub0 = sub.subscripts[0];
+
+  if (!are_concrete_arguments(sub0.arguments) || sub0.method != SubscriptMethod::period) {
+    return;
+  }
+
+  registered_funcs[source] = true;
+
+  assert(sub0.arguments.size() == 1 && "Expected 1 argument.");
+  assert(primary_arg.source->is_record());
+  const auto& record = MT_RECORD_REF(*primary_arg.source);
+  const auto& arg0 = sub0.arguments[0];
+
+  if (!arg0->is_constant_value()) {
+    add_error(make_non_constant_field_reference_expr_error(term.source_token, arg0));
+    return;
+  }
+
+  const auto& const_val = MT_CONST_VAL_REF(*arg0);
+  const auto* matching_field = record.find_field(const_val);
+
+  if (!matching_field) {
+    add_error(make_reference_to_non_existent_field_error(term.source_token, &primary_arg, arg0));
+    return;
+  }
+
+  const auto list_type = store.make_list(matching_field->type);
+  const auto output_type = store.make_output_destructured_tuple(list_type);
+
+  const auto lhs_term = make_term(term.source_token, sub.outputs);
+  const auto rhs_term = make_term(term.source_token, output_type);
+  substitution->push_type_equation(make_eq(lhs_term, rhs_term));
+
+  if (sub.subscripts.size() == 1) {
+    return;
+  }
+
+  auto rest_subs = sub.subscripts;
+  rest_subs.erase(rest_subs.begin());
+
+  auto new_sub_ptr = store.make_subscript(output_type, std::move(rest_subs), store.make_fresh_type_variable_reference());
+  const auto lhs_sub_term = make_term(term.source_token, store.make_fresh_type_variable_reference());
+  const auto rhs_sub_term = make_term(term.source_token, new_sub_ptr);
+  substitution->push_type_equation(make_eq(lhs_sub_term, rhs_sub_term));
+}
+
 DebugTypePrinter Unifier::type_printer() const {
   return DebugTypePrinter(&library, &string_registry);
 }
@@ -733,6 +842,17 @@ BoxedUnificationError Unifier::make_unresolved_function_error(const Token* at_to
 BoxedUnificationError Unifier::make_invalid_function_invocation_error(const Token* at_token,
                                                                       const Type* function_type) const {
   return std::make_unique<InvalidFunctionInvocationError>(at_token, function_type);
+}
+
+BoxedUnificationError Unifier::make_non_constant_field_reference_expr_error(const Token* at_token,
+                                                                            const Type* arg_type) const {
+  return std::make_unique<NonConstantFieldReferenceExprError>(at_token, arg_type);
+}
+
+BoxedUnificationError Unifier::make_reference_to_non_existent_field_error(const Token* at_token,
+                                                                          const Type* arg,
+                                                                          const Type* field) const {
+  return std::make_unique<NonexistentFieldReferenceError>(at_token, arg, field);
 }
 
 void Unifier::add_error(BoxedUnificationError err) {

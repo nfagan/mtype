@@ -40,6 +40,7 @@ public:
   int64_t size() const;
 
   static Optional<SearchPath> build_from_path_file(const FilePath& file);
+  static Optional<SearchPath> build_from_paths(const std::vector<FilePath>& paths);
 
 private:
   using CandidateMap = std::unordered_map<std::string, SearchCandidate>;

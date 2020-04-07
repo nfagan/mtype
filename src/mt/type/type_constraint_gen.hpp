@@ -70,6 +70,7 @@ public:
   void variable_reference_expr(const VariableReferenceExpr& expr) override;
 
   void anonymous_function_expr(const AnonymousFunctionExpr& expr) override;
+  void superclass_method_reference_expr(const SuperclassMethodReferenceExpr& expr) override;
 
   void grouping_expr(const GroupingExpr& expr) override;
   void bracket_grouping_expr_lhs(const GroupingExpr& expr);

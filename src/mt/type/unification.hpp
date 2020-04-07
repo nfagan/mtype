@@ -95,6 +95,8 @@ private:
   MT_NODISCARD Type* apply_to(types::Assignment& assignment, TermRef term);
   MT_NODISCARD Type* apply_to(types::Scheme& scheme, TermRef term);
   MT_NODISCARD Type* apply_to(types::Class& class_type, TermRef term);
+  MT_NODISCARD Type* apply_to(types::Record& record, TermRef term);
+  MT_NODISCARD Type* apply_to(types::ConstantValue& val, TermRef term);
   MT_NODISCARD Type* apply_to(Type* source, TermRef term);
   void apply_to(TypePtrs& sources, TermRef term);
 
@@ -111,6 +113,8 @@ private:
   MT_NODISCARD Type* substitute_one(types::Assignment& assignment, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Scheme& scheme, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Class& class_type, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD Type* substitute_one(types::Record& record, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD Type* substitute_one(types::ConstantValue& val, TermRef term, TermRef lhs, TermRef rhs);
 
   bool occurs(const Type* t, TermRef term, const Type* lhs) const;
   bool occurs(const TypePtrs& ts, TermRef term, const Type* lhs) const;
@@ -122,9 +126,13 @@ private:
   bool occurs(const types::Assignment& assignment, TermRef term, const Type* lhs) const;
   bool occurs(const types::Scheme& scheme, TermRef term, const Type* lhs) const;
   bool occurs(const types::Class& class_type, TermRef term, const Type* lhs) const;
+  bool occurs(const types::Record& record, TermRef term, const Type* lhs) const;
+  bool occurs(const types::ConstantValue& val, TermRef term, const Type* lhs) const;
 
   Type* maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub);
   Type* maybe_unify_known_subscript_type(Type* source, TermRef term, types::Subscript& sub);
+  void maybe_unify_subscripted_class(Type* source, TermRef term,
+                                     const types::Class& class_type, types::Subscript& sub);
   Type* maybe_unify_function_call_subscript(Type* source, TermRef term,
     const types::Abstraction& source_func, const types::Subscript& sub);
   Type* maybe_unify_anonymous_function_call_subscript(Type* source, TermRef term,
@@ -154,6 +162,8 @@ private:
                                                     const Type* lhs_type, const Type* rhs_type) const;
   BoxedUnificationError make_unresolved_function_error(const Token* at_token, const Type* function_type) const;
   BoxedUnificationError make_invalid_function_invocation_error(const Token* at_token, const Type* function_type) const;
+  BoxedUnificationError make_non_constant_field_reference_expr_error(const Token* at_token, const Type* arg_type) const;
+  BoxedUnificationError make_reference_to_non_existent_field_error(const Token* at_token, const Type* arg, const Type* field) const;
 
 private:
   Substitution* substitution;

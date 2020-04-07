@@ -65,6 +65,10 @@ bool Simplifier::simplify_same_types(Type* lhs, Type* rhs, bool rev) {
       return simplify(MT_SUBS_REF(*lhs), MT_SUBS_REF(*rhs), rev);
     case Tag::class_type:
       return simplify(MT_CLASS_REF(*lhs), MT_CLASS_REF(*rhs), rev);
+    case Tag::record:
+      return simplify(MT_RECORD_REF(*lhs), MT_RECORD_REF(*rhs), rev);
+    case Tag::constant_value:
+      return simplify(MT_CONST_VAL_REF(*lhs), MT_CONST_VAL_REF(*rhs), rev);
     case Tag::variable:
       return simplify_make_type_equation(lhs, rhs, rev);
     default:
@@ -207,6 +211,45 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
 
 bool Simplifier::simplify(const types::Class& t0, const types::Class& t1, bool rev) {
   return simplify(t0.source, t1.source, rev);
+}
+
+bool Simplifier::simplify(const types::Record& t0, const types::Record& t1, bool rev) {
+  if (t0.num_fields() != t1.num_fields()) {
+    return false;
+  }
+
+  const auto num_fields = t0.num_fields();
+
+  for (int64_t i = 0; i < num_fields; i++) {
+    const auto& field0 = t0.fields[i];
+    const auto& field1 = t1.fields[i];
+
+    if (!simplify(field0.name, field1.name, rev)) {
+      return false;
+    } else if (!simplify(field0.type, field1.type, rev)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool Simplifier::simplify(const types::ConstantValue& t0, const types::ConstantValue& t1, bool) {
+  if (t0.kind != t1.kind) {
+    return false;
+  }
+
+  switch (t0.kind) {
+    case types::ConstantValue::Kind::int_value:
+      return t0.int_value == t1.int_value;
+    case types::ConstantValue::Kind::double_value:
+      return t0.double_value == t1.double_value;
+    case types::ConstantValue::Kind::char_value:
+      return *t0.char_value == *t1.char_value;
+  }
+
+  assert(false && "Unhandled");
+  return false;
 }
 
 bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scheme&, const types::Scheme&, bool rev) {

@@ -195,14 +195,18 @@ Optional<SearchPath> SearchPath::build_from_path_file(const FilePath& file) {
     directories.emplace_back(std::string(p));
   }
 
+  return build_from_paths(directories);
+}
+
+Optional<SearchPath> SearchPath::build_from_paths(const std::vector<FilePath>& directories) {
   SearchPath search_path;
   auto res = search_path.build(directories);
 
   if (res != DirectoryIterator::Status::success) {
     return NullOpt{};
+  } else {
+    return Optional<SearchPath>(std::move(search_path));
   }
-
-  return Optional<SearchPath>(std::move(search_path));
 }
 
 }
