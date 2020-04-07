@@ -186,7 +186,6 @@ private:
   std::unordered_map<Type*, VariableDefHandle> variables;
 
   std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> function_type_handles;
-  std::unordered_map<Type*, FunctionDefHandle> functions;
 
   std::vector<TypeEquationTerm> type_eq_terms;
   std::vector<ConstraintRepository> constraint_repositories;

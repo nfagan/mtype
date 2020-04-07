@@ -5,6 +5,7 @@
 #include "token.hpp"
 #include "character.hpp"
 #include "text.hpp"
+#include "utility.hpp"
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -54,8 +55,9 @@ struct ScanInfo {
   row_column_indices(std::move(inds)) {
     //
   }
-  ScanInfo(ScanInfo&& other) noexcept = default;
   ~ScanInfo() = default;
+
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(ScanInfo)
 
   std::vector<Token> tokens;
   bool functions_are_end_terminated;

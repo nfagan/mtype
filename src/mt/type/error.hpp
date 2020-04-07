@@ -1,12 +1,13 @@
 #pragma once
 
 #include "type.hpp"
+#include "../Optional.hpp"
+#include "../token.hpp"
 #include <string>
 #include <vector>
 
 namespace mt {
 
-struct Token;
 class TypeStore;
 class TypeToString;
 class ShowUnificationErrors;
@@ -82,6 +83,38 @@ struct InvalidFunctionInvocationError : public UnificationError {
 using BoxedUnificationError = std::unique_ptr<UnificationError>;
 using UnificationErrors = std::vector<BoxedUnificationError>;
 
+class TokenSourceMap {
+public:
+  struct SourceData {
+    SourceData() : SourceData(nullptr, nullptr, nullptr) {
+      //
+    }
+    SourceData(const std::string* source,
+               const CodeFileDescriptor* file_descriptor,
+               const TextRowColumnIndices* row_col_indices) :
+    source(source), file_descriptor(file_descriptor), row_col_indices(row_col_indices) {
+      //
+    }
+
+    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(SourceData)
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SourceData)
+
+    const std::string* source;
+    const CodeFileDescriptor* file_descriptor;
+    const TextRowColumnIndices* row_col_indices;
+  };
+
+public:
+  TokenSourceMap() = default;
+  ~TokenSourceMap() = default;
+
+  void insert(const Token& tok, const SourceData& source_data);
+  Optional<SourceData> lookup(const Token& tok) const;
+
+private:
+  std::unordered_map<Token, SourceData, Token::Hash> sources_by_token;
+};
+
 class ShowUnificationErrors {
 public:
   ShowUnificationErrors(const TypeToString& type_to_string) :
@@ -89,10 +122,8 @@ public:
     //
   }
 
-  void show(const UnificationError& err, int64_t index, std::string_view text,
-            const CodeFileDescriptor& descriptor, const TextRowColumnIndices& row_col_indices) const;
-  void show(const UnificationErrors& errs, std::string_view text,
-    const CodeFileDescriptor& descriptor, const TextRowColumnIndices& row_col_indices) const;
+  void show(const UnificationError& err, int64_t index, const TokenSourceMap& source_data) const;
+  void show(const UnificationErrors& errs, const TokenSourceMap& source_data) const;
 
   const char* stylize(const char* code) const;
 

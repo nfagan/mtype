@@ -1,5 +1,6 @@
 #include "code_file.hpp"
 #include "../ast.hpp"
+#include <cassert>
 
 namespace mt {
 
@@ -24,17 +25,27 @@ CodeFileType code_file_type_from_root_block(const RootBlock& root) {
   bool is_script = false;
 
   for (const auto& node : root.block->nodes) {
-    if (node->represents_class_def()) {
+    auto node_ptr = node.get();
+
+    if (node_ptr->represents_type_annot_macro()) {
+      auto macro_ptr = static_cast<TypeAnnotMacro*>(node_ptr);
+      auto maybe_enclosed_code_node = macro_ptr->annotation->enclosed_code_ast_node();
+      if (maybe_enclosed_code_node) {
+        node_ptr = maybe_enclosed_code_node.value();
+      }
+    }
+
+    if (node_ptr->represents_class_def()) {
       return CodeFileType::class_def;
 
-    } else if (node->represents_function_def()) {
+    } else if (node_ptr->represents_function_def()) {
       if (is_script) {
         return CodeFileType::script_with_local_functions;
       } else {
         return CodeFileType::function_def;
       }
 
-    } else if (node->represents_stmt_or_stmts()) {
+    } else if (node_ptr->represents_stmt_or_stmts()) {
       is_script = true;
     }
   }
@@ -54,6 +65,12 @@ bool CodeFileDescriptor::represents_known_file() const {
     default:
       return true;
   }
+}
+
+void swap(CodeFileDescriptor& a, CodeFileDescriptor& b) {
+  using std::swap;
+  swap(a.file_type, b.file_type);
+  swap(a.file_path, b.file_path);
 }
 
 }

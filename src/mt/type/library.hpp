@@ -6,7 +6,6 @@
 #include "../Optional.hpp"
 #include "../handles.hpp"
 #include "../store.hpp"
-#include "../search_path.hpp"
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -18,6 +17,7 @@ class TypeStore;
 class StringRegistry;
 class FunctionDefHandle;
 class SearchPath;
+struct SearchCandidate;
 
 /*
  * MethodStore
@@ -25,7 +25,7 @@ class SearchPath;
 
 class MethodStore {
   using TypedMethods = std::map<types::Abstraction, Type*, types::Abstraction::HeaderLess>;
-  using MethodMap = std::unordered_map<const types::Class*, TypedMethods>;
+  using MethodsByClass = std::unordered_map<const types::Class*, TypedMethods>;
 
 public:
   MethodStore() = default;
@@ -38,7 +38,7 @@ private:
   TypedMethods& require_methods(const types::Class* for_class);
 
 private:
-  MethodMap methods;
+  MethodsByClass methods;
 };
 
 /*
@@ -53,13 +53,13 @@ public:
       //
     }
 
-    FunctionSearchResult(Optional<const SearchPath::Candidate*> candidate) :
+    FunctionSearchResult(Optional<const SearchCandidate*> candidate) :
       external_function_candidate(std::move(candidate)) {
       //
     }
 
     Optional<Type*> resolved_type;
-    Optional<const SearchPath::Candidate*> external_function_candidate;
+    Optional<const SearchCandidate*> external_function_candidate;
   };
 
 public:
@@ -77,7 +77,9 @@ public:
   }
 
   void make_known_types();
+
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
+  MT_NODISCARD Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
   MT_NODISCARD FunctionSearchResult search_function(const types::Abstraction& func) const;
 
   bool is_known_subscript_type(const Type* type) const;
@@ -117,7 +119,6 @@ private:
   Optional<types::Class*> class_wrapper(const Type* type) const;
   Optional<const types::Class*> class_for_type(const Type* type) const;
 
-  MT_NODISCARD Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
   MT_NODISCARD Optional<Type*> lookup_pre_defined_external_function(const types::Abstraction& func) const;
   MT_NODISCARD Optional<Type*> method_dispatch(const types::Abstraction& func, const TypePtrs& args) const;
   MT_NODISCARD FunctionDefHandle maybe_extract_function_def(const types::Abstraction& func) const;

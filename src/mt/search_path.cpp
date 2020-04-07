@@ -114,7 +114,7 @@ void SearchPath::maybe_add_file(const FilePath& path, int64_t precedence,
       insert_parent_package(parent_package, candidate_name);
     }
 
-    Candidate candidate(precedence, candidate_file);
+    SearchCandidate candidate(precedence, candidate_file);
 
     if (is_within_private_directory) {
       auto& private_map = require_private_candidate_map(*private_directory_parent);
@@ -134,11 +134,11 @@ SearchPath::CandidateMap& SearchPath::require_private_candidate_map(const FilePa
   return private_candidates.at(parent);
 }
 
-Optional<const SearchPath::Candidate*> SearchPath::search_for(const std::string& name) const {
+Optional<const SearchCandidate*> SearchPath::search_for(const std::string& name) const {
   return SearchPath::search_for(candidate_files, name);
 }
 
-Optional<const SearchPath::Candidate*> SearchPath::search_for(const std::string& name,
+Optional<const SearchCandidate*> SearchPath::search_for(const std::string& name,
                                                               const FilePath& from_directory) const {
   auto maybe_private_it = private_candidates.find(from_directory);
   if (maybe_private_it != private_candidates.end()) {
@@ -153,14 +153,14 @@ Optional<const SearchPath::Candidate*> SearchPath::search_for(const std::string&
   return search_for(name);
 }
 
-Optional<const SearchPath::Candidate*> SearchPath::search_for(const SearchPath::CandidateMap& map, const std::string& key) {
+Optional<const SearchCandidate*> SearchPath::search_for(const SearchPath::CandidateMap& map, const std::string& key) {
   auto it = map.find(key);
-  return it == map.end() ? NullOpt{} : Optional<const SearchPath::Candidate*>(&it->second);
+  return it == map.end() ? NullOpt{} : Optional<const SearchCandidate*>(&it->second);
 }
 
 void SearchPath::add_to_candidate_map(SearchPath::CandidateMap& files,
                                       const std::string& candidate_name,
-                                      const SearchPath::Candidate& candidate) {
+                                      const SearchCandidate& candidate) {
   const auto candidate_it = files.find(candidate_name);
   if (candidate_it == files.end()) {
     //  New name.

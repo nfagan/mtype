@@ -33,10 +33,16 @@ public:
   }
   ~CodeFileDescriptor() = default;
 
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(CodeFileDescriptor)
+  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(CodeFileDescriptor)
+
   bool represents_known_file() const;
 
 public:
   CodeFileType file_type;
   FilePath file_path;
 };
+
+void swap(CodeFileDescriptor& a, CodeFileDescriptor& b);
+
 }

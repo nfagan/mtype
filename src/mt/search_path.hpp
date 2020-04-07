@@ -9,23 +9,22 @@
 
 namespace mt {
 
-class SearchPath {
-public:
-  struct Candidate {
-    Candidate() : precedence(0) {
-      //
-    }
+struct SearchCandidate {
+  SearchCandidate() : precedence(0) {
+    //
+  }
 
-    Candidate(int64_t precedence, FilePath defining_file) :
+  SearchCandidate(int64_t precedence, FilePath defining_file) :
     precedence(precedence), defining_file(std::move(defining_file)) {
-      //
-    }
+    //
+  }
 
-    int64_t precedence;
-    FilePath defining_file;
-    std::vector<Candidate> alternates;
-  };
+  int64_t precedence;
+  FilePath defining_file;
+  std::vector<SearchCandidate> alternates;
+};
 
+class SearchPath {
 public:
   SearchPath() : is_within_private_directory(false), private_directory_parent(nullptr) {
     //
@@ -35,15 +34,15 @@ public:
 
   MT_NODISCARD DirectoryIterator::Status build(const std::vector<FilePath>& directories);
 
-  Optional<const Candidate*> search_for(const std::string& name) const;
-  Optional<const Candidate*> search_for(const std::string& name, const FilePath& from_directory) const;
+  Optional<const SearchCandidate*> search_for(const std::string& name) const;
+  Optional<const SearchCandidate*> search_for(const std::string& name, const FilePath& from_directory) const;
 
   int64_t size() const;
 
   static Optional<SearchPath> build_from_path_file(const FilePath& file);
 
 private:
-  using CandidateMap = std::unordered_map<std::string, Candidate>;
+  using CandidateMap = std::unordered_map<std::string, SearchCandidate>;
   using Status = DirectoryIterator::Status;
 
   MT_NODISCARD Status build_one(const FilePath& path, int64_t precedence, const std::string& parent_package);
@@ -60,9 +59,9 @@ private:
 
   static void add_to_candidate_map(SearchPath::CandidateMap& files,
                                    const std::string& candidate_name,
-                                   const SearchPath::Candidate& candidate);
+                                   const SearchCandidate& candidate);
 
-  static Optional<const SearchPath::Candidate*> search_for(const SearchPath::CandidateMap& map, const std::string& key);
+  static Optional<const SearchCandidate*> search_for(const SearchPath::CandidateMap& map, const std::string& key);
 
 
 private:

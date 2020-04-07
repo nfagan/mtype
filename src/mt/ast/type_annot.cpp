@@ -45,6 +45,10 @@ void TypeAssertion::accept(TypePreservingVisitor& vis) {
   vis.type_assertion(*this);
 }
 
+Optional<AstNode*> TypeAssertion::enclosed_code_ast_node() const {
+  return Optional<AstNode*>(node.get());
+}
+
 /*
  * InlineType
  */
@@ -174,6 +178,10 @@ void FunTypeNode::accept_const(TypePreservingVisitor& vis) const {
 
 FunTypeNode* FunTypeNode::accept(IdentifierClassifier& classifier) {
   return classifier.fun_type_node(*this);
+}
+
+Optional<AstNode*> FunTypeNode::enclosed_code_ast_node() const {
+  return Optional<AstNode*>(definition.get());
 }
 
 }

@@ -11,7 +11,7 @@ void show_parse_errors(const mt::ParseErrors& errs, const mt::TextRowColumnIndic
   show.show(errs);
 }
 
-std::string get_source_file_path(int argc, char** argv) {
+std::string get_source_name(int argc, char** argv) {
   if (argc < 2) {
 //    return "/Users/Nick/Documents/MATLAB/repositories/fieldtrip/ft_databrowser.m";
 //    return "/Users/Nick/repositories/cpp/mt/matlab/test/X.m";
@@ -32,7 +32,7 @@ mt::Optional<mt::SearchPath> get_search_path() {
 int main(int argc, char** argv) {
   using namespace mt;
 
-  const auto file_path = get_source_file_path(argc, argv);
+  const auto file_path = get_source_name(argc, argv);
   const auto scan_result = scan_file(file_path);
   if (!scan_result) {
     std::cout << "Failed to scan file." << std::endl;
@@ -75,13 +75,14 @@ int main(int argc, char** argv) {
   library.make_known_types();
 
   Substitution substitution;
+  PendingExternalFunctions external_functions;
   Unifier unifier(type_store, library, str_registry);
-  TypeConstraintGenerator type_visitor(substitution, store, type_store, library, str_registry);
+  TypeConstraintGenerator constraint_generator(substitution, store, type_store, library, str_registry);
 
   std::unique_ptr<const RootBlock> root_block = std::move(parse_result.value.root_block);
-  root_block->accept_const(type_visitor);
+  root_block->accept_const(constraint_generator);
 
-  auto unify_res = unifier.unify(&substitution);
+  auto unify_res = unifier.unify(&substitution, &external_functions);
 
   auto t1 = std::chrono::high_resolution_clock::now();
   auto elapsed = std::chrono::duration<double>(t1 - t0).count() * 1e3;
@@ -94,7 +95,7 @@ int main(int argc, char** argv) {
 
 //  type_visitor.show_type_distribution();
 //  type_visitor.show_variable_types(type_to_string);
-  type_visitor.show_local_function_types(type_to_string);
+  constraint_generator.show_local_function_types(type_to_string);
 
   if (unify_res.is_error()) {
     ShowUnificationErrors show(type_to_string);
@@ -108,6 +109,7 @@ int main(int argc, char** argv) {
   std::cout << "Num type eqs: " << substitution.num_type_equations() << std::endl;
   std::cout << "Subs size: " << substitution.num_bound_terms() << std::endl;
   std::cout << "Num types: " << type_store.size() << std::endl;
+  std::cout << "Num external functions: " << external_functions.candidates.size() << std::endl;
 
   mt::run_all();
 

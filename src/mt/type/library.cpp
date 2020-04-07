@@ -1,5 +1,6 @@
 #include "library.hpp"
 #include "type_store.hpp"
+#include "../search_path.hpp"
 #include "../string.hpp"
 #include "../fs/code_file.hpp"
 #include "../fs/path.hpp"
@@ -58,7 +59,7 @@ Library::FunctionSearchResult Library::search_function(const types::Abstraction&
     auto str_name = string_registry.at(ref.name.full_name());
     const auto& file_descriptor = *ref.scope->file_descriptor;
 
-    Optional<const SearchPath::Candidate*> maybe_func_file;
+    Optional<const SearchCandidate*> maybe_func_file;
 
     if (file_descriptor.represents_known_file()) {
       const auto containing_dir = fs::directory_name(file_descriptor.file_path);

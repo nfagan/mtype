@@ -17,6 +17,10 @@ struct TypeAnnotMacro : public TypeAnnot {
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
 
+  bool represents_type_annot_macro() const override {
+    return true;
+  }
+
   Token source_token;
   BoxedTypeAnnot annotation;
 };
@@ -33,6 +37,7 @@ struct TypeAssertion : public TypeAnnot {
   TypeAssertion* accept(IdentifierClassifier& classifier) override;
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
+  Optional<AstNode*> enclosed_code_ast_node() const override;
 
   Token source_token;
   BoxedAstNode node;
@@ -172,6 +177,7 @@ struct FunTypeNode : public TypeNode {
   FunTypeNode* accept(IdentifierClassifier& classifier) override;
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
+  Optional<AstNode*> enclosed_code_ast_node() const override;
 
   Token source_token;
   BoxedAstNode definition;

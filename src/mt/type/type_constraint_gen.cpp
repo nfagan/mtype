@@ -31,8 +31,6 @@ void TypeConstraintGenerator::block(const Block& block) {
 }
 
 void TypeConstraintGenerator::show_local_function_types(const TypeToString& printer) const {
-  std::cout << "--" << std::endl;
-
   for (const auto& func_it : function_type_handles) {
     const auto& def_handle = func_it.first;
     const auto& maybe_type = substitution.bound_type(make_term(nullptr, func_it.second));
@@ -51,8 +49,6 @@ void TypeConstraintGenerator::show_local_function_types(const TypeToString& prin
 }
 
 void TypeConstraintGenerator::show_variable_types(const TypeToString& printer) const {
-  std::cout << "--" << std::endl;
-
   for (const auto& var_it : variable_type_handles) {
     const auto& def_handle = var_it.first;
     const auto& maybe_type = substitution.bound_type(make_term(nullptr, var_it.second));
@@ -628,7 +624,6 @@ void TypeConstraintGenerator::bind_type_variable_to_variable_def(const VariableD
 
 void TypeConstraintGenerator::bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle) {
   function_type_handles[def_handle] = type_handle;
-  functions[type_handle] = def_handle;
 }
 
 Type* TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHandle& function_def_handle) {

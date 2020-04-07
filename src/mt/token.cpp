@@ -1,9 +1,22 @@
 #include "token.hpp"
+#include <functional>
 
 namespace mt {
 
+std::size_t Token::Hash::operator()(const Token& a) const {
+  return std::hash<TokenType>{}(a.type) ^ std::hash<const char*>{}(a.lexeme.data());
+}
+
 bool Token::is_null() const {
   return type == TokenType::null;
+}
+
+bool Token::operator==(const Token& other) const {
+  return type == other.type && lexeme.data() == other.lexeme.data();
+}
+
+bool Token::operator!=(const Token& other) const {
+  return !(*this == other);
 }
 
 std::string Token::pretty_lexeme() const {

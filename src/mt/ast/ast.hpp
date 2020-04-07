@@ -6,6 +6,7 @@
 #include <set>
 #include <unordered_map>
 #include "../handles.hpp"
+#include "../Optional.hpp"
 
 namespace mt {
 
@@ -16,6 +17,7 @@ class IdentifierClassifier;
 struct Block;
 struct RootBlock;
 struct MatlabScope;
+struct FunctionDefNode;
 
 struct AstNode {
   AstNode() = default;
@@ -35,6 +37,12 @@ struct AstNode {
   }
   virtual bool represents_stmt_or_stmts() const {
     return false;
+  }
+  virtual bool represents_type_annot_macro() const {
+    return false;
+  }
+  virtual Optional<AstNode*> enclosed_code_ast_node() const {
+    return NullOpt{};
   }
 };
 
@@ -175,6 +183,8 @@ struct RootBlock : public AstNode {
 
   virtual void accept(TypePreservingVisitor& vis) override;
   virtual void accept_const(TypePreservingVisitor&) const override;
+
+  Optional<FunctionDefNode*> top_level_function_def() const;
 
   BoxedBlock block;
   MatlabScope* scope;

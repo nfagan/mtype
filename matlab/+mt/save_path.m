@@ -1,4 +1,4 @@
-function p = save_path(paths)
+function p = save_path(paths, file_path)
 
 %   SAVE_PATH -- Save Matlab search path to text file.
 %
@@ -13,11 +13,17 @@ function p = save_path(paths)
 if ( nargin < 1 )
   paths = strsplit( path(), pathsep() );
 end
+if ( nargin < 2 )
+  [file_path, data_path] = mt.path_filepath();
+else
+  data_path = fileparts( file_path );
+end
 
 p = strjoin( paths, newline() );
 
-[file_path, data_path] = mt.path_filepath();
-mt.require_directory( data_path );
+if ( ~isempty(data_path) )
+  mt.require_directory( data_path );
+end
 
 fid = fopen( file_path, 'w' );
 cleanup = onCleanup( @() fclose(fid) );

@@ -66,6 +66,12 @@ void Unifier::check_push_function(Type* source, TermRef term, const types::Abstr
 
   } else if (search_result.external_function_candidate) {
     //  This function was located in at least one file.
+    const auto* candidate = search_result.external_function_candidate.value();
+    const auto type = pending_external_functions->require_candidate_type(candidate, store);
+
+    const auto lhs_term = make_term(term.source_token, source);
+    const auto rhs_term = make_term(term.source_token, type);
+    substitution->push_type_equation(make_eq(lhs_term, rhs_term));
 
   } else {
     add_error(make_unresolved_function_error(term.source_token, source));
@@ -89,16 +95,18 @@ void Unifier::check_assignment(Type* source, TermRef term, const types::Assignme
   }
 }
 
-void Unifier::reset(Substitution* subst) {
+void Unifier::reset(Substitution* subst, PendingExternalFunctions* external_functions) {
   assert(subst);
+  assert(external_functions);
 
   substitution = subst;
+  pending_external_functions = external_functions;
   errors.clear();
   any_failures = false;
 }
 
-UnifyResult Unifier::unify(Substitution* subst) {
-  reset(subst);
+UnifyResult Unifier::unify(Substitution* subst, PendingExternalFunctions* external_functions) {
+  reset(subst, external_functions);
 
 #if MT_REVERSE_UNIFY
   while (!substitution->type_equations.empty()) {
@@ -107,9 +115,8 @@ UnifyResult Unifier::unify(Substitution* subst) {
     unify_one(eq);
   }
 #else
-  int64_t i = 0;
-  while (i < substitution->num_type_equations()) {
-    unify_one(substitution->type_equations[i++]);
+  while (substitution->equation_index < substitution->num_type_equations()) {
+    unify_one(substitution->type_equations[substitution->equation_index++]);
   }
 #endif
 
@@ -718,6 +725,28 @@ bool Unifier::had_error() const {
 
 void Unifier::mark_failure() {
   any_failures = true;
+}
+
+/*
+ * PendingExternalFunctions
+ */
+
+void PendingExternalFunctions::add_candidate(const SearchCandidate* candidate, Type* type) {
+  candidates[candidate] = type;
+}
+
+bool PendingExternalFunctions::has_candidate(const mt::SearchCandidate* candidate) {
+  return candidates.count(candidate) > 0;
+}
+
+Type* PendingExternalFunctions::require_candidate_type(const SearchCandidate* candidate, TypeStore& store) {
+  if (has_candidate(candidate)) {
+    return candidates.at(candidate);
+  } else {
+    auto t = store.make_fresh_type_variable_reference();
+    candidates[candidate] = t;
+    return t;
+  }
 }
 
 }

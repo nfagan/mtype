@@ -9,7 +9,9 @@ namespace mt {
 class Substitution {
   friend class Unifier;
 public:
-  Substitution() = default;
+  Substitution() : equation_index(0) {
+    //
+  }
 
   int64_t num_type_equations() const {
     return type_equations.size();
@@ -24,6 +26,7 @@ public:
 
 private:
   std::vector<TypeEquation> type_equations;
+  int64_t equation_index;
   BoundTerms bound_terms;
 };
 

@@ -9,11 +9,18 @@
 namespace mt {
 
 struct Token {
+  struct Hash {
+    std::size_t operator()(const Token& a) const;
+  };
+
   TokenType type;
   std::string_view lexeme;
 
   std::string pretty_lexeme() const;
   bool is_null() const;
+
+  bool operator==(const Token& other) const;
+  bool operator!=(const Token& other) const;
 };
 
 class TokenIterator {

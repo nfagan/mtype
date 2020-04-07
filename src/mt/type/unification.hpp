@@ -14,6 +14,26 @@ class DebugTypePrinter;
 class Library;
 class StringRegistry;
 class TypeStore;
+struct SearchCandidate;
+
+/*
+ * PendingExternalFunctions
+ */
+
+struct PendingExternalFunctions {
+  using PendingCandidates = std::unordered_map<const SearchCandidate*, Type*>;
+  PendingExternalFunctions() = default;
+
+  bool has_candidate(const SearchCandidate* candidate);
+  void add_candidate(const SearchCandidate* candidate, Type* with_type);
+  Type* require_candidate_type(const SearchCandidate* candidate, TypeStore& store);
+  //
+  PendingCandidates candidates;
+};
+
+/*
+ * UnifyResult
+ */
 
 struct UnifyResult {
   explicit UnifyResult(UnificationErrors&& errors) :
@@ -37,6 +57,10 @@ struct UnifyResult {
   UnificationErrors errors;
 };
 
+/*
+ * Unifier
+ */
+
 class Unifier {
   friend class Simplifier;
 public:
@@ -44,6 +68,7 @@ public:
 public:
   Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
   substitution(nullptr),
+  pending_external_functions(nullptr),
   subtype_relationship(library),
   store(store),
   library(library),
@@ -54,10 +79,10 @@ public:
     //
   }
 
-  MT_NODISCARD UnifyResult unify(Substitution* subst);
+  MT_NODISCARD UnifyResult unify(Substitution* subst, PendingExternalFunctions* external_functions);
 
 private:
-  void reset(Substitution* subst);
+  void reset(Substitution* subst, PendingExternalFunctions* external_functions);
   void unify_one(TypeEquation eq);
 
   MT_NODISCARD Type* apply_to(types::Abstraction& func, TermRef term);
@@ -129,6 +154,7 @@ private:
 
 private:
   Substitution* substitution;
+  PendingExternalFunctions* pending_external_functions;
   SubtypeRelation subtype_relationship;
 
   TypeStore& store;
