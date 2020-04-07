@@ -96,7 +96,8 @@ private:
   Optional<MatlabIdentifier> superclass_name();
   Optional<std::vector<MatlabIdentifier>> superclass_names();
 
-  bool methods_block(std::set<int64_t>& method_names,
+  bool methods_block(const ClassDefHandle& enclosing_class,
+                     std::set<int64_t>& method_names,
                      ClassDef::Methods& methods,
                      std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes);
   bool method_def(const Token& source_token,
@@ -111,7 +112,7 @@ private:
                         std::vector<ClassDefNode::Property>& property_nodes);
   Optional<ClassDefNode::Property> property(const Token& source_token);
 
-  Optional<FunctionAttributes> method_attributes();
+  Optional<FunctionAttributes> method_attributes(const ClassDefHandle& enclosing_class);
   Optional<bool> boolean_attribute_value();
   Optional<AccessSpecifier> access_specifier();
 
@@ -217,6 +218,8 @@ private:
   ParseError make_error_non_assignment_stmt_in_fun_declaration(const Token& at_token) const;
   ParseError make_error_non_anonymous_function_rhs_in_fun_declaration(const Token& at_token) const;
   ParseError make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const;
+  ParseError make_error_non_scalar_outputs_in_ctor(const Token& at_token) const;
+  ParseError make_error_no_class_instance_parameter_in_method(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);

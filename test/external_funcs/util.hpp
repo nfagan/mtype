@@ -31,7 +31,7 @@ struct FileScanSuccess {
   FileScanSuccess() = default;
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(FileScanSuccess)
 
-  std::string file_contents;
+  std::unique_ptr<std::string> file_contents;
   CodeFileDescriptor file_descriptor;
   ScanInfo scan_info;
 };

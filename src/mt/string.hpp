@@ -40,6 +40,8 @@ std::vector<std::string_view> split(std::string_view view, const Character& deli
 std::vector<std::string> split_copy(const char* str, int64_t len, const Character& delim);
 std::vector<std::string> split_whitespace_copy(const char* str, int64_t len, bool preserve = false);
 
+bool matches_view(std::string_view str, const char* str2);
+
 std::string utf8_reverse(const std::string& str);
 
 std::string ptr_to_hex_string(const void* ptr);

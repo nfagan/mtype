@@ -12,6 +12,9 @@ namespace mt {
     //  Keywords in any context.
     const char** keywords(int* count);
 
+    //  Names of operator methods; plus, minus, etc.
+    const char** operator_method_names(int* count);
+
     bool begins_with_keyword(std::string_view str);
     bool is_keyword(std::string_view str);
     bool is_classdef_keyword(std::string_view str);
@@ -32,6 +35,8 @@ namespace mt {
     bool is_private_access_attribute_value(std::string_view str);
     bool is_protected_access_attribute_value(std::string_view str);
     bool is_immutable_access_attribute_value(std::string_view str);
+
+    bool is_operator_method_name(std::string_view str);
   }
 
   namespace typing {

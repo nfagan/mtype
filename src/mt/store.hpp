@@ -63,6 +63,11 @@ private:
         return store.lookup_local_function(std::forward<Args>(args)...);
       }
 
+      template <typename... Args>
+      auto extract_constructor(Args&&... args) const {
+        return store.extract_constructor(std::forward<Args>(args)...);
+      }
+
     private:
       T store;
       StoreAccessor& accessor;
@@ -176,6 +181,12 @@ public:
     cb(access);
   }
 
+  template <typename T>
+  void use(const Callback<T>& cb) const {
+    T access(*this);
+    cb(access);
+  }
+
   FunctionReference get(const FunctionReferenceHandle& handle) const;
 
 private:
@@ -203,6 +214,8 @@ private:
   const FunctionDef& at(const FunctionDefHandle& handle) const;
   FunctionDef& at(const FunctionDefHandle& handle);
   const FunctionReference& at(const FunctionReferenceHandle& handle) const;
+
+  Optional<FunctionDefHandle> extract_constructor(const ClassDefHandle& for_class) const;
 
 private:
   mutable StoreAccessor accessor;

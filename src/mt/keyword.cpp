@@ -78,6 +78,17 @@ const char** matlab::keywords(int* count) {
   return keywords;
 }
 
+const char** matlab::operator_method_names(int* count) {
+  static const char* keywords[] = {
+    "plus", "minus", "uminus", "uplus", "times", "mtimes", "rdivide", "ldivide", "mrdivide",
+    "mldivide", "power", "mpower", "lt", "gt", "le", "ge", "ne", "eq", "and", "or", "not",
+    "colon", "ctranspose", "transpose", "horzcat", "vertcat"
+  };
+
+  *count = sizeof(keywords) / sizeof(keywords[0]);
+  return keywords;
+}
+
 bool matlab::is_keyword(std::string_view str) {
   int num_keywords;
   const auto kws = matlab::keywords(&num_keywords);
@@ -151,6 +162,12 @@ bool matlab::is_boolean_method_attribute(std::string_view str) {
 
 bool matlab::is_boolean(std::string_view str) {
   return str == "true" || str == "false";
+}
+
+bool matlab::is_operator_method_name(std::string_view str) {
+  int num_keywords;
+  const auto kws = matlab::operator_method_names(&num_keywords);
+  return is_keyword_impl(str, kws, num_keywords);
 }
 
 bool is_end_terminated(std::string_view kw) {

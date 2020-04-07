@@ -1,5 +1,7 @@
 #include "lang_components.hpp"
 #include "keyword.hpp"
+#include "Optional.hpp"
+#include "string.hpp"
 #include <cassert>
 
 namespace mt {
@@ -412,6 +414,60 @@ AccessType access_type_from_access_attribute_value(std::string_view value) {
   } else {
     assert(false && "Unknown access attribute value.");
     return AccessType::public_access;
+  }
+}
+
+
+Optional<BinaryOperator> binary_operator_from_string(const std::string& str) {
+  static std::unordered_map<std::string, BinaryOperator> op_map{
+    {"plus", BinaryOperator::plus},
+    {"minus", BinaryOperator::minus},
+    {"times", BinaryOperator::times},
+    {"mtimes", BinaryOperator::matrix_times},
+    {"rdivide", BinaryOperator::right_divide},
+    {"mrdivide", BinaryOperator::matrix_right_divide},
+    {"ldivide", BinaryOperator::left_divide},
+    {"mldivide", BinaryOperator::matrix_left_divide},
+    {"power", BinaryOperator::power},
+    {"mpower", BinaryOperator::matrix_power},
+    {"lt", BinaryOperator::less},
+    {"le", BinaryOperator::less_equal},
+    {"gt", BinaryOperator::greater},
+    {"ge", BinaryOperator::greater_equal},
+    {"ne", BinaryOperator::not_equal},
+    {"eq", BinaryOperator::equal_equal},
+    {"and", BinaryOperator::op_and},
+    {"or", BinaryOperator::op_or}
+  };
+
+  const auto it = op_map.find(str);
+  return it == op_map.end() ? NullOpt{} : Optional<BinaryOperator>(it->second);
+}
+
+Optional<UnaryOperator> unary_operator_from_string(const std::string& str) {
+  static std::unordered_map<std::string, UnaryOperator> op_map{
+    {"uplus", UnaryOperator::unary_plus},
+    {"uminus", UnaryOperator::unary_minus},
+    {"not", UnaryOperator::op_not},
+    {"ctranspose", UnaryOperator::conjugate_transpose},
+    {"transpose", UnaryOperator::transpose},
+  };
+
+  const auto it = op_map.find(str);
+  return it == op_map.end() ? NullOpt{} : Optional<UnaryOperator>(it->second);
+}
+
+bool represents_relation(BinaryOperator op) {
+  switch (op) {
+    case BinaryOperator::equal_equal:
+    case BinaryOperator::not_equal:
+    case BinaryOperator::less_equal:
+    case BinaryOperator::less:
+    case BinaryOperator::greater:
+    case BinaryOperator::greater_equal:
+      return true;
+    default:
+      return false;
   }
 }
 

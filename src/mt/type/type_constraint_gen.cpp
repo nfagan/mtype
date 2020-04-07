@@ -111,6 +111,8 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
 
   MatlabIdentifier function_name;
   const Block* function_body = nullptr;
+  FunctionAttributes function_attrs;
+
   const auto& scope = *current_scope();
 
   store.use<Store::ReadConst>([&](const auto& reader) {
@@ -121,9 +123,13 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     gather_function_outputs(scope, def.header.outputs, function_outputs);
 
     function_body = def.body.get();
+    function_attrs = def.attributes;
   });
 
   if (function_body) {
+    //  Push a null handle to indicate that we're no longer directly inside a class.
+    ClassDefState::EnclosingClassHelper enclosing_class(class_state, ClassDefHandle{},
+                                                        nullptr, MatlabIdentifier());
     push_monomorphic_functions();
     function_body->accept_const(*this);
     pop_generic_function_state();
@@ -147,13 +153,98 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     rhs_term_type = func_scheme;
   }
 
-  library.emplace_local_function_type(node.def_handle, rhs_term_type);
-
   const auto lhs_term = make_term(&node.source_token, func_var);
   const auto rhs_term = make_term(&node.source_token, rhs_term_type);
   push_type_equation(make_eq(lhs_term, rhs_term));
 
+  library.emplace_local_function_type(node.def_handle, rhs_term_type);
+
+  // Maybe add this function as a method.
+  if (class_state.is_within_class()) {
+    handle_class_method(function_inputs, function_outputs, function_attrs, function_name,
+                        type_handle, rhs_term);
+  }
+
   push_type_equation_term(rhs_term);
+}
+
+void TypeConstraintGenerator::handle_class_method(const TypePtrs& function_inputs,
+                                                  const TypePtrs& function_outputs,
+                                                  const FunctionAttributes& function_attrs,
+                                                  const MatlabIdentifier& function_name,
+                                                  const Type* function_type_handle,
+                                                  const TypeEquationTerm& rhs_term) {
+  auto* class_type = class_state.enclosing_class_type();
+  assert(class_type && function_type_handle->is_abstraction() && function_attrs.is_class_method());
+  const auto& abstr = MT_ABSTR_REF(*function_type_handle);
+
+  if (!function_attrs.is_static() && !function_attrs.is_constructor()) {
+    //  First argument must be of class type.
+    assert(!function_inputs.empty()); //  Should be previously handled during parse.
+    const auto lhs_input_term = make_term(rhs_term.source_token, function_inputs[0]);
+    const auto rhs_input_term = make_term(rhs_term.source_token, MT_TYPE_MUT_PTR(class_type));
+    push_type_equation(make_eq(lhs_input_term, rhs_input_term));
+  }
+
+  if (function_attrs.is_constructor()) {
+    assert(function_outputs.size() == 1); //  Should be previously handled during parse.
+    const auto lhs_output_term = make_term(rhs_term.source_token, function_outputs[0]);
+    const auto rhs_output_term = make_term(rhs_term.source_token, MT_TYPE_MUT_PTR(class_type));
+    push_type_equation(make_eq(lhs_output_term, rhs_output_term));
+  }
+
+  Optional<BinaryOperator> maybe_binary_op;
+  Optional<UnaryOperator> maybe_unary_op;
+
+  if (!function_attrs.is_static()) {
+    //  If this is a regular method, see if it's possibly an operator definition.
+    const auto str_name = string_registry.at(function_name.full_name());
+    maybe_binary_op = binary_operator_from_string(str_name);
+    maybe_unary_op = unary_operator_from_string(str_name);
+  }
+
+  if (maybe_binary_op) {
+    //  Binary operator
+    auto bin_op = type_store.make_abstraction(maybe_binary_op.value(), abstr.inputs, abstr.outputs);
+    auto bin_term = make_term(rhs_term.source_token, bin_op);
+    push_type_equation(make_eq(bin_term, rhs_term));
+
+    library.method_store.add_method(class_type, MT_ABSTR_REF(*bin_op), bin_op);
+
+    if (represents_relation(maybe_binary_op.value()) && !function_outputs.empty()) {
+      //  Must return logical.
+      auto out_term = make_term(rhs_term.source_token, function_outputs[0]);
+      auto log_term = make_term(rhs_term.source_token, library.logical_type_handle);
+      push_type_equation(make_eq(out_term, log_term));
+    }
+
+  } else if (maybe_unary_op) {
+    //  Unary operator
+    auto un_op = type_store.make_abstraction(maybe_unary_op.value(), abstr.inputs, abstr.outputs);
+    auto un_term = make_term(rhs_term.source_token, un_op);
+    push_type_equation(make_eq(un_term, rhs_term));
+
+    library.method_store.add_method(class_type, MT_ABSTR_REF(*un_op), un_op);
+  }
+
+  library.method_store.add_method(class_type, abstr, rhs_term.term);
+}
+
+void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
+  MatlabIdentifier name;
+  store.use<Store::ReadConst>([&](const auto& reader) {
+    name = reader.at(node.handle).name;
+  });
+
+  const auto str_name = string_registry.at(name.full_name());
+  const auto scalar_type = library.make_named_scalar_type(str_name.c_str());
+  auto class_type = type_store.make_class(scalar_type);
+
+  ClassDefState::EnclosingClassHelper class_helper(class_state, node.handle, class_type, name);
+
+  for (const auto& method : node.method_defs) {
+    method->accept_const(*this);
+  }
 }
 
 /*
@@ -635,6 +726,70 @@ Type* TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHand
   bind_type_variable_to_function_def(function_def_handle, function_type_handle);
 
   return function_type_handle;
+}
+
+void TypeConstraintGenerator::push_scope(const MatlabScope* scope) {
+  scopes.push_back(scope);
+}
+
+void TypeConstraintGenerator::pop_scope() {
+  scopes.pop_back();
+}
+
+const MatlabScope* TypeConstraintGenerator::current_scope() const {
+  return scopes.back();
+}
+
+void TypeConstraintGenerator::push_type_equation(const TypeEquation& eq) {
+  if (constraint_repositories.empty()) {
+    substitution.push_type_equation(eq);
+  } else {
+    substitution.push_type_equation(eq);
+    constraint_repositories.back().constraints.push_back(eq);
+  }
+}
+
+void TypeConstraintGenerator::push_monomorphic_functions() {
+  are_functions_generic.push_back(false);
+}
+
+void TypeConstraintGenerator::push_polymorphic_functions() {
+  are_functions_generic.push_back(true);
+}
+
+void TypeConstraintGenerator::pop_generic_function_state() {
+  assert(!are_functions_generic.empty());
+  are_functions_generic.pop_back();
+}
+
+bool TypeConstraintGenerator::are_functions_polymorphic() const {
+  assert(!are_functions_generic.empty());
+  return are_functions_generic.back();
+}
+
+void TypeConstraintGenerator::push_constraint_repository() {
+  constraint_repositories.emplace_back();
+}
+
+TypeConstraintGenerator::ConstraintRepository& TypeConstraintGenerator::current_constraint_repository() {
+  assert(!constraint_repositories.empty());
+  return constraint_repositories.back();
+}
+
+void TypeConstraintGenerator::pop_constraint_repository() {
+  assert(!constraint_repositories.empty() && "No constraints to pop.");
+  constraint_repositories.pop_back();
+}
+
+void TypeConstraintGenerator::push_type_equation_term(const TypeEquationTerm& term) {
+  type_eq_terms.push_back(term);
+}
+
+TypeEquationTerm TypeConstraintGenerator::pop_type_equation_term() {
+  assert(!type_eq_terms.empty());
+  const auto term = type_eq_terms.back();
+  type_eq_terms.pop_back();
+  return term;
 }
 
 }

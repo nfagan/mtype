@@ -29,6 +29,26 @@ ClassDef& Store::at(const ClassDefHandle& handle) {
   return class_definitions[handle.index];
 }
 
+Optional<FunctionDefHandle> Store::extract_constructor(const ClassDefHandle& for_class) const {
+  const auto& class_def = at(for_class);
+  const auto& methods = class_def.methods;
+
+  for (const auto& method : methods) {
+    FunctionDefHandle maybe_ctor_handle;
+
+    const auto& def = at(method);
+    if (def.attributes.is_constructor()) {
+      maybe_ctor_handle = method;
+    }
+
+    if (maybe_ctor_handle.is_valid()) {
+      return Optional<FunctionDefHandle>(maybe_ctor_handle);
+    }
+  }
+
+  return NullOpt{};
+}
+
 /*
  * Variable components
  */

@@ -1,5 +1,6 @@
 #include "traversal.hpp"
 #include "ast.hpp"
+#include "identifier.hpp"
 #include <cassert>
 
 namespace mt {
@@ -49,17 +50,33 @@ void ValueCategoryState::pop_side() {
 * ClassDefState
 */
 
-void ClassDefState::push_class(const mt::ClassDefHandle& handle) {
+void ClassDefState::push_class(const mt::ClassDefHandle& handle, types::Class* type, const MatlabIdentifier& name) {
   class_defs.push_back(handle);
+  class_types.push_back(type);
+  class_names.push_back(name);
 }
 
 void ClassDefState::pop_class() {
   assert(!class_defs.empty() && "No class to pop.");
   class_defs.pop_back();
+  class_types.pop_back();
+  class_names.pop_back();
 }
 
 ClassDefHandle ClassDefState::enclosing_class() const {
   return class_defs.empty() ? ClassDefHandle() : class_defs.back();
+}
+
+types::Class* ClassDefState::enclosing_class_type() const {
+  return class_types.empty() ? nullptr : class_types.back();
+}
+
+MatlabIdentifier ClassDefState::enclosing_class_name() const {
+  return class_names.empty() ? MatlabIdentifier() : class_names.back();
+}
+
+bool ClassDefState::is_within_class() const {
+  return class_defs.empty() ? false : class_defs.back().is_valid();
 }
 
 void ClassDefState::push_default_state() {

@@ -7,6 +7,11 @@ namespace mt {
 
 class FunctionDefHandle;
 class ClassDefHandle;
+class MatlabIdentifier;
+
+namespace types {
+  struct Class;
+}
 
 class AssignmentSourceState {
 public:
@@ -60,8 +65,9 @@ private:
 
 class ClassDefState {
   struct EnclosingClassStack {
-    static void push(ClassDefState& state, const ClassDefHandle& handle) {
-      state.push_class(handle);
+    static void push(ClassDefState& state, const ClassDefHandle& handle,
+                     types::Class* type, const MatlabIdentifier& name) {
+      state.push_class(handle, type, name);
     }
     static void pop(ClassDefState& state) {
       state.pop_class();
@@ -76,6 +82,10 @@ public:
   ~ClassDefState() = default;
 
   ClassDefHandle enclosing_class() const;
+  types::Class* enclosing_class_type() const;
+  MatlabIdentifier enclosing_class_name() const;
+
+  bool is_within_class() const;
 
   void push_default_state();
 
@@ -86,12 +96,14 @@ public:
   bool is_within_superclass_method_application() const;
 
 private:
-  void push_class(const ClassDefHandle& handle);
+  void push_class(const ClassDefHandle& handle, types::Class* type, const MatlabIdentifier& name);
   void pop_class();
 
 private:
   std::vector<bool> is_superclass_method_application;
   std::vector<ClassDefHandle> class_defs;
+  std::vector<types::Class*> class_types;
+  std::vector<MatlabIdentifier> class_names;
 };
 
 }

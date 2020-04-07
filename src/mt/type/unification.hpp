@@ -94,6 +94,7 @@ private:
   MT_NODISCARD Type* apply_to(types::List& list, TermRef term);
   MT_NODISCARD Type* apply_to(types::Assignment& assignment, TermRef term);
   MT_NODISCARD Type* apply_to(types::Scheme& scheme, TermRef term);
+  MT_NODISCARD Type* apply_to(types::Class& class_type, TermRef term);
   MT_NODISCARD Type* apply_to(Type* source, TermRef term);
   void apply_to(TypePtrs& sources, TermRef term);
 
@@ -109,6 +110,7 @@ private:
   MT_NODISCARD Type* substitute_one(types::List& list, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Assignment& assignment, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Scheme& scheme, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD Type* substitute_one(types::Class& class_type, TermRef term, TermRef lhs, TermRef rhs);
 
   bool occurs(const Type* t, TermRef term, const Type* lhs) const;
   bool occurs(const TypePtrs& ts, TermRef term, const Type* lhs) const;
@@ -119,6 +121,7 @@ private:
   bool occurs(const types::List& list, TermRef term, const Type* lhs) const;
   bool occurs(const types::Assignment& assignment, TermRef term, const Type* lhs) const;
   bool occurs(const types::Scheme& scheme, TermRef term, const Type* lhs) const;
+  bool occurs(const types::Class& class_type, TermRef term, const Type* lhs) const;
 
   Type* maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub);
   Type* maybe_unify_known_subscript_type(Type* source, TermRef term, types::Subscript& sub);

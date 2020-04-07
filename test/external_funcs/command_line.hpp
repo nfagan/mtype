@@ -16,6 +16,7 @@ struct Arguments {
   bool traverse_dependencies = true;
   bool show_diagnostics = true;
 
-  bool had_unrecognized_argument = false;
+  bool had_parse_error = false;
+  int initial_store_capacity = 100000;
 };
 }

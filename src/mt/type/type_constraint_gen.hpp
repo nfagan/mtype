@@ -36,7 +36,7 @@ private:
 
 public:
   explicit TypeConstraintGenerator(Substitution& substitution, Store& store, TypeStore& type_store,
-                                   Library& library, StringRegistry& string_registry) :
+                                   Library& library, const StringRegistry& string_registry) :
     substitution(substitution),
     store(store),
     type_store(type_store),
@@ -81,6 +81,7 @@ public:
   void assignment_stmt(const AssignmentStmt& stmt) override;
 
   void function_def_node(const FunctionDefNode& node) override;
+  void class_def_node(const ClassDefNode& node) override;
 
   void fun_type_node(const FunTypeNode& node) override;
   void type_annot_macro(const TypeAnnotMacro& macro) override;
@@ -98,6 +99,12 @@ private:
 
   void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypePtrs& into);
   void gather_function_outputs(const MatlabScope& scope, const std::vector<MatlabIdentifier>& ids, TypePtrs& into);
+  void handle_class_method(const TypePtrs& function_inputs,
+                           const TypePtrs& function_outputs,
+                           const FunctionAttributes& function_attrs,
+                           const MatlabIdentifier& function_name,
+                           const Type* function_type_handle,
+                           const TypeEquationTerm& rhs_term);
 
   MT_NODISCARD TypeEquationTerm visit_expr(const BoxedExpr& expr, const Token& source_token);
   Type* make_fresh_type_variable_reference();
@@ -107,67 +114,23 @@ private:
   void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle);
   Type* require_bound_type_variable(const FunctionDefHandle& function_def_handle);
 
-  void push_scope(const MatlabScope* scope) {
-    scopes.push_back(scope);
-  }
-  void pop_scope() {
-    scopes.pop_back();
-  }
-  const MatlabScope* current_scope() const {
-    return scopes.back();
-  }
+  void push_scope(const MatlabScope* scope);
+  void pop_scope();
+  MT_NODISCARD const MatlabScope* current_scope() const;
 
-  void push_type_equation(const TypeEquation& eq) {
-    if (constraint_repositories.empty()) {
-      substitution.push_type_equation(eq);
-    } else {
-      substitution.push_type_equation(eq);
-      constraint_repositories.back().constraints.push_back(eq);
-    }
-  }
+  void push_type_equation(const TypeEquation& eq);
 
-  void push_monomorphic_functions() {
-    are_functions_generic.push_back(false);
-  }
+  void push_monomorphic_functions();
+  void push_polymorphic_functions();
+  void pop_generic_function_state();
+  bool are_functions_polymorphic() const;
 
-  void push_polymorphic_functions() {
-    are_functions_generic.push_back(true);
-  }
+  void push_constraint_repository();
+  ConstraintRepository& current_constraint_repository();
+  void pop_constraint_repository();
 
-  void pop_generic_function_state() {
-    assert(!are_functions_generic.empty());
-    are_functions_generic.pop_back();
-  }
-
-  bool are_functions_polymorphic() const {
-    assert(!are_functions_generic.empty());
-    return are_functions_generic.back();
-  }
-
-  void push_constraint_repository() {
-    constraint_repositories.emplace_back();
-  }
-
-  ConstraintRepository& current_constraint_repository() {
-    assert(!constraint_repositories.empty());
-    return constraint_repositories.back();
-  }
-
-  void pop_constraint_repository() {
-    assert(!constraint_repositories.empty() && "No constraints to pop.");
-    constraint_repositories.pop_back();
-  }
-
-  void push_type_equation_term(const TypeEquationTerm& term) {
-    type_eq_terms.push_back(term);
-  }
-
-  TypeEquationTerm pop_type_equation_term() {
-    assert(!type_eq_terms.empty());
-    const auto term = type_eq_terms.back();
-    type_eq_terms.pop_back();
-    return term;
-  }
+  void push_type_equation_term(const TypeEquationTerm& term);
+  TypeEquationTerm pop_type_equation_term();
 
 private:
   Substitution& substitution;
@@ -179,6 +142,7 @@ private:
 
   AssignmentSourceState assignment_state;
   ValueCategoryState value_category_state;
+  ClassDefState class_state;
 
   std::vector<const MatlabScope*> scopes;
 

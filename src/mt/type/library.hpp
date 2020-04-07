@@ -77,6 +77,7 @@ public:
   }
 
   void make_known_types();
+  Type* make_named_scalar_type(const char* name);
 
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
   MT_NODISCARD Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
@@ -126,7 +127,6 @@ private:
   void add_type_with_known_subscript(const Type* t);
 
   Type* make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs);
-  Type* make_named_scalar_type(const char* name);
 
 private:
   SubtypeRelation subtype_relation;
@@ -148,10 +148,11 @@ private:
   std::unordered_map<int64_t, Type*> named_scalar_types;
   std::unordered_map<const Type*, types::Class*> class_wrappers;
 
-  MethodStore method_store;
   const SearchPath& search_path;
 
 public:
+  MethodStore method_store;
+
   Type* double_type_handle;
   Type* double_type_class;
   Type* char_type_handle;

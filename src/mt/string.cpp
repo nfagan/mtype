@@ -215,4 +215,17 @@ std::string ptr_to_hex_string(const void* ptr) {
   return stream.str();
 }
 
+bool matches_view(std::string_view str1, const char* str2) {
+  const int64_t len2 = std::strlen(str2);
+  if (int64_t(str1.size()) != len2) {
+    return false;
+  }
+  for (int64_t i = 0; i < len2; i++) {
+    if (str1[i] != str2[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }

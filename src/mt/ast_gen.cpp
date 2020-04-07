@@ -358,9 +358,31 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     }
   }
 
-  const FunctionAttributes& attrs = current_function_attributes();
+  auto attrs = current_function_attributes();
+  const auto& header = header_result.value();
+  const auto name = header.name;
+
+  if (is_within_class() && is_within_top_level_function()) {
+    //  Check whether this method is the constructor.
+    auto curr_class_name = class_state.enclosing_class_name();
+    const bool is_ctor = curr_class_name == name;
+
+    if (is_ctor) {
+      attrs.mark_constructor();
+
+      if (header.outputs.size() != 1) {
+        //  Constructor of the form [] = (arg...) is invalid.
+        add_error(make_error_non_scalar_outputs_in_ctor(header.name_token));
+        return NullOpt{};
+      }
+    } else if (!attrs.is_static() && header.inputs.empty()) {
+      //  Non-static method must accept at least one argument (the class instance).
+      add_error(make_error_no_class_instance_parameter_in_method(header.name_token));
+      return NullOpt{};
+    }
+  }
+
   FunctionDef function_def(header_result.rvalue(), attrs, body_res.rvalue());
-  const auto name = function_def.header.name;
 
   //  Function registry owns the local function definition.
   FunctionDefHandle def_handle;
@@ -486,7 +508,8 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     class_handle = writer.make_class_definition();
   }
 
-  ClassDefState::EnclosingClassHelper class_helper(class_state, class_handle);
+  MatlabIdentifier name(string_registry->register_string(name_res.value()));
+  ClassDefState::EnclosingClassHelper class_helper(class_state, class_handle, nullptr, name);
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
@@ -501,7 +524,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
       }
 
     } else if (tok.type == TokenType::keyword_methods) {
-      auto method_res = methods_block(method_names, methods, method_def_nodes);
+      auto method_res = methods_block(class_handle, method_names, methods, method_def_nodes);
       if (!method_res) {
         return NullOpt{};
       }
@@ -521,7 +544,6 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     return NullOpt{};
   }
 
-  MatlabIdentifier name(string_registry->register_string(name_res.value()));
   ClassDef class_def(source_token, name, std::move(superclasses), std::move(properties), std::move(methods));
 
   {
@@ -554,10 +576,10 @@ Optional<MatlabIdentifier> AstGenerator::meta_class() {
   return Optional<MatlabIdentifier>(MatlabIdentifier(identifier, components.size()));
 }
 
-Optional<FunctionAttributes> AstGenerator::method_attributes() {
+Optional<FunctionAttributes> AstGenerator::method_attributes(const ClassDefHandle& enclosing_class) {
   iterator.advance(); //  consume (
 
-  FunctionAttributes attributes(class_state.enclosing_class());
+  FunctionAttributes attributes(enclosing_class);
 
   while (iterator.peek().type != TokenType::right_parens) {
     const auto& tok = iterator.peek();
@@ -690,21 +712,22 @@ Optional<bool> AstGenerator::boolean_attribute_value() {
   return Optional<bool>(value == "true");
 }
 
-bool AstGenerator::methods_block(std::set<int64_t>& method_names,
+bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
+                                 std::set<int64_t>& method_names,
                                  ClassDef::Methods& methods,
                                  std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes) {
   iterator.advance(); //  consume methods
 
   //  methods (SetAccess = ...)
   if (iterator.peek().type == TokenType::left_parens) {
-    auto attr_res = method_attributes();
+    auto attr_res = method_attributes(enclosing_class);
     if (!attr_res) {
       return false;
     }
 
     push_function_attributes(attr_res.rvalue());
   } else {
-    push_function_attributes(FunctionAttributes());
+    push_function_attributes(FunctionAttributes(enclosing_class));
   }
 
   //  Pop function attributes on return.
@@ -2787,6 +2810,14 @@ ParseError AstGenerator::make_error_non_anonymous_function_rhs_in_fun_declaratio
 
 ParseError AstGenerator::make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const {
   return ParseError(text, at_token, "`fun` definition lhs must be a scalar identifier.", file_descriptor);
+}
+
+ParseError AstGenerator::make_error_non_scalar_outputs_in_ctor(const Token& at_token) const {
+  return ParseError(text, at_token, "A class constructor must have exactly one output parameter.", file_descriptor);
+}
+
+ParseError AstGenerator::make_error_no_class_instance_parameter_in_method(const Token& at_token) const {
+  return ParseError(text, at_token, "A non-static method must have at least one input parameter.", file_descriptor);
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

@@ -18,6 +18,7 @@ struct Block;
 struct RootBlock;
 struct MatlabScope;
 struct FunctionDefNode;
+class Store;
 
 struct AstNode {
   AstNode() = default;
@@ -184,7 +185,8 @@ struct RootBlock : public AstNode {
   virtual void accept(TypePreservingVisitor& vis) override;
   virtual void accept_const(TypePreservingVisitor&) const override;
 
-  Optional<FunctionDefNode*> top_level_function_def() const;
+  Optional<FunctionDefNode*> extract_top_level_function_def() const;
+  Optional<FunctionDefNode*> extract_constructor_function_def(const Store& store) const;
 
   BoxedBlock block;
   MatlabScope* scope;

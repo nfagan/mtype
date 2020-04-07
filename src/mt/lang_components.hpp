@@ -1,8 +1,12 @@
 #pragma once
 
 #include "token_type.hpp"
+#include <string>
 
 namespace mt {
+
+template <typename T>
+class Optional;
 
 enum class ConcatenationDirection : uint8_t {
   vertical = 0,
@@ -127,5 +131,10 @@ const char* to_symbol(ConcatenationDirection dir);
 
 const char* to_symbol(BinaryOperator op);
 const char* to_symbol(UnaryOperator op);
+
+Optional<BinaryOperator> binary_operator_from_string(const std::string& str);
+Optional<UnaryOperator> unary_operator_from_string(const std::string& str);
+
+bool represents_relation(BinaryOperator op);
 
 }

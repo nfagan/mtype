@@ -108,6 +108,7 @@ public:
     static constexpr Flag is_hidden_method = 1u << 1u;
     static constexpr Flag is_sealed_method = 1u << 2u;
     static constexpr Flag is_static_method = 1u << 3u;
+    static constexpr Flag is_constructor = 1u << 4u;
   };
 public:
   FunctionAttributes() : FunctionAttributes(ClassDefHandle()) {
@@ -132,6 +133,9 @@ public:
   void mark_static() {
     boolean_attributes |= AttributeFlags::is_static_method;
   }
+  void mark_constructor() {
+    boolean_attributes |= AttributeFlags::is_constructor;
+  }
 
   bool is_abstract() const {
     return boolean_attributes & AttributeFlags::is_abstract_method;
@@ -147,6 +151,9 @@ public:
   }
   bool is_class_method() const {
     return class_handle.is_valid();
+  }
+  bool is_constructor() const {
+    return boolean_attributes & AttributeFlags::is_constructor;
   }
 
 public:
@@ -202,6 +209,10 @@ struct FunctionDef {
 };
 
 struct FunctionReference {
+  FunctionReference() : scope(nullptr) {
+    //
+  }
+
   FunctionReference(const MatlabIdentifier& name,
                     const FunctionDefHandle& def_handle,
                     const MatlabScope* scope) :

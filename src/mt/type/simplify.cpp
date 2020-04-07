@@ -63,6 +63,8 @@ bool Simplifier::simplify_same_types(Type* lhs, Type* rhs, bool rev) {
       return simplify(lhs, rhs, MT_SCHEME_REF(*lhs), MT_SCHEME_REF(*rhs), rev);
     case Tag::subscript:
       return simplify(MT_SUBS_REF(*lhs), MT_SUBS_REF(*rhs), rev);
+    case Tag::class_type:
+      return simplify(MT_CLASS_REF(*lhs), MT_CLASS_REF(*rhs), rev);
     case Tag::variable:
       return simplify_make_type_equation(lhs, rhs, rev);
     default:
@@ -201,6 +203,10 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
   }
 
   return true;
+}
+
+bool Simplifier::simplify(const types::Class& t0, const types::Class& t1, bool rev) {
+  return simplify(t0.source, t1.source, rev);
 }
 
 bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scheme&, const types::Scheme&, bool rev) {

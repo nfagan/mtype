@@ -17,6 +17,7 @@ bool TypeProperties::is_concrete_argument(const Type* type) const {
       return is_concrete_argument(MT_SCHEME_REF(*type));
     case Tag::tuple:
     case Tag::scalar:
+    case Tag::class_type:
       return true;
     default:
       return false;

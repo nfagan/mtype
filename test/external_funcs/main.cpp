@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
   cmd::Arguments arguments;
   arguments.parse(argc, argv);
 
-  if (arguments.had_unrecognized_argument) {
+  if (arguments.had_parse_error) {
     return 0;
   }
 
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
   StringRegistry str_registry;
 
   //  Reserve space
-  TypeStore type_store(1e5);
+  TypeStore type_store(arguments.initial_store_capacity);
   Library library(type_store, store, search_path, str_registry);
   library.make_known_types();
 
@@ -127,12 +127,12 @@ int main(int argc, char** argv) {
     const auto end_terminated = scan_info.functions_are_end_terminated;
 
     for (const auto& tok : tokens) {
-      TokenSourceMap::SourceData source_data(&contents, &file_descriptor, &scan_info.row_column_indices);
+      TokenSourceMap::SourceData source_data(contents.get(), &file_descriptor, &scan_info.row_column_indices);
       source_data_by_token.insert(tok, source_data);
     }
 
     AstGenerator::ParseInputs parse_inputs(&str_registry, &store, &file_descriptor, end_terminated);
-    auto parse_result = parse_file(tokens, contents, parse_inputs);
+    auto parse_result = parse_file(tokens, *contents, parse_inputs);
 
     if (!parse_result) {
       show_parse_errors(parse_result.error.errors, scan_info.row_column_indices);
@@ -149,36 +149,51 @@ int main(int argc, char** argv) {
 
     root_ptr->accept_const(constraint_generator);
 
+    Optional<Type*> maybe_local_func;
+    Optional<FunctionDefNode*> maybe_top_level_func;
+    Optional<FunctionReference> maybe_local_func_ref;
+
     auto code_file_type = code_file_type_from_root_block(*root_ptr);
+
     if (code_file_type == CodeFileType::function_def) {
-      auto maybe_top_level_func = root_ptr->top_level_function_def();
-      if (maybe_top_level_func) {
-        auto ref = store.get(maybe_top_level_func.value()->ref_handle);
-        auto maybe_local_func = library.lookup_local_function(ref.def_handle);
-        if (maybe_local_func) {
-          auto func_name = str_registry.at(ref.name.full_name());
-          auto search_res = search_path.search_for(func_name,
-            fs::directory_name(ref.scope->file_descriptor->file_path));
-          Token source_token;
+      maybe_top_level_func = root_ptr->extract_top_level_function_def();
 
-          store.use<Store::ReadConst>([&](const auto& reader) {
-            source_token = reader.at(ref.def_handle).header.name_token;
-          });
+    } else if (code_file_type == CodeFileType::class_def) {
+      maybe_top_level_func = root_ptr->extract_constructor_function_def(store);
 
-          temporary_source_tokens.push_back(std::make_unique<Token>(source_token));
-
-          if (search_res && external_functions.has_candidate(search_res.value())) {
-            const auto* use_token = temporary_source_tokens.back().get();
-            const auto curr_type = external_functions.candidates.at(search_res.value());
-
-            const auto lhs_term = make_term(use_token, maybe_local_func.value());
-            const auto rhs_term = make_term(use_token, curr_type);
-            substitution.push_type_equation(make_eq(lhs_term, rhs_term));
-          }
-        }
-      }
     } else {
       std::cout << "Top level kind for: " << file_path << ": " << to_string(code_file_type) << std::endl;
+    }
+
+    if (maybe_top_level_func) {
+      auto ref = store.get(maybe_top_level_func.value()->ref_handle);
+      maybe_local_func = library.lookup_local_function(ref.def_handle);
+      maybe_local_func_ref = Optional<FunctionReference>(ref);
+    }
+
+    if (maybe_local_func) {
+      assert(maybe_local_func_ref);
+      const auto& ref = maybe_local_func_ref.value();
+
+      const auto func_name = str_registry.at(ref.name.full_name());
+      const auto func_dir = fs::directory_name(ref.scope->file_descriptor->file_path);
+      auto search_res = search_path.search_for(func_name, func_dir);
+      Token source_token;
+
+      store.use<Store::ReadConst>([&](const auto& reader) {
+        source_token = reader.at(ref.def_handle).header.name_token;
+      });
+
+      temporary_source_tokens.push_back(std::make_unique<Token>(source_token));
+
+      if (search_res && external_functions.has_candidate(search_res.value())) {
+        const auto* use_token = temporary_source_tokens.back().get();
+        const auto curr_type = external_functions.candidates.at(search_res.value());
+
+        const auto lhs_term = make_term(use_token, maybe_local_func.value());
+        const auto rhs_term = make_term(use_token, curr_type);
+        substitution.push_type_equation(make_eq(lhs_term, rhs_term));
+      }
     }
 
     auto unify_res = unifier.unify(&substitution, &external_functions);

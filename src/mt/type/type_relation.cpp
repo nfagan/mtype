@@ -176,6 +176,10 @@ bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool 
   return related(a.type, b.type, rev);
 }
 
+bool TypeRelation::related(const types::Class& a, const types::Class& b, bool rev) const {
+  return related(a.source, b.source, rev);
+}
+
 bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {
   using Type = types::Abstraction::Kind;
 

@@ -91,4 +91,8 @@ bool MatlabScope::has_imported_function(const MatlabIdentifier& name) const {
   return lookup_imported_function(name).is_valid();
 }
 
+/*
+ * ClassDef
+ */
+
 }

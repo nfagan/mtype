@@ -143,6 +143,8 @@ bool Unifier::occurs(const Type* type, TermRef term, const Type* lhs) const {
       return occurs(MT_ASSIGN_REF(*type), term, lhs);
     case Type::Tag::scheme:
       return occurs(MT_SCHEME_REF(*type), term, lhs);
+    case Type::Tag::class_type:
+      return occurs(MT_CLASS_REF(*type), term, lhs);
     case Type::Tag::scalar:
       return false;
     case Type::Tag::variable:
@@ -198,6 +200,10 @@ bool Unifier::occurs(const types::Assignment& assignment, TermRef term, const Ty
 
 bool Unifier::occurs(const types::Scheme& scheme, TermRef term, const Type* lhs) const {
   return occurs(scheme.type, term, lhs);
+}
+
+bool Unifier::occurs(const types::Class& class_type, TermRef term, const Type* lhs) const {
+  return occurs(class_type.source, term, lhs);
 }
 
 Type* Unifier::apply_to(types::Variable& var, TermRef) {
@@ -265,6 +271,11 @@ Type* Unifier::apply_to(types::Scheme& scheme, TermRef term) {
   return &scheme;
 }
 
+Type* Unifier::apply_to(types::Class& class_type, TermRef term) {
+  class_type.source = apply_to(class_type.source, term);
+  return &class_type;
+}
+
 Type* Unifier::apply_to(Type* source, TermRef term) {
   switch (source->tag) {
     case Type::Tag::variable:
@@ -287,6 +298,8 @@ Type* Unifier::apply_to(Type* source, TermRef term) {
       return apply_to(MT_SCHEME_MUT_REF(*source), term);
     case Type::Tag::parameters:
       return apply_to(MT_PARAMS_MUT_REF(*source), term);
+    case Type::Tag::class_type:
+      return apply_to(MT_CLASS_MUT_REF(*source), term);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -322,6 +335,8 @@ Type* Unifier::substitute_one(Type* source, TermRef term, TermRef lhs, TermRef r
       return substitute_one(MT_ASSIGN_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::scheme:
       return substitute_one(MT_SCHEME_MUT_REF(*source), term, lhs, rhs);
+    case Type::Tag::class_type:
+      return substitute_one(MT_CLASS_MUT_REF(*source), term, lhs, rhs);
     default:
       MT_SHOW1("Unhandled: ", source);
       assert(false);
@@ -338,6 +353,11 @@ void Unifier::substitute_one(TypePtrs& sources, TermRef term, TermRef lhs, TermR
 Type* Unifier::substitute_one(types::Scheme& scheme, TermRef term, TermRef lhs, TermRef rhs) {
   scheme.type = substitute_one(scheme.type, term, lhs, rhs);
   return &scheme;
+}
+
+Type* Unifier::substitute_one(types::Class& class_type, TermRef term, TermRef lhs, TermRef rhs) {
+  class_type.source = substitute_one(class_type.source, term, lhs, rhs);
+  return &class_type;
 }
 
 Type* Unifier::substitute_one(types::Assignment& assignment, TermRef term, TermRef lhs, TermRef rhs) {

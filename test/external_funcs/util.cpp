@@ -41,14 +41,15 @@ FileScanResult scan_file(const std::string& file_path) {
     return make_error<FileScanError, FileScanSuccess>(FileScanError::Type::error_file_io);
   }
 
-  std::string contents((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+  auto contents = std::make_unique<std::string>((std::istreambuf_iterator<char>(ifs)),
+                                                (std::istreambuf_iterator<char>()));
 
-  if (!mt::utf8::is_valid(contents)) {
+  if (!mt::utf8::is_valid(*contents)) {
     return make_error<FileScanError, FileScanSuccess>(FileScanError::Type::error_non_utf8_source);
   }
 
   mt::Scanner scanner;
-  auto scan_result = scanner.scan(contents);
+  auto scan_result = scanner.scan(*contents);
 
   if (!scan_result) {
     return make_error<FileScanError, FileScanSuccess>(FileScanError::Type::error_scan_failure);
@@ -56,7 +57,7 @@ FileScanResult scan_file(const std::string& file_path) {
 
   auto scan_info = std::move(scan_result.value);
 
-  auto insert_res = insert_implicit_expr_delimiters(scan_info.tokens, contents);
+  auto insert_res = insert_implicit_expr_delimiters(scan_info.tokens, *contents);
   if (insert_res) {
     return make_error<FileScanError, FileScanSuccess>(FileScanError::Type::error_scan_failure);
   }
