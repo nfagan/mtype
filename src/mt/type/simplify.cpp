@@ -122,7 +122,7 @@ bool Simplifier::simplify_different_types(const types::Scheme& scheme, Type*, Ty
 }
 
 bool Simplifier::simplify_different_types(const types::List& list, Type* rhs, bool rev) {
-  if (rhs->is_scalar() || rhs->is_tuple() || rhs->is_abstraction()) {
+  if (rhs->is_scalar() || rhs->is_tuple() || rhs->is_abstraction() || rhs->is_class()) {
     for (const auto& el : list.pattern) {
       push_make_type_equation(el, rhs, rev);
     }

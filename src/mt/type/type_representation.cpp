@@ -136,6 +136,7 @@ void TypeToString::apply(const types::Union& union_type, std::stringstream& into
 }
 
 void TypeToString::apply(const types::ConstantValue& val, std::stringstream& into) const {
+  into << constant_color();
   switch (val.kind) {
     case types::ConstantValue::Kind::int_value:
       into << val.int_value;
@@ -149,6 +150,7 @@ void TypeToString::apply(const types::ConstantValue& val, std::stringstream& int
       into << "\"";
       break;
   }
+  into << dflt_color();
 }
 
 void TypeToString::apply(const types::Class& cls, std::stringstream& into) const {
@@ -269,7 +271,11 @@ std::string TypeToString::list_color() const {
 }
 
 std::string TypeToString::class_color() const {
-  return color(style::color_code(42));
+  return color(style::color_code(43));
+}
+
+std::string TypeToString::constant_color() const {
+  return "";
 }
 
 const char* TypeToString::right_arrow() const {

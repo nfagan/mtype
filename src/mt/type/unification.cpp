@@ -607,7 +607,7 @@ Type* Unifier::maybe_unify_subscript(Type* source, TermRef term, types::Subscrip
     maybe_unify_subscripted_class(source, term, MT_CLASS_REF(*arg0), sub);
 
   } else if (!arg0->is_variable() && !arg0->is_parameters()) {
-    MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
+//    MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
   }
 
   return source;
@@ -796,8 +796,13 @@ void Unifier::maybe_unify_subscripted_class(Type* source, TermRef term,
     return;
   }
 
-  const auto list_type = store.make_list(matching_field->type);
-  const auto output_type = store.make_output_destructured_tuple(list_type);
+#if 0
+  const auto prop_type = store.make_list(matching_field->type);
+  const auto output_type = store.make_output_destructured_tuple(prop_type);
+#else
+  const auto prop_type = matching_field->type;
+  const auto output_type = store.make_rvalue_destructured_tuple(prop_type);
+#endif
 
   const auto lhs_term = make_term(term.source_token, sub.outputs);
   const auto rhs_term = make_term(term.source_token, output_type);

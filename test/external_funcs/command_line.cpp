@@ -50,6 +50,22 @@ namespace {
     return matches(arg, "--show-class-source") || matches(arg, "-scs");
   }
 
+  bool matches_use_plain_text(const char* arg) {
+    return matches(arg, "--plain-text") || matches(arg, "-pt");
+  }
+
+  bool matches_hide_errors(const char* arg) {
+    return matches(arg, "--hide-errors") || matches(arg, "-he");
+  }
+
+  bool matches_hide_warnings(const char* arg) {
+    return matches(arg, "--hide-warnings") || matches(arg, "-hw");
+  }
+
+  bool matches_show_type_distribution(const char* arg) {
+    return matches(arg, "--show-distribution") || matches(arg, "-sd");
+  }
+
   Optional<int> parse_int(const char* arg) {
     try {
       return Optional<int>(std::stoi(arg));
@@ -118,6 +134,18 @@ void Arguments::parse(int argc, char** argv) {
 
     } else if (matches_show_class_source_type(arg)) {
       show_class_source_type = true;
+
+    } else if (matches_use_plain_text(arg)) {
+      rich_text = false;
+
+    } else if (matches_hide_errors(arg)) {
+      show_errors = false;
+
+    } else if (matches_hide_warnings(arg)) {
+      show_warnings = false;
+
+    } else if (matches_show_type_distribution(arg)) {
+      show_type_distribution = true;
 
     } else if (is_argument(arg)) {
       std::cout << "Unrecognized or invalid argument: " << arg << std::endl;

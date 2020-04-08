@@ -145,7 +145,7 @@ private:
 class ShowUnificationErrors {
 public:
   ShowUnificationErrors(const TypeToString& type_to_string) :
-  type_to_string(type_to_string), rich_text(true) {
+  type_to_string(type_to_string) {
     //
   }
 
@@ -160,7 +160,6 @@ private:
 
 public:
   const TypeToString& type_to_string;
-  bool rich_text;
 };
 
 }

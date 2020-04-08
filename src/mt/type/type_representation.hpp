@@ -48,6 +48,7 @@ public:
   const char* dflt_color() const;
   std::string list_color() const;
   std::string class_color() const;
+  std::string constant_color() const;
   const char* right_arrow() const;
 
 private:

@@ -11,7 +11,7 @@ namespace mt {
 
 void TypeConstraintGenerator::show_type_distribution() const {
   auto counts = type_store.type_distribution();
-  const auto num_types = double(counts.size());
+  const auto num_types = double(type_store.size());
 
   for (const auto& ct : counts) {
     std::cout << to_string(ct.first) << ": " << ct.second << " (";

@@ -18,6 +18,10 @@ struct Arguments {
   bool show_diagnostics = true;
   bool show_class_source_type = false;
   bool use_search_path_file = true;
+  bool rich_text = true;
+  bool show_errors = true;
+  bool show_warnings = true;
+  bool show_type_distribution = false;
 
   bool had_parse_error = false;
   int initial_store_capacity = 100000;

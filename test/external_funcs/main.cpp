@@ -5,9 +5,10 @@
 
 namespace {
 
-void show_parse_errors(const mt::ParseErrors& errs, const mt::TextRowColumnIndices& inds) {
+void show_parse_errors(const mt::ParseErrors& errs, const mt::TextRowColumnIndices& inds,
+                       const mt::cmd::Arguments& args) {
   mt::ShowParseErrors show(&inds);
-  show.is_rich_text = true;
+  show.is_rich_text = args.rich_text;
   show.show(errs);
 }
 
@@ -22,6 +23,7 @@ void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::A
   type_to_string.arrow_function_notation = true;
   type_to_string.max_num_type_variables = 3;
   type_to_string.show_class_source_type = args.show_class_source_type;
+  type_to_string.rich_text = args.rich_text;
 }
 
 bool locate_root_identifiers(const std::vector<std::string>& idents,
@@ -150,12 +152,14 @@ int main(int argc, char** argv) {
     auto parse_result = parse_file(tokens, *contents, parse_inputs);
 
     if (!parse_result) {
-      show_parse_errors(parse_result.error.errors, scan_info.row_column_indices);
+      if (arguments.show_errors) {
+        show_parse_errors(parse_result.error.errors, scan_info.row_column_indices, arguments);
+      }
       std::cout << "Failed to parse file: " << file_path << std::endl;
-      return -1;
+      continue;
 
-    } else if (!parse_result.value.warnings.empty()) {
-      show_parse_errors(parse_result.value.warnings, scan_info.row_column_indices);
+    } else if (!parse_result.value.warnings.empty() && arguments.show_warnings) {
+      show_parse_errors(parse_result.value.warnings, scan_info.row_column_indices, arguments);
     }
 
     auto root_block = std::move(parse_result.value.root_block);
@@ -220,7 +224,7 @@ int main(int argc, char** argv) {
     const auto unify_t1 = clock::now();
     unify_time += std::chrono::duration<double>(unify_t1 - unify_t0).count() * 1e3;
 
-    if (unify_res.is_error()) {
+    if (unify_res.is_error() && arguments.show_errors) {
       ShowUnificationErrors show(type_to_string);
       show.show(unify_res.errors, source_data_by_token);
 
@@ -239,6 +243,10 @@ int main(int argc, char** argv) {
   const auto full_elapsed_ms = std::chrono::duration<double>(full_t1 - full_t0).count() * 1e3;
   const auto check_elapsed_ms = std::chrono::duration<double>(full_t1 - check_t0).count() * 1e3;
   const auto build_search_path_elapsed_ms = std::chrono::duration<double>(path_t1 - full_t0).count() * 1e3;
+
+  if (arguments.show_type_distribution) {
+    constraint_generator.show_type_distribution();
+  }
 
   if (arguments.show_local_variable_types) {
     constraint_generator.show_variable_types(type_to_string);

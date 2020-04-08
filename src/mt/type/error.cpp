@@ -90,7 +90,7 @@ Token NonConstantFieldReferenceExprError::get_source_token() const {
 std::string NonexistentFieldReferenceError::get_text(const ShowUnificationErrors& shower) const {
   const auto arg_str = shower.type_to_string.apply(arg_type);
   const auto field_str = shower.type_to_string.apply(field_type);
-  const std::string field_msg = shower.stylize("Reference to non-exist field ", style::red) + field_str;
+  const std::string field_msg = shower.stylize("Reference to non-existent field ", style::red) + field_str;
   const std::string of_msg = shower.stylize(" of ", style::red) + arg_str;
   return field_msg + of_msg;
 }
@@ -134,14 +134,13 @@ void ShowUnificationErrors::show(const UnificationError& err, int64_t index, con
 }
 
 void ShowUnificationErrors::show(const UnificationErrors& errs, const TokenSourceMap& source_data) const {
-
   for (int64_t i = 0; i < int64_t(errs.size()); i++) {
     show(*errs[i], i+1, source_data);
   }
 }
 
 const char* ShowUnificationErrors::stylize(const char* code) const {
-  return rich_text ? code : "";
+  return type_to_string.rich_text ? code : "";
 }
 
 std::string ShowUnificationErrors::stylize(const std::string& str, const char* style) const {
