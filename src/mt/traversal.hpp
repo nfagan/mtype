@@ -13,6 +13,22 @@ namespace types {
   struct Class;
 }
 
+class TypeIdentifierExportState {
+  struct Stack {
+    static void push(TypeIdentifierExportState& state, bool value);
+    static void pop(TypeIdentifierExportState& state);
+  };
+public:
+  using Helper = StackHelper<TypeIdentifierExportState, Stack>;
+
+  void push_export();
+  void push_non_export();
+  void pop_state();
+  bool is_export() const;
+private:
+  std::vector<bool> state;
+};
+
 class AssignmentSourceState {
 public:
   void push_assignment_target_rvalue();
@@ -37,7 +53,7 @@ private:
 };
 
 class FunctionDefState {
-  struct EnclosingFunctionStack {
+  struct Stack {
     static void push(FunctionDefState& state, const FunctionDefHandle& handle) {
       state.push_function(handle);
     }
@@ -47,7 +63,7 @@ class FunctionDefState {
   };
 
 public:
-  using EnclosingFunctionHelper = ScopeHelper<FunctionDefState, EnclosingFunctionStack>;
+  using Helper = StackHelper<FunctionDefState, Stack>;
 
 public:
   FunctionDefState() = default;
@@ -64,7 +80,7 @@ private:
 };
 
 class ClassDefState {
-  struct EnclosingClassStack {
+  struct Stack {
     static void push(ClassDefState& state, const ClassDefHandle& handle,
                      types::Class* type, const MatlabIdentifier& name) {
       state.push_class(handle, type, name);
@@ -75,7 +91,7 @@ class ClassDefState {
   };
 
 public:
-  using EnclosingClassHelper = ScopeHelper<ClassDefState, EnclosingClassStack>;
+  using Helper = StackHelper<ClassDefState, Stack>;
 
 public:
   ClassDefState() = default;
@@ -104,6 +120,33 @@ private:
   std::vector<ClassDefHandle> class_defs;
   std::vector<types::Class*> class_types;
   std::vector<MatlabIdentifier> class_names;
+};
+
+template <typename T>
+class ScopeState {
+  struct Stack {
+    static void push(ScopeState<T>& state, T* scope) {
+      state.push(scope);
+    }
+    static void pop(ScopeState<T>& state) {
+      state.pop();
+    }
+  };
+public:
+  using Helper = StackHelper<ScopeState<T>, Stack>;
+
+  void push(T* scope) {
+    scopes.push_back(scope);
+  }
+  void pop() {
+    scopes.pop_back();
+  }
+  T* current() const {
+    return scopes.back();
+  }
+
+private:
+  std::vector<T*> scopes;
 };
 
 }

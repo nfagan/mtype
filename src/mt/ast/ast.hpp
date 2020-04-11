@@ -19,6 +19,7 @@ struct RootBlock;
 struct MatlabScope;
 struct FunctionDefNode;
 class Store;
+struct TypeScope;
 
 struct AstNode {
   AstNode() = default;
@@ -169,8 +170,8 @@ struct Block : public AstNode {
 };
 
 struct RootBlock : public AstNode {
-  RootBlock(BoxedBlock block, MatlabScope* scope) :
-  block(std::move(block)), scope(scope) {
+  RootBlock(BoxedBlock block, MatlabScope* scope, TypeScope* type_scope) :
+  block(std::move(block)), scope(scope), type_scope(type_scope) {
     //
   }
   ~RootBlock() override = default;
@@ -190,6 +191,7 @@ struct RootBlock : public AstNode {
 
   BoxedBlock block;
   MatlabScope* scope;
+  TypeScope* type_scope;
 };
 
 }

@@ -5,6 +5,7 @@
 #include "handles.hpp"
 #include "definitions.hpp"
 #include "lang_components.hpp"
+#include "type/type_scope.hpp"
 #include <mutex>
 
 #if MT_USE_READ_WRITE_OPTIM
@@ -118,6 +119,10 @@ private:
         return store.make_matlab_scope(std::forward<Args>(args)...);
       }
       template <typename... Args>
+      auto make_type_scope(Args&&... args) {
+        return store.make_type_scope(std::forward<Args>(args)...);
+      }
+      template <typename... Args>
       auto make_external_reference(Args&&... args) {
         return store.make_external_reference(std::forward<Args>(args)...);
       }
@@ -191,6 +196,7 @@ public:
 
 private:
   MatlabScope* make_matlab_scope(const MatlabScope* parent, const CodeFileDescriptor* file_descriptor);
+  TypeScope* make_type_scope(TypeScope* root, const TypeScope* parent);
 
   ClassDefHandle make_class_definition();
   FunctionDefHandle make_function_declaration(FunctionHeader&& header, const FunctionAttributes& attrs);
@@ -224,6 +230,7 @@ private:
   std::vector<FunctionDef> function_definitions;
   std::vector<FunctionReference> function_references;
   std::vector<std::unique_ptr<MatlabScope>> matlab_scopes;
+  std::vector<std::unique_ptr<TypeScope>> type_scopes;
 };
 
 }

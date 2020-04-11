@@ -5,6 +5,7 @@
 #include "display.hpp"
 #include "keyword.hpp"
 #include "fs/code_file.hpp"
+#include "token_source_map.hpp"
 #include <cassert>
 
 namespace mt {
@@ -48,16 +49,21 @@ std::string ParseError::make_message(bool colorize) const {
   return indent_spaces(msg, 2);
 }
 
-void ShowParseErrors::show(const ParseErrors& errs) {
+void ShowParseErrors::show(const ParseErrors& errs, const TokenSourceMap& sources_by_token) {
   std::cout << std::endl;
 
   for (int64_t i = 0; i < int64_t(errs.size()); i++) {
-    show(errs[i], i+1);
+    show(errs[i], sources_by_token, i+1);
   }
 }
 
-void ShowParseErrors::show(const ParseError& err, int64_t index) {
+void ShowParseErrors::show(const ParseError& err, const TokenSourceMap& sources_by_token, int64_t index) {
   if (!err.message.empty()) {
+    const auto& maybe_source_data = sources_by_token.lookup(err.at_token);
+    assert(maybe_source_data);
+    const auto& source_data = maybe_source_data.value();
+    const auto& row_col_indices = source_data.row_col_indices;
+
     const auto transformed = err.make_message(is_rich_text);
     const auto start = err.is_null_token() ? 0 : err.at_token.lexeme.data() - err.text.data();
 
@@ -84,6 +90,14 @@ void ShowParseErrors::show(const ParseError& err, int64_t index) {
 
 const char* ShowParseErrors::stylize(const char* code) const {
   return is_rich_text ? code : "";
+}
+
+/*
+ * Util
+ */
+
+std::string make_error_message_duplicate_type_identifier(std::string_view dup_ident) {
+  return "Duplicate type identifier `" + std::string(dup_ident) + "`.";
 }
 
 }

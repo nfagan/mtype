@@ -10,11 +10,13 @@
 #include "ast/StringVisitor.hpp"
 #include "ast/visitor.hpp"
 #include "search_path.hpp"
+#include "token_source_map.hpp"
 
 #include "type/types.hpp"
 #include "type/type_constraint_gen.hpp"
 #include "type/unification.hpp"
 #include "type/library.hpp"
 #include "type/debug.hpp"
+#include "type/type_identifier_resolution.hpp"
 
 #include "utility.hpp"

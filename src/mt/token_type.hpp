@@ -93,6 +93,7 @@ enum class TokenType : unsigned int {
   keyword_let,
   keyword_namespace,
   keyword_struct,
+  keyword_record,
   keyword_function_type,
   keyword_fun_type,
   keyword_end_type,

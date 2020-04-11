@@ -24,13 +24,13 @@
 namespace mt {
 
 template <typename T, typename Stack>
-struct ScopeHelper {
+struct StackHelper {
   template <typename... Args>
-  ScopeHelper(T& apply_to, Args&&... args) : apply_to(apply_to) {
+  StackHelper(T& apply_to, Args&&... args) : apply_to(apply_to) {
     Stack::push(apply_to, std::forward<Args>(args)...);
   }
 
-  ~ScopeHelper() {
+  ~StackHelper() {
     Stack::pop(apply_to);
   }
 

@@ -2,6 +2,7 @@
 
 #include "ast.hpp"
 #include "../token.hpp"
+#include "../identifier.hpp"
 
 namespace mt {
 
@@ -23,6 +24,23 @@ struct TypeAnnotMacro : public TypeAnnot {
 
   Token source_token;
   BoxedTypeAnnot annotation;
+};
+
+struct TypeImportNode : public TypeAnnot {
+  TypeImportNode() : import(-1) {
+    //
+  }
+
+  TypeImportNode(const Token& source_token, int64_t import) :
+  source_token(source_token), import(import) {
+    //
+  }
+  ~TypeImportNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+
+  Token source_token;
+  int64_t import;
 };
 
 struct TypeAssertion : public TypeAnnot {
@@ -59,7 +77,7 @@ struct InlineType : public TypeAnnot {
 
 struct TypeLet : public TypeAnnot {
   TypeLet(const Token& source_token,
-          int64_t identifier,
+          const TypeIdentifier& identifier,
           BoxedType equal_to_type) :
           source_token(source_token),
           identifier(identifier),
@@ -73,7 +91,7 @@ struct TypeLet : public TypeAnnot {
   void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
-  int64_t identifier;
+  TypeIdentifier identifier;
   BoxedType equal_to_type;
 };
 
@@ -113,6 +131,37 @@ struct TypeBegin : public TypeAnnot {
   std::vector<BoxedTypeAnnot> contents;
 };
 
+struct RecordTypeNode : public TypeNode {
+  struct Field {
+    Field() = default;
+    Field(const TypeIdentifier& name, BoxedType type) : name(name), type(std::move(type)) {
+      //
+    }
+
+    TypeIdentifier name;
+    BoxedType type;
+  };
+
+  using Fields = std::vector<Field>;
+
+  RecordTypeNode(const Token& source_token, const Token& name_token,
+                 const TypeIdentifier& identifier, Fields&& fields) :
+  source_token(source_token), name_token(name_token), identifier(identifier), fields(std::move(fields)) {
+    //
+  }
+
+  ~RecordTypeNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  Token name_token;
+  TypeIdentifier identifier;
+  Fields fields;
+};
+
 struct UnionTypeNode : public TypeNode {
   explicit UnionTypeNode(std::vector<BoxedType>&& members) : members(std::move(members)) {
     //
@@ -128,7 +177,7 @@ struct UnionTypeNode : public TypeNode {
 
 struct ScalarTypeNode : public TypeNode {
   ScalarTypeNode(const Token& source_token,
-                 int64_t identifier,
+                 const TypeIdentifier& identifier,
                  std::vector<BoxedType>&& arguments) :
                  source_token(source_token),
                  identifier(identifier),
@@ -142,7 +191,7 @@ struct ScalarTypeNode : public TypeNode {
   void accept(TypePreservingVisitor& vis) override;
 
   Token source_token;
-  int64_t identifier;
+  TypeIdentifier identifier;
   std::vector<BoxedType> arguments;
 };
 

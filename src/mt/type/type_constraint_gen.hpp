@@ -24,16 +24,6 @@ private:
     std::vector<TypeEquation> constraints;
   };
 
-  struct ScopeStack {
-    static void push(TypeConstraintGenerator& vis, const MatlabScope* scope) {
-      vis.push_scope(scope);
-    }
-    static void pop(TypeConstraintGenerator& vis) {
-      vis.pop_scope();
-    }
-  };
-  using MatlabScopeHelper = ScopeHelper<TypeConstraintGenerator, ScopeStack>;
-
 public:
   explicit TypeConstraintGenerator(Substitution& substitution, Store& store, TypeStore& type_store,
                                    Library& library, const StringRegistry& string_registry) :
@@ -115,10 +105,6 @@ private:
   void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle);
   Type* require_bound_type_variable(const FunctionDefHandle& function_def_handle);
 
-  void push_scope(const MatlabScope* scope);
-  void pop_scope();
-  MT_NODISCARD const MatlabScope* current_scope() const;
-
   void push_type_equation(const TypeEquation& eq);
 
   void push_monomorphic_functions();
@@ -145,7 +131,7 @@ private:
   ValueCategoryState value_category_state;
   ClassDefState class_state;
 
-  std::vector<const MatlabScope*> scopes;
+  ScopeState<const MatlabScope> scopes;
 
   std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_type_handles;
   std::unordered_map<Type*, VariableDefHandle> variables;

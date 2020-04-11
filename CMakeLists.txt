@@ -25,3 +25,4 @@ endif()
 
 add_subdirectory(src/mt)
 add_subdirectory(test)
+add_subdirectory(bin)

@@ -77,6 +77,7 @@ TokenType from_symbol(std::string_view s) {
     {"let", TokenType::keyword_let},
     {"namespace", TokenType::keyword_namespace},
     {"struct", TokenType::keyword_struct},
+    {"record", TokenType::keyword_record},
     {"@T", TokenType::type_annotation_macro},
     {"::", TokenType::double_colon}
   };
@@ -249,6 +250,8 @@ const char* to_symbol(TokenType type) {
       return "namespace";
     case TokenType::keyword_struct:
       return "struct";
+    case TokenType::keyword_record:
+      return "record";
     case TokenType::keyword_function_type:
       return "function";
     case TokenType::keyword_fun_type:
@@ -421,6 +424,8 @@ const char* to_string(TokenType type) {
       return "keyword_namespace";
     case TokenType::keyword_struct:
       return "keyword_struct";
+    case TokenType::keyword_record:
+      return "keyword_record";
     case TokenType::keyword_function_type:
       return "keyword_function_type";
     case TokenType::keyword_fun_type:

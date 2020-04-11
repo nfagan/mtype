@@ -4,14 +4,6 @@
 namespace mt {
 
 /*
- * TypeIdentifier
- */
-
-std::size_t TypeIdentifier::Hash::operator()(const TypeIdentifier& id) const {
-  return std::hash<int64_t>{}(id.name);
-}
-
-/*
  * TypeEquationTerm
  */
 
@@ -35,5 +27,8 @@ TypeEquation make_eq(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) {
   return TypeEquation(lhs, rhs);
 }
 
+TypeReference make_ref(const Token* source_token, Type* term, const TypeScope* scope) {
+  return TypeReference(source_token, term, scope);
+}
 
 }

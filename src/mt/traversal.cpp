@@ -6,6 +6,37 @@
 namespace mt {
 
 /*
+ * TypeIdentifierExportState
+ */
+
+void TypeIdentifierExportState::Stack::push(TypeIdentifierExportState& state, bool value) {
+  if (value) {
+    state.push_export();
+  } else {
+    state.push_non_export();
+  }
+}
+
+void TypeIdentifierExportState::Stack::pop(TypeIdentifierExportState& state) {
+  state.pop_state();
+}
+
+void TypeIdentifierExportState::push_export() {
+  state.push_back(true);
+}
+void TypeIdentifierExportState::push_non_export() {
+  state.push_back(false);
+}
+void TypeIdentifierExportState::pop_state() {
+  assert(!state.empty());
+  state.pop_back();
+}
+bool TypeIdentifierExportState::is_export() const {
+  assert(!state.empty());
+  return state.back();
+}
+
+/*
  * AssignmentSourceState
  */
 

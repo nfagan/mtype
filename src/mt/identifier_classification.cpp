@@ -817,7 +817,7 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
   }
 
   //  Enter function definition.
-  FunctionDefState::EnclosingFunctionHelper function_helper(function_state, def_node.def_handle);
+  FunctionDefState::Helper function_helper(function_state, def_node.def_handle);
   block_new_context(function_body);
   pop_scope();
 
@@ -832,7 +832,7 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
 }
 
 ClassDefNode* IdentifierClassifier::class_def_node(ClassDefNode& ref) {
-  ClassDefState::EnclosingClassHelper class_helper(class_state, ref.handle, nullptr, MatlabIdentifier());
+  ClassDefState::Helper class_helper(class_state, ref.handle, nullptr, MatlabIdentifier());
 
   for (auto& method_node : ref.method_defs) {
     conditional_reset(method_node, method_node->accept(*this));

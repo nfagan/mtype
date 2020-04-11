@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
   constraint_generator.show_local_function_types(type_to_string);
 
   if (unify_res.is_error()) {
-    ShowUnificationErrors show(type_to_string);
+    ShowTypeErrors show(type_to_string);
     show.show(unify_res.errors, contents, file_descriptor, scan_info.row_column_indices);
 
     if (unify_res.errors.empty()) {

@@ -526,12 +526,31 @@ std::string StringVisitor::end_operator_expr(const EndOperatorExpr&) const {
   return "end";
 }
 
+std::string StringVisitor::record_type_node(const RecordTypeNode& type) const {
+  std::string res("record ");
+  maybe_colorize(res, type.source_token.type);
+  res += string_registry->at(type.identifier.full_name());
+  res += "\n";
+  enter_block();
+
+  for (const auto& field : type.fields) {
+    res += tab_str() + string_registry->at(field.name.full_name());
+    res += ": ";
+    res += field.type->accept(*this);
+    res += "\n";
+  }
+
+  exit_block();
+  res += tab_str() + end_str();
+  return res;
+}
+
 std::string StringVisitor::union_type_node(const UnionTypeNode& type) const {
   return visit_array(type.members, " | ");
 }
 
 std::string StringVisitor::scalar_type_node(const ScalarTypeNode& type) const {
-  auto str = std::string(string_registry->at(type.identifier));
+  auto str = std::string(string_registry->at(type.identifier.full_name()));
   if (!type.arguments.empty()) {
     str += ("<" + visit_array(type.arguments, ", ") + ">");
   }
@@ -559,6 +578,12 @@ std::string StringVisitor::type_assertion(const TypeAssertion& assertion) const 
   return ":: " + assertion.has_type->accept(*this) + "\n" + assertion.node->accept(*this);
 }
 
+std::string StringVisitor::type_import_node(const TypeImportNode& import) const {
+  std::string import_str("import ");
+  maybe_colorize(import_str, import.source_token.type);
+  return import_str + string_registry->at(import.import);
+}
+
 std::string StringVisitor::inline_type(const InlineType& type) const {
   return type.type->accept(*this);
 }
@@ -571,7 +596,7 @@ std::string StringVisitor::type_given(const TypeGiven& given) const {
 }
 
 std::string StringVisitor::type_let(const TypeLet& let) const {
-  auto identifier_str = string_registry->at(let.identifier);
+  auto identifier_str = string_registry->at(let.identifier.full_name());
   std::string let_str("let ");
   maybe_colorize(let_str, let.source_token.type);
   return let_str + identifier_str + " = " + let.equal_to_type->accept(*this);

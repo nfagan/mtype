@@ -1,36 +1,39 @@
 #pragma once
 
+#include "../identifier.hpp"
 #include <cstdint>
 #include <cstddef>
 #include <unordered_map>
+#include <vector>
 
 namespace mt {
 
 struct Token;
 struct Type;
+struct TypeScope;
 
-struct TypeIdentifier {
-  struct Hash {
-    std::size_t operator()(const TypeIdentifier& id) const;
-  };
+/*
+ * TypeReference
+ */
 
-  TypeIdentifier() : TypeIdentifier(-1) {
+struct TypeReference {
+  TypeReference() : TypeReference(nullptr, nullptr, nullptr) {
     //
   }
 
-  explicit TypeIdentifier(int64_t name) : name(name) {
+  TypeReference(const Token* source_token, Type* type, const TypeScope* scope) :
+  source_token(source_token), type(type), scope(scope) {
     //
   }
 
-  friend bool operator==(const TypeIdentifier& a, const TypeIdentifier& b) {
-    return a.name == b.name;
-  }
-  friend bool operator!=(const TypeIdentifier& a, const TypeIdentifier& b) {
-    return a.name != b.name;
-  }
-
-  int64_t name;
+  const Token* source_token;
+  Type* type;
+  const TypeScope* scope;
 };
+
+/*
+ * TypeEquationTerm
+ */
 
 struct TypeEquationTerm {
   struct TypeHash {
@@ -76,5 +79,6 @@ using BoundTerms = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEq
 
 TypeEquationTerm make_term(const Token* source_token, Type* term);
 TypeEquation make_eq(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs);
+TypeReference make_ref(const Token* source_token, Type* term, const TypeScope* scope);
 
 }

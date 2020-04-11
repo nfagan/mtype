@@ -60,6 +60,7 @@ public:
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;
   std::string end_operator_expr(const EndOperatorExpr& expr) const;
 
+  std::string record_type_node(const RecordTypeNode& type) const;
   std::string union_type_node(const UnionTypeNode& type) const;
   std::string scalar_type_node(const ScalarTypeNode& type) const;
   std::string function_type_node(const FunctionTypeNode& type) const;
@@ -70,6 +71,7 @@ public:
   std::string type_annot_macro(const TypeAnnotMacro& type) const;
   std::string fun_type_node(const FunTypeNode& node) const;
   std::string type_assertion(const TypeAssertion& assertion) const;
+  std::string type_import_node(const TypeImportNode& import) const;
 
 private:
   std::string class_def(const ClassDef& def) const;

@@ -220,11 +220,19 @@ void Library::make_builtin_types() {
 }
 
 void Library::make_known_types() {
+  make_base_type_scope();
   make_builtin_types();
   make_subscript_references();
   make_free_functions();
   make_concatenations();
   make_double_methods();
+}
+
+void Library::make_base_type_scope() {
+  def_store.use<Store::Write>([&](auto& writer) {
+    base_scope = writer.make_type_scope(nullptr, nullptr);
+    base_scope->root = base_scope;
+  });
 }
 
 void Library::make_free_functions() {
@@ -454,12 +462,17 @@ void Library::make_double_methods() {
 
 Type* Library::make_named_scalar_type(const char* name) {
   const auto name_id = string_registry.register_string(name);
-  const auto type_handle = store.make_concrete();
+  const TypeIdentifier identifier(name_id);
+  const auto type_handle = store.make_scalar(identifier);
   assert(type_handle->is_scalar());
   const auto& type = MT_SCALAR_REF(*type_handle);
 
   scalar_type_names[type.identifier] = name_id;
   named_scalar_types[name_id] = type_handle;
+
+  const auto type_ref = store.make_type_reference(nullptr, type_handle, base_scope);
+  base_scope->emplace_type(identifier, type_ref, true);
+
   return type_handle;
 }
 

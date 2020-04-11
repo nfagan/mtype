@@ -5,6 +5,10 @@
 
 namespace mt {
 
+/*
+ * MatlabIdentifier
+ */
+
 class MatlabIdentifier {
 public:
   struct Hash {
@@ -56,6 +60,37 @@ public:
 private:
   int64_t name;
   int num_components;
+};
+
+/*
+ * TypeIdentifier
+ */
+
+struct TypeIdentifier {
+  struct Hash {
+    std::size_t operator()(const TypeIdentifier& id) const;
+  };
+
+  TypeIdentifier() : TypeIdentifier(-1) {
+    //
+  }
+
+  explicit TypeIdentifier(int64_t name) : name(name) {
+    //
+  }
+
+  int64_t full_name() const {
+    return name;
+  }
+
+  friend bool operator==(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name == b.name;
+  }
+  friend bool operator!=(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name != b.name;
+  }
+
+  int64_t name;
 };
 
 }

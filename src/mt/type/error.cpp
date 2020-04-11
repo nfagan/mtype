@@ -3,6 +3,7 @@
 #include "../display.hpp"
 #include "../text.hpp"
 #include "../fs.hpp"
+#include "../token_source_map.hpp"
 #include <cassert>
 
 namespace mt {
@@ -11,7 +12,7 @@ namespace mt {
  * SimplificationFailure
  */
 
-std::string SimplificationFailure::get_text(const ShowUnificationErrors& shower) const {
+std::string SimplificationFailure::get_text(const ShowTypeErrors& shower) const {
   const auto lhs_str = shower.type_to_string.apply(lhs_type);
   const auto rhs_str = shower.type_to_string.apply(rhs_type);
 
@@ -26,7 +27,7 @@ Token SimplificationFailure::get_source_token() const {
  * OccursCheckFailure
  */
 
-std::string OccursCheckFailure::get_text(const ShowUnificationErrors& shower) const {
+std::string OccursCheckFailure::get_text(const ShowTypeErrors& shower) const {
   const auto lhs_str = shower.type_to_string.apply(lhs_type);
   const auto rhs_str = shower.type_to_string.apply(rhs_type);
   const std::string msg = "No occurrence violation: ";
@@ -42,7 +43,7 @@ Token OccursCheckFailure::get_source_token() const {
  * UnresolvedFunctionError
  */
 
-std::string UnresolvedFunctionError::get_text(const ShowUnificationErrors& shower) const {
+std::string UnresolvedFunctionError::get_text(const ShowTypeErrors& shower) const {
   const auto func_str = shower.type_to_string.apply(function_type);
   std::string msg = "No such function: ";
   std::string text = shower.stylize(style::red) + msg + shower.stylize(style::dflt);
@@ -57,7 +58,7 @@ Token UnresolvedFunctionError::get_source_token() const {
  * InvalidFunctionInvocationError
  */
 
-std::string InvalidFunctionInvocationError::get_text(const ShowUnificationErrors& shower) const {
+std::string InvalidFunctionInvocationError::get_text(const ShowTypeErrors& shower) const {
   const auto func_str = shower.type_to_string.apply(function_type);
   std::string msg = "Expected one `()` subscript for function type: ";
   std::string text = shower.stylize(style::red) + msg + shower.stylize(style::dflt);
@@ -72,7 +73,7 @@ Token InvalidFunctionInvocationError::get_source_token() const {
  * NonConstantFieldReferenceExprError
  */
 
-std::string NonConstantFieldReferenceExprError::get_text(const ShowUnificationErrors& shower) const {
+std::string NonConstantFieldReferenceExprError::get_text(const ShowTypeErrors& shower) const {
   const auto func_str = shower.type_to_string.apply(arg_type);
   std::string msg = "Expected a constant expression for record field reference, but got: ";
   std::string text = shower.stylize(style::red) + msg + shower.stylize(style::dflt);
@@ -87,7 +88,7 @@ Token NonConstantFieldReferenceExprError::get_source_token() const {
  * NonexistentFieldReferenceError
  */
 
-std::string NonexistentFieldReferenceError::get_text(const ShowUnificationErrors& shower) const {
+std::string NonexistentFieldReferenceError::get_text(const ShowTypeErrors& shower) const {
   const auto arg_str = shower.type_to_string.apply(arg_type);
   const auto field_str = shower.type_to_string.apply(field_type);
   const std::string field_msg = shower.stylize("Reference to non-existent field ", style::red) + field_str;
@@ -100,10 +101,22 @@ Token NonexistentFieldReferenceError::get_source_token() const {
 }
 
 /*
+ * DuplicateTypeIdentifierError
+ */
+
+std::string DuplicateTypeIdentifierError::get_text(const ShowTypeErrors&) const {
+  return std::string("Duplicate type identifier `") + std::string(new_def->lexeme) + "`.";
+}
+
+Token DuplicateTypeIdentifierError::get_source_token() const {
+  return *new_def;
+}
+
+/*
  * ShowUnificationErrors
  */
 
-void ShowUnificationErrors::show(const UnificationError& err, int64_t index, const TokenSourceMap& source_data_by_token) const {
+void ShowTypeErrors::show(const TypeError& err, int64_t index, const TokenSourceMap& source_data_by_token) const {
   const auto at_token = err.get_source_token();
   const auto maybe_source_data = source_data_by_token.lookup(at_token);
   assert(maybe_source_data);
@@ -133,31 +146,18 @@ void ShowUnificationErrors::show(const UnificationError& err, int64_t index, con
   std::cout << msg << std::endl << std::endl;
 }
 
-void ShowUnificationErrors::show(const UnificationErrors& errs, const TokenSourceMap& source_data) const {
+void ShowTypeErrors::show(const TypeErrors& errs, const TokenSourceMap& source_data) const {
   for (int64_t i = 0; i < int64_t(errs.size()); i++) {
     show(*errs[i], i+1, source_data);
   }
 }
 
-const char* ShowUnificationErrors::stylize(const char* code) const {
+const char* ShowTypeErrors::stylize(const char* code) const {
   return type_to_string.rich_text ? code : "";
 }
 
-std::string ShowUnificationErrors::stylize(const std::string& str, const char* style) const {
+std::string ShowTypeErrors::stylize(const std::string& str, const char* style) const {
   return stylize(style) + str + stylize(style::dflt);
-}
-
-/*
- * TokenSourceMap
- */
-
-void TokenSourceMap::insert(const Token& tok, const TokenSourceMap::SourceData& data) {
-  sources_by_token[tok] = data;
-}
-
-Optional<TokenSourceMap::SourceData> TokenSourceMap::lookup(const Token& tok) const {
-  auto it = sources_by_token.find(tok);
-  return it == sources_by_token.end() ? NullOpt{} : Optional<TokenSourceMap::SourceData>(it->second);
 }
 
 }

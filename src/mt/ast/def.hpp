@@ -9,13 +9,16 @@
 namespace mt {
 
 class TypePreservingVisitor;
+struct TypeScope;
 
 struct FunctionDefNode : public AstNode {
   FunctionDefNode(const Token& source_token,
                   const FunctionDefHandle& def_handle,
                   const FunctionReferenceHandle& ref_handle,
-                  MatlabScope* scope) :
-    source_token(source_token), def_handle(def_handle), ref_handle(ref_handle), scope(scope) {
+                  MatlabScope* scope,
+                  TypeScope* type_scope) :
+    source_token(source_token), def_handle(def_handle), ref_handle(ref_handle), scope(scope),
+    type_scope(type_scope) {
     //
   }
   ~FunctionDefNode() override = default;
@@ -33,6 +36,7 @@ struct FunctionDefNode : public AstNode {
   FunctionDefHandle def_handle;
   FunctionReferenceHandle ref_handle;
   MatlabScope* scope;
+  TypeScope* type_scope;
 };
 
 struct ClassDefNode : public AstNode {

@@ -9,6 +9,7 @@ namespace mt {
 
 class TextRowColumnIndices;
 class CodeFileDescriptor;
+class TokenSourceMap;
 
 class ParseError {
   friend class ShowParseErrors;
@@ -43,22 +44,20 @@ using ParseErrors = std::vector<ParseError>;
 
 class ShowParseErrors {
 public:
-  ShowParseErrors(const TextRowColumnIndices* row_col_indices) :
-    row_col_indices(row_col_indices), is_rich_text(true) {
+  ShowParseErrors() : is_rich_text(true) {
     //
   }
 
-  void show(const ParseErrors& errs);
-  void show(const ParseError& err, int64_t index = 0);
+  void show(const ParseErrors& errs, const TokenSourceMap& source_data);
+  void show(const ParseError& err, const TokenSourceMap& source_data, int64_t index = 0);
 
 private:
   const char* stylize(const char* code) const;
 
-private:
-  const TextRowColumnIndices* row_col_indices;
-
 public:
   bool is_rich_text;
 };
+
+std::string make_error_message_duplicate_type_identifier(std::string_view dup_ident);
 
 }

@@ -10,17 +10,16 @@ namespace mt {
 
 class TypeStore;
 class TypeToString;
-class ShowUnificationErrors;
-class CodeFileDescriptor;
-class TextRowColumnIndices;
+class ShowTypeErrors;
+class TokenSourceMap;
 
-struct UnificationError {
-  virtual std::string get_text(const ShowUnificationErrors& shower) const = 0;
+struct TypeError {
+  virtual std::string get_text(const ShowTypeErrors& shower) const = 0;
   virtual Token get_source_token() const = 0;
-  virtual ~UnificationError() = default;
+  virtual ~TypeError() = default;
 };
 
-struct SimplificationFailure : public UnificationError {
+struct SimplificationFailure : public TypeError {
   SimplificationFailure(const Token* lhs_token, const Token* rhs_token,
                         const Type* lhs_type, const Type* rhs_type) :
   lhs_token(lhs_token), rhs_token(rhs_token), lhs_type(lhs_type), rhs_type(rhs_type) {
@@ -28,7 +27,7 @@ struct SimplificationFailure : public UnificationError {
   }
   ~SimplificationFailure() override = default;
 
-  std::string get_text(const ShowUnificationErrors& shower) const override;
+  std::string get_text(const ShowTypeErrors& shower) const override;
   Token get_source_token() const override;
 
   const Token* lhs_token;
@@ -37,7 +36,7 @@ struct SimplificationFailure : public UnificationError {
   const Type* rhs_type;
 };
 
-struct OccursCheckFailure : public UnificationError {
+struct OccursCheckFailure : public TypeError {
   OccursCheckFailure(const Token* lhs_token, const Token* rhs_token,
                      const Type* lhs_type, const Type* rhs_type) :
   lhs_token(lhs_token), rhs_token(rhs_token), lhs_type(lhs_type), rhs_type(rhs_type) {
@@ -45,7 +44,7 @@ struct OccursCheckFailure : public UnificationError {
   }
   ~OccursCheckFailure() override = default;
 
-  std::string get_text(const ShowUnificationErrors& shower) const override;
+  std::string get_text(const ShowTypeErrors& shower) const override;
   Token get_source_token() const override;
 
   const Token* lhs_token;
@@ -54,52 +53,52 @@ struct OccursCheckFailure : public UnificationError {
   const Type* rhs_type;
 };
 
-struct UnresolvedFunctionError : public UnificationError {
+struct UnresolvedFunctionError : public TypeError {
   UnresolvedFunctionError(const Token* at_token, const Type* function_type) :
   at_token(at_token), function_type(function_type) {
     //
   }
   ~UnresolvedFunctionError() override = default;
-  std::string get_text(const ShowUnificationErrors& shower) const override;
+  std::string get_text(const ShowTypeErrors& shower) const override;
   Token get_source_token() const override;
 
   const Token* at_token;
   const Type* function_type;
 };
 
-struct InvalidFunctionInvocationError : public UnificationError {
+struct InvalidFunctionInvocationError : public TypeError {
   InvalidFunctionInvocationError(const Token* at_token, const Type* function_type) :
   at_token(at_token), function_type(function_type) {
     //
   }
   ~InvalidFunctionInvocationError() override = default;
-  std::string get_text(const ShowUnificationErrors& shower) const override;
+  std::string get_text(const ShowTypeErrors& shower) const override;
   Token get_source_token() const override;
 
   const Token* at_token;
   const Type* function_type;
 };
 
-struct NonConstantFieldReferenceExprError : public UnificationError {
+struct NonConstantFieldReferenceExprError : public TypeError {
   NonConstantFieldReferenceExprError(const Token* at_token, const Type* arg_type) :
   at_token(at_token), arg_type(arg_type) {
     //
   }
   ~NonConstantFieldReferenceExprError() override = default;
-  std::string get_text(const ShowUnificationErrors& shower) const override;
+  std::string get_text(const ShowTypeErrors& shower) const override;
   Token get_source_token() const override;
 
   const Token* at_token;
   const Type* arg_type;
 };
 
-struct NonexistentFieldReferenceError : public UnificationError {
+struct NonexistentFieldReferenceError : public TypeError {
   NonexistentFieldReferenceError(const Token* at_token, const Type* arg_type, const Type* field_type) :
     at_token(at_token), arg_type(arg_type), field_type(field_type) {
     //
   }
   ~NonexistentFieldReferenceError() override = default;
-  std::string get_text(const ShowUnificationErrors& shower) const override;
+  std::string get_text(const ShowTypeErrors& shower) const override;
   Token get_source_token() const override;
 
   const Token* at_token;
@@ -107,50 +106,31 @@ struct NonexistentFieldReferenceError : public UnificationError {
   const Type* field_type;
 };
 
-using BoxedUnificationError = std::unique_ptr<UnificationError>;
-using UnificationErrors = std::vector<BoxedUnificationError>;
+struct DuplicateTypeIdentifierError : public TypeError {
+  DuplicateTypeIdentifierError(const Token* initial_def, const Token* new_def) :
+    initial_def(initial_def), new_def(new_def) {
+    //
+  }
+  ~DuplicateTypeIdentifierError() override = default;
+  std::string get_text(const ShowTypeErrors& shower) const override;
+  Token get_source_token() const override;
 
-class TokenSourceMap {
-public:
-  struct SourceData {
-    SourceData() : SourceData(nullptr, nullptr, nullptr) {
-      //
-    }
-    SourceData(const std::string* source,
-               const CodeFileDescriptor* file_descriptor,
-               const TextRowColumnIndices* row_col_indices) :
-    source(source), file_descriptor(file_descriptor), row_col_indices(row_col_indices) {
-      //
-    }
-
-    MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(SourceData)
-    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SourceData)
-
-    const std::string* source;
-    const CodeFileDescriptor* file_descriptor;
-    const TextRowColumnIndices* row_col_indices;
-  };
-
-public:
-  TokenSourceMap() = default;
-  ~TokenSourceMap() = default;
-
-  void insert(const Token& tok, const SourceData& source_data);
-  Optional<SourceData> lookup(const Token& tok) const;
-
-private:
-  std::unordered_map<Token, SourceData, Token::Hash> sources_by_token;
+  const Token* initial_def;
+  const Token* new_def;
 };
 
-class ShowUnificationErrors {
+using BoxedTypeError = std::unique_ptr<TypeError>;
+using TypeErrors = std::vector<BoxedTypeError>;
+
+class ShowTypeErrors {
 public:
-  ShowUnificationErrors(const TypeToString& type_to_string) :
+  ShowTypeErrors(const TypeToString& type_to_string) :
   type_to_string(type_to_string) {
     //
   }
 
-  void show(const UnificationError& err, int64_t index, const TokenSourceMap& source_data) const;
-  void show(const UnificationErrors& errs, const TokenSourceMap& source_data) const;
+  void show(const TypeError& err, int64_t index, const TokenSourceMap& source_data) const;
+  void show(const TypeErrors& errs, const TokenSourceMap& source_data) const;
 
   const char* stylize(const char* code) const;
   std::string stylize(const std::string& str, const char* style) const;

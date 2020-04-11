@@ -117,4 +117,11 @@ MatlabScope* Store::make_matlab_scope(const MatlabScope* parent, const CodeFileD
   return scope_ptr;
 }
 
+TypeScope* Store::make_type_scope(TypeScope* root, const TypeScope* parent) {
+  auto new_scope = std::make_unique<TypeScope>(root, parent);
+  auto scope_ptr = new_scope.get();
+  type_scopes.push_back(std::move(new_scope));
+  return scope_ptr;
+}
+
 }

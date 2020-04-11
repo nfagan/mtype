@@ -18,6 +18,7 @@ class StringRegistry;
 class FunctionDefHandle;
 class SearchPath;
 struct SearchCandidate;
+struct TypeScope;
 
 /*
  * MethodStore
@@ -63,7 +64,7 @@ public:
   };
 
 public:
-  explicit Library(TypeStore& store, const Store& def_store, const SearchPath& search_path, StringRegistry& string_registry) :
+  explicit Library(TypeStore& store, Store& def_store, const SearchPath& search_path, StringRegistry& string_registry) :
   subtype_relation(*this),
   type_eq(equiv_relation, store),
   store(store),
@@ -77,6 +78,7 @@ public:
   }
 
   void make_known_types();
+  void make_base_type_scope();
   Type* make_named_scalar_type(const char* name);
 
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
@@ -134,7 +136,7 @@ private:
   TypeRelation type_eq;
 
   TypeStore& store;
-  const Store& def_store;
+  Store& def_store;
   StringRegistry& string_registry;
 
   TypeRelation::ArgumentLess arg_comparator;
@@ -160,6 +162,8 @@ public:
   Type* logical_type_handle;
   Type* sub_double_type_handle;
   Type* sub_sub_double_type_handle;
+
+  TypeScope* base_scope;
 };
 
 }

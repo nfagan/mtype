@@ -40,7 +40,7 @@ namespace {
 
 const char** typing::keywords(int* count) {
   static const char* keywords[] = {
-    "begin", "export", "given", "let", "namespace", "struct", "fun"
+    "begin", "export", "given", "let", "namespace", "struct", "fun", "record"
   };
 
   *count = sizeof(keywords) / sizeof(keywords[0]);
@@ -54,7 +54,7 @@ bool typing::is_keyword(std::string_view str) {
 }
 
 bool typing::is_end_terminated(std::string_view kw) {
-  return kw == "begin" || kw == "namespace" || kw == "struct";
+  return kw == "begin" || kw == "namespace" || kw == "struct" || kw == "record";
 }
 
 const char** matlab::classdef_keywords(int* count) {

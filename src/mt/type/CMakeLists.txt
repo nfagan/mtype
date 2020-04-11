@@ -21,6 +21,8 @@ function(configure_type)
             types.cpp
             type_constraint_gen.hpp
             type_constraint_gen.cpp
+            type_identifier_resolution.hpp
+            type_identifier_resolution.cpp
             type_properties.hpp
             type_properties.cpp
             type_relation.hpp
@@ -29,6 +31,8 @@ function(configure_type)
             type_relationships.cpp
             type_representation.hpp
             type_representation.cpp
+            type_scope.hpp
+            type_scope.cpp
             type_store.hpp
             type_store.cpp
             unification.hpp

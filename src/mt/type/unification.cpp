@@ -830,37 +830,37 @@ void Unifier::emplace_simplification_failure(const Token* lhs_token, const Token
   add_error(make_simplification_failure(lhs_token, rhs_token, lhs_type, rhs_type));
 }
 
-BoxedUnificationError Unifier::make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
-                                                           const Type* lhs_type, const Type* rhs_type) const {
+BoxedTypeError Unifier::make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+                                                    const Type* lhs_type, const Type* rhs_type) const {
   return std::make_unique<SimplificationFailure>(lhs_token, rhs_token, lhs_type, rhs_type);
 }
 
-BoxedUnificationError Unifier::make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
-                                                           const Type* lhs_type, const Type* rhs_type) const {
+BoxedTypeError Unifier::make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
+                                                    const Type* lhs_type, const Type* rhs_type) const {
   return std::make_unique<OccursCheckFailure>(lhs_token, rhs_token, lhs_type, rhs_type);
 }
 
-BoxedUnificationError Unifier::make_unresolved_function_error(const Token* at_token, const Type* function_type) const {
+BoxedTypeError Unifier::make_unresolved_function_error(const Token* at_token, const Type* function_type) const {
   return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
 }
 
-BoxedUnificationError Unifier::make_invalid_function_invocation_error(const Token* at_token,
-                                                                      const Type* function_type) const {
+BoxedTypeError Unifier::make_invalid_function_invocation_error(const Token* at_token,
+                                                               const Type* function_type) const {
   return std::make_unique<InvalidFunctionInvocationError>(at_token, function_type);
 }
 
-BoxedUnificationError Unifier::make_non_constant_field_reference_expr_error(const Token* at_token,
-                                                                            const Type* arg_type) const {
+BoxedTypeError Unifier::make_non_constant_field_reference_expr_error(const Token* at_token,
+                                                                     const Type* arg_type) const {
   return std::make_unique<NonConstantFieldReferenceExprError>(at_token, arg_type);
 }
 
-BoxedUnificationError Unifier::make_reference_to_non_existent_field_error(const Token* at_token,
-                                                                          const Type* arg,
-                                                                          const Type* field) const {
+BoxedTypeError Unifier::make_reference_to_non_existent_field_error(const Token* at_token,
+                                                                   const Type* arg,
+                                                                   const Type* field) const {
   return std::make_unique<NonexistentFieldReferenceError>(at_token, arg, field);
 }
 
-void Unifier::add_error(BoxedUnificationError err) {
+void Unifier::add_error(BoxedTypeError err) {
   errors.emplace_back(std::move(err));
 }
 

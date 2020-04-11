@@ -20,7 +20,7 @@ void TypeConstraintGenerator::show_type_distribution() const {
 }
 
 void TypeConstraintGenerator::root_block(const RootBlock& block) {
-  MatlabScopeHelper scope_helper(*this, block.scope);
+  ScopeState<const MatlabScope>::Helper scope_helper(scopes, block.scope);
   block.block->accept_const(*this);
 }
 
@@ -97,7 +97,7 @@ void TypeConstraintGenerator::gather_function_outputs(const MatlabScope& scope,
 }
 
 void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
-  MatlabScopeHelper scope_helper(*this, node.scope);
+  ScopeState<const MatlabScope>::Helper scope_helper(scopes, node.scope);
 
   const auto input_handle = type_store.make_input_destructured_tuple(TypePtrs{});
   const auto output_handle = type_store.make_output_destructured_tuple(TypePtrs{});
@@ -113,7 +113,7 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   const Block* function_body = nullptr;
   FunctionAttributes function_attrs;
 
-  const auto& scope = *current_scope();
+  const auto& scope = *scopes.current();
 
   store.use<Store::ReadConst>([&](const auto& reader) {
     const auto& def = reader.at(node.def_handle);
@@ -128,8 +128,8 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
 
   if (function_body) {
     //  Push a null handle to indicate that we're no longer directly inside a class.
-    ClassDefState::EnclosingClassHelper enclosing_class(class_state, ClassDefHandle{},
-                                                        nullptr, MatlabIdentifier());
+    ClassDefState::Helper enclosing_class(class_state, ClassDefHandle{},
+                                          nullptr, MatlabIdentifier());
     push_monomorphic_functions();
     function_body->accept_const(*this);
     pop_generic_function_state();
@@ -252,7 +252,7 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   auto record_type = type_store.make_record(std::move(fields));
   auto class_type = type_store.make_class(name, record_type);
 
-  ClassDefState::EnclosingClassHelper class_helper(class_state, node.handle, class_type, name);
+  ClassDefState::Helper class_helper(class_state, node.handle, class_type, name);
 
   for (const auto& method : node.method_defs) {
     method->accept_const(*this);
@@ -306,7 +306,7 @@ void TypeConstraintGenerator::function_type_node(const FunctionTypeNode& node) {
 
 void TypeConstraintGenerator::scalar_type_node(const ScalarTypeNode& node) {
   assert(node.arguments.empty() && "Args not yet handled.");
-  auto maybe_known_scalar_type = library.named_scalar_type(node.identifier);
+  auto maybe_known_scalar_type = library.named_scalar_type(node.identifier.full_name());
   assert(maybe_known_scalar_type && "Unknown scalar type.");
 
   push_type_equation_term(make_term(&node.source_token, maybe_known_scalar_type.value()));
@@ -447,7 +447,7 @@ void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExp
 }
 
 void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
-  MatlabScopeHelper scope_helper(*this, expr.scope);
+  ScopeState<const MatlabScope>::Helper scope_helper(scopes, expr.scope);
 
   //  Store constraints here.
   if (are_functions_polymorphic()) {
@@ -457,7 +457,7 @@ void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExp
   TypePtrs function_inputs;
   TypePtrs function_outputs;
 
-  gather_function_inputs(*current_scope(), expr.inputs, function_inputs);
+  gather_function_inputs(*scopes.current(), expr.inputs, function_inputs);
 
   const auto input_handle = type_store.make_input_destructured_tuple(std::move(function_inputs));
   const auto output_type = make_fresh_type_variable_reference();
@@ -663,6 +663,7 @@ void TypeConstraintGenerator::if_branch(const IfBranch& branch) {
 }
 
 void TypeConstraintGenerator::switch_stmt(const SwitchStmt& stmt) {
+  //  @TODO: Handle case expressions with multiple brace-wrapped options: case {1, 2, 3}
   auto condition_term = visit_expr(stmt.condition_expr, stmt.source_token);
 
   for (const auto& switch_case : stmt.cases) {
@@ -742,18 +743,6 @@ Type* TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHand
   bind_type_variable_to_function_def(function_def_handle, function_type_handle);
 
   return function_type_handle;
-}
-
-void TypeConstraintGenerator::push_scope(const MatlabScope* scope) {
-  scopes.push_back(scope);
-}
-
-void TypeConstraintGenerator::pop_scope() {
-  scopes.pop_back();
-}
-
-const MatlabScope* TypeConstraintGenerator::current_scope() const {
-  return scopes.back();
 }
 
 void TypeConstraintGenerator::push_type_equation(const TypeEquation& eq) {

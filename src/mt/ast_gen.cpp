@@ -2,12 +2,31 @@
 #include "string.hpp"
 #include "utility.hpp"
 #include "keyword.hpp"
+#include "type/type_store.hpp"
 #include <array>
 #include <cassert>
 #include <functional>
 #include <set>
 
 namespace mt {
+
+/*
+ * ParseInstance
+ */
+
+ParseInstance::ParseInstance(Store* store,
+                             TypeStore* type_store,
+                             StringRegistry* string_registry,
+                             const CodeFileDescriptor* file_descriptor,
+                             bool functions_are_end_terminated) :
+                             store(store),
+                             type_store(type_store),
+                             string_registry(string_registry),
+                             file_descriptor(file_descriptor),
+                             functions_are_end_terminated(functions_are_end_terminated),
+                             had_error(false) {
+  //
+}
 
 struct BlockStmtScopeHelper {
   BlockStmtScopeHelper(int* scope) : scope(scope) {
@@ -29,8 +48,8 @@ struct ParseScopeStack {
   }
 };
 
-struct ParseScopeHelper : public ScopeHelper<AstGenerator, ParseScopeStack> {
-  using ScopeHelper::ScopeHelper;
+struct ParseScopeHelper : public StackHelper<AstGenerator, ParseScopeStack> {
+  using StackHelper::StackHelper;
 };
 
 struct FunctionAttributeStack {
@@ -42,21 +61,21 @@ struct FunctionAttributeStack {
   }
 };
 
-struct FunctionAttributeHelper : public ScopeHelper<AstGenerator, FunctionAttributeStack> {
-  using ScopeHelper::ScopeHelper;
+struct FunctionAttributeHelper : public StackHelper<AstGenerator, FunctionAttributeStack> {
+  using StackHelper::StackHelper;
 };
 
-Result<ParseErrors, BoxedRootBlock>
-AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, const ParseInputs& inputs) {
+void AstGenerator::parse(ParseInstance* instance, const std::vector<Token>& tokens, std::string_view txt) {
+  parse_instance = instance;
+
   iterator = TokenIterator(&tokens);
   text = txt;
-  is_end_terminated_function = inputs.functions_are_end_terminated;
-  string_registry = inputs.string_registry;
-  store = inputs.store;
+  is_end_terminated_function = instance->functions_are_end_terminated;
+  string_registry = instance->string_registry;
+  store = instance->store;
 
   scopes.clear();
   function_attributes.clear();
-  parse_errors.clear();
 
   block_depths = BlockDepths();
   class_state = ClassDefState();
@@ -68,16 +87,18 @@ AstGenerator::parse(const std::vector<Token>& tokens, std::string_view txt, cons
   push_function_attributes(FunctionAttributes());
   FunctionAttributeHelper attr_helper(*this);
 
+  //  Push non-exported type identifiers.
+  TypeIdentifierExportState::Helper export_state_helper(type_identifier_export_state, false);
+
   //  Main block.
   auto result = block();
 
   if (result) {
     auto block_node = std::move(result.rvalue());
-
-    auto root_node = std::make_unique<RootBlock>(std::move(block_node), current_scope());
-    return make_success<ParseErrors, BoxedRootBlock>(std::move(root_node));
+    auto root_node = std::make_unique<RootBlock>(std::move(block_node), current_scope(), current_type_scope());
+    parse_instance->root_block = std::move(root_node);
   } else {
-    return make_error<ParseErrors, BoxedRootBlock>(std::move(parse_errors));
+    parse_instance->had_error = true;
   }
 }
 
@@ -338,11 +359,13 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
 
   Optional<std::unique_ptr<Block>> body_res;
   MatlabScope* child_scope = nullptr;
+  TypeScope* child_type_scope = nullptr;
 
   {
     //  Increment scope, and decrement upon block exit.
     ParseScopeHelper scope_helper(*this);
     child_scope = current_scope();
+    child_type_scope = current_type_scope();
 
     body_res = sub_block();
     if (!body_res) {
@@ -410,7 +433,8 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
-  auto ast_node = std::make_unique<FunctionDefNode>(source_token, def_handle, ref_handle, child_scope);
+  auto ast_node = std::make_unique<FunctionDefNode>(source_token, def_handle, ref_handle,
+                                                    child_scope, child_type_scope);
   return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
 }
 
@@ -509,7 +533,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   }
 
   MatlabIdentifier name(string_registry->register_string(name_res.value()));
-  ClassDefState::EnclosingClassHelper class_helper(class_state, class_handle, nullptr, name);
+  ClassDefState::Helper class_helper(class_state, class_handle, nullptr, name);
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
@@ -1938,7 +1962,7 @@ Optional<BoxedStmt> AstGenerator::import_stmt(const mt::Token&) {
   iterator.advance();
 
   while (iterator.has_next()) {
-    auto import_res = one_import(iterator.peek());
+    auto import_res = one_import(iterator.peek(), /*is_matlab_import=*/ true);
     if (!import_res) {
       return NullOpt{};
     }
@@ -1953,7 +1977,7 @@ Optional<BoxedStmt> AstGenerator::import_stmt(const mt::Token&) {
   return Optional<BoxedStmt>(BoxedStmt(nullptr));
 }
 
-Optional<Import> AstGenerator::one_import(const mt::Token& source_token) {
+Optional<Import> AstGenerator::one_import(const mt::Token& source_token, bool is_matlab_import) {
   std::vector<int64_t> identifier_components;
   bool expect_identifier = true;
   ImportType import_type = ImportType::fully_qualified;
@@ -1966,7 +1990,7 @@ Optional<Import> AstGenerator::one_import(const mt::Token& source_token) {
       if (tok.type == TokenType::identifier) {
         //  Start of a new import. e.g. import a.b.c b.c.d
         break;
-      } else if (tok.type == TokenType::dot_asterisk) {
+      } else if (tok.type == TokenType::dot_asterisk && is_matlab_import) {
         //  Wildcard import a.b.c*
         iterator.advance();
         import_type = ImportType::wildcard;
@@ -1986,7 +2010,7 @@ Optional<Import> AstGenerator::one_import(const mt::Token& source_token) {
     expect_identifier = !expect_identifier;
   }
 
-  const auto minimum_size = import_type == ImportType::wildcard ? 1 : 2;
+  const auto minimum_size = !is_matlab_import ? 1 : import_type == ImportType::wildcard ? 1 : 2;
   const int64_t num_components = identifier_components.size();
 
   if (num_components < minimum_size) {
@@ -2199,6 +2223,12 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
     case TokenType::double_colon:
       return type_assertion(source_token);
 
+    case TokenType::keyword_import:
+      return type_import(source_token);
+
+    case TokenType::keyword_record:
+      return type_record(source_token);
+
     default:
       auto possible_types = type_annotation_block_possible_types();
       add_error(make_error_expected_token_type(source_token, possible_types));
@@ -2289,6 +2319,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_fun(const mt::Token& source_token) {
 
 Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
   iterator.advance();
+  const auto name_token = iterator.peek();
 
   auto ident_res = one_identifier();
   if (!ident_res) {
@@ -2306,9 +2337,20 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
     return NullOpt{};
   }
 
-  int64_t identifier = string_registry->register_string(ident_res.value());
+  auto identifier = TypeIdentifier(string_registry->register_string(ident_res.value()));
+  auto scope = current_type_scope();
+  const bool is_export = type_identifier_export_state.is_export();
+
+  if (!scope->can_register_local_identifier(identifier, is_export)) {
+    add_error(make_error_duplicate_type_identifier(name_token));
+    return NullOpt{};
+  }
 
   auto let_node = std::make_unique<TypeLet>(source_token, identifier, equal_to_type_res.rvalue());
+  //  @Note: Source token must be a pointer to a source token stored in the AST.
+  auto let_type = parse_instance->type_store->make_type_reference(&let_node->source_token, nullptr, scope);
+  scope->emplace_type(identifier, let_type, is_export);
+
   return Optional<BoxedTypeAnnot>(std::move(let_node));
 }
 
@@ -2382,6 +2424,9 @@ Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token)
     iterator.advance();
   }
 
+  //  Mark whether the contained identifiers are exported.
+  TypeIdentifierExportState::Helper export_state_helper(type_identifier_export_state, is_exported);
+
   std::vector<BoxedTypeAnnot> contents;
   bool had_error = false;
 
@@ -2418,6 +2463,103 @@ Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token)
 
   auto node = std::make_unique<TypeBegin>(source_token, is_exported, std::move(contents));
   return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_import(const Token& source_token) {
+  iterator.advance();
+
+  auto import_res = one_import(source_token, /*is_matlab_import=*/ false);
+  if (!import_res) {
+    return NullOpt{};
+  }
+
+  auto& import = import_res.value();
+  const auto joined_ident = string_registry->make_registered_compound_identifier(import.identifier_components);
+  auto import_node = std::make_unique<TypeImportNode>(source_token, joined_ident);
+  const bool is_export = type_identifier_export_state.is_export();
+
+  PendingTypeImport pending_type_import(source_token, joined_ident, current_type_scope(), is_export);
+  parse_instance->pending_type_imports.push_back(pending_type_import);
+
+  return Optional<BoxedTypeAnnot>(std::move(import_node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
+  iterator.advance();
+  const auto name_token = iterator.peek();
+
+  auto ident_res = one_identifier();
+  if (!ident_res) {
+    return NullOpt{};
+  }
+
+  RecordTypeNode::Fields fields;
+  std::unordered_set<TypeIdentifier, TypeIdentifier::Hash> field_names;
+
+  while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end_type) {
+    auto tok = iterator.peek();
+    switch (tok.type) {
+      case TokenType::new_line:
+        iterator.advance();
+        break;
+      default:
+        auto field_res = record_field();
+        if (!field_res) {
+          return NullOpt{};
+        } else {
+          auto& field = field_res.value();
+          if (field_names.count(field.name) > 0) {
+            add_error(make_error_duplicate_record_field_name(tok));
+            return NullOpt{};
+          }
+          field_names.insert(field.name);
+          fields.push_back(std::move(field));
+        }
+    }
+  }
+
+  auto err = consume(TokenType::keyword_end_type);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto identifier = TypeIdentifier(string_registry->register_string(ident_res.value()));
+  auto scope = current_type_scope();
+  const bool is_export = type_identifier_export_state.is_export();
+
+  if (!scope->can_register_local_identifier(identifier, is_export)) {
+    add_error(make_error_duplicate_type_identifier(name_token));
+    return NullOpt{};
+  }
+
+  auto record_node = std::make_unique<RecordTypeNode>(source_token, name_token, identifier, std::move(fields));
+  //  @Note: Source token must be a pointer to a source token stored in the AST.
+  const auto type_ref = parse_instance->type_store->make_type_reference(&record_node->name_token, nullptr, scope);
+  scope->emplace_type(identifier, type_ref, is_export);
+
+  return Optional<BoxedTypeAnnot>(std::move(record_node));
+}
+
+Optional<RecordTypeNode::Field> AstGenerator::record_field() {
+  auto name_res = one_identifier();
+  if (!name_res) {
+    return NullOpt{};
+  }
+
+  auto err = consume(TokenType::colon);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto type_res = type(iterator.peek());
+  if (!type_res) {
+    return NullOpt{};
+  }
+
+  auto name = TypeIdentifier(string_registry->register_string(name_res.value()));
+  return Optional<RecordTypeNode::Field>(RecordTypeNode::Field(name, std::move(type_res.rvalue())));
 }
 
 Optional<BoxedType> AstGenerator::type(const mt::Token& source_token) {
@@ -2543,7 +2685,7 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
     }
   }
 
-  int64_t identifier = string_registry->register_string(source_token.lexeme);
+  auto identifier = TypeIdentifier(string_registry->register_string(source_token.lexeme));
 
   auto node = std::make_unique<ScalarTypeNode>(source_token, identifier, std::move(arguments));
   return Optional<BoxedType>(std::move(node));
@@ -2625,14 +2767,27 @@ bool AstGenerator::is_within_loop() const {
 }
 
 void AstGenerator::push_scope() {
-  const auto curr_scope = current_scope();
+  const auto curr_matlab_scope = current_scope();
+  const auto curr_type_scope = current_type_scope();
+  const auto root_tscope = root_type_scope();
+
   Store::Write writer(*store);
-  scopes.push_back(writer.make_matlab_scope(curr_scope, file_descriptor));
+  scopes.push_back(writer.make_matlab_scope(curr_matlab_scope, file_descriptor()));
+
+  auto new_type_scope = writer.make_type_scope(root_tscope, curr_type_scope);
+  type_scopes.push_back(new_type_scope);
+
+  if (root_tscope == nullptr) {
+    new_type_scope->root = new_type_scope;
+  } else {
+    curr_type_scope->add_child(new_type_scope);
+  }
 }
 
 void AstGenerator::pop_scope() {
-  assert(scopes.size() > 0 && "No scope to pop.");
+  assert(scopes.size() > 0 && type_scopes.size() > 0 && "No scope to pop.");
   scopes.pop_back();
+  type_scopes.pop_back();
 }
 
 void AstGenerator::push_function_attributes(mt::FunctionAttributes&& attrs) {
@@ -2651,6 +2806,18 @@ void AstGenerator::pop_function_attributes() {
 
 MatlabScope* AstGenerator::current_scope() {
   return scopes.empty() ? nullptr : scopes.back();
+}
+
+TypeScope* AstGenerator::current_type_scope() {
+  return type_scopes.empty() ? nullptr : type_scopes.back();
+}
+
+TypeScope* AstGenerator::root_type_scope() {
+  return type_scopes.empty() ? nullptr : type_scopes.front();
+}
+
+const CodeFileDescriptor* AstGenerator::file_descriptor() const {
+  return parse_instance->file_descriptor;
 }
 
 void AstGenerator::register_import(mt::Import&& import) {
@@ -2703,121 +2870,131 @@ AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& 
 }
 
 void AstGenerator::add_error(mt::ParseError&& err) {
-  parse_errors.emplace_back(std::move(err));
+  parse_instance->errors.emplace_back(std::move(err));
 }
 
 ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const mt::Token& at_token) const {
   const char* msg = "`()` indexing must appear last in an index expression.";
-  return ParseError(text, at_token, msg, file_descriptor);
+  return ParseError(text, at_token, msg, file_descriptor());
 }
 
 ParseError AstGenerator::make_error_invalid_expr_token(const mt::Token& at_token) const {
   const auto type_name = "`" + std::string(to_string(at_token.type)) + "`";
   const auto message = std::string("Token ") + type_name + " is not permitted in expressions.";
-  return ParseError(text, at_token, message, file_descriptor);
+  return ParseError(text, at_token, message, file_descriptor());
 }
 
 ParseError AstGenerator::make_error_incomplete_expr(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Expression is incomplete.", file_descriptor);
+  return ParseError(text, at_token, "Expression is incomplete.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "The expression on the left is not a valid target for assignment.", file_descriptor);
+  return ParseError(text, at_token, "The expression on the left is not a valid target for assignment.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Expected an expression on the left hand side.", file_descriptor);
+  return ParseError(text, at_token, "Expected an expression on the left hand side.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_multiple_exprs_in_parens_grouping_expr(const mt::Token& at_token) const {
   return ParseError(text, at_token,
-    "`()` grouping expressions cannot contain multiple sub-expressions or span multiple lines.", file_descriptor);
+    "`()` grouping expressions cannot contain multiple sub-expressions or span multiple lines.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate `otherwise` in `switch` statement.", file_descriptor);
+  return ParseError(text, at_token, "Duplicate `otherwise` in `switch` statement.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_expected_non_empty_type_variable_identifiers(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Expected a non-empty list of identifiers.", file_descriptor);
+  return ParseError(text, at_token, "Expected a non-empty list of identifiers.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_duplicate_input_parameter_in_expr(const mt::Token& at_token) const {
   return ParseError(text, at_token,
-    "Anonymous function contains a duplicate input parameter identifier.", file_descriptor);
+    "Anonymous function contains a duplicate input parameter identifier.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_loop_control_flow_manipulator_outside_loop(const mt::Token& at_token) const {
   return ParseError(text, at_token,
-    "A `break` or `continue` statement cannot appear outside a loop statement.", file_descriptor);
+    "A `break` or `continue` statement cannot appear outside a loop statement.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_invalid_function_def_location(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "A `function` definition cannot appear here.", file_descriptor);
+  return ParseError(text, at_token, "A `function` definition cannot appear here.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_duplicate_local_function(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate local function.", file_descriptor);
+  return ParseError(text, at_token, "Duplicate local function.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_incomplete_import_stmt(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "An `import` statement must include a compound identifier.", file_descriptor);
+  return ParseError(text, at_token, "An `import` statement must include a compound identifier.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_invalid_period_qualified_function_def(const Token& at_token) const {
-  return ParseError(text, at_token, "A period-qualified `function` is invalid here.", file_descriptor);
+  return ParseError(text, at_token, "A period-qualified `function` is invalid here.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_duplicate_class_property(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate property.", file_descriptor);
+  return ParseError(text, at_token, "Duplicate property.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_duplicate_method(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate method.", file_descriptor);
+  return ParseError(text, at_token, "Duplicate method.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_duplicate_class_def(const Token& at_token) const {
-  return ParseError(text, at_token, "Duplicate class definition.", file_descriptor);
+  return ParseError(text, at_token, "Duplicate class definition.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_invalid_superclass_method_reference_expr(const Token& at_token) const {
-  return ParseError(text, at_token, "Invalid superclass method reference.", file_descriptor);
+  return ParseError(text, at_token, "Invalid superclass method reference.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_unrecognized_method_attribute(const Token& at_token) const {
-  return ParseError(text, at_token, "Unrecognized method attribute.", file_descriptor);
+  return ParseError(text, at_token, "Unrecognized method attribute.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_invalid_boolean_attribute_value(const Token& at_token) const {
-  return ParseError(text, at_token, "Expected attribute value to be one of `true` or `false`.", file_descriptor);
+  return ParseError(text, at_token, "Expected attribute value to be one of `true` or `false`.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_invalid_access_attribute_value(const Token& at_token) const {
-  return ParseError(text, at_token, "Unrecognized access attribute value.", file_descriptor);
+  return ParseError(text, at_token, "Unrecognized access attribute value.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_empty_brace_subscript(const Token& at_token) const {
-  return ParseError(text, at_token, "`{}` subscripts require arguments.", file_descriptor);
+  return ParseError(text, at_token, "`{}` subscripts require arguments.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_non_assignment_stmt_in_fun_declaration(const Token& at_token) const {
-  return ParseError(text, at_token, "`fun` definition must precede an assignment statement.", file_descriptor);
+  return ParseError(text, at_token, "`fun` definition must precede an assignment statement.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_non_anonymous_function_rhs_in_fun_declaration(const mt::Token& at_token) const {
-  return ParseError(text, at_token, "`fun` definition rhs must be an anonymous function.", file_descriptor);
+  return ParseError(text, at_token, "`fun` definition rhs must be an anonymous function.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const {
-  return ParseError(text, at_token, "`fun` definition lhs must be a scalar identifier.", file_descriptor);
+  return ParseError(text, at_token, "`fun` definition lhs must be a scalar identifier.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_non_scalar_outputs_in_ctor(const Token& at_token) const {
-  return ParseError(text, at_token, "A class constructor must have exactly one output parameter.", file_descriptor);
+  return ParseError(text, at_token, "A class constructor must have exactly one output parameter.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_no_class_instance_parameter_in_method(const Token& at_token) const {
-  return ParseError(text, at_token, "A non-static method must have at least one input parameter.", file_descriptor);
+  return ParseError(text, at_token, "A non-static method must have at least one input parameter.", file_descriptor());
+}
+
+ParseError AstGenerator::make_error_duplicate_type_identifier(const Token& at_token) const {
+  std::string msg = make_error_message_duplicate_type_identifier(at_token.lexeme);
+  return ParseError(text, at_token, msg, file_descriptor());
+}
+
+ParseError AstGenerator::make_error_duplicate_record_field_name(const Token& at_token) const {
+  std::string msg = "Duplicate field name `" + std::string(at_token.lexeme) + "`.";
+  return ParseError(text, at_token, msg, file_descriptor());
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,
@@ -2833,7 +3010,7 @@ ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_toke
   std::string message = "Expected to receive one of these types: \n\n" + expected_str;
   message += (std::string("\n\nInstead, received: `") + to_string(at_token.type) + "`.");
 
-  return ParseError(text, at_token, std::move(message), file_descriptor);
+  return ParseError(text, at_token, std::move(message), file_descriptor());
 }
 
 }

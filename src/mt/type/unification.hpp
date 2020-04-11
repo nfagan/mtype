@@ -36,7 +36,7 @@ struct PendingExternalFunctions {
  */
 
 struct UnifyResult {
-  explicit UnifyResult(UnificationErrors&& errors) :
+  explicit UnifyResult(TypeErrors&& errors) :
   had_error(true), errors(std::move(errors)) {
     //
   }
@@ -54,7 +54,7 @@ struct UnifyResult {
   }
 
   bool had_error;
-  UnificationErrors errors;
+  TypeErrors errors;
 };
 
 /*
@@ -153,17 +153,17 @@ private:
   bool had_error() const;
   void mark_failure();
 
-  void add_error(BoxedUnificationError err);
+  void add_error(BoxedTypeError err);
   void emplace_simplification_failure(const Token* lhs_token, const Token* rhs_token,
                                       const Type* lhs_type, const Type* rhs_type);
-  BoxedUnificationError make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
-                                                    const Type* lhs_type, const Type* rhs_type) const;
-  BoxedUnificationError make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
-                                                    const Type* lhs_type, const Type* rhs_type) const;
-  BoxedUnificationError make_unresolved_function_error(const Token* at_token, const Type* function_type) const;
-  BoxedUnificationError make_invalid_function_invocation_error(const Token* at_token, const Type* function_type) const;
-  BoxedUnificationError make_non_constant_field_reference_expr_error(const Token* at_token, const Type* arg_type) const;
-  BoxedUnificationError make_reference_to_non_existent_field_error(const Token* at_token, const Type* arg, const Type* field) const;
+  BoxedTypeError make_simplification_failure(const Token* lhs_token, const Token* rhs_token,
+                                             const Type* lhs_type, const Type* rhs_type) const;
+  BoxedTypeError make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
+                                             const Type* lhs_type, const Type* rhs_type) const;
+  BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type* function_type) const;
+  BoxedTypeError make_invalid_function_invocation_error(const Token* at_token, const Type* function_type) const;
+  BoxedTypeError make_non_constant_field_reference_expr_error(const Token* at_token, const Type* arg_type) const;
+  BoxedTypeError make_reference_to_non_existent_field_error(const Token* at_token, const Type* arg, const Type* field) const;
 
 private:
   Substitution* substitution;
@@ -180,7 +180,7 @@ private:
   std::unordered_map<Type*, bool> registered_assignments;
   std::unordered_map<Type*, Type*> expanded_parameters;
 
-  UnificationErrors errors;
+  TypeErrors errors;
   bool any_failures;
 };
 

@@ -15,28 +15,51 @@ namespace mt {
 
 class StringRegistry;
 class CodeFileDescriptor;
+class TypeStore;
 
 /*
- * BlockDepths
+ * PendingTypeImport
  */
 
-struct BlockDepths {
-  BlockDepths() :
-  function_def(0), class_def(0), for_stmt(0), parfor_stmt(0), if_stmt(0), while_stmt(0),
-  try_stmt(0), switch_stmt(0), methods(0) {
+struct PendingTypeImport {
+  PendingTypeImport(const Token& source_token, int64_t identifier, TypeScope* scope, bool is_exported) :
+  source_token(source_token), identifier(identifier), into_scope(scope), is_exported(is_exported) {
     //
   }
-  ~BlockDepths() = default;
 
-  int function_def;
-  int class_def;
-  int for_stmt;
-  int parfor_stmt;
-  int if_stmt;
-  int while_stmt;
-  int try_stmt;
-  int switch_stmt;
-  int methods;
+  Token source_token;
+  int64_t identifier;
+  TypeScope* into_scope;
+  bool is_exported;
+};
+
+using PendingTypeImports = std::vector<PendingTypeImport>;
+
+/*
+ * ParseInstance
+ */
+
+struct ParseInstance {
+  ParseInstance(Store* store,
+                TypeStore* type_store,
+                StringRegistry* string_registry,
+                const CodeFileDescriptor* file_descriptor,
+                bool functions_are_end_terminated);
+
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(ParseInstance)
+
+  Store* store;
+  TypeStore* type_store;
+  StringRegistry* string_registry;
+  const CodeFileDescriptor* file_descriptor;
+  bool functions_are_end_terminated;
+
+  BoxedRootBlock root_block;
+  bool had_error;
+  ParseErrors errors;
+  ParseErrors warnings;
+
+  PendingTypeImports pending_type_imports;
 };
 
 /*
@@ -46,39 +69,29 @@ struct BlockDepths {
 class AstGenerator {
   friend struct ParseScopeStack;
   friend struct FunctionAttributeStack;
-public:
-  struct ParseInputs {
-    ParseInputs(StringRegistry* string_registry,
-                Store* store,
-                const CodeFileDescriptor* file_descriptor,
-                bool functions_are_end_terminated) :
-                string_registry(string_registry),
-                store(store),
-                file_descriptor(file_descriptor),
-                functions_are_end_terminated(functions_are_end_terminated){
-      //
-    }
 
-    StringRegistry* string_registry;
-    Store* store;
-    const CodeFileDescriptor* file_descriptor;
-    bool functions_are_end_terminated;
+  struct BlockDepths {
+    int function_def = 0;
+    int class_def = 0;
+    int for_stmt = 0;
+    int parfor_stmt = 0;
+    int if_stmt = 0;
+    int while_stmt = 0;
+    int try_stmt = 0;
+    int switch_stmt = 0;
+    int methods = 0;
   };
 
 public:
-  AstGenerator() : AstGenerator(nullptr) {
-    //
-  }
-  explicit AstGenerator(const CodeFileDescriptor* file_descriptor) :
-  string_registry(nullptr), store(nullptr), file_descriptor(file_descriptor), is_end_terminated_function(true) {
+  AstGenerator() :
+  parse_instance(nullptr), string_registry(nullptr), store(nullptr), is_end_terminated_function(true) {
     //
   }
 
   ~AstGenerator() = default;
 
-  Result<ParseErrors, BoxedRootBlock> parse(const std::vector<Token>& tokens,
-                                            std::string_view text,
-                                            const ParseInputs& inputs);
+  void parse(ParseInstance* parse_instance, const std::vector<Token>& tokens, std::string_view text);
+
 private:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
@@ -166,7 +179,7 @@ private:
 
   Optional<IfBranch> if_branch(const Token& source_token);
   Optional<SwitchCase> switch_case(const Token& source_token);
-  Optional<Import> one_import(const Token& source_token);
+  Optional<Import> one_import(const Token& source_token, bool is_matlab_import);
 
   Optional<BoxedTypeAnnot> type_annotation_macro(const Token& source_token);
   Optional<BoxedTypeAnnot> type_annotation(const Token& source_token);
@@ -176,6 +189,9 @@ private:
   Optional<BoxedTypeAnnot> type_fun(const Token& source_token);
   Optional<BoxedTypeAnnot> type_assertion(const Token& source_token);
   Optional<BoxedTypeAnnot> inline_type_annotation(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_import(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_record(const Token& source_token);
+  Optional<RecordTypeNode::Field> record_field();
 
   Optional<BoxedTypeAnnot> type_fun_enclosing_function(const Token& source_token);
   Optional<BoxedTypeAnnot> type_fun_enclosing_anonymous_function(const Token& source_token);
@@ -220,6 +236,8 @@ private:
   ParseError make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const;
   ParseError make_error_non_scalar_outputs_in_ctor(const Token& at_token) const;
   ParseError make_error_no_class_instance_parameter_in_method(const Token& at_token) const;
+  ParseError make_error_duplicate_type_identifier(const Token& at_token) const;
+  ParseError make_error_duplicate_record_field_name(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
@@ -237,6 +255,10 @@ private:
   void push_scope();
   void pop_scope();
   MatlabScope* current_scope();
+  TypeScope* current_type_scope();
+  TypeScope* root_type_scope();
+
+  const CodeFileDescriptor* file_descriptor() const;
 
   void push_function_attributes(FunctionAttributes&& attrs);
   void pop_function_attributes();
@@ -250,20 +272,21 @@ private:
   static std::array<TokenType, 5> sub_block_possible_types();
 
 private:
+  ParseInstance* parse_instance;
+
   TokenIterator iterator;
   std::string_view text;
   StringRegistry* string_registry;
   Store* store;
-  const CodeFileDescriptor* file_descriptor;
   BlockDepths block_depths;
   ClassDefState class_state;
+  TypeIdentifierExportState type_identifier_export_state;
 
   std::vector<MatlabScope*> scopes;
+  std::vector<TypeScope*> type_scopes;
   std::vector<FunctionAttributes> function_attributes;
 
   bool is_end_terminated_function;
-
-  ParseErrors parse_errors;
 };
 
 }

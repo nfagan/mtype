@@ -26,6 +26,14 @@ void TypeAnnotMacro::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * TypeImportNode
+ */
+
+std::string TypeImportNode::accept(const StringVisitor& vis) const {
+  return vis.type_import_node(*this);
+}
+
+/*
  * TypeAssertion
  */
 
@@ -111,6 +119,22 @@ void TypeBegin::accept_const(TypePreservingVisitor& vis) const {
 
 void TypeBegin::accept(TypePreservingVisitor& vis) {
   vis.type_begin(*this);
+}
+
+/*
+ * RecordTypeNode
+ */
+
+std::string RecordTypeNode::accept(const StringVisitor& vis) const {
+  return vis.record_type_node(*this);
+}
+
+void RecordTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.record_type_node(*this);
+}
+
+void RecordTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.record_type_node(*this);
 }
 
 /*
