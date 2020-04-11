@@ -526,6 +526,17 @@ std::string StringVisitor::end_operator_expr(const EndOperatorExpr&) const {
   return "end";
 }
 
+std::string StringVisitor::namespace_type_node(const NamespaceTypeNode& type) const {
+  std::string ns_str("namespace ");
+  maybe_colorize(ns_str, type.source_token.type);
+  ns_str += string_registry->at(type.identifier.full_name()) + "\n";
+  enter_block();
+  ns_str += type_annotation_block(type.enclosing);
+  exit_block();
+  ns_str += "\n" + tab_str() + end_str();
+  return ns_str;
+}
+
 std::string StringVisitor::record_type_node(const RecordTypeNode& type) const {
   std::string res("record ");
   maybe_colorize(res, type.source_token.type);
@@ -608,6 +619,14 @@ std::string StringVisitor::type_let(const TypeLet& let) const {
   return let_str + identifier_str + " = " + let.equal_to_type->accept(*this);
 }
 
+std::string StringVisitor::type_annotation_block(const BoxedTypeAnnots& annots) const {
+  std::vector<std::string> lines;
+  for (const auto& annot : annots) {
+    lines.emplace_back(tab_str() + annot->accept(*this));
+  }
+  return join(lines, "\n");
+}
+
 std::string StringVisitor::type_begin(const TypeBegin& begin) const {
   std::string base_str = "begin";
   if (begin.is_exported) {
@@ -617,14 +636,8 @@ std::string StringVisitor::type_begin(const TypeBegin& begin) const {
   maybe_colorize(base_str, begin.source_token.type);
   base_str += "\n";
   enter_block();
-
-  std::vector<std::string> lines;
-  for (const auto& annot : begin.contents) {
-    lines.emplace_back(tab_str() + annot->accept(*this));
-  }
-
+  auto contents_str = type_annotation_block(begin.contents);
   exit_block();
-  auto contents_str = join(lines, "\n");
   auto end = "\n" + tab_str() + end_str();
   return base_str + contents_str + end;
 }

@@ -26,6 +26,22 @@ void TypeAnnotMacro::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * NamespaceTypeNode
+ */
+
+std::string NamespaceTypeNode::accept(const StringVisitor& vis) const {
+  return vis.namespace_type_node(*this);
+}
+
+void NamespaceTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.namespace_type_node(*this);
+}
+
+void NamespaceTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.namespace_type_node(*this);
+}
+
+/*
  * DeclareTypeNode
  */
 

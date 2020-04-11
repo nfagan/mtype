@@ -2232,6 +2232,9 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
     case TokenType::keyword_declare:
       return declare_type(source_token);
 
+    case TokenType::keyword_namespace:
+      return type_namespace(source_token);
+
     default:
       auto possible_types = type_annotation_block_possible_types();
       add_error(make_error_expected_token_type(source_token, possible_types));
@@ -2341,6 +2344,8 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
   }
 
   auto identifier = TypeIdentifier(string_registry->register_string(ident_res.value()));
+  identifier = maybe_namespace_enclose_type_identifier(identifier);
+
   auto scope = current_type_scope();
   const bool is_export = type_identifier_export_state.is_export();
 
@@ -2419,19 +2424,8 @@ Optional<std::vector<std::string_view>> AstGenerator::type_variable_identifiers(
   return Optional<std::vector<std::string_view>>(std::move(type_variable_identifiers));
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token) {
-  iterator.advance();
-
-  const bool is_exported = iterator.peek().type == TokenType::keyword_export;
-  if (is_exported) {
-    iterator.advance();
-  }
-
-  //  Mark whether the contained identifiers are exported.
-  TypeIdentifierExportState::Helper export_state_helper(type_identifier_export_state, is_exported);
-
+Optional<std::vector<BoxedTypeAnnot>> AstGenerator::type_annotation_block() {
   std::vector<BoxedTypeAnnot> contents;
-  bool had_error = false;
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end_type) {
     const auto& token = iterator.peek();
@@ -2446,15 +2440,30 @@ Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token)
         if (annot_res) {
           contents.emplace_back(annot_res.rvalue());
         } else {
-          had_error = true;
           const auto possible_types = type_annotation_block_possible_types();
           iterator.advance_to_one(possible_types.data(), possible_types.size());
+          return NullOpt{};
         }
       }
     }
   }
 
-  if (had_error) {
+  return Optional<std::vector<BoxedTypeAnnot>>(std::move(contents));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token) {
+  iterator.advance();
+
+  const bool is_exported = iterator.peek().type == TokenType::keyword_export;
+  if (is_exported) {
+    iterator.advance();
+  }
+
+  //  Mark whether the contained identifiers are exported.
+  TypeIdentifierExportState::Helper export_state_helper(type_identifier_export_state, is_exported);
+
+  auto contents_res = type_annotation_block();
+  if (!contents_res) {
     return NullOpt{};
   }
 
@@ -2464,7 +2473,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token)
     return NullOpt{};
   }
 
-  auto node = std::make_unique<TypeBegin>(source_token, is_exported, std::move(contents));
+  auto node = std::make_unique<TypeBegin>(source_token, is_exported, std::move(contents_res.rvalue()));
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
@@ -2485,6 +2494,32 @@ Optional<BoxedTypeAnnot> AstGenerator::type_import(const Token& source_token) {
   parse_instance->pending_type_imports.push_back(pending_type_import);
 
   return Optional<BoxedTypeAnnot>(std::move(import_node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_namespace(const Token& source_token) {
+  iterator.advance();
+
+  auto ident_res = one_identifier();
+  if (!ident_res) {
+    return NullOpt{};
+  }
+
+  TypeIdentifier namespace_identifier(string_registry->register_string(ident_res.value()));
+  TypeIdentifierNamespaceState::Helper namespace_helper(namespace_state, namespace_identifier);
+
+  auto contents_res = type_annotation_block();
+  if (!contents_res) {
+    return NullOpt{};
+  }
+
+  auto err = consume(TokenType::keyword_end_type);
+  if (err) {
+    add_error(err.rvalue());
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<NamespaceTypeNode>(source_token, namespace_identifier, std::move(contents_res.rvalue()));
+  return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
@@ -2509,6 +2544,8 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
   }
 
   auto ident = TypeIdentifier(string_registry->register_string(ident_res.value()));
+  ident = maybe_namespace_enclose_type_identifier(ident);
+
   auto scope = current_type_scope();
   const bool is_export = type_identifier_export_state.is_export();
 
@@ -2565,6 +2602,8 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
   }
 
   auto identifier = TypeIdentifier(string_registry->register_string(ident_res.value()));
+  identifier = maybe_namespace_enclose_type_identifier(identifier);
+
   auto scope = current_type_scope();
   const bool is_export = type_identifier_export_state.is_export();
 
@@ -2579,6 +2618,17 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
   scope->emplace_type(identifier, type_ref, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(record_node));
+}
+
+TypeIdentifier AstGenerator::maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident) {
+  if (namespace_state.has_enclosing_namespace()) {
+    std::vector<int64_t> namespace_components;
+    namespace_state.gather_components(namespace_components);
+    namespace_components.push_back(ident.full_name());
+    return TypeIdentifier(string_registry->make_registered_compound_identifier(namespace_components));
+  } else {
+    return ident;
+  }
 }
 
 Optional<RecordTypeNode::Field> AstGenerator::record_field() {
@@ -2710,7 +2760,12 @@ Optional<BoxedType> AstGenerator::function_type(const mt::Token& source_token) {
 }
 
 Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
-  iterator.advance(); //  consume lexeme
+  auto ident_res = compound_identifier_components();
+  if (!ident_res) {
+    return NullOpt{};
+  }
+  auto registered = string_registry->register_strings(ident_res.value());
+  TypeIdentifier identifier(string_registry->make_registered_compound_identifier(registered));
 
   std::vector<BoxedType> arguments;
 
@@ -2725,8 +2780,7 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
     }
   }
 
-  auto identifier = TypeIdentifier(string_registry->register_string(source_token.lexeme));
-
+//  auto identifier = TypeIdentifier(string_registry->register_string(source_token.lexeme));
   auto node = std::make_unique<ScalarTypeNode>(source_token, identifier, std::move(arguments));
   return Optional<BoxedType>(std::move(node));
 }

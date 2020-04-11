@@ -60,6 +60,7 @@ public:
   std::string binary_operator_expr(const BinaryOperatorExpr& expr) const;
   std::string end_operator_expr(const EndOperatorExpr& expr) const;
 
+  std::string namespace_type_node(const NamespaceTypeNode& type) const;
   std::string record_type_node(const RecordTypeNode& type) const;
   std::string union_type_node(const UnionTypeNode& type) const;
   std::string scalar_type_node(const ScalarTypeNode& type) const;
@@ -88,6 +89,8 @@ private:
   std::string else_branch(const ElseBranch& branch) const;
 
   std::string grouping_expr_component(const GroupingExprComponent& expr, bool include_delimiter) const;
+
+  std::string type_annotation_block(const BoxedTypeAnnots& annots) const;
 
   void maybe_parenthesize(std::string& str) const;
   void maybe_colorize(std::string& str, TokenType type) const;

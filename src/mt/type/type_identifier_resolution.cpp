@@ -112,7 +112,14 @@ void TypeIdentifierResolver::record_type_node(const RecordTypeNode& node) {
 }
 
 void TypeIdentifierResolver::declare_type_node(const DeclareTypeNode&) {
-  
+  //
+}
+
+void TypeIdentifierResolver::namespace_type_node(const NamespaceTypeNode& node) {
+  TypeIdentifierNamespaceState::Helper namespace_helper(instance->namespace_state, node.identifier);
+  for (const auto& enclosed : node.enclosing) {
+    enclosed->accept_const(*this);
+  }
 }
 
 /*

@@ -139,6 +139,7 @@ using BoxedAstNode = std::unique_ptr<AstNode>;
 using BoxedExpr = std::unique_ptr<Expr>;
 using BoxedStmt = std::unique_ptr<Stmt>;
 using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;
+using BoxedTypeAnnots = std::vector<BoxedTypeAnnot>;
 using BoxedType = std::unique_ptr<TypeNode>;
 using BoxedBlock = std::unique_ptr<Block>;
 using BoxedRootBlock = std::unique_ptr<RootBlock>;

@@ -26,6 +26,22 @@ struct TypeAnnotMacro : public TypeAnnot {
   BoxedTypeAnnot annotation;
 };
 
+struct NamespaceTypeNode : public TypeAnnot {
+  NamespaceTypeNode(const Token& source_token, const TypeIdentifier& identifier, BoxedTypeAnnots&& enclosing) :
+    source_token(source_token), identifier(identifier), enclosing(std::move(enclosing)) {
+    //
+  }
+  ~NamespaceTypeNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  TypeIdentifier identifier;
+  BoxedTypeAnnots enclosing;
+};
+
 struct DeclareTypeNode : public TypeAnnot {
   enum class Kind {
     scalar

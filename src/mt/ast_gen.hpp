@@ -192,8 +192,11 @@ private:
   Optional<BoxedTypeAnnot> type_import(const Token& source_token);
   Optional<BoxedTypeAnnot> type_record(const Token& source_token);
   Optional<BoxedTypeAnnot> declare_type(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_namespace(const Token& source_token);
 
   Optional<RecordTypeNode::Field> record_field();
+  Optional<std::vector<BoxedTypeAnnot>> type_annotation_block();
+  TypeIdentifier maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident);
 
   Optional<BoxedTypeAnnot> type_fun_enclosing_function(const Token& source_token);
   Optional<BoxedTypeAnnot> type_fun_enclosing_anonymous_function(const Token& source_token);
@@ -284,6 +287,7 @@ private:
   BlockDepths block_depths;
   ClassDefState class_state;
   TypeIdentifierExportState type_identifier_export_state;
+  TypeIdentifierNamespaceState namespace_state;
 
   std::vector<MatlabScope*> scopes;
   std::vector<TypeScope*> type_scopes;

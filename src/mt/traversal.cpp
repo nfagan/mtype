@@ -1,9 +1,45 @@
 #include "traversal.hpp"
 #include "ast.hpp"
 #include "identifier.hpp"
+#include "Optional.hpp"
 #include <cassert>
 
 namespace mt {
+
+/*
+ * TypeIdentifierNamespaceState
+ */
+
+void TypeIdentifierNamespaceState::Stack::push(TypeIdentifierNamespaceState& state, const TypeIdentifier& ident) {
+  state.push(ident);
+}
+
+void TypeIdentifierNamespaceState::Stack::pop(TypeIdentifierNamespaceState& state) {
+  state.pop();
+}
+
+void TypeIdentifierNamespaceState::push(const TypeIdentifier& ident) {
+  components.push_back(ident);
+}
+
+void TypeIdentifierNamespaceState::pop() {
+  assert(!components.empty());
+  components.pop_back();
+}
+
+Optional<TypeIdentifier> TypeIdentifierNamespaceState::enclosing_namespace() const {
+  return components.empty() ? NullOpt{} : Optional<TypeIdentifier>(components.back());
+}
+
+void TypeIdentifierNamespaceState::gather_components(std::vector<int64_t>& into) const {
+  for (const auto& ident : components) {
+    into.push_back(ident.full_name());
+  }
+}
+
+bool TypeIdentifierNamespaceState::has_enclosing_namespace() const {
+  return !components.empty();
+}
 
 /*
  * TypeIdentifierExportState

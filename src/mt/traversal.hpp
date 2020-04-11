@@ -8,10 +8,32 @@ namespace mt {
 class FunctionDefHandle;
 class ClassDefHandle;
 class MatlabIdentifier;
+struct TypeIdentifier;
+
+template <typename T>
+class Optional;
 
 namespace types {
   struct Class;
 }
+
+class TypeIdentifierNamespaceState {
+  struct Stack {
+    static void push(TypeIdentifierNamespaceState& state, const TypeIdentifier& ident);
+    static void pop(TypeIdentifierNamespaceState& state);
+  };
+public:
+  using Helper = StackHelper<TypeIdentifierNamespaceState, Stack>;
+
+  void push(const TypeIdentifier& ident);
+  void pop();
+  Optional<TypeIdentifier> enclosing_namespace() const;
+  bool has_enclosing_namespace() const;
+  void gather_components(std::vector<int64_t>& into) const;
+
+private:
+  std::vector<TypeIdentifier> components;
+};
 
 class TypeIdentifierExportState {
   struct Stack {

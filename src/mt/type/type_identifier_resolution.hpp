@@ -35,6 +35,7 @@ public:
   std::vector<BoxedTypeError> errors;
   std::vector<UnresolvedIdentifier> unresolved_identifiers;
   TypeIdentifierExportState export_state;
+  TypeIdentifierNamespaceState namespace_state;
   ScopeState<TypeScope> scopes;
 };
 
@@ -53,6 +54,7 @@ public:
   void scalar_type_node(const ScalarTypeNode& node) override;
   void record_type_node(const RecordTypeNode& node) override;
   void declare_type_node(const DeclareTypeNode& node) override;
+  void namespace_type_node(const NamespaceTypeNode& node) override;
 
   void type_let(const TypeLet& node) override;
 
