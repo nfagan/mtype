@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     }
 
     for (auto& root : pipeline_instance.roots) {
-      root->type_scope->add_import(TypeImport(library.base_scope, false));
+//      root->type_scope->add_import(TypeImport(library.base_scope, false));
     }
 
     TypeImportResolutionInstance import_res(source_data_by_token);

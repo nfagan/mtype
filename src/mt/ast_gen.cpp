@@ -2229,6 +2229,9 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
     case TokenType::keyword_record:
       return type_record(source_token);
 
+    case TokenType::keyword_declare:
+      return declare_type(source_token);
+
     default:
       auto possible_types = type_annotation_block_possible_types();
       add_error(make_error_expected_token_type(source_token, possible_types));
@@ -2482,6 +2485,43 @@ Optional<BoxedTypeAnnot> AstGenerator::type_import(const Token& source_token) {
   parse_instance->pending_type_imports.push_back(pending_type_import);
 
   return Optional<BoxedTypeAnnot>(std::move(import_node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
+  iterator.advance();
+
+  const auto kind_token = iterator.peek();
+  auto kind_res = one_identifier();
+  if (!kind_res) {
+    return NullOpt{};
+  }
+
+  auto maybe_kind = DeclareTypeNode::kind_from_string(kind_res.value());
+  if (!maybe_kind) {
+    add_error(make_error_unrecognized_type_declaration_kind(kind_token));
+    return NullOpt{};
+  }
+
+  const auto name_token = iterator.peek();
+  auto ident_res = one_identifier();
+  if (!ident_res) {
+    return NullOpt{};
+  }
+
+  auto ident = TypeIdentifier(string_registry->register_string(ident_res.value()));
+  auto scope = current_type_scope();
+  const bool is_export = type_identifier_export_state.is_export();
+
+  if (!scope->can_register_local_identifier(ident, is_export)) {
+    add_error(make_error_duplicate_type_identifier(name_token));
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<DeclareTypeNode>(source_token, maybe_kind.value(), ident);
+  auto declare_type = parse_instance->type_store->make_type_reference(&node->source_token, nullptr, scope);
+  scope->emplace_type(ident, declare_type, is_export);
+
+  return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
@@ -2995,6 +3035,10 @@ ParseError AstGenerator::make_error_duplicate_type_identifier(const Token& at_to
 ParseError AstGenerator::make_error_duplicate_record_field_name(const Token& at_token) const {
   std::string msg = "Duplicate field name `" + std::string(at_token.lexeme) + "`.";
   return ParseError(text, at_token, msg, file_descriptor());
+}
+
+ParseError AstGenerator::make_error_unrecognized_type_declaration_kind(const Token& at_token) const {
+  return ParseError(text, at_token, "Unrecognized declaration kind.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

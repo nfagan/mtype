@@ -26,6 +26,30 @@ void TypeAnnotMacro::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * DeclareTypeNode
+ */
+
+std::string DeclareTypeNode::accept(const StringVisitor& vis) const {
+  return vis.declare_type_node(*this);
+}
+
+void DeclareTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.declare_type_node(*this);
+}
+
+void DeclareTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.declare_type_node(*this);
+}
+
+Optional<DeclareTypeNode::Kind> DeclareTypeNode::kind_from_string(std::string_view str) {
+  if (str == "scalar") {
+    return Optional<Kind>(Kind::scalar);
+  } else {
+    return NullOpt{};
+  }
+}
+
+/*
  * TypeImportNode
  */
 

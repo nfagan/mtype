@@ -111,6 +111,10 @@ void TypeIdentifierResolver::record_type_node(const RecordTypeNode& node) {
   }
 }
 
+void TypeIdentifierResolver::declare_type_node(const DeclareTypeNode&) {
+  
+}
+
 /*
  * Def
  */

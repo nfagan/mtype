@@ -584,6 +584,12 @@ std::string StringVisitor::type_import_node(const TypeImportNode& import) const 
   return import_str + string_registry->at(import.import);
 }
 
+std::string StringVisitor::declare_type_node(const DeclareTypeNode& node) const {
+  std::string declare_str("declare ");
+  maybe_colorize(declare_str, node.source_token.type);
+  return declare_str + "<kind> " + string_registry->at(node.identifier.full_name());
+}
+
 std::string StringVisitor::inline_type(const InlineType& type) const {
   return type.type->accept(*this);
 }

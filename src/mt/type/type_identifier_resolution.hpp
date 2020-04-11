@@ -52,6 +52,7 @@ public:
   void function_type_node(const FunctionTypeNode& node) override;
   void scalar_type_node(const ScalarTypeNode& node) override;
   void record_type_node(const RecordTypeNode& node) override;
+  void declare_type_node(const DeclareTypeNode& node) override;
 
   void type_let(const TypeLet& node) override;
 

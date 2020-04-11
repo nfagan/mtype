@@ -72,6 +72,7 @@ public:
   std::string fun_type_node(const FunTypeNode& node) const;
   std::string type_assertion(const TypeAssertion& assertion) const;
   std::string type_import_node(const TypeImportNode& import) const;
+  std::string declare_type_node(const DeclareTypeNode& node) const;
 
 private:
   std::string class_def(const ClassDef& def) const;
