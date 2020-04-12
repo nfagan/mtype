@@ -1,5 +1,6 @@
 #include "string.hpp"
 #include "character.hpp"
+#include "Optional.hpp"
 #include <algorithm>
 #include <limits>
 #include <cassert>
@@ -12,6 +13,20 @@ namespace mt {
 int64_t StringRegistry::size() const {
   std::lock_guard<std::mutex> lock(mutex);
   return strings.size();
+}
+
+bool StringRegistry::contains(int64_t id) const {
+  std::lock_guard<std::mutex> lock(mutex);
+  return id >= 0 && id < int64_t(strings.size());
+}
+
+Optional<std::string> StringRegistry::maybe_at(int64_t id) const {
+  std::lock_guard<std::mutex> lock(mutex);
+  if (id < 0 || id > int64_t(strings.size())) {
+    return NullOpt{};
+  } else {
+    return Optional<std::string>(strings[id]);
+  }
 }
 
 std::string StringRegistry::at(int64_t index) const {

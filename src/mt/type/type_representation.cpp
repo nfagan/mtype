@@ -40,7 +40,7 @@ void TypeToString::apply(const types::Scalar& scl, std::stringstream& stream) co
   Optional<std::string> maybe_type_name;
 
   if (library) {
-    maybe_type_name = library->type_name(scl);
+    maybe_type_name = library->type_name(&scl);
   }
 
   stream << color(style::green);

@@ -9,6 +9,8 @@
 
 namespace mt {
 class Character;
+template <typename T>
+class Optional;
 
 class StringRegistry {
 public:
@@ -21,7 +23,10 @@ public:
   int64_t make_registered_compound_identifier(const std::vector<int64_t>& components);
   std::string make_compound_identifier(const std::vector<int64_t>& components) const;
 
+  bool contains(int64_t id) const;
   std::string at(int64_t index) const;
+  Optional<std::string> maybe_at(int64_t index) const;
+
   std::vector<std::string> collect(const std::vector<int64_t>& indices) const;
 
   int64_t size() const;

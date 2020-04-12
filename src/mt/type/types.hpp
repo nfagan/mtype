@@ -72,23 +72,23 @@ struct Record : public Type {
  */
 
 struct Class : public Type {
-  Class() : Class(MatlabIdentifier(), nullptr) {
+  Class() : Class(TypeIdentifier(), nullptr) {
     //
   }
 
   //  No supertypes.
-  explicit Class(const MatlabIdentifier& name, Type* source) :
+  explicit Class(const TypeIdentifier& name, Type* source) :
   Type(Type::Tag::class_type), name(name), source(source) {
     //
   }
 
   //  One supertype.
-  Class(const MatlabIdentifier& name, Type* source, Type* supertype) :
+  Class(const TypeIdentifier& name, Type* source, Type* supertype) :
     Type(Type::Tag::class_type), name(name), source(source), supertypes{supertype} {
     //
   }
 
-  Class(const MatlabIdentifier& name, Type* source, TypePtrs&& supertypes) :
+  Class(const TypeIdentifier& name, Type* source, TypePtrs&& supertypes) :
     Type(Type::Tag::class_type), name(name), source(source), supertypes(std::move(supertypes)) {
     //
   }
@@ -104,7 +104,7 @@ struct Class : public Type {
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
-  MatlabIdentifier name;
+  TypeIdentifier name;
   Type* source;
   TypePtrs supertypes;
 };
@@ -697,4 +697,5 @@ namespace mt {
 #define MT_CONST_VAL_MUT_REF(a) static_cast<mt::types::ConstantValue&>((a))
 
 #define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))
+#define MT_SCALAR_MUT_PTR(a) static_cast<mt::types::Scalar*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

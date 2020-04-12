@@ -212,10 +212,13 @@ void TypeConstraintGenerator::handle_class_method(const TypePtrs& function_input
     library.method_store.add_method(class_type, MT_ABSTR_REF(*bin_op), bin_op);
 
     if (represents_relation(maybe_binary_op.value()) && !function_outputs.empty()) {
-      //  Must return logical.
-      auto out_term = make_term(rhs_term.source_token, function_outputs[0]);
-      auto log_term = make_term(rhs_term.source_token, library.logical_type_handle);
-      push_type_equation(make_eq(out_term, log_term));
+      auto maybe_logical = library.get_logical_type();
+      if (maybe_logical) {
+        //  Must return logical.
+        auto out_term = make_term(rhs_term.source_token, function_outputs[0]);
+        auto log_term = make_term(rhs_term.source_token, maybe_logical.value());
+        push_type_equation(make_eq(out_term, log_term));
+      }
     }
 
   } else if (maybe_unary_op) {
@@ -250,7 +253,7 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   }
 
   auto record_type = type_store.make_record(std::move(fields));
-  auto class_type = type_store.make_class(name, record_type);
+  auto class_type = type_store.make_class(TypeIdentifier(name.full_name()), record_type);
 
   ClassDefState::Helper class_helper(class_state, node.handle, class_type, name);
 
@@ -306,7 +309,7 @@ void TypeConstraintGenerator::function_type_node(const FunctionTypeNode& node) {
 
 void TypeConstraintGenerator::scalar_type_node(const ScalarTypeNode& node) {
   assert(node.arguments.empty() && "Args not yet handled.");
-  auto maybe_known_scalar_type = library.named_scalar_type(node.identifier.full_name());
+  auto maybe_known_scalar_type = library.scalar_store.lookup(node.identifier);
   assert(maybe_known_scalar_type && "Unknown scalar type.");
 
   push_type_equation_term(make_term(&node.source_token, maybe_known_scalar_type.value()));
@@ -317,23 +320,26 @@ void TypeConstraintGenerator::scalar_type_node(const ScalarTypeNode& node) {
  */
 
 void TypeConstraintGenerator::number_literal_expr(const NumberLiteralExpr& expr) {
-  assert(library.double_type_handle);
-  push_type_equation_term(make_term(&expr.source_token, library.double_type_handle));
+  auto maybe_double = library.get_number_type();
+  assert(maybe_double);
+  push_type_equation_term(make_term(&expr.source_token, maybe_double.value()));
 }
 
 void TypeConstraintGenerator::char_literal_expr(const CharLiteralExpr& expr) {
-  assert(library.char_type_handle);
-  push_type_equation_term(make_term(&expr.source_token, library.char_type_handle));
+  auto maybe_char = library.get_char_type();
+  push_type_equation_term(make_term(&expr.source_token, maybe_char.value()));
 }
 
 void TypeConstraintGenerator::string_literal_expr(const StringLiteralExpr& expr) {
-  assert(library.string_type_handle);
-  push_type_equation_term(make_term(&expr.source_token, library.string_type_handle));
+  auto maybe_str = library.get_string_type();
+  push_type_equation_term(make_term(&expr.source_token, maybe_str.value()));
 }
 
 void TypeConstraintGenerator::dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) {
+  auto maybe_char = library.get_char_type();
+  assert(maybe_char);
   const auto field_term = visit_expr(expr.expr, expr.source_token);
-  push_type_equation(make_eq(field_term, make_term(&expr.source_token, library.char_type_handle)));
+  push_type_equation(make_eq(field_term, make_term(&expr.source_token, maybe_char.value())));
   push_type_equation_term(field_term);
 }
 
@@ -655,8 +661,10 @@ void TypeConstraintGenerator::if_stmt(const IfStmt& stmt) {
 }
 
 void TypeConstraintGenerator::if_branch(const IfBranch& branch) {
+  auto maybe_logical = library.get_logical_type();
+  assert(maybe_logical);
   auto condition = visit_expr(branch.condition_expr, branch.source_token);
-  auto lhs_term = make_term(&branch.source_token, library.logical_type_handle);
+  auto lhs_term = make_term(&branch.source_token, maybe_logical.value());
   push_type_equation(make_eq(lhs_term, condition));
 
   branch.block->accept_const(*this);

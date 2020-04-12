@@ -8,10 +8,6 @@
 
 namespace mt {
 
-bool Library::is_known_scalar_type(int64_t name_id) const {
-  return named_scalar_types.count(name_id) > 0;
-}
-
 bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   if (lhs->is_scalar() && rhs->is_scalar()) {
     return subtype_related(lhs, rhs, MT_SCALAR_REF(*lhs), MT_SCALAR_REF(*rhs));
@@ -151,22 +147,8 @@ Optional<std::string> Library::type_name(const Type* type) const {
     return NullOpt{};
   }
 
-  return type_name(MT_SCALAR_REF(*type));
-}
-
-Optional<std::string> Library::type_name(const mt::types::Scalar& scl) const {
-  const auto& name_it = scalar_type_names.find(scl.identifier);
-
-  if (name_it == scalar_type_names.end()) {
-    return NullOpt{};
-  } else {
-    return Optional<std::string>(string_registry.at(name_it->second));
-  }
-}
-
-Optional<Type*> Library::named_scalar_type(int64_t name) const {
-  const auto it = named_scalar_types.find(name);
-  return it == named_scalar_types.end() ? NullOpt{} : Optional<Type*>(it->second);
+  const auto& scl = MT_SCALAR_REF(*type);
+  return string_registry.maybe_at(scl.identifier.full_name());
 }
 
 Optional<types::Class*> Library::class_wrapper(const Type* type) const {
@@ -191,32 +173,20 @@ Optional<const types::Class*> Library::class_for_type(const Type* type) const {
 }
 
 void Library::make_builtin_types() {
-  double_type_handle = make_named_scalar_type("double");
-  string_type_handle = make_named_scalar_type("string");
-  char_type_handle = make_named_scalar_type("char");
-  sub_double_type_handle = make_named_scalar_type("sub_double");
-  sub_sub_double_type_handle = make_named_scalar_type("sub-sub-double");
-  logical_type_handle = make_named_scalar_type("logical");
+  auto double_t = scalar_store.make_named_scalar_type("double");
+  auto string_t = scalar_store.make_named_scalar_type("string");
+  auto char_t = scalar_store.make_named_scalar_type("char");
+  auto log_t = scalar_store.make_named_scalar_type("logical");
 
-  auto double_class_name = MatlabIdentifier(string_registry.register_string("double"));
-  auto sub_double_class_name = MatlabIdentifier(string_registry.register_string("sub_double"));
-  auto sub_sub_double_class_name = MatlabIdentifier(string_registry.register_string("sub-sub-double"));
+  (void) make_class_wrapper(double_t->identifier, double_t);
+  (void) make_class_wrapper(string_t->identifier, string_t);
+  (void) make_class_wrapper(char_t->identifier, char_t);
+  (void) make_class_wrapper(log_t->identifier, log_t);
 
-  double_type_class = store.make_class(double_class_name, double_type_handle);
-
-  auto sub_double_class_wrapper = store.make_class(sub_double_class_name,
-    sub_double_type_handle, double_type_handle);
-  auto sub_sub_double_class_wrapper = store.make_class(sub_sub_double_class_name,
-    sub_sub_double_type_handle, sub_double_type_handle);
-
-  //  Mark that sub-double is a subclass of double.
-  class_wrappers[sub_double_type_handle] = sub_double_class_wrapper;
-
-  //  Mark that sub-sub-double is a subclass of sub-double.
-  class_wrappers[sub_sub_double_type_handle] = sub_sub_double_class_wrapper;
-
-  //  Add double class wrapper.
-  class_wrappers[double_type_handle] = MT_CLASS_MUT_PTR(double_type_class);
+  double_id = double_t->identifier;
+  string_id = string_t->identifier;
+  char_id = char_t->identifier;
+  logical_id = log_t->identifier;
 }
 
 void Library::make_known_types() {
@@ -236,67 +206,21 @@ void Library::make_base_type_scope() {
 }
 
 void Library::make_free_functions() {
-  make_min();
   make_sum();
-  make_list_outputs_type();
-  make_list_inputs_type();
-  make_list_outputs_type2();
-  make_sub_sub_double();
-  make_sub_double();
-  make_double();
-  make_function_as_input();
   make_feval();
   make_deal();
   make_logicals();
 }
 
 void Library::make_sum() {
+  auto maybe_number = get_number_type();
+  if (!maybe_number) {
+    return;
+  }
+
   const auto ident = MatlabIdentifier(string_registry.register_string("sum"));
-  const auto args_type = store.make_input_destructured_tuple(double_type_handle);
-  const auto result_type = store.make_output_destructured_tuple(double_type_handle);
-  const auto func_type = store.make_abstraction(ident, args_type, result_type);
-
-  const auto func_copy = MT_ABSTR_REF(*func_type);
-  function_types[func_copy] = func_type;
-}
-
-void Library::make_min() {
-  const auto ident = MatlabIdentifier(string_registry.register_string("min"));
-  const auto args_type = store.make_input_destructured_tuple(double_type_handle, string_type_handle);
-  const auto result_type = store.make_output_destructured_tuple(double_type_handle, char_type_handle);
-  const auto func_type = store.make_abstraction(ident, args_type, result_type);
-
-  const auto func_copy = MT_ABSTR_REF(*func_type);
-  function_types[func_copy] = func_type;
-}
-
-void Library::make_list_inputs_type() {
-  const auto ident = MatlabIdentifier(string_registry.register_string("in_list"));
-  const auto list_type = store.make_list(double_type_handle);
-  const auto args_type = store.make_input_destructured_tuple(double_type_handle, list_type);
-  const auto result_type = store.make_output_destructured_tuple(double_type_handle);
-  const auto func_type = store.make_abstraction(ident, args_type, result_type);
-
-  const auto func_copy = MT_ABSTR_REF(*func_type);
-  function_types[func_copy] = func_type;
-}
-
-void Library::make_list_outputs_type() {
-  const auto ident = MatlabIdentifier(string_registry.register_string("lists"));
-  const auto list_type = store.make_list(TypePtrs{char_type_handle, double_type_handle});
-  const auto args_type = store.make_input_destructured_tuple(double_type_handle);
-  const auto result_type = store.make_output_destructured_tuple(double_type_handle, list_type);
-  const auto func_type = store.make_abstraction(ident, args_type, result_type);
-
-  const auto func_copy = MT_ABSTR_REF(*func_type);
-  function_types[func_copy] = func_type;
-}
-
-void Library::make_list_outputs_type2() {
-  const auto ident = MatlabIdentifier(string_registry.register_string("out_list"));
-  const auto list_type = store.make_list(double_type_handle);
-  const auto args_type = store.make_input_destructured_tuple(double_type_handle);
-  const auto result_type = store.make_output_destructured_tuple(list_type);
+  const auto args_type = store.make_input_destructured_tuple(maybe_number.value());
+  const auto result_type = store.make_output_destructured_tuple(maybe_number.value());
   const auto func_type = store.make_abstraction(ident, args_type, result_type);
 
   const auto func_copy = MT_ABSTR_REF(*func_type);
@@ -309,9 +233,17 @@ void Library::make_subscript_references() {
 }
 
 void Library::make_builtin_parens_subscript_references() {
+  auto maybe_number = get_number_type();
+  auto maybe_char = get_char_type();
+  auto maybe_str = get_string_type();
+
+  if (!maybe_number || !maybe_char || !maybe_str) {
+    return;
+  }
+
   const auto ref_var = store.make_fresh_type_variable_reference();
 
-  const auto list_subs_type = store.make_list(double_type_handle);
+  const auto list_subs_type = store.make_list(maybe_number.value());
   const auto args_type = store.make_input_destructured_tuple(ref_var, list_subs_type);
   const auto result_type = store.make_output_destructured_tuple(ref_var);
   const auto func_type = store.make_abstraction(SubscriptMethod::parens, args_type, result_type);
@@ -320,8 +252,8 @@ void Library::make_builtin_parens_subscript_references() {
   const auto scheme = store.make_scheme(func_type, TypePtrs{ref_var});
   function_types[ref_copy] = scheme;
 
-  TypePtrs default_array_types{double_type_handle, char_type_handle,
-                               string_type_handle, sub_double_type_handle};
+  TypePtrs default_array_types{maybe_number.value(), maybe_char.value(),
+                               maybe_str.value()};
 
   for (const auto& referent_type_handle : default_array_types) {
     add_type_with_known_subscript(referent_type_handle);
@@ -329,10 +261,15 @@ void Library::make_builtin_parens_subscript_references() {
 }
 
 void Library::make_builtin_brace_subscript_reference() {
+  auto maybe_number = get_number_type();
+  if (!maybe_number) {
+    return;
+  }
+
   const auto ref_var = store.make_fresh_type_variable_reference();
   const auto tup_type = store.make_tuple(ref_var);
 
-  const auto list_subs_type = store.make_list(double_type_handle);
+  const auto list_subs_type = store.make_list(maybe_number.value());
   const auto args_type = store.make_input_destructured_tuple(tup_type, list_subs_type);
   const auto result_type = store.make_output_destructured_tuple(ref_var);
   const auto func_type = store.make_abstraction(SubscriptMethod::brace, args_type, result_type);
@@ -383,8 +320,13 @@ void Library::make_deal() {
 }
 
 void Library::make_logicals() {
-  auto tru = make_simple_function("true", {}, {logical_type_handle});
-  auto fls = make_simple_function("false", {}, {logical_type_handle});
+  auto maybe_logical = get_logical_type();
+  if (!maybe_logical) {
+    return;
+  }
+
+  auto tru = make_simple_function("true", {}, {maybe_logical.value()});
+  auto fls = make_simple_function("false", {}, {maybe_logical.value()});
 
   const auto tru_copy = MT_ABSTR_REF(*tru);
   const auto fls_copy = MT_ABSTR_REF(*fls);
@@ -393,58 +335,17 @@ void Library::make_logicals() {
   function_types[fls_copy] = fls;
 }
 
-void Library::make_sub_double() {
-  const auto name = MatlabIdentifier(string_registry.register_string("sub_double"));
-  const auto args = store.make_input_destructured_tuple(TypePtrs());
-  const auto outs = store.make_output_destructured_tuple(sub_double_type_handle);
-  const auto func = store.make_abstraction(name, args, outs);
-
-  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
-  function_types[abstr_copy] = func;
-}
-
-void Library::make_sub_sub_double() {
-  const auto name = MatlabIdentifier(string_registry.register_string("sub_sub_double"));
-  const auto args = store.make_input_destructured_tuple(TypePtrs());
-  const auto outs = store.make_output_destructured_tuple(sub_sub_double_type_handle);
-  const auto func = store.make_abstraction(name, args, outs);
-
-  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
-  function_types[abstr_copy] = func;
-}
-
-void Library::make_double() {
-  const auto name = MatlabIdentifier(string_registry.register_string("double"));
-  const auto args = store.make_input_destructured_tuple(sub_double_type_handle);
-  const auto outs = store.make_output_destructured_tuple(double_type_handle);
-  const auto func = store.make_abstraction(name, args, outs);
-
-  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
-  function_types[abstr_copy] = func;
-}
-
-void Library::make_function_as_input() {
-  const MatlabIdentifier name(string_registry.register_string("in_func"));
-  const MatlabIdentifier in_name(string_registry.register_string("sum"));
-
-  const auto input_args_type = store.make_input_destructured_tuple(double_type_handle);
-  const auto output_args_type = store.make_output_destructured_tuple(double_type_handle);
-  const auto input_func = store.make_abstraction(in_name, input_args_type, output_args_type);
-
-  const auto input_args = store.make_input_destructured_tuple(input_func);
-  const auto output_args = store.make_output_destructured_tuple(double_type_handle);
-  const auto func = store.make_abstraction(name, input_args, output_args);
-
-  types::Abstraction abstr_copy = MT_ABSTR_REF(*func);
-  function_types[abstr_copy] = func;
-}
-
 void Library::make_double_methods() {
   std::vector<BinaryOperator> operators{BinaryOperator::plus, BinaryOperator::minus,
                                         BinaryOperator::times, BinaryOperator::matrix_times,
                                         BinaryOperator::right_divide, BinaryOperator::colon};
 
-  TypePtrs arg_types{double_type_handle};
+  auto double_t = get_number_type();
+  if (!double_t) {
+    return;
+  }
+
+  TypePtrs arg_types{double_t.value()};
 
   for (const auto& op : operators) {
     for (const auto& arg : arg_types) {
@@ -460,22 +361,6 @@ void Library::make_double_methods() {
   }
 }
 
-Type* Library::make_named_scalar_type(const char* name) {
-  const auto name_id = string_registry.register_string(name);
-  const TypeIdentifier identifier(name_id);
-  const auto type_handle = store.make_scalar(identifier);
-  assert(type_handle->is_scalar());
-  const auto& type = MT_SCALAR_REF(*type_handle);
-
-  scalar_type_names[type.identifier] = name_id;
-  named_scalar_types[name_id] = type_handle;
-
-  const auto type_ref = store.make_type_reference(nullptr, type_handle, base_scope);
-  base_scope->emplace_type(identifier, type_ref, true);
-
-  return type_handle;
-}
-
 Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs) {
   auto input_tup = store.make_input_destructured_tuple(std::move(args));
   auto output_tup = store.make_output_destructured_tuple(std::move(outs));
@@ -484,8 +369,30 @@ Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&
   return store.make_abstraction(name_ident, input_tup, output_tup);
 }
 
+types::Class* Library::make_class_wrapper(const TypeIdentifier& name, Type* source) {
+  auto cls = store.make_class(name, source);
+  class_wrappers[source] = cls;
+  return cls;
+}
+
 void Library::add_type_with_known_subscript(const Type* t) {
   types_with_known_subscripts.push_back(t);
+}
+
+Optional<Type*> Library::get_number_type() const {
+  return scalar_store.lookup(double_id);
+}
+
+Optional<Type*> Library::get_char_type() const {
+  return scalar_store.lookup(char_id);
+}
+
+Optional<Type*> Library::get_string_type() const {
+  return scalar_store.lookup(string_id);
+}
+
+Optional<Type*> Library::get_logical_type() const {
+  return scalar_store.lookup(logical_id);
 }
 
 /*
@@ -526,6 +433,27 @@ MethodStore::TypedMethods& MethodStore::require_methods(const types::Class* for_
     methods[for_class] = {};
   }
   return methods.at(for_class);
+}
+
+/*
+ * ScalarTypeStore
+ */
+
+types::Scalar* ScalarTypeStore::make_named_scalar_type(const char* name) {
+  const auto identifier = TypeIdentifier(string_registry.register_string(name));
+  const auto type = store.make_scalar(identifier);
+  assert(type->is_scalar());
+  scalar_types[identifier] = type;
+  return MT_SCALAR_MUT_PTR(type);
+}
+
+bool ScalarTypeStore::contains(const TypeIdentifier& name) const {
+  return scalar_types.count(name) > 0;
+}
+
+Optional<Type*> ScalarTypeStore::lookup(const TypeIdentifier& name) const {
+  const auto it = scalar_types.find(name);
+  return it == scalar_types.end() ? NullOpt{} : Optional<Type*>(it->second);
 }
 
 }
