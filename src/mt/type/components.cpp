@@ -31,4 +31,12 @@ TypeReference make_ref(const Token* source_token, Type* term, const TypeScope* s
   return TypeReference(source_token, term, scope);
 }
 
+MatlabIdentifier to_matlab_identifier(const TypeIdentifier& ident) {
+  return MatlabIdentifier(ident.full_name());
+}
+
+TypeIdentifier to_type_identifier(const MatlabIdentifier& ident) {
+  return TypeIdentifier(ident.full_name());
+}
+
 }

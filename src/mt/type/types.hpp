@@ -134,7 +134,7 @@ struct ConstantValue : public Type {
     //
   }
 
-  explicit ConstantValue(const std::string_view* val) :
+  explicit ConstantValue(const TypeIdentifier& val) :
     Type(Type::Tag::constant_value), kind(Kind::char_value), char_value(val) {
     //
   }
@@ -155,7 +155,7 @@ struct ConstantValue : public Type {
   union {
     int64_t int_value;
     double double_value;
-    const std::string_view* char_value;
+    TypeIdentifier char_value;
   };
 };
 
@@ -588,6 +588,10 @@ struct Abstraction : public mt::Type {
   std::size_t bytes() const override {
     return sizeof(Abstraction);
   }
+
+  void assign_kind(UnaryOperator op);
+  void assign_kind(BinaryOperator op);
+  void assign_kind(const MatlabIdentifier& name);
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 

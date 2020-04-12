@@ -48,4 +48,29 @@ FilePath fs::directory_name(const FilePath& a) {
   return FilePath(substr);
 }
 
+std::string fs::package_name(const FilePath& path) {
+  const auto& str = path.str();
+  auto splt = split(str, separator_character);
+  std::string package;
+
+  for (int64_t i = splt.size()-1; i >= 0; i--) {
+    auto component = std::string(splt[i]);
+
+    if (component.empty()) {
+      continue;
+    } else if (component[0] != '+') {
+      break;
+    }
+
+    component += ".";
+    package.insert(0, component.data()+1);
+  }
+
+  if (!package.empty() && package[package.size()-1] == '.') {
+    package.erase(package.size()-1);
+  }
+
+  return package;
+}
+
 }

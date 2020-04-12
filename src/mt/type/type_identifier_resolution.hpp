@@ -11,18 +11,43 @@ namespace mt {
 struct TypeScope;
 class Store;
 class TypeStore;
+class Library;
 
 class TypeIdentifierResolverInstance {
+public:
+  friend class TypeIdentifierResolver;
+
+  struct TypeCollector {
+    TypeCollector();
+    void push(Type* type);
+    void mark_error();
+
+    std::vector<Type*> types;
+    bool had_error;
+  };
+
+  struct TypeCollectorState {
+    struct Stack {
+      static void push(TypeCollectorState& collector);
+      static void pop(TypeCollectorState& collector);
+    };
+    using Helper = StackHelper<TypeCollectorState, Stack>;
+
+    void push();
+    void pop();
+    TypeCollector& current();
+
+    std::vector<TypeCollector> type_collectors;
+  };
+
   struct UnresolvedIdentifier {
     UnresolvedIdentifier(const TypeIdentifier& ident, TypeScope* scope);
 
     TypeIdentifier identifier;
     TypeScope* scope;
   };
-
-  friend class TypeIdentifierResolver;
 public:
-  TypeIdentifierResolverInstance(TypeStore& type_store, const Store& def_store);
+  TypeIdentifierResolverInstance(TypeStore& type_store, Library& library, const Store& def_store);
 
   bool had_error() const;
   void add_error(BoxedTypeError err);
@@ -30,6 +55,7 @@ public:
 
 public:
   TypeStore& type_store;
+  Library& library;
   const Store& def_store;
 
   std::vector<BoxedTypeError> errors;
@@ -37,6 +63,7 @@ public:
   TypeIdentifierExportState export_state;
   TypeIdentifierNamespaceState namespace_state;
   ScopeState<TypeScope> scopes;
+  TypeCollectorState collectors;
 };
 
 class TypeIdentifierResolver : public TypePreservingVisitor {
@@ -60,6 +87,10 @@ public:
 
   void function_def_node(const FunctionDefNode& node) override;
   void class_def_node(const ClassDefNode& node) override;
+
+private:
+  void scalar_type_declaration(const DeclareTypeNode& node);
+  void method_type_declaration(const DeclareTypeNode& node);
 
 private:
   TypeIdentifierResolverInstance* instance;

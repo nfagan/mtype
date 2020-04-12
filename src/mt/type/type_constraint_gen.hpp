@@ -132,6 +132,7 @@ private:
   ClassDefState class_state;
 
   ScopeState<const MatlabScope> scopes;
+  ScopeState<const TypeScope> type_scopes;
 
   std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_type_handles;
   std::unordered_map<Type*, VariableDefHandle> variables;

@@ -14,6 +14,7 @@ struct FunctionDef;
 struct VariableDef;
 struct FunctionInputParameter;
 struct IdentifierReferenceExpr;
+struct TypeScope;
 
 struct SuperclassMethodReferenceExpr : public Expr {
   SuperclassMethodReferenceExpr(const Token& source_token,
@@ -40,11 +41,13 @@ struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
                         std::vector<FunctionInputParameter>&& input_identifiers,
                         BoxedExpr expr,
-                        MatlabScope* scope) :
+                        MatlabScope* scope,
+                        TypeScope* type_scope) :
     source_token(source_token),
     inputs(std::move(input_identifiers)),
     expr(std::move(expr)),
-    scope(scope) {
+    scope(scope),
+    type_scope(type_scope) {
     //
   }
   ~AnonymousFunctionExpr() override = default;
@@ -62,6 +65,7 @@ struct AnonymousFunctionExpr : public Expr {
   std::vector<FunctionInputParameter> inputs;
   BoxedExpr expr;
   MatlabScope* scope;
+  TypeScope* type_scope;
 };
 
 struct FunctionReferenceExpr : public Expr {

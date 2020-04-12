@@ -2,6 +2,7 @@
 #include "StringVisitor.hpp"
 #include "visitor.hpp"
 #include "../identifier_classification.hpp"
+#include <cassert>
 
 namespace mt {
 
@@ -45,6 +46,36 @@ void NamespaceTypeNode::accept(TypePreservingVisitor& vis) {
  * DeclareTypeNode
  */
 
+DeclareTypeNode::Method::Method() : kind(Kind::function) {
+  //
+}
+
+DeclareTypeNode::Method::Method(const TypeIdentifier& name, BoxedFunctionTypeNode type) :
+kind(Kind::function), name(name), type(std::move(type)) {
+  //
+}
+
+DeclareTypeNode::Method::Method(UnaryOperator op, BoxedFunctionTypeNode type) :
+kind(Kind::unary_operator), unary_operator(op), type(std::move(type)) {
+  //
+}
+
+DeclareTypeNode::Method::Method(BinaryOperator op, BoxedFunctionTypeNode type) :
+kind(Kind::binary_operator), binary_operator(op), type(std::move(type)) {
+  //
+}
+
+std::string DeclareTypeNode::Method::function_name(const StringRegistry& str_registry) const {
+  switch (kind) {
+    case Kind::binary_operator:
+      return to_symbol(binary_operator);
+    case Kind::unary_operator:
+      return to_symbol(unary_operator);
+    default:
+      return str_registry.at(name.full_name());
+  }
+}
+
 std::string DeclareTypeNode::accept(const StringVisitor& vis) const {
   return vis.declare_type_node(*this);
 }
@@ -60,9 +91,23 @@ void DeclareTypeNode::accept(TypePreservingVisitor& vis) {
 Optional<DeclareTypeNode::Kind> DeclareTypeNode::kind_from_string(std::string_view str) {
   if (str == "scalar") {
     return Optional<Kind>(Kind::scalar);
+  } else if (str == "method") {
+    return Optional<Kind>(Kind::method);
   } else {
     return NullOpt{};
   }
+}
+
+const char* DeclareTypeNode::kind_to_string(Kind kind) {
+  switch (kind) {
+    case Kind::scalar:
+      return "scalar";
+    case Kind::method:
+      return "method";
+  }
+
+  assert(false);
+  return "";
 }
 
 /*

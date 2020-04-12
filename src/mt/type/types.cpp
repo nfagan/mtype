@@ -42,7 +42,7 @@ const types::Record::Field* types::Record::find_field(const types::ConstantValue
     }
 
     const auto& name_ref = MT_CONST_VAL_REF(*name);
-    if (name_ref.kind == Kind::char_value && *name_ref.char_value == *val.char_value) {
+    if (name_ref.kind == Kind::char_value && name_ref.char_value == val.char_value) {
       return &field;
     }
   }
@@ -84,6 +84,21 @@ void types::Scalar::accept(const TypeToString& to_str, std::stringstream& into) 
 
 void types::Abstraction::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+void types::Abstraction::assign_kind(UnaryOperator op) {
+  kind = Kind::unary_operator;
+  unary_operator = op;
+}
+
+void types::Abstraction::assign_kind(BinaryOperator op) {
+  kind = Kind::binary_operator;
+  binary_operator = op;
+}
+
+void types::Abstraction::assign_kind(const MatlabIdentifier& ident) {
+  kind = Kind::function;
+  name = ident;
 }
 
 /*

@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     }
 
     for (auto& root : pipeline_instance.roots) {
-//      root->type_scope->add_import(TypeImport(library.base_scope, false));
+      root->type_scope->add_import(TypeImport(library.base_scope, false));
     }
 
     TypeImportResolutionInstance import_res(source_data_by_token);
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     }
 
     //  Type identifier resolution
-    TypeIdentifierResolverInstance instance(type_store, store);
+    TypeIdentifierResolverInstance instance(type_store, library, store);
     TypeIdentifierResolver type_identifier_resolver(&instance);
 
     for (auto& root : pipeline_instance.roots) {
@@ -258,6 +258,8 @@ int main(int argc, char** argv) {
     std::cout << "Constraint gen time: " << constraint_time << " (ms)" << std::endl;
     std::cout << "Total time: " << full_elapsed_ms << " (ms)" << std::endl;
   }
+
+  std::cout << "File path: " << fs::directory_name(FilePath("a/b/c")) << std::endl;
 
   return 0;
 }

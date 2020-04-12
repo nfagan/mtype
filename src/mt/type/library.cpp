@@ -16,13 +16,13 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   }
 }
 
-bool Library::subtype_related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const {
+bool Library::subtype_related(const Type*, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const {
   if (a.identifier == b.identifier) {
     return true;
   }
 
-  const auto& sub_it = class_wrappers.find(lhs);
-  if (sub_it == class_wrappers.end()) {
+  const auto& sub_it = classes.find(a.identifier);
+  if (sub_it == classes.end()) {
     return false;
   }
 
@@ -151,12 +151,18 @@ Optional<std::string> Library::type_name(const Type* type) const {
   return string_registry.maybe_at(scl.identifier.full_name());
 }
 
+Optional<types::Class*> Library::lookup_class(const TypeIdentifier& name) const {
+  auto it = classes.find(name);
+  return it == classes.end() ? NullOpt{} : Optional<types::Class*>(it->second);
+}
+
 Optional<types::Class*> Library::class_wrapper(const Type* type) const {
-  auto it = class_wrappers.find(type);
-  if (it == class_wrappers.end()) {
+  if (!type->is_scalar()) {
     return NullOpt{};
   }
-  return Optional<types::Class*>(it->second);
+
+  const auto& scl = MT_SCALAR_REF(*type);
+  return lookup_class(scl.identifier);
 }
 
 Optional<const types::Class*> Library::class_for_type(const Type* type) const {
@@ -173,15 +179,10 @@ Optional<const types::Class*> Library::class_for_type(const Type* type) const {
 }
 
 void Library::make_builtin_types() {
-  auto double_t = scalar_store.make_named_scalar_type("double");
-  auto string_t = scalar_store.make_named_scalar_type("string");
-  auto char_t = scalar_store.make_named_scalar_type("char");
-  auto log_t = scalar_store.make_named_scalar_type("logical");
-
-  (void) make_class_wrapper(double_t->identifier, double_t);
-  (void) make_class_wrapper(string_t->identifier, string_t);
-  (void) make_class_wrapper(char_t->identifier, char_t);
-  (void) make_class_wrapper(log_t->identifier, log_t);
+  auto double_t = make_named_scalar_type("double");
+  auto string_t = make_named_scalar_type("string");
+  auto char_t = make_named_scalar_type("char");
+  auto log_t = make_named_scalar_type("logical");
 
   double_id = double_t->identifier;
   string_id = string_t->identifier;
@@ -195,7 +196,6 @@ void Library::make_known_types() {
   make_subscript_references();
   make_free_functions();
   make_concatenations();
-  make_double_methods();
 }
 
 void Library::make_base_type_scope() {
@@ -335,32 +335,6 @@ void Library::make_logicals() {
   function_types[fls_copy] = fls;
 }
 
-void Library::make_double_methods() {
-  std::vector<BinaryOperator> operators{BinaryOperator::plus, BinaryOperator::minus,
-                                        BinaryOperator::times, BinaryOperator::matrix_times,
-                                        BinaryOperator::right_divide, BinaryOperator::colon};
-
-  auto double_t = get_number_type();
-  if (!double_t) {
-    return;
-  }
-
-  TypePtrs arg_types{double_t.value()};
-
-  for (const auto& op : operators) {
-    for (const auto& arg : arg_types) {
-      const auto args_type = store.make_input_destructured_tuple(arg, arg);
-      const auto result_type = store.make_output_destructured_tuple(arg);
-      const auto func_type = store.make_abstraction(op, args_type, result_type);
-      const auto func_copy = MT_ABSTR_REF(*func_type);
-
-      auto class_wrapper = class_for_type(arg);
-      assert(class_wrapper);  //  wrapper should have already been created.
-      method_store.add_method(class_wrapper.value(), func_copy, func_type);
-    }
-  }
-}
-
 Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs) {
   auto input_tup = store.make_input_destructured_tuple(std::move(args));
   auto output_tup = store.make_output_destructured_tuple(std::move(outs));
@@ -371,8 +345,26 @@ Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&
 
 types::Class* Library::make_class_wrapper(const TypeIdentifier& name, Type* source) {
   auto cls = store.make_class(name, source);
-  class_wrappers[source] = cls;
+  classes[name] = cls;
   return cls;
+}
+
+types::Scalar* Library::make_named_scalar_type(const char* name) {
+  auto type = scalar_store.make_named_scalar_type(name);
+  process_scalar_type(type);
+  return type;
+}
+
+types::Scalar* Library::make_named_scalar_type(const TypeIdentifier& name) {
+  auto type = scalar_store.make_named_scalar_type(name);
+  process_scalar_type(type);
+  return type;
+}
+
+void Library::process_scalar_type(types::Scalar* type) {
+  (void) make_class_wrapper(type->identifier, type);
+  auto ref = store.make_type_reference(nullptr, type, base_scope);
+  base_scope->emplace_type(type->identifier, ref, true);
 }
 
 void Library::add_type_with_known_subscript(const Type* t) {
@@ -441,9 +433,13 @@ MethodStore::TypedMethods& MethodStore::require_methods(const types::Class* for_
 
 types::Scalar* ScalarTypeStore::make_named_scalar_type(const char* name) {
   const auto identifier = TypeIdentifier(string_registry.register_string(name));
-  const auto type = store.make_scalar(identifier);
+  return make_named_scalar_type(identifier);
+}
+
+types::Scalar* ScalarTypeStore::make_named_scalar_type(const TypeIdentifier& name) {
+  const auto type = store.make_scalar(name);
   assert(type->is_scalar());
-  scalar_types[identifier] = type;
+  scalar_types[name] = type;
   return MT_SCALAR_MUT_PTR(type);
 }
 

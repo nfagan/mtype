@@ -20,7 +20,8 @@ void TypeConstraintGenerator::show_type_distribution() const {
 }
 
 void TypeConstraintGenerator::root_block(const RootBlock& block) {
-  ScopeState<const MatlabScope>::Helper scope_helper(scopes, block.scope);
+  ScopeState<const MatlabScope>::Helper matlab_scope_helper(scopes, block.scope);
+  ScopeState<const TypeScope>::Helper type_scope_helper(type_scopes, block.type_scope);
   block.block->accept_const(*this);
 }
 
@@ -97,7 +98,8 @@ void TypeConstraintGenerator::gather_function_outputs(const MatlabScope& scope,
 }
 
 void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
-  ScopeState<const MatlabScope>::Helper scope_helper(scopes, node.scope);
+  ScopeState<const MatlabScope>::Helper matlab_scope_helper(scopes, node.scope);
+  ScopeState<const TypeScope>::Helper type_scope_helper(type_scopes, node.type_scope);
 
   const auto input_handle = type_store.make_input_destructured_tuple(TypePtrs{});
   const auto output_handle = type_store.make_output_destructured_tuple(TypePtrs{});
@@ -241,7 +243,8 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
 
   types::Record::Fields fields;
   for (const auto& prop : node.properties) {
-    const auto name_type = type_store.make_constant_value(&prop.source_token.lexeme);
+    TypeIdentifier prop_name(prop.name);
+    const auto name_type = type_store.make_constant_value(prop_name);
     const auto prop_type = make_fresh_type_variable_reference();
     fields.push_back(types::Record::Field{name_type, prop_type});
 
@@ -253,7 +256,11 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   }
 
   auto record_type = type_store.make_record(std::move(fields));
-  auto class_type = type_store.make_class(TypeIdentifier(name.full_name()), record_type);
+  auto maybe_class_type = type_scopes.current()->lookup_type(to_type_identifier(name));
+  assert(maybe_class_type && maybe_class_type.value()->type->is_class());
+  auto class_type = MT_CLASS_MUT_PTR(maybe_class_type.value()->type);
+  assert(!class_type->source);
+  class_type->source = record_type;
 
   ClassDefState::Helper class_helper(class_state, node.handle, class_type, name);
 
@@ -309,10 +316,11 @@ void TypeConstraintGenerator::function_type_node(const FunctionTypeNode& node) {
 
 void TypeConstraintGenerator::scalar_type_node(const ScalarTypeNode& node) {
   assert(node.arguments.empty() && "Args not yet handled.");
-  auto maybe_known_scalar_type = library.scalar_store.lookup(node.identifier);
+  auto maybe_known_scalar_type = type_scopes.current()->lookup_type(node.identifier);
   assert(maybe_known_scalar_type && "Unknown scalar type.");
+  auto type = maybe_known_scalar_type.value()->type;
 
-  push_type_equation_term(make_term(&node.source_token, maybe_known_scalar_type.value()));
+  push_type_equation_term(make_term(&node.source_token, type));
 }
 
 /*
@@ -344,7 +352,8 @@ void TypeConstraintGenerator::dynamic_field_reference_expr(const DynamicFieldRef
 }
 
 void TypeConstraintGenerator::literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) {
-  const auto const_type = type_store.make_constant_value(&expr.source_token.lexeme);
+  TypeIdentifier ident(expr.field_identifier);
+  const auto const_type = type_store.make_constant_value(ident);
   push_type_equation_term(make_term(&expr.source_token, const_type));
 }
 
@@ -454,6 +463,7 @@ void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExp
 
 void TypeConstraintGenerator::anonymous_function_expr(const AnonymousFunctionExpr& expr) {
   ScopeState<const MatlabScope>::Helper scope_helper(scopes, expr.scope);
+  ScopeState<const TypeScope>::Helper type_scope_helper(type_scopes, expr.type_scope);
 
   //  Store constraints here.
   if (are_functions_polymorphic()) {

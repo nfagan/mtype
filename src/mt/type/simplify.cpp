@@ -245,7 +245,7 @@ bool Simplifier::simplify(const types::ConstantValue& t0, const types::ConstantV
     case types::ConstantValue::Kind::double_value:
       return t0.double_value == t1.double_value;
     case types::ConstantValue::Kind::char_value:
-      return *t0.char_value == *t1.char_value;
+      return t0.char_value == t1.char_value;
   }
 
   assert(false && "Unhandled");

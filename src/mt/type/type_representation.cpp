@@ -146,7 +146,9 @@ void TypeToString::apply(const types::ConstantValue& val, std::stringstream& int
       break;
     case types::ConstantValue::Kind::char_value:
       into << "\"";
-      into << *val.char_value;
+      if (string_registry) {
+        into << string_registry->at(val.char_value.full_name());
+      }
       into << "\"";
       break;
   }

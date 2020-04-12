@@ -67,6 +67,10 @@ bool CodeFileDescriptor::represents_known_file() const {
   }
 }
 
+std::string CodeFileDescriptor::containing_package() const {
+  return fs::package_name(fs::directory_name(file_path));
+}
+
 void swap(CodeFileDescriptor& a, CodeFileDescriptor& b) {
   using std::swap;
   swap(a.file_type, b.file_type);

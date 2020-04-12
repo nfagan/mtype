@@ -81,4 +81,7 @@ TypeEquationTerm make_term(const Token* source_token, Type* term);
 TypeEquation make_eq(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs);
 TypeReference make_ref(const Token* source_token, Type* term, const TypeScope* scope);
 
+MatlabIdentifier to_matlab_identifier(const TypeIdentifier& ident);
+TypeIdentifier to_type_identifier(const MatlabIdentifier& ident);
+
 }

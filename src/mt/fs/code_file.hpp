@@ -37,6 +37,7 @@ public:
   MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(CodeFileDescriptor)
 
   bool represents_known_file() const;
+  std::string containing_package() const;
 
 public:
   CodeFileType file_type;

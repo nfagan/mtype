@@ -126,6 +126,12 @@ struct TypeAnnot : public AstNode {
 
   virtual void accept(TypePreservingVisitor&) override {}
   virtual void accept_const(TypePreservingVisitor&) const override {}
+  virtual bool is_type_assertion() const {
+    return false;
+  }
+  virtual bool is_function_type() const {
+    return false;
+  }
 };
 
 struct TypeNode : public TypeAnnot {

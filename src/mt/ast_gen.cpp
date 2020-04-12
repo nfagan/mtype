@@ -3,12 +3,24 @@
 #include "utility.hpp"
 #include "keyword.hpp"
 #include "type/type_store.hpp"
+#include "fs/code_file.hpp"
 #include <array>
 #include <cassert>
 #include <functional>
 #include <set>
 
 namespace mt {
+
+namespace {
+  std::string maybe_prepend_package_name(const CodeFileDescriptor* file_descriptor, std::string_view ident) {
+    auto package_name = file_descriptor->containing_package();
+    if (package_name.empty()) {
+      return std::string(ident);
+    } else {
+      return package_name + "." + std::string(ident);
+    }
+  }
+}
 
 /*
  * ParseInstance
@@ -484,6 +496,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   iterator.advance();
 
   const auto parent_scope = current_scope();
+  auto parent_type_scope = current_type_scope();
   BlockStmtScopeHelper scope_helper(&block_depths.class_def);
 
   if (iterator.peek().type == TokenType::left_parens) {
@@ -498,6 +511,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     }
   }
 
+  const auto name_token = iterator.peek();
   auto name_res = one_identifier();
   if (!name_res) {
     return NullOpt{};
@@ -532,8 +546,13 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     class_handle = writer.make_class_definition();
   }
 
-  MatlabIdentifier name(string_registry->register_string(name_res.value()));
-  ClassDefState::Helper class_helper(class_state, class_handle, nullptr, name);
+  const auto& given_name = name_res.value();
+  const auto package_qualified_name = maybe_prepend_package_name(file_descriptor(), given_name);
+
+  MatlabIdentifier unqualified_name(string_registry->register_string(given_name));
+  MatlabIdentifier qualified_name(string_registry->register_string(package_qualified_name));
+
+  ClassDefState::Helper class_helper(class_state, class_handle, nullptr, unqualified_name);
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
@@ -568,7 +587,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     return NullOpt{};
   }
 
-  ClassDef class_def(source_token, name, std::move(superclasses), std::move(properties), std::move(methods));
+  ClassDef class_def(source_token, qualified_name, std::move(superclasses), std::move(properties), std::move(methods));
 
   {
     Store::Write writer(*store);
@@ -578,11 +597,25 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   auto class_node = std::make_unique<ClassDefNode>(source_token, class_handle,
     std::move(property_nodes), std::move(method_def_nodes));
 
-  bool register_success = parent_scope->register_class(name, class_handle);
+  bool register_success = parent_scope->register_class(qualified_name, class_handle);
   if (!register_success) {
     add_error(make_error_duplicate_class_def(source_token));
     return NullOpt{};
   }
+
+  const auto class_identifier = maybe_namespace_enclose_type_identifier(TypeIdentifier(qualified_name.full_name()));
+  //  @Note: Class definition are always exported.
+  const bool is_type_export = true;
+
+  if (!parent_type_scope->can_register_local_identifier(class_identifier, is_type_export)) {
+    add_error(make_error_duplicate_type_identifier(name_token));
+    return NullOpt{};
+  }
+
+  auto& type_store = parse_instance->type_store;
+  auto class_type = type_store->make_class(class_identifier, nullptr);
+  auto class_ref = type_store->make_type_reference(&class_node->source_token, class_type, parent_type_scope);
+  parent_type_scope->emplace_type(class_identifier, class_ref, is_type_export);
 
   return Optional<BoxedAstNode>(std::move(class_node));
 }
@@ -1290,7 +1323,8 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
   }
 
   ParseScopeHelper scope_helper(*this);
-  auto scope_handle = current_scope();
+  auto scope = current_scope();
+  auto type_scope = current_type_scope();
 
   auto input_res = anonymous_function_input_parameters();
   if (!input_res) {
@@ -1321,7 +1355,7 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
   }
 
   auto node = std::make_unique<AnonymousFunctionExpr>(source_token, std::move(input_identifiers),
-    body_res.rvalue(), scope_handle);
+                                                      body_res.rvalue(), scope, type_scope);
   return Optional<BoxedExpr>(std::move(node));
 }
 
@@ -2206,7 +2240,7 @@ Optional<BoxedTypeAnnot> AstGenerator::inline_type_annotation(const mt::Token& s
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_token) {
+Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token, bool expect_enclosing_assert_node) {
   switch (source_token.type) {
     case TokenType::keyword_begin:
       return type_begin(source_token);
@@ -2221,7 +2255,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
       return type_fun(source_token);
 
     case TokenType::double_colon:
-      return type_assertion(source_token);
+      return type_assertion(source_token, expect_enclosing_assert_node);
 
     case TokenType::keyword_import:
       return type_import(source_token);
@@ -2242,7 +2276,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const mt::Token& source_t
   }
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token) {
+Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token, bool expect_enclosing_node) {
   iterator.advance();
 
   auto type_res = type(iterator.peek());
@@ -2250,18 +2284,24 @@ Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token)
     return NullOpt{};
   }
 
-  auto err = consume(TokenType::keyword_end_type);
+  std::array<TokenType, 2> possible_types{{TokenType::keyword_end_type, TokenType::new_line}};
+  auto err = consume_one_of(possible_types.data(), possible_types.size());
   if (err) {
     add_error(err.rvalue());
     return NullOpt{};
   }
 
-  auto func_res = function_def();
-  if (!func_res) {
-    return NullOpt{};
+  BoxedAstNode enclosing_node;
+
+  if (expect_enclosing_node) {
+    auto func_res = function_def();
+    if (!func_res) {
+      return NullOpt{};
+    }
+    enclosing_node = std::move(func_res.rvalue());
   }
 
-  auto assert_node = std::make_unique<TypeAssertion>(source_token, func_res.rvalue(), type_res.rvalue());
+  auto assert_node = std::make_unique<TypeAssertion>(source_token, std::move(enclosing_node), type_res.rvalue());
   return Optional<BoxedTypeAnnot>(std::move(assert_node));
 }
 
@@ -2522,21 +2562,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_namespace(const Token& source_token)
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
-  iterator.advance();
-
-  const auto kind_token = iterator.peek();
-  auto kind_res = one_identifier();
-  if (!kind_res) {
-    return NullOpt{};
-  }
-
-  auto maybe_kind = DeclareTypeNode::kind_from_string(kind_res.value());
-  if (!maybe_kind) {
-    add_error(make_error_unrecognized_type_declaration_kind(kind_token));
-    return NullOpt{};
-  }
-
+Optional<BoxedTypeAnnot> AstGenerator::scalar_type_declaration(const Token& source_token) {
   const auto name_token = iterator.peek();
   auto ident_res = one_identifier();
   if (!ident_res) {
@@ -2554,11 +2580,95 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
     return NullOpt{};
   }
 
-  auto node = std::make_unique<DeclareTypeNode>(source_token, maybe_kind.value(), ident);
+  //  @TODO: Make type here, rather than allowing nullptr for the type.
+  auto node = std::make_unique<DeclareTypeNode>(source_token, DeclareTypeNode::Kind::scalar, ident);
   auto declare_type = parse_instance->type_store->make_type_reference(&node->source_token, nullptr, scope);
   scope->emplace_type(ident, declare_type, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& source_token) {
+  auto type_res = compound_identifier_components();
+  if (!type_res) {
+    return NullOpt{};
+  }
+
+  auto registered = string_registry->register_strings(type_res.value());
+  auto type_ident = TypeIdentifier(string_registry->make_registered_compound_identifier(registered));
+  type_ident = maybe_namespace_enclose_type_identifier(type_ident);
+
+  auto func_token = iterator.peek();
+  iterator.advance();
+
+  const auto assert_tok = iterator.peek();
+  auto annot_res = type_annotation(iterator.peek(), /*expect_enclosing_assert_node=*/false);
+  if (!annot_res) {
+    return NullOpt{};
+  }
+
+  auto& annot = annot_res.value();
+  if (!annot->is_type_assertion()) {
+    add_error(make_error_expected_type_assertion(assert_tok));
+    return NullOpt{};
+  }
+
+  auto type_assert = static_cast<TypeAssertion*>(annot.get());
+  if (!type_assert->has_type->is_function_type()) {
+    add_error(make_error_expected_function_type(assert_tok));
+    return NullOpt{};
+  }
+
+  auto underlying = static_cast<FunctionTypeNode*>(type_assert->has_type.release());
+  auto func_type = std::unique_ptr<FunctionTypeNode>(underlying);
+
+  DeclareTypeNode::Method method;
+
+  if (represents_binary_operator(func_token.type)) {
+    method = DeclareTypeNode::Method(binary_operator_from_token_type(func_token.type), std::move(func_type));
+
+  } else if (represents_unary_operator(func_token.type)) {
+    method = DeclareTypeNode::Method(unary_operator_from_token_type(func_token.type), std::move(func_type));
+
+  } else if (func_token.type == TokenType::identifier) {
+    TypeIdentifier name(string_registry->register_string(func_token.lexeme));
+    method = DeclareTypeNode::Method(name, std::move(func_type));
+
+  } else {
+    add_error(make_error_expected_function_type(func_token));
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<DeclareTypeNode>(source_token, type_ident, std::move(method));
+  return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
+  iterator.advance();
+
+  const auto kind_token = iterator.peek();
+  auto kind_res = one_identifier();
+  if (!kind_res) {
+    return NullOpt{};
+  }
+
+  auto maybe_kind = DeclareTypeNode::kind_from_string(kind_res.value());
+  if (!maybe_kind) {
+    add_error(make_error_unrecognized_type_declaration_kind(kind_token));
+    return NullOpt{};
+  }
+
+  switch (maybe_kind.value()) {
+    case DeclareTypeNode::Kind::scalar:
+      return scalar_type_declaration(source_token);
+
+    case DeclareTypeNode::Kind::method:
+      return method_type_declaration(source_token);
+
+    default:
+      assert(false);
+      return Optional<BoxedTypeAnnot>(nullptr);
+  }
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
@@ -2612,9 +2722,11 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
     return NullOpt{};
   }
 
-  auto record_node = std::make_unique<RecordTypeNode>(source_token, name_token, identifier, std::move(fields));
+  auto record_type = parse_instance->type_store->make_record();
+  auto record_node = std::make_unique<RecordTypeNode>(source_token, name_token,
+    identifier, record_type, std::move(fields));
   //  @Note: Source token must be a pointer to a source token stored in the AST.
-  const auto type_ref = parse_instance->type_store->make_type_reference(&record_node->name_token, nullptr, scope);
+  const auto type_ref = parse_instance->type_store->make_type_reference(&record_node->name_token, record_type, scope);
   scope->emplace_type(identifier, type_ref, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(record_node));
@@ -2632,6 +2744,7 @@ TypeIdentifier AstGenerator::maybe_namespace_enclose_type_identifier(const TypeI
 }
 
 Optional<RecordTypeNode::Field> AstGenerator::record_field() {
+  const auto name_token = iterator.peek();
   auto name_res = one_identifier();
   if (!name_res) {
     return NullOpt{};
@@ -2649,7 +2762,7 @@ Optional<RecordTypeNode::Field> AstGenerator::record_field() {
   }
 
   auto name = TypeIdentifier(string_registry->register_string(name_res.value()));
-  return Optional<RecordTypeNode::Field>(RecordTypeNode::Field(name, std::move(type_res.rvalue())));
+  return Optional<RecordTypeNode::Field>(RecordTypeNode::Field(name_token, name, std::move(type_res.rvalue())));
 }
 
 Optional<BoxedType> AstGenerator::type(const mt::Token& source_token) {
@@ -3093,6 +3206,14 @@ ParseError AstGenerator::make_error_duplicate_record_field_name(const Token& at_
 
 ParseError AstGenerator::make_error_unrecognized_type_declaration_kind(const Token& at_token) const {
   return ParseError(text, at_token, "Unrecognized declaration kind.", file_descriptor());
+}
+
+ParseError AstGenerator::make_error_expected_function_type(const Token& at_token) const {
+  return ParseError(text, at_token, "Expected function type.", file_descriptor());
+}
+
+ParseError AstGenerator::make_error_expected_type_assertion(const Token& at_token) const {
+  return ParseError(text, at_token, "Expected type assertion.", file_descriptor());
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

@@ -3,8 +3,17 @@
 #include "ast.hpp"
 #include "../token.hpp"
 #include "../identifier.hpp"
+#include "../lang_components.hpp"
 
 namespace mt {
+
+class StringRegistry;
+struct FunctionTypeNode;
+using BoxedFunctionTypeNode = std::unique_ptr<FunctionTypeNode>;
+
+namespace types {
+  struct Record;
+}
 
 struct TypeAnnotMacro : public TypeAnnot {
   TypeAnnotMacro(const Token& source_token, BoxedTypeAnnot annotation) :
@@ -43,24 +52,57 @@ struct NamespaceTypeNode : public TypeAnnot {
 };
 
 struct DeclareTypeNode : public TypeAnnot {
+  struct Method {
+    enum class Kind {
+      function,
+      unary_operator,
+      binary_operator
+    };
+
+    Method();
+    Method(const TypeIdentifier& name, BoxedFunctionTypeNode type);
+    Method(UnaryOperator op, BoxedFunctionTypeNode type);
+    Method(BinaryOperator op, BoxedFunctionTypeNode type);
+
+    std::string function_name(const StringRegistry& str_registry) const;
+
+    Kind kind;
+
+    union {
+      TypeIdentifier name;
+      UnaryOperator unary_operator;
+      BinaryOperator binary_operator;
+    };
+
+    BoxedFunctionTypeNode type;
+  };
+
   enum class Kind {
-    scalar
+    scalar,
+    method
   };
 
   DeclareTypeNode(const Token& source_token, Kind kind, const TypeIdentifier& identifier) :
   source_token(source_token), kind(kind), identifier(identifier) {
     //
   }
+  DeclareTypeNode(const Token& source_token, const TypeIdentifier& identifier, Method method) :
+  source_token(source_token), kind(Kind::method), identifier(identifier), maybe_method(std::move(method)) {
+    //
+  }
+
   ~DeclareTypeNode() override = default;
   std::string accept(const StringVisitor& vis) const override;
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
 
   static Optional<Kind> kind_from_string(std::string_view str);
+  static const char* kind_to_string(Kind kind);
 
   Token source_token;
   Kind kind;
   TypeIdentifier identifier;
+  Method maybe_method;
 };
 
 struct TypeImportNode : public TypeAnnot {
@@ -93,6 +135,10 @@ struct TypeAssertion : public TypeAnnot {
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
   Optional<AstNode*> enclosed_code_ast_node() const override;
+
+  bool is_type_assertion() const override {
+    return true;
+  }
 
   Token source_token;
   BoxedAstNode node;
@@ -171,10 +217,12 @@ struct TypeBegin : public TypeAnnot {
 struct RecordTypeNode : public TypeNode {
   struct Field {
     Field() = default;
-    Field(const TypeIdentifier& name, BoxedType type) : name(name), type(std::move(type)) {
+    Field(const Token& source_token, const TypeIdentifier& name, BoxedType type) :
+    source_token(source_token), name(name), type(std::move(type)) {
       //
     }
 
+    Token source_token;
     TypeIdentifier name;
     BoxedType type;
   };
@@ -182,8 +230,9 @@ struct RecordTypeNode : public TypeNode {
   using Fields = std::vector<Field>;
 
   RecordTypeNode(const Token& source_token, const Token& name_token,
-                 const TypeIdentifier& identifier, Fields&& fields) :
-  source_token(source_token), name_token(name_token), identifier(identifier), fields(std::move(fields)) {
+                 const TypeIdentifier& identifier, types::Record* type, Fields&& fields) :
+  source_token(source_token), name_token(name_token), identifier(identifier),
+  type(type), fields(std::move(fields)) {
     //
   }
 
@@ -196,6 +245,7 @@ struct RecordTypeNode : public TypeNode {
   Token source_token;
   Token name_token;
   TypeIdentifier identifier;
+  types::Record* type;
   Fields fields;
 };
 
@@ -246,6 +296,10 @@ struct FunctionTypeNode : public TypeNode {
   std::string accept(const StringVisitor& vis) const override;
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
+
+  bool is_function_type() const override {
+    return true;
+  }
 
   Token source_token;
   std::vector<BoxedType> outputs;

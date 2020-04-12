@@ -33,6 +33,7 @@ public:
 
   bool contains(const TypeIdentifier& name) const;
   types::Scalar* make_named_scalar_type(const char* name);
+  types::Scalar* make_named_scalar_type(const TypeIdentifier& name);
   Optional<Type*> lookup(const TypeIdentifier& name) const;
 
 private:
@@ -102,10 +103,12 @@ public:
 
   void make_known_types();
   void make_base_type_scope();
+  types::Scalar* make_named_scalar_type(const TypeIdentifier& name);
 
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
   MT_NODISCARD Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
   MT_NODISCARD FunctionSearchResult search_function(const types::Abstraction& func) const;
+  MT_NODISCARD Optional<types::Class*> lookup_class(const TypeIdentifier& name) const;
 
   bool is_known_subscript_type(const Type* type) const;
 
@@ -133,7 +136,6 @@ private:
   void make_feval();
   void make_deal();
   void make_logicals();
-  void make_double_methods();
 
   Optional<types::Class*> class_wrapper(const Type* type) const;
   Optional<const types::Class*> class_for_type(const Type* type) const;
@@ -146,6 +148,8 @@ private:
 
   Type* make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs);
   types::Class* make_class_wrapper(const TypeIdentifier& name, Type* source);
+  types::Scalar* make_named_scalar_type(const char* name);
+  void process_scalar_type(types::Scalar* type);
 
 private:
   SubtypeRelation subtype_relation;
@@ -162,7 +166,7 @@ private:
   std::map<types::Abstraction, Type*, TypeRelation::NameLess> function_types;
   std::vector<const Type*> types_with_known_subscripts;
   std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> local_function_types;
-  std::unordered_map<const Type*, types::Class*> class_wrappers;
+  std::unordered_map<TypeIdentifier, types::Class*, TypeIdentifier::Hash> classes;
 
   const SearchPath& search_path;
 

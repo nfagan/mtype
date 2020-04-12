@@ -103,7 +103,7 @@ public:
   }
 
   template <typename... Args>
-  Type* make_record(Args&&... args) {
+  types::Record* make_record(Args&&... args) {
     return make_type<types::Record>(std::forward<Args>(args)...);
   }
 

@@ -586,6 +586,7 @@ std::string StringVisitor::fun_type_node(const FunTypeNode& node) const {
 }
 
 std::string StringVisitor::type_assertion(const TypeAssertion& assertion) const {
+  assert(assertion.node);
   return ":: " + assertion.has_type->accept(*this) + "\n" + assertion.node->accept(*this);
 }
 
@@ -598,7 +599,19 @@ std::string StringVisitor::type_import_node(const TypeImportNode& import) const 
 std::string StringVisitor::declare_type_node(const DeclareTypeNode& node) const {
   std::string declare_str("declare ");
   maybe_colorize(declare_str, node.source_token.type);
-  return declare_str + "<kind> " + string_registry->at(node.identifier.full_name());
+  declare_str += DeclareTypeNode::kind_to_string(node.kind);
+  declare_str += " " + string_registry->at(node.identifier.full_name());
+
+  switch (node.kind) {
+    case DeclareTypeNode::Kind::scalar:
+      return declare_str;
+    case DeclareTypeNode::Kind::method:
+      declare_str += " " + node.maybe_method.function_name(*string_registry) + " :: " +
+        node.maybe_method.type->accept(*this);
+      break;
+  }
+
+  return declare_str;
 }
 
 std::string StringVisitor::inline_type(const InlineType& type) const {
