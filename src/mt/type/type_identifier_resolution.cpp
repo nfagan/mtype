@@ -128,11 +128,7 @@ void TypeIdentifierResolver::namespace_type_node(const NamespaceTypeNode& node) 
 
 void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
   ScopeState<TypeScope>::Helper scope_helper(instance->scopes, node.type_scope);
-  Block* body = nullptr;
-
-  instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
-    body = reader.at(node.def_handle).body.get();
-  });
+  Block* body = instance->def_store.get_block(node.def_handle);
 
   if (body) {
     body->accept_const(*this);

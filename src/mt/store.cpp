@@ -88,6 +88,11 @@ FunctionReference Store::get(const FunctionReferenceHandle& handle) const {
   return function_references[handle.index];
 }
 
+Block* Store::get_block(const FunctionDefHandle& handle) const {
+  Store::ReadConst reader(*this);
+  return reader.at(handle).body.get();
+}
+
 FunctionDefHandle Store::emplace_definition(FunctionDef&& def) {
   function_definitions.emplace_back(std::move(def));
   return FunctionDefHandle(function_definitions.size() - 1);
