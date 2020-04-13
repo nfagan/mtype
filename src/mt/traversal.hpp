@@ -27,7 +27,7 @@ public:
 
   void push(const TypeIdentifier& ident);
   void pop();
-  Optional<TypeIdentifier> enclosing_namespace() const;
+  MT_NODISCARD Optional<TypeIdentifier> enclosing_namespace() const;
   bool has_enclosing_namespace() const;
   void gather_components(std::vector<int64_t>& into) const;
 

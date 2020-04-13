@@ -13,18 +13,6 @@ namespace mt {
 template <typename T>
 class Optional;
 
-struct TypedFunctionReference {
-  struct NameHash {
-    std::size_t operator()(const TypedFunctionReference& a) const;
-  };
-
-  TypedFunctionReference() : ref(MatlabIdentifier(), FunctionDefHandle(), nullptr), type(nullptr) {
-    //
-  }
-
-  FunctionReference ref;
-  Type* type;
-};
 }
 
 namespace mt::types {
@@ -99,10 +87,7 @@ struct Class : public Type {
 
   ~Class() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(Class);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   TypeIdentifier name;
@@ -145,10 +130,7 @@ struct ConstantValue : public Type {
 
   ~ConstantValue() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(ConstantValue);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   Kind kind;
@@ -173,14 +155,11 @@ struct Variable : public Type {
   }
   ~Variable() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(Variable);
-  }
-
-  void accept(const TypeToString& to_str, std::stringstream& into) const override;
-
   MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Variable)
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Variable)
+
+  std::size_t bytes() const override;
+  void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   TypeIdentifier identifier;
 };
@@ -204,10 +183,7 @@ struct Scheme : public Type {
 
   ~Scheme() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(Scheme);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   Type* type;
@@ -232,10 +208,7 @@ struct Scalar : public Type {
 
   ~Scalar() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(Scalar);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   TypeIdentifier identifier;
@@ -255,10 +228,7 @@ struct Union : public Type {
 
   ~Union() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(Union);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   TypePtrs members;
@@ -286,15 +256,9 @@ struct List : public Type {
 
   ~List() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(List);
-  }
-
+  std::size_t bytes() const override;
+  int64_t size() const;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
-
-  int64_t size() const {
-    return pattern.size();
-  }
 
   TypePtrs pattern;
 };
@@ -328,10 +292,7 @@ struct Subscript : public Type {
 
   ~Subscript() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(Subscript);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   Type* principal_argument;
@@ -372,48 +333,21 @@ struct DestructuredTuple : public Type {
 
   ~DestructuredTuple() override = default;
 
-  bool is_lvalue() const {
-    return usage == Usage::lvalue;
-  }
+  bool is_lvalue() const;
+  bool is_rvalue() const;
+  bool is_outputs() const;
+  bool is_inputs() const;
+  bool is_definition_usage() const;
+  bool is_value_usage() const;
 
-  bool is_rvalue() const {
-    return usage == Usage::rvalue;
-  }
-
-  bool is_outputs() const {
-    return usage == Usage::definition_outputs;
-  }
-  bool is_inputs() const {
-    return usage == Usage::definition_inputs;
-  }
-
-  bool is_definition_usage() const {
-    return is_outputs() || is_inputs();
-  }
-
-  bool is_value_usage() const {
-    return is_lvalue() || is_rvalue();
-  }
-
-  static bool is_value_usage(Usage use) {
-    return use == Usage::rvalue || use == Usage::lvalue;
-  }
-
-  static bool mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b) {
-    return (a.is_inputs() && b.is_outputs()) || (a.is_outputs() && b.is_inputs());
-  }
-
-  int64_t size() const {
-    return members.size();
-  }
-
-  std::size_t bytes() const override {
-    return sizeof(DestructuredTuple);
-  }
+  int64_t size() const;
+  std::size_t bytes() const override;
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
-
   Optional<Type*> first_non_destructured_tuple_member() const;
+
+  static bool is_value_usage(Usage use);
+  static bool mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b);
 
   Usage usage;
   TypePtrs members;
@@ -440,10 +374,7 @@ struct Tuple : public Type {
   MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Tuple)
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Tuple)
 
-  std::size_t bytes() const override {
-    return sizeof(Tuple);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   TypePtrs members;
@@ -466,10 +397,7 @@ struct Assignment : public Type {
 
   ~Assignment() override = default;
 
-  std::size_t bytes() const override {
-    return sizeof(Assignment);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   Type* lhs;
@@ -497,98 +425,28 @@ struct Abstraction : public mt::Type {
     anonymous_function
   };
 
-  Abstraction() : Abstraction(MatlabIdentifier(), nullptr, nullptr) {
-    //
-  }
+  Abstraction();
+  Abstraction(BinaryOperator binary_operator, Type* args, Type* result);
+  Abstraction(UnaryOperator unary_operator, Type* arg, Type* result);
+  Abstraction(SubscriptMethod subscript_method, Type* args, Type* result);
+  Abstraction(MatlabIdentifier name, Type* inputs, Type* outputs);
+  Abstraction(MatlabIdentifier name, const FunctionReferenceHandle& ref_handle, Type* inputs, Type* outputs);
+  Abstraction(ConcatenationDirection dir, Type* inputs, Type* outputs);
+  Abstraction(Type* inputs, Type* outputs);
 
-  Abstraction(BinaryOperator binary_operator, Type* args, Type* result) :
-    Type(Type::Tag::abstraction), kind(Kind::binary_operator),
-    binary_operator(binary_operator), inputs{args}, outputs{result} {
-    //
-  }
-
-  Abstraction(UnaryOperator unary_operator, Type* arg, Type* result) :
-    Type(Type::Tag::abstraction), kind(Kind::unary_operator),
-    unary_operator(unary_operator), inputs{arg}, outputs{result} {
-    //
-  }
-  Abstraction(SubscriptMethod subscript_method, Type* args, Type* result) :
-    Type(Type::Tag::abstraction), kind(Kind::subscript_reference),
-    subscript_method(subscript_method), inputs{args}, outputs{result} {
-    //
-  }
-  Abstraction(MatlabIdentifier name, Type* inputs, Type* outputs) :
-    Type(Type::Tag::abstraction), kind(Kind::function),
-    name(name), inputs(inputs), outputs(outputs) {
-    //
-  }
-  Abstraction(MatlabIdentifier name, const FunctionReferenceHandle& ref_handle, Type* inputs, Type* outputs) :
-    Type(Type::Tag::abstraction), kind(Kind::function),
-    name(name), inputs(inputs), outputs(outputs), ref_handle(ref_handle) {
-    //
-  }
-  Abstraction(ConcatenationDirection dir, Type* inputs, Type* outputs) :
-    Type(Type::Tag::abstraction), kind(Kind::concatenation),
-    concatenation_direction(dir), inputs(inputs), outputs(outputs) {
-    //
-  }
-  Abstraction(Type* inputs, Type* outputs) :
-    Type(Type::Tag::abstraction), kind(Kind::anonymous_function),
-    inputs(inputs), outputs(outputs) {
-    //
-  }
-
-  Abstraction(const Abstraction& other) :
-    Type(Type::Tag::abstraction), kind(other.kind),
-    inputs(other.inputs), outputs(other.outputs), ref_handle(other.ref_handle) {
-    conditional_assign_operator(other);
-  }
-
-  Abstraction(Abstraction&& other) noexcept :
-    Type(Type::Tag::abstraction), kind(other.kind),
-    inputs(other.inputs), outputs(other.outputs), ref_handle(other.ref_handle) {
-    conditional_assign_operator(other);
-  }
+  Abstraction(const Abstraction& other);
+  Abstraction(Abstraction&& other) noexcept;
 
   ~Abstraction() override = default;
 
-  Abstraction& operator=(const Abstraction& other) {
-    kind = other.kind;
-    outputs = other.outputs;
-    inputs = other.inputs;
-    ref_handle = other.ref_handle;
-    conditional_assign_operator(other);
-    return *this;
-  }
+  Abstraction& operator=(const Abstraction& other);
+  Abstraction& operator=(Abstraction&& other) noexcept;
 
-  Abstraction& operator=(Abstraction&& other) noexcept {
-    kind = other.kind;
-    outputs = other.outputs;
-    inputs = other.inputs;
-    ref_handle = other.ref_handle;
-    conditional_assign_operator(other);
-    return *this;
-  }
-
-  bool is_function() const {
-    return kind == Kind::function;
-  }
-
-  bool is_binary_operator() const {
-    return kind == Kind::binary_operator;
-  }
-
-  bool is_unary_operator() const {
-    return kind == Kind::unary_operator;
-  }
-
-  bool is_anonymous() const {
-    return kind == Kind::anonymous_function;
-  }
-
-  std::size_t bytes() const override {
-    return sizeof(Abstraction);
-  }
+  bool is_function() const;
+  bool is_binary_operator() const;
+  bool is_unary_operator() const;
+  bool is_anonymous() const;
+  std::size_t bytes() const override;
 
   void assign_kind(UnaryOperator op);
   void assign_kind(BinaryOperator op);
@@ -596,31 +454,11 @@ struct Abstraction : public mt::Type {
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
-  static Abstraction clone(const Abstraction& a, Type* inputs, Type* outputs) {
-    auto b = a;
-    b.inputs = inputs;
-    b.outputs = outputs;
-    return b;
-  }
+  static Abstraction clone(const Abstraction& a, Type* inputs, Type* outputs);
 
 private:
-  void conditional_assign_operator(const Abstraction& other) {
-    if (other.kind == Kind::binary_operator) {
-      binary_operator = other.binary_operator;
+  void conditional_assign_operator(const Abstraction& other);
 
-    } else if (other.kind == Kind::unary_operator) {
-      unary_operator = other.unary_operator;
-
-    } else if (other.kind == Kind::subscript_reference) {
-      subscript_method = other.subscript_method;
-
-    } else if (other.kind == Kind::function) {
-      name = other.name;
-
-    } else if (other.kind == Kind::concatenation) {
-      concatenation_direction = other.concatenation_direction;
-    }
-  }
 public:
   Kind kind;
 
@@ -655,10 +493,7 @@ struct Parameters : public Type {
   MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Parameters)
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Parameters)
 
-  std::size_t bytes() const override {
-    return sizeof(Parameters);
-  }
-
+  std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   TypeIdentifier identifier;

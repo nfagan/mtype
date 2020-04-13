@@ -5,14 +5,6 @@
 namespace mt {
 
 /*
- * TypedFunctionReference
- */
-
-std::size_t TypedFunctionReference::NameHash::operator()(const TypedFunctionReference& a) const {
-  return MatlabIdentifier::Hash{}(a.ref.name);
-}
-
-/*
  * Record
  */
 
@@ -66,12 +58,20 @@ void types::Class::accept(const TypeToString& to_str, std::stringstream& into) c
   to_str.apply(*this, into);
 }
 
+std::size_t types::Class::bytes() const {
+  return sizeof(Class);
+}
+
 /*
  * Variable
  */
 
 void types::Variable::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+std::size_t types::Variable::bytes() const {
+  return sizeof(Variable);
 }
 
 /*
@@ -82,9 +82,104 @@ void types::Scalar::accept(const TypeToString& to_str, std::stringstream& into) 
   to_str.apply(*this, into);
 }
 
+std::size_t types::Scalar::bytes() const {
+  return sizeof(Scalar);
+}
+
 /*
  * Abstraction
  */
+
+types::Abstraction::Abstraction() : Abstraction(MatlabIdentifier(), nullptr, nullptr) {
+  //
+}
+
+types::Abstraction::Abstraction(BinaryOperator binary_operator, Type* args, Type* result) :
+  Type(Type::Tag::abstraction), kind(Kind::binary_operator),
+  binary_operator(binary_operator), inputs{args}, outputs{result} {
+  //
+}
+
+types::Abstraction::Abstraction(UnaryOperator unary_operator, Type* arg, Type* result) :
+  Type(Type::Tag::abstraction), kind(Kind::unary_operator),
+  unary_operator(unary_operator), inputs{arg}, outputs{result} {
+  //
+}
+types::Abstraction::Abstraction(SubscriptMethod subscript_method, Type* args, Type* result) :
+  Type(Type::Tag::abstraction), kind(Kind::subscript_reference),
+  subscript_method(subscript_method), inputs{args}, outputs{result} {
+  //
+}
+types::Abstraction::Abstraction(MatlabIdentifier name, Type* inputs, Type* outputs) :
+  Type(Type::Tag::abstraction), kind(Kind::function),
+  name(name), inputs(inputs), outputs(outputs) {
+  //
+}
+types::Abstraction::Abstraction(MatlabIdentifier name, const FunctionReferenceHandle& ref_handle, Type* inputs, Type* outputs) :
+  Type(Type::Tag::abstraction), kind(Kind::function),
+  name(name), inputs(inputs), outputs(outputs), ref_handle(ref_handle) {
+  //
+}
+types::Abstraction::Abstraction(ConcatenationDirection dir, Type* inputs, Type* outputs) :
+  Type(Type::Tag::abstraction), kind(Kind::concatenation),
+  concatenation_direction(dir), inputs(inputs), outputs(outputs) {
+  //
+}
+types::Abstraction::Abstraction(Type* inputs, Type* outputs) :
+  Type(Type::Tag::abstraction), kind(Kind::anonymous_function),
+  inputs(inputs), outputs(outputs) {
+  //
+}
+
+types::Abstraction::Abstraction(const Abstraction& other) :
+  Type(Type::Tag::abstraction), kind(other.kind),
+  inputs(other.inputs), outputs(other.outputs), ref_handle(other.ref_handle) {
+  conditional_assign_operator(other);
+}
+
+types::Abstraction::Abstraction(Abstraction&& other) noexcept :
+Type(Type::Tag::abstraction), kind(other.kind),
+inputs(other.inputs), outputs(other.outputs), ref_handle(other.ref_handle) {
+  conditional_assign_operator(other);
+}
+
+types::Abstraction& types::Abstraction::operator=(const Abstraction& other) {
+  kind = other.kind;
+  outputs = other.outputs;
+  inputs = other.inputs;
+  ref_handle = other.ref_handle;
+  conditional_assign_operator(other);
+  return *this;
+}
+
+types::Abstraction& types::Abstraction::operator=(Abstraction&& other) noexcept {
+  kind = other.kind;
+  outputs = other.outputs;
+  inputs = other.inputs;
+  ref_handle = other.ref_handle;
+  conditional_assign_operator(other);
+  return *this;
+}
+
+bool types::Abstraction::is_function() const {
+  return kind == Kind::function;
+}
+
+bool types::Abstraction::is_binary_operator() const {
+  return kind == Kind::binary_operator;
+}
+
+bool types::Abstraction::is_unary_operator() const {
+  return kind == Kind::unary_operator;
+}
+
+bool types::Abstraction::is_anonymous() const {
+  return kind == Kind::anonymous_function;
+}
+
+std::size_t types::Abstraction::bytes() const {
+  return sizeof(Abstraction);
+}
 
 void types::Abstraction::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
@@ -105,6 +200,31 @@ void types::Abstraction::assign_kind(const MatlabIdentifier& ident) {
   name = ident;
 }
 
+void types::Abstraction::conditional_assign_operator(const Abstraction& other) {
+  if (other.kind == Kind::binary_operator) {
+    binary_operator = other.binary_operator;
+
+  } else if (other.kind == Kind::unary_operator) {
+    unary_operator = other.unary_operator;
+
+  } else if (other.kind == Kind::subscript_reference) {
+    subscript_method = other.subscript_method;
+
+  } else if (other.kind == Kind::function) {
+    name = other.name;
+
+  } else if (other.kind == Kind::concatenation) {
+    concatenation_direction = other.concatenation_direction;
+  }
+}
+
+types::Abstraction types::Abstraction::clone(const types::Abstraction& a, Type* inputs, Type* outputs) {
+  auto b = a;
+  b.inputs = inputs;
+  b.outputs = outputs;
+  return b;
+}
+
 /*
  * Union
  */
@@ -113,12 +233,20 @@ void types::Union::accept(const TypeToString& to_str, std::stringstream& into) c
   to_str.apply(*this, into);
 }
 
+std::size_t types::Union::bytes() const {
+  return sizeof(Union);
+}
+
 /*
  * Tuple
  */
 
 void types::Tuple::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+std::size_t types::Tuple::bytes() const {
+  return sizeof(Tuple);
 }
 
 /*
@@ -141,12 +269,60 @@ Optional<Type*> types::DestructuredTuple::first_non_destructured_tuple_member() 
   return NullOpt{};
 }
 
+bool types::DestructuredTuple::is_lvalue() const {
+  return usage == Usage::lvalue;
+}
+
+bool types::DestructuredTuple::is_rvalue() const {
+  return usage == Usage::rvalue;
+}
+
+bool types::DestructuredTuple::is_outputs() const {
+  return usage == Usage::definition_outputs;
+}
+
+bool types::DestructuredTuple::is_inputs() const {
+  return usage == Usage::definition_inputs;
+}
+
+bool types::DestructuredTuple::is_definition_usage() const {
+  return is_outputs() || is_inputs();
+}
+
+bool types::DestructuredTuple::is_value_usage() const {
+  return is_lvalue() || is_rvalue();
+}
+
+bool types::DestructuredTuple::is_value_usage(Usage use) {
+  return use == Usage::rvalue || use == Usage::lvalue;
+}
+
+bool types::DestructuredTuple::mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b) {
+  return (a.is_inputs() && b.is_outputs()) || (a.is_outputs() && b.is_inputs());
+}
+
+int64_t types::DestructuredTuple::size() const {
+  return members.size();
+}
+
+std::size_t types::DestructuredTuple::bytes() const {
+  return sizeof(DestructuredTuple);
+}
+
 /*
  * List
  */
 
 void types::List::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+std::size_t types::List::bytes() const {
+  return sizeof(List);
+}
+
+int64_t types::List::size() const {
+  return pattern.size();
 }
 
 /*
@@ -157,12 +333,20 @@ void types::Subscript::accept(const TypeToString& to_str, std::stringstream& int
   to_str.apply(*this, into);
 }
 
+std::size_t types::Subscript::bytes() const {
+  return sizeof(Subscript);
+}
+
 /*
  * ConstantValue
  */
 
 void types::ConstantValue::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+std::size_t types::ConstantValue::bytes() const {
+  return sizeof(ConstantValue);
 }
 
 /*
@@ -173,6 +357,10 @@ void types::Scheme::accept(const TypeToString& to_str, std::stringstream& into) 
   to_str.apply(*this, into);
 }
 
+std::size_t types::Scheme::bytes() const {
+  return sizeof(Scheme);
+}
+
 /*
  * Assignment
  */
@@ -181,12 +369,20 @@ void types::Assignment::accept(const TypeToString& to_str, std::stringstream& in
   to_str.apply(*this, into);
 }
 
+std::size_t types::Assignment::bytes() const {
+  return sizeof(Assignment);
+}
+
 /*
  * Parameters
  */
 
 void types::Parameters::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+std::size_t types::Parameters::bytes() const {
+  return sizeof(Parameters);
 }
 
 /*
