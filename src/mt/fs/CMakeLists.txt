@@ -5,6 +5,8 @@ function(configure_fs)
             code_file.cpp
             directory.hpp
             directory.cpp
+            file.hpp
+            file.cpp
             path.hpp
             path.cpp
             )

@@ -21,39 +21,34 @@ void parse_file(ParseInstance* instance, const std::vector<Token>& tokens) {
   if (!errs.empty()) {
     instance->had_error = true;
     instance->errors = std::move(errs);
-    return;
   }
 
   auto& warnings = classifier.get_warnings();
   instance->warnings = std::move(warnings);
 }
 
-FileScanResult scan_file(const std::string& file_path) {
+FileScanResult scan_file(const FilePath& file_path) {
   using std::swap;
-
-  std::ifstream ifs(file_path);
-  if (!ifs) {
+  auto maybe_contents = fs::read_file(file_path);
+  if (!maybe_contents) {
     return make_error<FileScanError, FileScanSuccess>(FileScanError::Type::error_file_io);
   }
 
-  auto contents = std::make_unique<std::string>((std::istreambuf_iterator<char>(ifs)),
-                                                (std::istreambuf_iterator<char>()));
-
+  auto contents = std::move(maybe_contents.rvalue());
   if (!utf8::is_valid(*contents)) {
     return make_error<FileScanError, FileScanSuccess>(FileScanError::Type::error_non_utf8_source);
   }
 
   Scanner scanner;
   auto scan_result = scanner.scan(*contents);
-
   if (!scan_result) {
     return make_error<FileScanError, FileScanSuccess>(std::move(scan_result.error));
   }
 
   auto scan_info = std::move(scan_result.value);
 
-  auto insert_res = insert_implicit_expr_delimiters(scan_info.tokens, *contents);
-  if (insert_res) {
+  auto maybe_insert_err = insert_implicit_expr_delimiters(scan_info.tokens, *contents);
+  if (maybe_insert_err) {
     return make_error<FileScanError, FileScanSuccess>(FileScanError::Type::error_scan_failure);
   }
 
@@ -66,7 +61,7 @@ FileScanResult scan_file(const std::string& file_path) {
 }
 
 const FileScanSuccess* try_scan_file(const FilePath& file_path, ScanResultStore& scan_results) {
-  auto tmp_scan_result = scan_file(file_path.str());
+  auto tmp_scan_result = scan_file(file_path);
   if (!tmp_scan_result) {
     std::cout << "Failed to scan file: " << file_path << std::endl;
     return nullptr;

@@ -134,6 +134,7 @@ Optional<Type*> Library::lookup_pre_defined_external_function(const types::Abstr
 }
 
 void Library::emplace_local_function_type(const FunctionDefHandle& handle, Type* type) {
+  assert(local_function_types.count(handle) == 0);
   local_function_types[handle] = type;
 }
 
