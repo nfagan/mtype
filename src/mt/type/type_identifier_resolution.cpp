@@ -294,15 +294,14 @@ void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
 }
 
 void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
-  TypeIdentifier class_name;
-  instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
-    class_name = to_type_identifier(reader.at(node.handle).name);
-  });
-
+  TypeIdentifier class_name = to_type_identifier(instance->def_store.get_name(node.handle));
   auto maybe_class = instance->scopes.current()->lookup_type(class_name);
   assert(maybe_class && maybe_class.value()->type->is_class());
-  auto& class_type = MT_CLASS_MUT_REF(*maybe_class.value()->type);
-  assert(!class_type.source);
+  auto* class_type = MT_CLASS_MUT_PTR(maybe_class.value()->type);
+  assert(!class_type->source);
+
+  //  Register type with library.
+  instance->library.emplace_local_class_type(node.handle, class_type);
 
   types::Record::Fields fields;
   for (const auto& prop : node.properties) {
@@ -312,7 +311,7 @@ void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
     fields.push_back(types::Record::Field{name_type, prop_type});
   }
 
-  class_type.source = instance->type_store.make_record(std::move(fields));
+  class_type->source = instance->type_store.make_record(std::move(fields));
 
   for (const auto& method : node.method_defs) {
     method->accept_const(*this);

@@ -194,6 +194,7 @@ public:
 
   FunctionReference get(const FunctionReferenceHandle& handle) const;
   Block* get_block(const FunctionDefHandle& handle) const;
+  MatlabIdentifier get_name(const ClassDefHandle& handle) const;
 
 private:
   MatlabScope* make_matlab_scope(const MatlabScope* parent, const CodeFileDescriptor* file_descriptor);

@@ -93,6 +93,11 @@ Block* Store::get_block(const FunctionDefHandle& handle) const {
   return reader.at(handle).body.get();
 }
 
+MatlabIdentifier Store::get_name(const ClassDefHandle& handle) const {
+  Store::ReadConst reader(*this);
+  return reader.at(handle).name;
+}
+
 FunctionDefHandle Store::emplace_definition(FunctionDef&& def) {
   function_definitions.emplace_back(std::move(def));
   return FunctionDefHandle(function_definitions.size() - 1);

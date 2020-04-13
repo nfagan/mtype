@@ -21,8 +21,8 @@ bool Library::subtype_related(const Type*, const Type* rhs, const types::Scalar&
     return true;
   }
 
-  const auto& sub_it = classes.find(a.identifier);
-  if (sub_it == classes.end()) {
+  const auto& sub_it = class_types.find(a.identifier);
+  if (sub_it == class_types.end()) {
     return false;
   }
 
@@ -123,6 +123,11 @@ Optional<Type*> Library::lookup_local_function(const FunctionDefHandle& def_hand
   return func_it == local_function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
 }
 
+Optional<types::Class*> Library::lookup_local_class(const ClassDefHandle& def_handle) const {
+  const auto class_it = local_class_types.find(def_handle);
+  return class_it == local_class_types.end() ? NullOpt{} : Optional<types::Class*>(class_it->second);
+}
+
 Optional<Type*> Library::lookup_pre_defined_external_function(const types::Abstraction& func) const {
   const auto func_it = function_types.find(func);
   return func_it == function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
@@ -130,6 +135,11 @@ Optional<Type*> Library::lookup_pre_defined_external_function(const types::Abstr
 
 void Library::emplace_local_function_type(const FunctionDefHandle& handle, Type* type) {
   local_function_types[handle] = type;
+}
+
+void Library::emplace_local_class_type(const ClassDefHandle& handle, types::Class* type) {
+  assert(local_class_types.count(handle) == 0);
+  local_class_types[handle] = type;
 }
 
 bool Library::is_known_subscript_type(const Type* handle) const {
@@ -152,8 +162,8 @@ Optional<std::string> Library::type_name(const Type* type) const {
 }
 
 Optional<types::Class*> Library::lookup_class(const TypeIdentifier& name) const {
-  auto it = classes.find(name);
-  return it == classes.end() ? NullOpt{} : Optional<types::Class*>(it->second);
+  auto it = class_types.find(name);
+  return it == class_types.end() ? NullOpt{} : Optional<types::Class*>(it->second);
 }
 
 Optional<types::Class*> Library::class_wrapper(const Type* type) const {
@@ -350,7 +360,7 @@ Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&
 
 types::Class* Library::make_class_wrapper(const TypeIdentifier& name, Type* source) {
   auto cls = store.make_class(name, source);
-  classes[name] = cls;
+  class_types[name] = cls;
   return cls;
 }
 

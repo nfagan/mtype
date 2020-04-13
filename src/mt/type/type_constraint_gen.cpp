@@ -241,9 +241,9 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
     name = reader.at(node.handle).name;
   });
 
-  const auto& maybe_class = type_scopes.current()->lookup_type(to_type_identifier(name));
-  assert(maybe_class && maybe_class.value()->type->is_class());
-  auto class_type = MT_CLASS_MUT_PTR(maybe_class.value()->type);
+  const auto maybe_class = library.lookup_local_class(node.handle);
+  assert(maybe_class);
+  auto* class_type = maybe_class.value();
   assert(class_type->source->is_record());
   const auto& record_type = MT_RECORD_REF(*class_type->source);
 
