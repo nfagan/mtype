@@ -3,7 +3,7 @@
 #include "../display.hpp"
 #include "../text.hpp"
 #include "../fs.hpp"
-#include "../token_source_map.hpp"
+#include "mt/source_data.hpp"
 #include <cassert>
 
 namespace mt {
@@ -122,7 +122,7 @@ void ShowTypeErrors::show(const TypeError& err, int64_t index, const TokenSource
   assert(maybe_source_data);
 
   const auto& source_data = maybe_source_data.value();
-  const auto& text_ptr = source_data.source->data();
+  const auto& text_ptr = source_data.source.data();
   const auto& descriptor = *source_data.file_descriptor;
   const auto& row_col_indices = *source_data.row_col_indices;
 
@@ -131,7 +131,7 @@ void ShowTypeErrors::show(const TypeError& err, int64_t index, const TokenSource
   const auto stop = is_null ? 0 : at_token.lexeme.data() + at_token.lexeme.size() - text_ptr;
 
   const std::string type_msg = err.get_text(*this);
-  auto msg = mark_text_with_message_and_context(*source_data.source, start, stop, context_amount, type_msg);
+  auto msg = mark_text_with_message_and_context(source_data.source, start, stop, context_amount, type_msg);
   msg = indent_spaces(msg, 2);
 
   std::cout << stylize(style::bold) << index;

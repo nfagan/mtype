@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mt/error.hpp"
+#include "../error.hpp"
 #include <unordered_set>
 
 namespace mt {

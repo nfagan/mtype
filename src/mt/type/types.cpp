@@ -29,11 +29,15 @@ int64_t types::Record::num_fields() const {
 }
 
 const types::Record::Field* types::Record::find_field(const types::ConstantValue& val) const {
-  using Kind = types::ConstantValue::Kind;
-
-  if (val.kind != Kind::char_value) {
+  if (val.kind != types::ConstantValue::Kind::char_value) {
     return nullptr;
+  } else {
+    return find_field(val.char_value);
   }
+}
+
+const types::Record::Field* types::Record::find_field(const TypeIdentifier& ident) const {
+  using Kind = types::ConstantValue::Kind;
 
   for (const auto& field : fields) {
     const auto& name = field.name;
@@ -42,7 +46,7 @@ const types::Record::Field* types::Record::find_field(const types::ConstantValue
     }
 
     const auto& name_ref = MT_CONST_VAL_REF(*name);
-    if (name_ref.kind == Kind::char_value && name_ref.char_value == val.char_value) {
+    if (name_ref.kind == Kind::char_value && name_ref.char_value == ident) {
       return &field;
     }
   }

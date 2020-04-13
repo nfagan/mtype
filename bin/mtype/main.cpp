@@ -2,7 +2,6 @@
 #include "command_line.hpp"
 #include "ast_store.hpp"
 #include "parse_pipeline.hpp"
-#include "import_resolution.hpp"
 #include <chrono>
 
 namespace {
@@ -15,10 +14,26 @@ mt::TypeToString make_type_to_string(Args&&... args) {
 
 void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::Arguments& args) {
   type_to_string.explicit_destructured_tuples = false;
-  type_to_string.arrow_function_notation = true;
+  type_to_string.arrow_function_notation = args.use_arrow_function_notation;
   type_to_string.max_num_type_variables = 3;
   type_to_string.show_class_source_type = args.show_class_source_type;
   type_to_string.rich_text = args.rich_text;
+}
+
+void show_parse_errors(const mt::ParseErrors& errors,
+                       const mt::TokenSourceMap& source_data,
+                       const mt::cmd::Arguments& arguments) {
+  mt::ShowParseErrors show_errs;
+  show_errs.is_rich_text = arguments.rich_text;
+  show_errs.show(errors, source_data);
+}
+
+void show_type_errors(const mt::TypeErrors& errors,
+                      const mt::TokenSourceMap& source_data,
+                      const mt::TypeToString& type_to_string,
+                      const mt::cmd::Arguments& arguments) {
+  mt::ShowTypeErrors show(type_to_string);
+  show.show(errors, source_data);
 }
 
 bool locate_root_identifiers(const std::vector<std::string>& idents,
@@ -81,8 +96,6 @@ int main(int argc, char** argv) {
 
   Store store;
   StringRegistry str_registry;
-
-  //  Reserve space
   TypeStore type_store(arguments.initial_store_capacity);
   Library library(type_store, store, search_path, str_registry);
   library.make_known_types();
@@ -101,8 +114,11 @@ int main(int argc, char** argv) {
   }
 
   AstStore ast_store;
-  ScanResultStore scan_results;
+  ScanResultStore scan_result_store;
   std::vector<std::unique_ptr<Token>> temporary_source_tokens;
+  ParseErrors parse_errors;
+  ParseErrors parse_warnings;
+  TypeErrors type_errors;
 
   TokenSourceMap source_data_by_token;
   double constraint_time = 0;
@@ -116,8 +132,9 @@ int main(int argc, char** argv) {
     const auto& candidate = candidate_it->first;
     const auto& file_path = candidate->defining_file;
 
-    ParsePipelineInstanceData pipeline_instance(search_path, store, type_store, str_registry,
-      ast_store, scan_results, source_data_by_token, arguments);
+    ParsePipelineInstanceData pipeline_instance(search_path, store, type_store, library, str_registry,
+                                                ast_store, scan_result_store, source_data_by_token,
+                                                arguments, parse_errors, parse_warnings);
 
     auto root_res = file_entry(pipeline_instance, file_path);
     if (!root_res || !root_res->root_block || root_res->generated_type_constraints) {
@@ -131,26 +148,29 @@ int main(int argc, char** argv) {
     TypeImportResolutionInstance import_res(source_data_by_token);
     auto resolution_result = maybe_resolve_type_imports(root_res->root_block->type_scope, import_res);
     if (!resolution_result.success) {
-      ShowParseErrors show_errs;
-      show_errs.show(import_res.errors, source_data_by_token);
+      parse_errors.insert(parse_errors.end(), import_res.errors.cbegin(), import_res.errors.cend());
       continue;
     }
 
     //  Type identifier resolution
-    TypeIdentifierResolverInstance instance(type_store, library, store);
-    TypeIdentifierResolver type_identifier_resolver(&instance);
+    bool any_resolution_errors = false;
 
-    for (auto& root : pipeline_instance.roots) {
+    for (const auto& root_file : pipeline_instance.root_files) {
+      const auto source_data = scan_result_store.at(root_file)->to_parse_source_data();
+      TypeIdentifierResolverInstance instance(type_store, library, store, str_registry, source_data);
+      TypeIdentifierResolver type_identifier_resolver(&instance);
+
+      const auto& root = ast_store.lookup(root_file)->root_block;
       root->accept_const(type_identifier_resolver);
+
+      if (instance.had_error()) {
+        parse_errors.insert(parse_errors.end(), instance.errors.cbegin(), instance.errors.cend());
+        any_resolution_errors = true;
+      }
     }
 
-    for (const auto& unresolved : instance.unresolved_identifiers) {
-      std::cout << "Unresolved: " << str_registry.at(unresolved.identifier.full_name()) << std::endl;
-    }
-
-    if (instance.had_error()) {
-      ShowTypeErrors show(type_to_string);
-      show.show(instance.errors, source_data_by_token);
+    if (any_resolution_errors) {
+      continue;
     }
 
     const auto& root_ptr = root_res->root_block;
@@ -213,10 +233,10 @@ int main(int argc, char** argv) {
     const auto unify_t1 = clock::now();
     unify_time += std::chrono::duration<double>(unify_t1 - unify_t0).count() * 1e3;
 
-    if (unify_res.is_error() && arguments.show_errors) {
-      ShowTypeErrors show(type_to_string);
-      show.show(unify_res.errors, source_data_by_token);
-
+    if (unify_res.is_error()) {
+      for (auto& err : unify_res.errors) {
+        type_errors.push_back(std::move(err));
+      }
       if (unify_res.errors.empty()) {
         std::cout << "ERROR: An error occurred, but no explicit errors were generated." << std::endl;
       }
@@ -246,6 +266,17 @@ int main(int argc, char** argv) {
     constraint_generator.show_local_function_types(type_to_string);
   }
 
+  if (arguments.show_visited_external_files) {
+    for (const auto& it : external_functions.candidates) {
+      std::cout << "Visited: " << it.first->defining_file << std::endl;
+    }
+  }
+
+  if (arguments.show_errors) {
+    show_parse_errors(parse_errors, source_data_by_token, arguments);
+    show_type_errors(type_errors, source_data_by_token, type_to_string, arguments);
+  }
+
   if (arguments.show_diagnostics) {
     std::cout << "Num files visited: " << ast_store.num_visited_files() << std::endl;
     std::cout << "Num type eqs: " << substitution.num_type_equations() << std::endl;
@@ -258,8 +289,6 @@ int main(int argc, char** argv) {
     std::cout << "Constraint gen time: " << constraint_time << " (ms)" << std::endl;
     std::cout << "Total time: " << full_elapsed_ms << " (ms)" << std::endl;
   }
-
-  std::cout << "File path: " << fs::directory_name(FilePath("a/b/c")) << std::endl;
 
   return 0;
 }

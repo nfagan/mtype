@@ -241,26 +241,23 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
     name = reader.at(node.handle).name;
   });
 
-  types::Record::Fields fields;
-  for (const auto& prop : node.properties) {
-    TypeIdentifier prop_name(prop.name);
-    const auto name_type = type_store.make_constant_value(prop_name);
-    const auto prop_type = make_fresh_type_variable_reference();
-    fields.push_back(types::Record::Field{name_type, prop_type});
+  const auto& maybe_class = type_scopes.current()->lookup_type(to_type_identifier(name));
+  assert(maybe_class && maybe_class.value()->type->is_class());
+  auto class_type = MT_CLASS_MUT_PTR(maybe_class.value()->type);
+  assert(class_type->source->is_record());
+  const auto& record_type = MT_RECORD_REF(*class_type->source);
 
+  for (const auto& prop : node.properties) {
     if (prop.initializer) {
+      const auto maybe_field = record_type.find_field(TypeIdentifier(prop.name));
+      assert(maybe_field);
+      auto prop_type = maybe_field->type;
+
       auto init_term = visit_expr(prop.initializer, prop.source_token);
       auto prop_term = make_term(&prop.source_token, prop_type);
       push_type_equation(make_eq(init_term, prop_term));
     }
   }
-
-  auto record_type = type_store.make_record(std::move(fields));
-  auto maybe_class_type = type_scopes.current()->lookup_type(to_type_identifier(name));
-  assert(maybe_class_type && maybe_class_type.value()->type->is_class());
-  auto class_type = MT_CLASS_MUT_PTR(maybe_class_type.value()->type);
-  assert(!class_type->source);
-  class_type->source = record_type;
 
   ClassDefState::Helper class_helper(class_state, node.handle, class_type, name);
 

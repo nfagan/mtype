@@ -1,5 +1,7 @@
-#include "import_resolution.hpp"
-#include "mt/mt.hpp"
+#include "type_import_resolution.hpp"
+#include "type_scope.hpp"
+#include "../source_data.hpp"
+#include "../Optional.hpp"
 #include <cassert>
 
 namespace mt {
@@ -9,7 +11,7 @@ namespace {
     auto maybe_source_data = instance.sources_by_token.lookup(token);
     assert(maybe_source_data);
     const auto& source_data = maybe_source_data.value();
-    return ParseError(*source_data.source, token, message, source_data.file_descriptor);
+    return ParseError(source_data.source, token, message, source_data.file_descriptor);
   }
 
   void add_error_duplicate_type_identifier(TypeImportResolutionInstance& instance, const Token& token) {

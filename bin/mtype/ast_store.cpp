@@ -6,10 +6,11 @@ AstStore::Entry::Entry() : parsed_successfully(false), generated_type_constraint
   //
 }
 
-AstStore::Entry::Entry(BoxedRootBlock root_block, bool parsed, bool generated_constraints) :
+AstStore::Entry::Entry(BoxedRootBlock root_block, bool parsed, bool generated_constraints, bool resolved_identifiers) :
   root_block(std::move(root_block)),
   parsed_successfully(parsed),
-  generated_type_constraints(generated_constraints) {
+  generated_type_constraints(generated_constraints),
+  resolved_type_identifiers(resolved_identifiers) {
   //
 }
 
@@ -19,7 +20,7 @@ AstStore::Entry* AstStore::insert(const FilePath& file_path, AstStore::Entry&& e
 }
 
 void AstStore::emplace_parse_failure(const FilePath& file_path) {
-  asts[file_path] = Entry(nullptr, false, false);
+  asts[file_path] = Entry(nullptr, false, false, false);
 }
 
 bool AstStore::visited_file(const FilePath& for_file) const {

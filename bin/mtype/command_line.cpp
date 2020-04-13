@@ -141,6 +141,18 @@ void Arguments::build_parse_spec() {
     [this](int, int, char**) {
     return true_param(&show_local_variable_types);
   });
+  arguments.emplace_back(ParameterName("--matlab-function-types", "-mft"), "Print functions using the form: [] = ().",
+    [this](int, int, char**) {
+     return false_param(&use_arrow_function_notation);
+  });
+  arguments.emplace_back(ParameterName("--arrow-function-types", "-aft"), "Print functions using arrow function notation.",
+    [this](int, int, char**) {
+    return true_param(&use_arrow_function_notation);
+  });
+  arguments.emplace_back(ParameterName("--show-visited-files", "-svf"), "Print the paths of traversed files.",
+    [this](int, int, char**) {
+    return true_param(&show_visited_external_files);
+  });
   arguments.emplace_back(ParameterName("--show-class-source", "-scs"), "Print the source type for class types.",
     [this](int, int, char**) {
     return true_param(&show_class_source_type);

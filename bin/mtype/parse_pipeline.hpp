@@ -21,12 +21,19 @@ struct FileScanError {
     //
   }
 
+  FileScanError(ScanErrors&& errors) : type(Type::error_scan_failure), errors(std::move(errors)) {
+    //
+  }
+
   Type type;
+  ScanErrors errors;
 };
 
 struct FileScanSuccess {
   FileScanSuccess() = default;
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(FileScanSuccess)
+
+  ParseSourceData to_parse_source_data() const;
 
   std::unique_ptr<std::string> file_contents;
   CodeFileDescriptor file_descriptor;
@@ -41,27 +48,39 @@ namespace cmd {
   struct Arguments;
 }
 
-using ScanResultStore = std::vector<std::unique_ptr<FileScanSuccess>>;
+using ScanResultStore = std::unordered_map<FilePath, std::unique_ptr<FileScanSuccess>, FilePath::Hash>;
 
 struct ParsePipelineInstanceData {
   ParsePipelineInstanceData(const SearchPath& search_path,
                             Store& store,
                             TypeStore& type_store,
+                            Library& library,
                             StringRegistry& str_registry,
                             AstStore& ast_store,
                             ScanResultStore& scan_results,
                             TokenSourceMap& source_data_by_token,
-                            const cmd::Arguments& arguments);
+                            const cmd::Arguments& arguments,
+                            ParseErrors& parse_errors,
+                            ParseErrors& parse_warnings);
+
+  void add_error(const ParseError& err);
+  void add_errors(const ParseErrors& errs);
+  void add_warnings(const ParseErrors& warnings);
 
   const SearchPath& search_path;
   Store& store;
   TypeStore& type_store;
+  Library& library;
   StringRegistry& string_registry;
   AstStore& ast_store;
   ScanResultStore& scan_results;
   TokenSourceMap& source_data_by_token;
   std::unordered_set<RootBlock*> roots;
+  std::unordered_set<FilePath, FilePath::Hash> root_files;
   const cmd::Arguments& arguments;
+
+  ParseErrors& parse_errors;
+  ParseErrors& parse_warnings;
 };
 
 AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance, const FilePath& file_path);

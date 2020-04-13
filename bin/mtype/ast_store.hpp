@@ -9,11 +9,12 @@ class AstStore {
 public:
   struct Entry {
     Entry();
-    Entry(BoxedRootBlock root_block, bool parsed, bool generated_constraints);
+    Entry(BoxedRootBlock root_block, bool parsed, bool generated_constraints, bool resolved_identifiers);
 
     BoxedRootBlock root_block;
     bool parsed_successfully;
     bool generated_type_constraints;
+    bool resolved_type_identifiers;
   };
 
   AstStore::Entry* insert(const FilePath& file_path, Entry&& entry);

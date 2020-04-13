@@ -2,6 +2,7 @@
 #include "type_scope.hpp"
 #include "../ast.hpp"
 #include "../store.hpp"
+#include "../string.hpp"
 #include "library.hpp"
 #include "type_store.hpp"
 #include <cassert>
@@ -56,13 +57,18 @@ TypeIdentifierResolverInstance::UnresolvedIdentifier::UnresolvedIdentifier(const
  * TypeIdentifierResolverInstance
  */
 
-TypeIdentifierResolverInstance::TypeIdentifierResolverInstance(TypeStore& type_store, Library& library, const Store& def_store) :
-type_store(type_store), library(library), def_store(def_store) {
+TypeIdentifierResolverInstance::TypeIdentifierResolverInstance(TypeStore& type_store,
+                                                               Library& library,
+                                                               const Store& def_store,
+                                                               const StringRegistry& string_registry,
+                                                               const ParseSourceData& source_data) :
+type_store(type_store), library(library), def_store(def_store), string_registry(string_registry),
+source_data(source_data) {
   //
 }
 
-void TypeIdentifierResolverInstance::add_error(BoxedTypeError err) {
-  errors.push_back(std::move(err));
+void TypeIdentifierResolverInstance::add_error(const ParseError& err) {
+  errors.push_back(err);
 }
 
 bool TypeIdentifierResolverInstance::had_error() const {
@@ -118,6 +124,10 @@ void TypeIdentifierResolver::type_begin(const TypeBegin& begin) {
   }
 }
 
+void TypeIdentifierResolver::type_assertion(const TypeAssertion& node) {
+  node.has_type->accept_const(*this);
+}
+
 void TypeIdentifierResolver::type_let(const TypeLet& node) {
   node.equal_to_type->accept_const(*this);
 }
@@ -139,6 +149,18 @@ namespace {
     } else {
       return Optional<TypePtrs>(std::move(collector.types));
     }
+  }
+
+  ParseError make_error_unresolved_type_identifier(const TypeIdentifierResolverInstance& instance,
+                                                   const Token& token, const std::string& ident) {
+    auto msg = "Unresolved type identifier: `" + ident + "`.";
+    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+  }
+
+  ParseError make_error_duplicate_method(const TypeIdentifierResolverInstance& instance,
+                                         const Token& token) {
+    const auto msg = "Duplicate method.";
+    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
   }
 }
 
@@ -165,6 +187,8 @@ void TypeIdentifierResolver::scalar_type_node(const ScalarTypeNode& node) {
 
   const auto maybe_ref = scope->lookup_type(node.identifier);
   if (!maybe_ref) {
+    const auto str_ident = instance->string_registry.at(node.identifier.full_name());
+    instance->add_error(make_error_unresolved_type_identifier(*instance, node.source_token, str_ident));
     instance->add_unresolved_identifier(ident, scope);
     instance->collectors.current().mark_error();
   } else {
@@ -202,11 +226,11 @@ void TypeIdentifierResolver::declare_type_node(const DeclareTypeNode& node) {
 }
 
 void TypeIdentifierResolver::scalar_type_declaration(const DeclareTypeNode& node) {
-  //  @TODO: Make type in ast_gen.cpp
-  auto type = instance->library.make_named_scalar_type(node.identifier);
   auto maybe_scalar = instance->scopes.current()->lookup_type(node.identifier);
-  assert(maybe_scalar && !maybe_scalar.value()->type);
-  maybe_scalar.value()->type = type;
+  assert(maybe_scalar && maybe_scalar.value()->type);
+  if (maybe_scalar) {
+    //
+  }
 }
 
 void TypeIdentifierResolver::method_type_declaration(const DeclareTypeNode& node) {
@@ -242,7 +266,7 @@ void TypeIdentifierResolver::method_type_declaration(const DeclareTypeNode& node
   }
 
   if (method_store.has_method(maybe_class.value(), method)) {
-    std::cout << "ERROR: Duplicate method." << std::endl;
+    instance->add_error(make_error_duplicate_method(*instance, node.source_token));
     return;
   }
 
@@ -270,6 +294,26 @@ void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
 }
 
 void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
+  TypeIdentifier class_name;
+  instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
+    class_name = to_type_identifier(reader.at(node.handle).name);
+  });
+
+  auto maybe_class = instance->scopes.current()->lookup_type(class_name);
+  assert(maybe_class && maybe_class.value()->type->is_class());
+  auto& class_type = MT_CLASS_MUT_REF(*maybe_class.value()->type);
+  assert(!class_type.source);
+
+  types::Record::Fields fields;
+  for (const auto& prop : node.properties) {
+    TypeIdentifier prop_name(prop.name);
+    const auto name_type = instance->type_store.make_constant_value(prop_name);
+    const auto prop_type = instance->type_store.make_fresh_type_variable_reference();
+    fields.push_back(types::Record::Field{name_type, prop_type});
+  }
+
+  class_type.source = instance->type_store.make_record(std::move(fields));
+
   for (const auto& method : node.method_defs) {
     method->accept_const(*this);
   }

@@ -6,6 +6,7 @@
 #include "store.hpp"
 #include "Optional.hpp"
 #include "traversal.hpp"
+#include "source_data.hpp"
 #include <unordered_map>
 #include <set>
 #include <vector>
@@ -207,8 +208,7 @@ class IdentifierClassifier {
 public:
   IdentifierClassifier(StringRegistry* string_registry,
                        Store* store,
-                       const CodeFileDescriptor* file_descriptor,
-                       std::string_view text);
+                       const ParseSourceData& source_data);
   ~IdentifierClassifier() = default;
 
   void transform_root(BoxedRootBlock& block);

@@ -317,12 +317,11 @@ IdentifierScope* IdentifierScope::parent() {
 
 IdentifierClassifier::IdentifierClassifier(StringRegistry* string_registry,
                                            Store* store,
-                                           const CodeFileDescriptor* file_descriptor,
-                                           std::string_view text) :
+                                           const ParseSourceData& source_data) :
   string_registry(string_registry),
   store(store),
-  file_descriptor(file_descriptor),
-  text(text),
+  file_descriptor(source_data.file_descriptor),
+  text(source_data.source),
   scope_depth(-1) {
   //  Begin on rhs.
   expr_sides.push_rhs();

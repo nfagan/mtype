@@ -23,6 +23,8 @@ function(configure_type)
             type_constraint_gen.cpp
             type_identifier_resolution.hpp
             type_identifier_resolution.cpp
+            type_import_resolution.hpp
+            type_import_resolution.cpp
             type_properties.hpp
             type_properties.cpp
             type_relation.hpp

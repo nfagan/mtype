@@ -60,6 +60,7 @@ struct Record : public Type {
   int64_t num_fields() const;
 
   const Field* find_field(const types::ConstantValue& val) const;
+  const Field* find_field(const TypeIdentifier& ident) const;
   bool has_field(const types::ConstantValue& val) const;
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;

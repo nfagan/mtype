@@ -7,6 +7,7 @@
 #include "error.hpp"
 #include "store.hpp"
 #include "traversal.hpp"
+#include "source_data.hpp"
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -16,6 +17,7 @@ namespace mt {
 class StringRegistry;
 class CodeFileDescriptor;
 class TypeStore;
+class Library;
 
 /*
  * PendingTypeImport
@@ -42,16 +44,19 @@ using PendingTypeImports = std::vector<PendingTypeImport>;
 struct ParseInstance {
   ParseInstance(Store* store,
                 TypeStore* type_store,
+                Library* library,
                 StringRegistry* string_registry,
-                const CodeFileDescriptor* file_descriptor,
+                const ParseSourceData& source_data,
                 bool functions_are_end_terminated);
 
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(ParseInstance)
 
   Store* store;
   TypeStore* type_store;
+  Library* library;
   StringRegistry* string_registry;
-  const CodeFileDescriptor* file_descriptor;
+  ParseSourceData source_data;
+  std::string parent_package;
   bool functions_are_end_terminated;
 
   BoxedRootBlock root_block;
@@ -73,6 +78,7 @@ class AstGenerator {
   struct BlockDepths {
     int function_def = 0;
     int class_def = 0;
+    int class_def_file = 0;
     int for_stmt = 0;
     int parfor_stmt = 0;
     int if_stmt = 0;
@@ -90,7 +96,7 @@ public:
 
   ~AstGenerator() = default;
 
-  void parse(ParseInstance* parse_instance, const std::vector<Token>& tokens, std::string_view text);
+  void parse(ParseInstance* parse_instance, const std::vector<Token>& tokens);
 
 private:
   Optional<std::unique_ptr<Block>> block();
@@ -260,6 +266,7 @@ private:
   bool is_within_function() const;
   bool is_within_top_level_function() const;
   bool is_within_class() const;
+  bool is_within_class_file() const;
   bool is_within_methods() const;
   bool parent_function_is_class_method() const;
 
@@ -270,6 +277,7 @@ private:
   TypeScope* root_type_scope();
 
   const CodeFileDescriptor* file_descriptor() const;
+  std::string_view source_text() const;
 
   void push_function_attributes(FunctionAttributes&& attrs);
   void pop_function_attributes();
@@ -286,7 +294,6 @@ private:
   ParseInstance* parse_instance;
 
   TokenIterator iterator;
-  std::string_view text;
   StringRegistry* string_registry;
   Store* store;
   BlockDepths block_depths;

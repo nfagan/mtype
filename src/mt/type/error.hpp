@@ -136,7 +136,7 @@ public:
   std::string stylize(const std::string& str, const char* style) const;
 
 private:
-  static constexpr int context_amount = 50;
+  static constexpr int context_amount = 30;
 
 public:
   const TypeToString& type_to_string;

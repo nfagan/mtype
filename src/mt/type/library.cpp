@@ -188,6 +188,11 @@ void Library::make_builtin_types() {
   string_id = string_t->identifier;
   char_id = char_t->identifier;
   logical_id = log_t->identifier;
+
+  add_type_to_base_scope(double_id, double_t);
+  add_type_to_base_scope(string_id, string_t);
+  add_type_to_base_scope(char_id, char_t);
+  add_type_to_base_scope(logical_id, log_t);
 }
 
 void Library::make_known_types() {
@@ -363,8 +368,11 @@ types::Scalar* Library::make_named_scalar_type(const TypeIdentifier& name) {
 
 void Library::process_scalar_type(types::Scalar* type) {
   (void) make_class_wrapper(type->identifier, type);
+}
+
+void Library::add_type_to_base_scope(const TypeIdentifier& ident, Type* type) {
   auto ref = store.make_type_reference(nullptr, type, base_scope);
-  base_scope->emplace_type(type->identifier, ref, true);
+  base_scope->emplace_type(ident, ref, true);
 }
 
 void Library::add_type_with_known_subscript(const Type* t) {

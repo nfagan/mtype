@@ -12,13 +12,15 @@ class CodeFileDescriptor;
 class TokenSourceMap;
 
 class ParseError {
+  //  @TODO: Have this class accept ParseSourceData; eliminate TokenSourceMap
   friend class ShowParseErrors;
 public:
   ParseError() : descriptor(nullptr) {
     //
   }
 
-  ParseError(std::string_view text, const Token& at_token, std::string message) : ParseError(text, at_token, message, nullptr) {
+  ParseError(std::string_view text, const Token& at_token, std::string message) :
+  ParseError(text, at_token, std::move(message), nullptr) {
     //
   }
 
@@ -38,6 +40,8 @@ private:
   Token at_token;
   std::string message;
   const CodeFileDescriptor* descriptor;
+
+  static constexpr int context_amount = 30;
 };
 
 using ParseErrors = std::vector<ParseError>;

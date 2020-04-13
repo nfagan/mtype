@@ -64,6 +64,8 @@ public:
   bool show_warnings = true;
   bool show_type_distribution = false;
   bool show_help_text = false;
+  bool show_visited_external_files = false;
+  bool use_arrow_function_notation = true;
 
   bool had_parse_error = false;
   int initial_store_capacity = 100000;

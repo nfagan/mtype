@@ -150,6 +150,7 @@ private:
   types::Class* make_class_wrapper(const TypeIdentifier& name, Type* source);
   types::Scalar* make_named_scalar_type(const char* name);
   void process_scalar_type(types::Scalar* type);
+  void add_type_to_base_scope(const TypeIdentifier& ident, Type* type);
 
 private:
   SubtypeRelation subtype_relation;

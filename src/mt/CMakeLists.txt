@@ -42,8 +42,8 @@ set(sources
         token.cpp
         token_manipulation.hpp
         token_manipulation.cpp
-        token_source_map.hpp
-        token_source_map.cpp
+        source_data.hpp
+        source_data.cpp
         token_type.hpp
         token_type.cpp
         traversal.hpp

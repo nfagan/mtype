@@ -3,7 +3,8 @@
 #include "../ast/visitor.hpp"
 #include "../traversal.hpp"
 #include "../identifier.hpp"
-#include "error.hpp"
+#include "../error.hpp"
+#include "../source_data.hpp"
 #include <vector>
 
 namespace mt {
@@ -12,6 +13,8 @@ struct TypeScope;
 class Store;
 class TypeStore;
 class Library;
+struct Type;
+class StringRegistry;
 
 class TypeIdentifierResolverInstance {
 public:
@@ -47,18 +50,21 @@ public:
     TypeScope* scope;
   };
 public:
-  TypeIdentifierResolverInstance(TypeStore& type_store, Library& library, const Store& def_store);
+  TypeIdentifierResolverInstance(TypeStore& type_store, Library& library, const Store& def_store,
+                                 const StringRegistry& string_registry, const ParseSourceData& source_data);
 
   bool had_error() const;
-  void add_error(BoxedTypeError err);
+  void add_error(const ParseError& err);
   void add_unresolved_identifier(const TypeIdentifier& ident, TypeScope* in_scope);
 
 public:
   TypeStore& type_store;
   Library& library;
   const Store& def_store;
+  const StringRegistry& string_registry;
+  const ParseSourceData& source_data;
 
-  std::vector<BoxedTypeError> errors;
+  ParseErrors errors;
   std::vector<UnresolvedIdentifier> unresolved_identifiers;
   TypeIdentifierExportState export_state;
   TypeIdentifierNamespaceState namespace_state;
@@ -76,6 +82,7 @@ public:
   void type_annot_macro(const TypeAnnotMacro& macro) override;
   void inline_type(const InlineType& node) override;
   void type_begin(const TypeBegin& begin) override;
+  void type_assertion(const TypeAssertion& node) override;
 
   void function_type_node(const FunctionTypeNode& node) override;
   void scalar_type_node(const ScalarTypeNode& node) override;
