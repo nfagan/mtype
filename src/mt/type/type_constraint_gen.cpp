@@ -723,6 +723,20 @@ void TypeConstraintGenerator::try_stmt(const TryStmt& stmt) {
   }
 }
 
+void TypeConstraintGenerator::for_stmt(const ForStmt& stmt) {
+  const auto& def_handle = scopes.current()->local_variables.at(stmt.loop_variable_identifier);
+  const auto var_term = make_term(&stmt.source_token, require_bound_type_variable(def_handle));
+  const auto expr_term = visit_expr(stmt.loop_variable_expr, stmt.source_token);
+  push_type_equation(make_eq(var_term, expr_term));
+
+  stmt.body->accept_const(*this);
+}
+
+void TypeConstraintGenerator::while_stmt(const WhileStmt& stmt) {
+  (void) visit_expr(stmt.condition_expr, stmt.source_token);
+  stmt.body->accept_const(*this);
+}
+
 /*
  * Util
  */

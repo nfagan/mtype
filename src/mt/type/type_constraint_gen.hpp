@@ -68,9 +68,6 @@ public:
   void brace_grouping_expr_rhs(const GroupingExpr& expr);
   void parens_grouping_expr_rhs(const GroupingExpr& expr);
 
-  void expr_stmt(const ExprStmt& stmt) override;
-  void assignment_stmt(const AssignmentStmt& stmt) override;
-
   void function_def_node(const FunctionDefNode& node) override;
   void class_def_node(const ClassDefNode& node) override;
 
@@ -84,6 +81,10 @@ public:
   void if_branch(const IfBranch& branch);
   void switch_stmt(const SwitchStmt& stmt) override;
   void try_stmt(const TryStmt& stmt) override;
+  void for_stmt(const ForStmt& stmt) override;
+  void while_stmt(const WhileStmt& stmt) override;
+  void expr_stmt(const ExprStmt& stmt) override;
+  void assignment_stmt(const AssignmentStmt& stmt) override;
 
 private:
   std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);
