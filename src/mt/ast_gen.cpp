@@ -2533,18 +2533,22 @@ Optional<BoxedTypeAnnot> AstGenerator::type_begin(const mt::Token& source_token)
 Optional<BoxedTypeAnnot> AstGenerator::type_import(const Token& source_token) {
   iterator.advance();
 
-  auto import_res = one_import(source_token, /*is_matlab_import=*/ false);
-  if (!import_res) {
+  auto component_res = compound_identifier_components();
+  if (!component_res) {
     return NullOpt{};
   }
 
-  auto& import = import_res.value();
-  const auto joined_ident = string_registry->make_registered_compound_identifier(import.identifier_components);
+  auto registered = string_registry->register_strings(component_res.value());
+  auto joined_ident = string_registry->make_registered_compound_identifier(registered);
+
   auto import_node = std::make_unique<TypeImportNode>(source_token, joined_ident);
   const bool is_export = type_identifier_export_state.is_export();
 
   PendingTypeImport pending_type_import(source_token, joined_ident, current_type_scope(), is_export);
   parse_instance->pending_type_imports.push_back(pending_type_import);
+
+  //  Allows @T import X
+  consume_if_matches(TokenType::keyword_end_type);
 
   return Optional<BoxedTypeAnnot>(std::move(import_node));
 }
@@ -3074,6 +3078,12 @@ Optional<ParseError> AstGenerator::consume_one_of(const mt::TokenType* types, in
   }
 
   return Optional<ParseError>(make_error_expected_token_type(tok, types, num_types));
+}
+
+void AstGenerator::consume_if_matches(TokenType type) {
+  if (iterator.peek().type == type) {
+    iterator.advance();
+  }
 }
 
 Optional<ParseError>

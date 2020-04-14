@@ -258,6 +258,7 @@ private:
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
+  void consume_if_matches(TokenType type);
   Optional<ParseError> check_anonymous_function_input_parameters_are_unique(const Token& source_token,
                                                                             const std::vector<FunctionInputParameter>& inputs) const;
 
