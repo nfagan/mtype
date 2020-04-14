@@ -770,21 +770,19 @@ void TypeConstraintGenerator::push_type_equation(const TypeEquation& eq) {
 }
 
 void TypeConstraintGenerator::push_monomorphic_functions() {
-  are_functions_generic.push_back(false);
+  polymorphic_function_state.push(false);
 }
 
 void TypeConstraintGenerator::push_polymorphic_functions() {
-  are_functions_generic.push_back(true);
+  polymorphic_function_state.push(true);
 }
 
 void TypeConstraintGenerator::pop_generic_function_state() {
-  assert(!are_functions_generic.empty());
-  are_functions_generic.pop_back();
+  polymorphic_function_state.pop();
 }
 
 bool TypeConstraintGenerator::are_functions_polymorphic() const {
-  assert(!are_functions_generic.empty());
-  return are_functions_generic.back();
+  return polymorphic_function_state.value();
 }
 
 void TypeConstraintGenerator::push_constraint_repository() {

@@ -92,6 +92,32 @@ bool AssignmentSourceState::is_assignment_target_rvalue() const {
 }
 
 /*
+ * BooleanState
+ */
+
+void BooleanState::Stack::push(BooleanState& s, bool value) {
+  s.push(value);
+}
+
+void BooleanState::Stack::pop(BooleanState& s) {
+  s.pop();
+}
+
+void BooleanState::push(bool value) {
+  state.push_back(value);
+}
+
+void BooleanState::pop() {
+  assert(!state.empty());
+  state.pop_back();
+}
+
+bool BooleanState::value() const {
+  assert(!state.empty());
+  return state.back();
+}
+
+/*
  * ValueCategoryState
  */
 

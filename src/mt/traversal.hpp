@@ -62,6 +62,22 @@ private:
   std::vector<bool> state;
 };
 
+class BooleanState {
+  struct Stack {
+    static void push(BooleanState& state, bool value);
+    static void pop(BooleanState& state);
+  };
+public:
+  using Helper = StackHelper<BooleanState, Stack>;
+
+  void push(bool value);
+  void pop();
+  bool value() const;
+
+private:
+  std::vector<bool> state;
+};
+
 class ValueCategoryState {
 public:
   void push_lhs();

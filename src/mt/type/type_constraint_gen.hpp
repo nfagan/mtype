@@ -133,6 +133,7 @@ private:
 
   ScopeState<const MatlabScope> scopes;
   ScopeState<const TypeScope> type_scopes;
+  BooleanState polymorphic_function_state;
 
   std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_type_handles;
   std::unordered_map<Type*, VariableDefHandle> variables;
@@ -141,7 +142,6 @@ private:
 
   std::vector<TypeEquationTerm> type_eq_terms;
   std::vector<ConstraintRepository> constraint_repositories;
-  std::vector<bool> are_functions_generic;
 };
 
 }
