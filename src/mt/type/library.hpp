@@ -21,6 +21,16 @@ struct SearchCandidate;
 struct TypeScope;
 
 /*
+ * SpecialIdentifierStore
+ */
+
+  struct SpecialIdentifierStore {
+    explicit SpecialIdentifierStore(StringRegistry& string_registry);
+    int64_t subsref;
+    int64_t subsindex;
+  };
+
+/*
  * ScalarTypeStore
  */
 
@@ -55,8 +65,10 @@ public:
   MethodStore() = default;
 
   Optional<Type*> lookup_method(const types::Class* cls, const types::Abstraction& by_header) const;
-  bool has_method(const types::Class* cls, const types::Abstraction& method) const;
   void add_method(const types::Class* to_class, const types::Abstraction& ref, Type* type);
+
+  bool has_method(const types::Class* cls, const types::Abstraction& method) const;
+  bool has_named_method(const types::Class* cls, const MatlabIdentifier& name) const;
 
 private:
   TypedMethods& require_methods(const types::Class* for_class);
@@ -97,7 +109,8 @@ public:
   name_comparator(type_eq),
   function_types(name_comparator),
   search_path(search_path),
-  scalar_store(store, string_registry) {
+  scalar_store(store, string_registry),
+  special_identifiers(string_registry) {
     //
   }
 
@@ -112,6 +125,7 @@ public:
   MT_NODISCARD Optional<types::Class*> lookup_class(const TypeIdentifier& name) const;
   MT_NODISCARD Optional<types::Class*> lookup_local_class(const ClassDefHandle& def_handle) const;
   MT_NODISCARD Optional<Type*> lookup_local_variable(const VariableDefHandle& def_handle) const;
+  MT_NODISCARD Optional<const types::Class*> class_for_type(const Type* type) const;
 
   bool is_known_subscript_type(const Type* type) const;
 
@@ -143,7 +157,6 @@ private:
   void make_logicals();
 
   Optional<types::Class*> class_wrapper(const Type* type) const;
-  Optional<const types::Class*> class_for_type(const Type* type) const;
 
   MT_NODISCARD Optional<Type*> lookup_pre_defined_external_function(const types::Abstraction& func) const;
   MT_NODISCARD Optional<Type*> method_dispatch(const types::Abstraction& func, const TypePtrs& args) const;
@@ -188,6 +201,7 @@ private:
 public:
   MethodStore method_store;
   ScalarTypeStore scalar_store;
+  SpecialIdentifierStore special_identifiers;
 
   TypeScope* base_scope;
 };

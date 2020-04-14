@@ -101,6 +101,20 @@ Token NonexistentFieldReferenceError::get_source_token() const {
 }
 
 /*
+ * UnhandledCustomSubscriptsError
+ */
+
+std::string UnhandledCustomSubscriptsError::get_text(const ShowTypeErrors& shower) const {
+  auto type_str = shower.type_to_string.apply(arg_type);
+  auto msg = shower.stylize("Custom subscripts are not yet handled for type: ") + type_str + ".";
+  return msg;
+}
+
+Token UnhandledCustomSubscriptsError::get_source_token() const {
+  return *at_token;
+}
+
+/*
  * DuplicateTypeIdentifierError
  */
 

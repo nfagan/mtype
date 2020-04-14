@@ -82,19 +82,12 @@ FunctionDefHandle Library::maybe_extract_function_def(const types::Abstraction& 
 
 Optional<Type*> Library::method_dispatch(const types::Abstraction& func, const TypePtrs& args) const {
   for (const auto& arg : args) {
-    Type* arg_lookup = arg;
-
-    if (arg_lookup->is_destructured_tuple()) {
-      auto maybe_lookup = MT_DT_REF(*arg_lookup).first_non_destructured_tuple_member();
-      if (!maybe_lookup) {
-        //  Ill-formed search; arguments had an empty destructured tuple.
-        return NullOpt{};
-      }
-
-      arg_lookup = maybe_lookup.value();
+    const auto maybe_arg_lookup = types::DestructuredTuple::type_or_first_non_destructured_tuple_member(arg);
+    if (!maybe_arg_lookup) {
+      return NullOpt{};
     }
 
-    const auto maybe_class = class_for_type(arg_lookup);
+    const auto maybe_class = class_for_type(maybe_arg_lookup.value());
 
     if (maybe_class) {
       const auto maybe_method = method_store.lookup_method(maybe_class.value(), func);
@@ -434,6 +427,11 @@ bool MethodStore::has_method(const types::Class* cls, const types::Abstraction& 
   return methods.at(cls).count(ref) > 0;
 }
 
+bool MethodStore::has_named_method(const types::Class* cls, const MatlabIdentifier& name) const {
+  types::Abstraction search_for(name, nullptr, nullptr);
+  return has_method(cls, search_for);
+}
+
 Optional<Type*> MethodStore::lookup_method(const types::Class* cls, const types::Abstraction& by_header) const {
   if (methods.count(cls) == 0) {
     return NullOpt{};
@@ -485,6 +483,16 @@ bool ScalarTypeStore::contains(const TypeIdentifier& name) const {
 Optional<Type*> ScalarTypeStore::lookup(const TypeIdentifier& name) const {
   const auto it = scalar_types.find(name);
   return it == scalar_types.end() ? NullOpt{} : Optional<Type*>(it->second);
+}
+
+/*
+ * SpecialIdentifierStore
+ */
+
+SpecialIdentifierStore::SpecialIdentifierStore(StringRegistry& string_registry) :
+subsref(string_registry.register_string("subsref")),
+subsindex(string_registry.register_string("subsindex")) {
+  //
 }
 
 }

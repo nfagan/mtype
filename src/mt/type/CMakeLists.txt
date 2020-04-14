@@ -13,6 +13,8 @@ function(configure_type)
             member_visitor.hpp
             simplify.hpp
             simplify.cpp
+            subscripts.hpp
+            subscripts.cpp
             substitution.hpp
             substitution.cpp
             type.hpp

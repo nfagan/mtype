@@ -133,6 +133,8 @@ struct ConstantValue : public Type {
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  bool is_char_value() const;
+
   Kind kind;
 
   union {
@@ -274,6 +276,10 @@ struct Subscript : public Type {
       //
     }
 
+    bool is_parens() const;
+    bool is_brace() const;
+    bool is_period() const;
+
     SubscriptMethod method;
     TypePtrs arguments;
   };
@@ -348,6 +354,9 @@ struct DestructuredTuple : public Type {
 
   static bool is_value_usage(Usage use);
   static bool mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b);
+  static Optional<Type*> type_or_first_non_destructured_tuple_member(Type* in);
+  static void flatten(const types::DestructuredTuple& dt, TypePtrs& into,
+                      const types::DestructuredTuple* parent = nullptr);
 
   Usage usage;
   TypePtrs members;
@@ -521,6 +530,7 @@ namespace mt {
 
 #define MT_CLASS_PTR(a) static_cast<const mt::types::Class*>((a))
 #define MT_SCHEME_PTR(a) static_cast<const mt::types::Scheme*>((a))
+#define MT_DT_PTR(a) static_cast<const mt::types::DestructuredTuple*>((a))
 #define MT_TYPE_PTR(a) static_cast<const Type*>((a))
 
 #define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
@@ -540,4 +550,5 @@ namespace mt {
 #define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))
 #define MT_SCALAR_MUT_PTR(a) static_cast<mt::types::Scalar*>((a))
 #define MT_SCHEME_MUT_PTR(a) static_cast<mt::types::Scheme*>((a))
+#define MT_DT_MUT_PTR(a) static_cast<mt::types::DestructuredTuple*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

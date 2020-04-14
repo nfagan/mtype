@@ -106,6 +106,19 @@ struct NonexistentFieldReferenceError : public TypeError {
   const Type* field_type;
 };
 
+struct UnhandledCustomSubscriptsError : public TypeError {
+  UnhandledCustomSubscriptsError(const Token* at_token, const Type* arg_type) :
+  at_token(at_token), arg_type(arg_type) {
+    //
+  }
+  ~UnhandledCustomSubscriptsError() override = default;
+  std::string get_text(const ShowTypeErrors& shower) const override;
+  Token get_source_token() const override;
+
+  const Token* at_token;
+  const Type* arg_type;
+};
+
 struct DuplicateTypeIdentifierError : public TypeError {
   DuplicateTypeIdentifierError(const Token* initial_def, const Token* new_def) :
     initial_def(initial_def), new_def(new_def) {

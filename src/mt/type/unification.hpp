@@ -3,6 +3,7 @@
 #include "types.hpp"
 #include "instance.hpp"
 #include "simplify.hpp"
+#include "subscripts.hpp"
 #include "error.hpp"
 #include "substitution.hpp"
 #include "type_relationships.hpp"
@@ -63,22 +64,11 @@ struct UnifyResult {
 
 class Unifier {
   friend class Simplifier;
+  friend class SubscriptHandler;
 public:
   using BoundVariables = std::unordered_map<TypeEquationTerm, TypeEquationTerm, TypeEquationTerm::TypeHash>;
 public:
-  Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
-  substitution(nullptr),
-  pending_external_functions(nullptr),
-  subtype_relationship(library),
-  store(store),
-  library(library),
-  string_registry(string_registry),
-  simplifier(*this, store),
-  instantiation(store),
-  any_failures(false) {
-    //
-  }
-
+  Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry);
   MT_NODISCARD UnifyResult unify(Substitution* subst, PendingExternalFunctions* external_functions);
 
 private:
@@ -129,15 +119,6 @@ private:
   bool occurs(const types::Record& record, TermRef term, const Type* lhs) const;
   bool occurs(const types::ConstantValue& val, TermRef term, const Type* lhs) const;
 
-  Type* maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub);
-  Type* maybe_unify_known_subscript_type(Type* source, TermRef term, types::Subscript& sub);
-  void maybe_unify_subscripted_class(Type* source, TermRef term,
-                                     const types::Class& class_type, types::Subscript& sub);
-  Type* maybe_unify_function_call_subscript(Type* source, TermRef term,
-    const types::Abstraction& source_func, const types::Subscript& sub);
-  Type* maybe_unify_anonymous_function_call_subscript(Type* source, TermRef term,
-    const types::Scheme& scheme, types::Subscript& sub);
-
   void check_assignment(Type* source, TermRef term, const types::Assignment& assignment);
   void check_push_function(Type* source, TermRef term, const types::Abstraction& func);
 
@@ -153,6 +134,10 @@ private:
   bool had_error() const;
   void mark_failure();
 
+  void register_visited_type(Type* type);
+  void unregister_visited_type(Type* type);
+  bool is_visited_type(Type* type) const;
+
   void add_error(BoxedTypeError err);
   void emplace_simplification_failure(const Token* lhs_token, const Token* rhs_token,
                                       const Type* lhs_type, const Type* rhs_type);
@@ -164,6 +149,7 @@ private:
   BoxedTypeError make_invalid_function_invocation_error(const Token* at_token, const Type* function_type) const;
   BoxedTypeError make_non_constant_field_reference_expr_error(const Token* at_token, const Type* arg_type) const;
   BoxedTypeError make_reference_to_non_existent_field_error(const Token* at_token, const Type* arg, const Type* field) const;
+  BoxedTypeError make_unhandled_custom_subscripts_error(const Token* at_token, const Type* principal_arg) const;
 
 private:
   Substitution* substitution;
@@ -175,6 +161,7 @@ private:
   StringRegistry& string_registry;
   Simplifier simplifier;
   Instantiation instantiation;
+  SubscriptHandler subscript_handler;
 
   std::unordered_map<Type*, bool> registered_funcs;
   std::unordered_map<Type*, bool> registered_assignments;

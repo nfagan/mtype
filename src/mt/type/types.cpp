@@ -301,6 +301,29 @@ bool types::DestructuredTuple::mismatching_definition_usages(const DestructuredT
   return (a.is_inputs() && b.is_outputs()) || (a.is_outputs() && b.is_inputs());
 }
 
+Optional<Type*> types::DestructuredTuple::type_or_first_non_destructured_tuple_member(Type* in) {
+  if (in->is_destructured_tuple()) {
+    return MT_DT_PTR(in)->first_non_destructured_tuple_member();
+  } else {
+    return Optional<Type*>(in);
+  }
+}
+
+void types::DestructuredTuple::flatten(const types::DestructuredTuple& dt, TypePtrs& into,
+                                       const types::DestructuredTuple* parent) {
+  const int64_t max_num = dt.size();
+  const int64_t use_num = parent && parent->is_value_usage() ? std::min(int64_t(1), max_num) : max_num;
+
+  for (int64_t i = 0; i < use_num; i++) {
+    const auto& mem = dt.members[i];
+    if (mem->is_destructured_tuple()) {
+      flatten(MT_DT_REF(*mem), into, &dt);
+    } else {
+      into.push_back(mem);
+    }
+  }
+}
+
 int64_t types::DestructuredTuple::size() const {
   return members.size();
 }
@@ -329,6 +352,18 @@ int64_t types::List::size() const {
  * Subscript
  */
 
+bool types::Subscript::Sub::is_parens() const {
+  return method == SubscriptMethod::parens;
+}
+
+bool types::Subscript::Sub::is_brace() const {
+  return method == SubscriptMethod::brace;
+}
+
+bool types::Subscript::Sub::is_period() const {
+  return method == SubscriptMethod::period;
+}
+
 void types::Subscript::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
 }
@@ -347,6 +382,10 @@ void types::ConstantValue::accept(const TypeToString& to_str, std::stringstream&
 
 std::size_t types::ConstantValue::bytes() const {
   return sizeof(ConstantValue);
+}
+
+bool types::ConstantValue::is_char_value() const {
+  return kind == Kind::char_value;
 }
 
 /*
