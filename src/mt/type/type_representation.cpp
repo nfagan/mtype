@@ -145,11 +145,11 @@ void TypeToString::apply(const types::ConstantValue& val, std::stringstream& int
       into << val.double_value;
       break;
     case types::ConstantValue::Kind::char_value:
-      into << "\"";
+      into << "'";
       if (string_registry) {
         into << string_registry->at(val.char_value.full_name());
       }
-      into << "\"";
+      into << "'";
       break;
   }
   into << dflt_color();
