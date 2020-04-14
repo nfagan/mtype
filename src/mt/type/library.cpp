@@ -128,6 +128,11 @@ Optional<types::Class*> Library::lookup_local_class(const ClassDefHandle& def_ha
   return class_it == local_class_types.end() ? NullOpt{} : Optional<types::Class*>(class_it->second);
 }
 
+Optional<Type*> Library::lookup_local_variable(const VariableDefHandle& def_handle) const {
+  const auto var_it = local_variables_types.find(def_handle);
+  return var_it == local_variables_types.end() ? NullOpt{} : Optional<Type*>(var_it->second);
+}
+
 Optional<Type*> Library::lookup_pre_defined_external_function(const types::Abstraction& func) const {
   const auto func_it = function_types.find(func);
   return func_it == function_types.end() ? NullOpt{} : Optional<Type*>(func_it->second);
@@ -141,6 +146,17 @@ void Library::emplace_local_function_type(const FunctionDefHandle& handle, Type*
 void Library::emplace_local_class_type(const ClassDefHandle& handle, types::Class* type) {
   assert(local_class_types.count(handle) == 0);
   local_class_types[handle] = type;
+}
+
+Type* Library::require_local_variable_type(const VariableDefHandle& handle) {
+  auto it = local_variables_types.find(handle);
+  if (it == local_variables_types.end()) {
+    auto var = store.make_fresh_type_variable_reference();
+    local_variables_types[handle] = var;
+    return var;
+  } else {
+    return it->second;
+  }
 }
 
 bool Library::is_known_subscript_type(const Type* handle) const {

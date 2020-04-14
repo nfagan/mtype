@@ -93,8 +93,14 @@ instance(instance) {
  */
 
 void TypeIdentifierResolver::root_block(const RootBlock& block) {
+  //  Push root type scope.
   ScopeState<TypeScope>::Helper scope_helper(instance->scopes, block.type_scope);
+  ScopeState<const MatlabScope>::Helper matlab_scope_helper(instance->matlab_scopes, block.scope);
+  //  Push empty type collector.
   TypeIdentifierResolverInstance::TypeCollectorState::Helper collect_helper(instance->collectors);
+  //  Push monomorphic functions.
+  BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, false);
+
   block.block->accept_const(*this);
 }
 
@@ -126,6 +132,7 @@ void TypeIdentifierResolver::type_begin(const TypeBegin& begin) {
 
 void TypeIdentifierResolver::type_assertion(const TypeAssertion& node) {
   node.has_type->accept_const(*this);
+  node.node->accept_const(*this);
 }
 
 void TypeIdentifierResolver::type_let(const TypeLet& node) {
@@ -138,6 +145,7 @@ namespace {
       type->accept_const(resolver);
     }
   }
+
   Optional<TypePtrs> collect_types(TypeIdentifierResolver& resolver,
                                    TypeIdentifierResolverInstance& instance,
                                    const std::vector<BoxedType>& types) {
@@ -194,6 +202,12 @@ void TypeIdentifierResolver::scalar_type_node(const ScalarTypeNode& node) {
   } else {
     instance->collectors.current().push(maybe_ref.value()->type);
   }
+}
+
+void TypeIdentifierResolver::fun_type_node(const FunTypeNode& node) {
+  //  Push polymorphic functions
+  BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, true);
+  node.definition->accept_const(*this);
 }
 
 void TypeIdentifierResolver::record_type_node(const RecordTypeNode& node) {
@@ -285,12 +299,59 @@ void TypeIdentifierResolver::namespace_type_node(const NamespaceTypeNode& node) 
  */
 
 void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
+  ScopeState<const MatlabScope>::Helper matlab_scope_helper(instance->matlab_scopes, node.scope);
   ScopeState<TypeScope>::Helper scope_helper(instance->scopes, node.type_scope);
-  Block* body = instance->def_store.get_block(node.def_handle);
+
+  MatlabIdentifier function_name;
+  const Block* body = nullptr;
+  FunctionAttributes attributes;
+
+  TypePtrs inputs;
+  TypePtrs outputs;
+  TypePtrs all_parameters;
+
+  const auto& matlab_scope = *instance->matlab_scopes.current();
+
+  instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
+    const auto& def = reader.at(node.def_handle);
+    function_name = def.header.name;
+
+    for (const auto& arg : def.header.inputs) {
+      if (!arg.is_ignored) {
+        auto input = instance->library.require_local_variable_type(matlab_scope.local_variables.at(arg.name));
+        inputs.push_back(input);
+        all_parameters.push_back(input);
+      }
+    }
+    for (const auto& out : def.header.outputs) {
+      auto output = instance->library.require_local_variable_type(matlab_scope.local_variables.at(out));
+      outputs.push_back(output);
+      all_parameters.push_back(output);
+    }
+
+    body = def.body.get();
+    attributes = def.attributes;
+  });
+
+  auto& store = instance->type_store;
+  const auto input = store.make_input_destructured_tuple(std::move(inputs));
+  const auto output = store.make_output_destructured_tuple(std::move(outputs));
+  auto abstr = store.make_abstraction(function_name, node.ref_handle, input, output);
+
+  auto emplaced_type = abstr;
+  if (instance->polymorphic_function_state.value()) {
+    emplaced_type = store.make_scheme(abstr, std::move(all_parameters));
+  }
+
+  instance->library.emplace_local_function_type(node.def_handle, emplaced_type);
 
   if (body) {
+    //  Push monomorphic functions.
+    BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, false);
     body->accept_const(*this);
   }
+
+  instance->collectors.current().push(emplaced_type);
 }
 
 void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
@@ -314,7 +375,20 @@ void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
   class_type->source = instance->type_store.make_record(std::move(fields));
 
   for (const auto& method : node.method_defs) {
+    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
     method->accept_const(*this);
+
+    auto& collector = instance->collectors.current();
+    assert(!collector.had_error && collector.types.size() == 1);
+    auto* func_type = collector.types[0];
+    auto* source_type = func_type;
+
+    if (!func_type->is_abstraction()) {
+      assert(func_type->is_scheme() && MT_SCHEME_PTR(func_type)->type->is_abstraction());
+      func_type = MT_SCHEME_PTR(func_type)->type;
+    }
+
+    instance->library.method_store.add_method(class_type, MT_ABSTR_REF(*func_type), source_type);
   }
 }
 

@@ -161,6 +161,10 @@ void Arguments::build_parse_spec() {
     [this](int, int, char**) {
     return true_param(&show_type_distribution);
   });
+  arguments.emplace_back(ParameterName("--explicit-dt", "-edt"), "Print destructured tuples explicitly.",
+    [this](int, int, char**) {
+    return true_param(&show_explicit_destructured_tuples);
+  });
   arguments.emplace_back(ParameterName("--plain-text", "-pt"), "Use ASCII text and no control characters when printing.",
     [this](int, int, char**) {
     return false_param(&rich_text);

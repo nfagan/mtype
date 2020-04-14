@@ -89,7 +89,9 @@ private:
   std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);
 
   void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypePtrs& into);
-  void gather_function_outputs(const MatlabScope& scope, const std::vector<MatlabIdentifier>& ids, TypePtrs& into);
+  void push_function_inputs(const MatlabScope& scope, const TypePtrs& inputs, const FunctionHeader& header);
+  void push_function_outputs(const MatlabScope& scope, const TypePtrs& outputs, const FunctionHeader& header);
+
   void handle_class_method(const TypePtrs& function_inputs,
                            const TypePtrs& function_outputs,
                            const FunctionAttributes& function_attrs,
@@ -135,10 +137,8 @@ private:
   ScopeState<const TypeScope> type_scopes;
   BooleanState polymorphic_function_state;
 
-  std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_type_handles;
-  std::unordered_map<Type*, VariableDefHandle> variables;
-
-  std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> function_type_handles;
+  std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_types;
+  std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> function_types;
 
   std::vector<TypeEquationTerm> type_eq_terms;
   std::vector<ConstraintRepository> constraint_repositories;

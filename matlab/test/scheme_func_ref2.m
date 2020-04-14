@@ -1,3 +1,4 @@
+% @T import base
 function f = scheme_func_ref2()
 
 % If MT_SCHEME_FUNC_REF is (1) and MT_SCHEME_FUNC_CALL is (1) 

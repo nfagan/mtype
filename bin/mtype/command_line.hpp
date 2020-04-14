@@ -65,6 +65,7 @@ public:
   bool show_type_distribution = false;
   bool show_help_text = false;
   bool show_visited_external_files = false;
+  bool show_explicit_destructured_tuples = false;
   bool use_arrow_function_notation = true;
 
   bool had_parse_error = false;

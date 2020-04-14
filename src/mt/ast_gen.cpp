@@ -245,6 +245,7 @@ Optional<MatlabIdentifier> AstGenerator::compound_function_name(std::string_view
 }
 
 Optional<FunctionHeader> AstGenerator::function_header() {
+  //  @TODO: Ensure parameter names are unique.
   bool provided_outputs;
   auto output_res = function_outputs(&provided_outputs);
   if (!output_res) {

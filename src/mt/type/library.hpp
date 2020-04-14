@@ -111,6 +111,7 @@ public:
 
   MT_NODISCARD Optional<types::Class*> lookup_class(const TypeIdentifier& name) const;
   MT_NODISCARD Optional<types::Class*> lookup_local_class(const ClassDefHandle& def_handle) const;
+  MT_NODISCARD Optional<Type*> lookup_local_variable(const VariableDefHandle& def_handle) const;
 
   bool is_known_subscript_type(const Type* type) const;
 
@@ -118,6 +119,7 @@ public:
 
   void emplace_local_function_type(const FunctionDefHandle& handle, Type* type);
   void emplace_local_class_type(const ClassDefHandle& handle, types::Class* type);
+  Type* require_local_variable_type(const VariableDefHandle& handle);
 
   //  Test a <: b
   bool subtype_related(const Type* lhs, const Type* rhs) const;
@@ -169,9 +171,12 @@ private:
 
   std::map<types::Abstraction, Type*, TypeRelation::NameLess> function_types;
   std::vector<const Type*> types_with_known_subscripts;
+
   std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> local_function_types;
-  std::unordered_map<TypeIdentifier, types::Class*, TypeIdentifier::Hash> class_types;
   std::unordered_map<ClassDefHandle, types::Class*, ClassDefHandle::Hash> local_class_types;
+  std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> local_variables_types;
+
+  std::unordered_map<TypeIdentifier, types::Class*, TypeIdentifier::Hash> class_types;
 
   const SearchPath& search_path;
 

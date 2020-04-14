@@ -520,6 +520,7 @@ namespace mt {
 #define MT_CONST_VAL_REF(a) static_cast<const mt::types::ConstantValue&>((a))
 
 #define MT_CLASS_PTR(a) static_cast<const mt::types::Class*>((a))
+#define MT_SCHEME_PTR(a) static_cast<const mt::types::Scheme*>((a))
 #define MT_TYPE_PTR(a) static_cast<const Type*>((a))
 
 #define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
@@ -538,4 +539,5 @@ namespace mt {
 
 #define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))
 #define MT_SCALAR_MUT_PTR(a) static_cast<mt::types::Scalar*>((a))
+#define MT_SCHEME_MUT_PTR(a) static_cast<mt::types::Scheme*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

@@ -10,6 +10,7 @@
 namespace mt {
 
 struct TypeScope;
+struct MatlabScope;
 class Store;
 class TypeStore;
 class Library;
@@ -69,7 +70,9 @@ public:
   TypeIdentifierExportState export_state;
   TypeIdentifierNamespaceState namespace_state;
   ScopeState<TypeScope> scopes;
+  ScopeState<const MatlabScope> matlab_scopes;
   TypeCollectorState collectors;
+  BooleanState polymorphic_function_state;
 };
 
 class TypeIdentifierResolver : public TypePreservingVisitor {
@@ -84,6 +87,7 @@ public:
   void type_begin(const TypeBegin& begin) override;
   void type_assertion(const TypeAssertion& node) override;
 
+  void fun_type_node(const FunTypeNode& node) override;
   void function_type_node(const FunctionTypeNode& node) override;
   void scalar_type_node(const ScalarTypeNode& node) override;
   void record_type_node(const RecordTypeNode& node) override;

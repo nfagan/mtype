@@ -13,7 +13,7 @@ mt::TypeToString make_type_to_string(Args&&... args) {
 }
 
 void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::Arguments& args) {
-  type_to_string.explicit_destructured_tuples = false;
+  type_to_string.explicit_destructured_tuples = args.show_explicit_destructured_tuples;
   type_to_string.arrow_function_notation = args.use_arrow_function_notation;
   type_to_string.max_num_type_variables = 3;
   type_to_string.show_class_source_type = args.show_class_source_type;

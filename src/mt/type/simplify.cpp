@@ -255,7 +255,9 @@ bool Simplifier::simplify(const types::ConstantValue& t0, const types::ConstantV
 bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scheme&, const types::Scheme&, bool rev) {
   EquivalenceRelation equiv;
   TypeRelation relate(equiv, store);
-  return relate.related_entry(lhs, rhs, rev);
+  const bool success = relate.related_entry(lhs, rhs, rev);
+  check_emplace_simplification_failure(success, lhs, rhs);
+  return success;
 }
 
 bool Simplifier::simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev) {
