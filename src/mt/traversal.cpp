@@ -144,9 +144,15 @@ void ValueCategoryState::pop_side() {
 */
 
 void ClassDefState::push_class(const mt::ClassDefHandle& handle, types::Class* type, const MatlabIdentifier& name) {
+  push_class(handle, type, name, MatlabIdentifier());
+}
+
+void ClassDefState::push_class(const ClassDefHandle& handle, types::Class* type,
+                               const MatlabIdentifier& full_name, const MatlabIdentifier& unqualified_name) {
   class_defs.push_back(handle);
   class_types.push_back(type);
-  class_names.push_back(name);
+  class_names.push_back(full_name);
+  unqualified_class_names.push_back(unqualified_name);
 }
 
 void ClassDefState::pop_class() {
@@ -166,6 +172,10 @@ types::Class* ClassDefState::enclosing_class_type() const {
 
 MatlabIdentifier ClassDefState::enclosing_class_name() const {
   return class_names.empty() ? MatlabIdentifier() : class_names.back();
+}
+
+MatlabIdentifier ClassDefState::unqualified_enclosing_class_name() const {
+  return unqualified_class_names.empty() ? MatlabIdentifier() : unqualified_class_names.back();
 }
 
 bool ClassDefState::is_within_class() const {

@@ -37,8 +37,41 @@ ParseInstance::ParseInstance(Store* store,
                              string_registry(string_registry),
                              source_data(source_data),
                              functions_are_end_terminated(functions_are_end_terminated),
-                             had_error(false) {
+                             had_error(false),
+                             num_visited_functions(0),
+                             registered_file_type(false),
+                             file_type(CodeFileType::unknown) {
   parent_package = source_data.file_descriptor->containing_package();
+}
+
+bool ParseInstance::has_parent_package() const {
+  return !parent_package.empty();
+}
+
+void ParseInstance::mark_visited_function() {
+  num_visited_functions++;
+}
+
+bool ParseInstance::register_file_type(CodeFileType ft) {
+  if (registered_file_type) {
+    return false;
+  }
+
+  file_type = ft;
+  registered_file_type = true;
+  return true;
+}
+
+bool ParseInstance::is_function_file() const {
+  return file_type == CodeFileType::function_def;
+}
+
+bool ParseInstance::is_class_file() const {
+  return file_type == CodeFileType::class_def;
+}
+
+bool ParseInstance::is_file_entry_function() const {
+  return is_function_file() && num_visited_functions == 1;
 }
 
 struct BlockStmtScopeHelper {
@@ -266,6 +299,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     return NullOpt{};
   }
 
+  MatlabIdentifier name_id(string_registry->register_string(name_res.value()));
   MatlabIdentifier name;
   bool use_compound_name = false;
 
@@ -291,14 +325,23 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     return NullOpt{};
   }
 
-  if (false) {
-    //  @TODO: In a regular function file, register the name of the function as the package-prefixed
-    //  name. However, local functions must not be package-prefixed.
+  if (parse_instance->has_parent_package() && is_within_top_level_function() && is_within_class()) {
+    //  If the class is defined within a package, check to see whether the method's name matches
+    //  the non-package-qualified class name. If so, this method is the constructor, and it is
+    //  registered using the package prefix. Other class methods are not package-prefixed.
+    auto unqualified_class_name = class_state.unqualified_enclosing_class_name();
     auto maybe_package_prefixed_name = maybe_prepend_package_name(parse_instance, name_res.value());
-    if (maybe_package_prefixed_name != name_res.value()) {
-      use_compound_name = true;
+
+    if (maybe_package_prefixed_name != name_res.value() &&
+        name_id == unqualified_class_name) {
       name = MatlabIdentifier(string_registry->register_string(maybe_package_prefixed_name));
+      use_compound_name = true;
     }
+
+  } else if (parse_instance->has_parent_package() && parse_instance->is_file_entry_function()) {
+    auto maybe_package_prefixed_name = maybe_prepend_package_name(parse_instance, name_res.value());
+    name = MatlabIdentifier(string_registry->register_string(maybe_package_prefixed_name));
+    use_compound_name = true;
   }
 
   if (!use_compound_name) {
@@ -364,6 +407,12 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
 Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   const auto& source_token = iterator.peek();
   iterator.advance();
+
+  if (!parse_instance->registered_file_type) {
+    bool success = parse_instance->register_file_type(CodeFileType::function_def);
+    assert(success);
+  }
+  parse_instance->mark_visited_function();
 
   //  Enter function keyword
   BlockStmtScopeHelper block_depth_helper(&block_depths.function_def);
@@ -506,6 +555,11 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   const auto& source_token = iterator.peek();
   iterator.advance();
 
+  if (!parse_instance->register_file_type(CodeFileType::class_def)) {
+    add_error(make_error_stmts_preceding_class_def(source_token));
+    return NullOpt{};
+  }
+
   const auto parent_scope = current_scope();
   auto parent_type_scope = current_type_scope();
   BlockStmtScopeHelper scope_helper(&block_depths.class_def);
@@ -564,7 +618,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   MatlabIdentifier unqualified_name(string_registry->register_string(given_name));
   MatlabIdentifier qualified_name(string_registry->register_string(package_qualified_name));
 
-  ClassDefState::Helper class_helper(class_state, class_handle, nullptr, unqualified_name);
+  ClassDefState::Helper class_helper(class_state, class_handle, nullptr, qualified_name, unqualified_name);
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end) {
     const auto& tok = iterator.peek();
@@ -599,7 +653,8 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     return NullOpt{};
   }
 
-  ClassDef class_def(source_token, qualified_name, std::move(superclasses), std::move(properties), std::move(methods));
+  ClassDef class_def(source_token, qualified_name, std::move(superclasses),
+                     std::move(properties), std::move(methods));
 
   {
     Store::Write writer(*store);
@@ -2283,6 +2338,9 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token
     case TokenType::keyword_namespace:
       return type_namespace(source_token);
 
+    case TokenType::keyword_constructor:
+      return constructor_type(source_token);
+
     default:
       auto possible_types = type_annotation_block_possible_types();
       add_error(make_error_expected_token_type(source_token, possible_types));
@@ -2689,6 +2747,49 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
   }
 }
 
+Optional<BoxedTypeAnnot> AstGenerator::constructor_type(const Token& source_token) {
+  iterator.advance();
+
+  auto maybe_err = consume(TokenType::keyword_end_type);
+  if (maybe_err) {
+    add_error(maybe_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto stmt_res = expr_stmt(iterator.peek());
+  if (!stmt_res) {
+    return NullOpt{};
+  } else if (!stmt_res.value()->is_assignment_stmt()) {
+    add_error(make_error_expected_assignment_stmt_in_ctor(source_token));
+    return NullOpt{};
+  }
+
+  auto stmt_ptr = static_cast<AssignmentStmt*>(stmt_res.value().release());
+  auto stmt = std::unique_ptr<AssignmentStmt>(stmt_ptr);
+
+  if (!stmt->of_expr->is_identifier_reference_expr()) {
+    add_error(make_error_expected_identifier_reference_expr_in_ctor(source_token));
+    return NullOpt{};
+  }
+
+  auto expr_ptr = static_cast<IdentifierReferenceExpr*>(stmt->of_expr.get());
+  auto full_name = expr_ptr->primary_identifier.full_name();
+
+  if (full_name != parse_instance->library->special_identifiers.identifier_struct ||
+      !expr_ptr->is_maybe_non_subscripted_function_call()) {
+    //  Ensure identifier reference expression is of the form struct(a, b, c);
+    add_error(make_error_expected_struct_function_call(source_token));
+    return NullOpt{};
+
+  } else if ((expr_ptr->num_primary_subscript_arguments() % 2) != 0) {
+    add_error(make_error_expected_even_number_of_arguments_in_ctor(source_token));
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<ConstructorTypeNode>(source_token, std::move(stmt), expr_ptr);
+  return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
 Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
   iterator.advance();
   const auto name_token = iterator.peek();
@@ -2819,6 +2920,9 @@ Optional<BoxedType> AstGenerator::one_type(const mt::Token& source_token) {
     case TokenType::identifier:
       return scalar_type(source_token);
 
+    case TokenType::question:
+      return infer_type(source_token);
+
     default: {
       std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
       add_error(make_error_expected_token_type(source_token, possible_types));
@@ -2860,7 +2964,16 @@ Optional<std::vector<BoxedType>> AstGenerator::type_sequence(TokenType terminato
   return Optional<std::vector<BoxedType>>(std::move(types));
 }
 
-Optional<BoxedType> AstGenerator::function_type(const mt::Token& source_token) {
+Optional<BoxedType> AstGenerator::infer_type(const Token& source_token) {
+  iterator.advance();
+
+  auto type = parse_instance->type_store->make_fresh_type_variable_reference();
+  auto node = std::make_unique<InferTypeNode>(source_token, type);
+
+  return Optional<BoxedType>(std::move(node));
+}
+
+Optional<BoxedType> AstGenerator::function_type(const Token& source_token) {
   iterator.advance();
 
   auto output_res = type_sequence(TokenType::right_bracket);
@@ -3246,6 +3359,31 @@ ParseError AstGenerator::make_error_expected_function_type(const Token& at_token
 
 ParseError AstGenerator::make_error_expected_type_assertion(const Token& at_token) const {
   return ParseError(source_text(), at_token, "Expected type assertion.", file_descriptor());
+}
+
+ParseError AstGenerator::make_error_expected_assignment_stmt_in_ctor(const Token& at_token) const {
+  const auto msg = "Expected assignment statement following constructor statement.";
+  return ParseError(source_text(), at_token, msg, file_descriptor());
+}
+
+ParseError AstGenerator::make_error_expected_identifier_reference_expr_in_ctor(const Token& at_token) const {
+  const auto msg = "Expected identifier reference expression following constructor statement.";
+  return ParseError(source_text(), at_token, msg, file_descriptor());
+}
+
+ParseError AstGenerator::make_error_expected_struct_function_call(const Token& at_token) const {
+  const auto msg = "A constructor statement must include a call to `struct`, without subscripts.";
+  return ParseError(source_text(), at_token, msg, file_descriptor());
+}
+
+ParseError AstGenerator::make_error_expected_even_number_of_arguments_in_ctor(const Token& at_token) const {
+  const auto msg = "Expected an even number of arguments in `struct` call.";
+  return ParseError(source_text(), at_token, msg, file_descriptor());
+}
+
+ParseError AstGenerator::make_error_stmts_preceding_class_def(const Token& at_token) const {
+  const auto msg = "A classdef file cannot have functions or statements preceding the definition.";
+  return ParseError(source_text(), at_token, msg, file_descriptor());
 }
 
 ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,

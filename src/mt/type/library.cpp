@@ -491,7 +491,8 @@ Optional<Type*> ScalarTypeStore::lookup(const TypeIdentifier& name) const {
 
 SpecialIdentifierStore::SpecialIdentifierStore(StringRegistry& string_registry) :
 subsref(string_registry.register_string("subsref")),
-subsindex(string_registry.register_string("subsindex")) {
+subsindex(string_registry.register_string("subsindex")),
+identifier_struct(string_registry.register_string("struct")) {
   //
 }
 

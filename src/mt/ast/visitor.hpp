@@ -54,6 +54,8 @@ struct TypeAnnotMacro;
 struct TypeAssertion;
 struct DeclareTypeNode;
 struct NamespaceTypeNode;
+struct ConstructorTypeNode;
+struct InferTypeNode;
 
 class TypePreservingVisitor {
 public:
@@ -92,6 +94,8 @@ public:
   MT_VISITOR_METHOD(class_def_node, ClassDefNode)
   MT_VISITOR_METHOD(function_def_node, FunctionDefNode)
 
+  MT_VISITOR_METHOD(infer_type_node, InferTypeNode)
+  MT_VISITOR_METHOD(constructor_type_node, ConstructorTypeNode)
   MT_VISITOR_METHOD(namespace_type_node, NamespaceTypeNode)
   MT_VISITOR_METHOD(declare_type_node, DeclareTypeNode)
   MT_VISITOR_METHOD(record_type_node, RecordTypeNode)

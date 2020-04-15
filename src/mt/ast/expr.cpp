@@ -265,6 +265,20 @@ std::vector<int64_t> IdentifierReferenceExpr::make_compound_identifier(int64_t* 
   return identifier_components;
 }
 
+bool IdentifierReferenceExpr::is_maybe_non_subscripted_function_call() const {
+  if (subscripts.size() > 1) {
+    return false;
+  } else if (subscripts.empty()) {
+    return true;
+  }
+
+  return subscripts[0].method == SubscriptMethod::parens;
+}
+
+int64_t IdentifierReferenceExpr::num_primary_subscript_arguments() const {
+  return subscripts.empty() ? 0 : subscripts[0].arguments.size();
+}
+
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.identifier_reference_expr(*this);
 }

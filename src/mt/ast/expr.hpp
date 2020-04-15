@@ -123,6 +123,10 @@ struct CharLiteralExpr : public Expr {
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 
+  bool is_char_literal_expr() const override {
+    return true;
+  }
+
   Token source_token;
 };
 
@@ -287,6 +291,9 @@ struct IdentifierReferenceExpr : public Expr {
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 
+  bool is_maybe_non_subscripted_function_call() const;
+  int64_t num_primary_subscript_arguments() const;
+
   std::vector<int64_t> make_compound_identifier(int64_t* end) const;
 
   Token source_token;
@@ -306,9 +313,10 @@ struct GroupingExprComponent {
   TokenType delimiter;
 };
 
+using GroupingExprComponents = std::vector<GroupingExprComponent>;
+
 struct GroupingExpr : public Expr {
-  GroupingExpr(const Token& source_token, GroupingMethod method,
-               std::vector<GroupingExprComponent>&& exprs):
+  GroupingExpr(const Token& source_token, GroupingMethod method, GroupingExprComponents&& exprs) :
   source_token(source_token), method(method), components(std::move(exprs)) {
     //
   }
@@ -325,7 +333,7 @@ struct GroupingExpr : public Expr {
 
   Token source_token;
   GroupingMethod method;
-  std::vector<GroupingExprComponent> components;
+  GroupingExprComponents components;
 };
 
 struct EndOperatorExpr : public Expr {

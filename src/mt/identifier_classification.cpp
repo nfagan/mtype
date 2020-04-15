@@ -853,6 +853,11 @@ FunTypeNode* IdentifierClassifier::fun_type_node(FunTypeNode& node) {
   return &node;
 }
 
+ConstructorTypeNode* IdentifierClassifier::constructor_type_node(ConstructorTypeNode& node) {
+  conditional_reset(node.stmt, node.stmt->accept(*this));
+  return &node;
+}
+
 TypeAssertion* IdentifierClassifier::type_assertion(TypeAssertion& node) {
   conditional_reset(node.node, node.node->accept(*this));
   return &node;

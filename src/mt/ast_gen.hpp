@@ -8,6 +8,7 @@
 #include "store.hpp"
 #include "traversal.hpp"
 #include "source_data.hpp"
+#include "fs/code_file.hpp"
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -51,6 +52,14 @@ struct ParseInstance {
 
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(ParseInstance)
 
+  bool has_parent_package() const;
+  void mark_visited_function();
+  bool register_file_type(CodeFileType file_type);
+
+  bool is_file_entry_function() const;
+  bool is_function_file() const;
+  bool is_class_file() const;
+
   Store* store;
   TypeStore* type_store;
   Library* library;
@@ -65,6 +74,10 @@ struct ParseInstance {
   ParseErrors warnings;
 
   PendingTypeImports pending_type_imports;
+
+  int64_t num_visited_functions;
+  bool registered_file_type;
+  CodeFileType file_type;
 };
 
 /*
@@ -198,6 +211,7 @@ private:
   Optional<BoxedTypeAnnot> type_import(const Token& source_token);
   Optional<BoxedTypeAnnot> type_record(const Token& source_token);
   Optional<BoxedTypeAnnot> type_namespace(const Token& source_token);
+  Optional<BoxedTypeAnnot> constructor_type(const Token& source_token);
 
   Optional<BoxedTypeAnnot> declare_type(const Token& source_token);
   Optional<BoxedTypeAnnot> scalar_type_declaration(const Token& source_token);
@@ -212,6 +226,7 @@ private:
 
   Optional<BoxedType> type(const Token& source_token);
   Optional<BoxedType> function_type(const Token& source_token);
+  Optional<BoxedType> infer_type(const Token& source_token);
   Optional<BoxedType> one_type(const Token& source_token);
   Optional<BoxedType> scalar_type(const Token& source_token);
   Optional<std::vector<BoxedType>> type_sequence(TokenType terminator);
@@ -255,6 +270,11 @@ private:
   ParseError make_error_unrecognized_type_declaration_kind(const Token& at_token) const;
   ParseError make_error_expected_function_type(const Token& at_token) const;
   ParseError make_error_expected_type_assertion(const Token& at_token) const;
+  ParseError make_error_expected_assignment_stmt_in_ctor(const Token& at_token) const;
+  ParseError make_error_expected_identifier_reference_expr_in_ctor(const Token& at_token) const;
+  ParseError make_error_expected_struct_function_call(const Token& at_token) const;
+  ParseError make_error_expected_even_number_of_arguments_in_ctor(const Token& at_token) const;
+  ParseError make_error_stmts_preceding_class_def(const Token& at_token) const;
 
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);

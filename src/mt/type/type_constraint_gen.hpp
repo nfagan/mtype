@@ -25,18 +25,8 @@ private:
   };
 
 public:
-  explicit TypeConstraintGenerator(Substitution& substitution, Store& store, TypeStore& type_store,
-                                   Library& library, const StringRegistry& string_registry) :
-    substitution(substitution),
-    store(store),
-    type_store(type_store),
-    library(library),
-    string_registry(string_registry) {
-    //
-    assignment_state.push_non_assignment_target_rvalue();
-    value_category_state.push_rhs();
-    push_monomorphic_functions();
-  }
+  TypeConstraintGenerator(Substitution& substitution, Store& store, TypeStore& type_store,
+                          Library& library, StringRegistry& string_registry);
 
   void show_type_distribution() const;
   void show_variable_types(const TypeToString& printer) const;
@@ -76,6 +66,8 @@ public:
   void type_assertion(const TypeAssertion& assertion) override;
   void function_type_node(const FunctionTypeNode& node) override;
   void scalar_type_node(const ScalarTypeNode& node) override;
+  void constructor_type_node(const ConstructorTypeNode& node) override;
+  void infer_type_node(const InferTypeNode& node) override;
 
   void if_stmt(const IfStmt& stmt) override;
   void if_branch(const IfBranch& branch);
@@ -122,13 +114,16 @@ private:
   void push_type_equation_term(const TypeEquationTerm& term);
   TypeEquationTerm pop_type_equation_term();
 
+  bool struct_is_constructor() const;
+  void struct_as_constructor(const FunctionCallExpr& expr);
+
 private:
   Substitution& substitution;
 
   Store& store;
   TypeStore& type_store;
   Library& library;
-  const StringRegistry& string_registry;
+  StringRegistry& string_registry;
 
   AssignmentSourceState assignment_state;
   ValueCategoryState value_category_state;
@@ -137,6 +132,7 @@ private:
   ScopeState<const MatlabScope> scopes;
   ScopeState<const TypeScope> type_scopes;
   BooleanState polymorphic_function_state;
+  BooleanState struct_is_constructor_state;
 
   std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_types;
   std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> function_types;

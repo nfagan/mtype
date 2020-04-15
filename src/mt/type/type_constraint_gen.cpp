@@ -9,6 +9,22 @@
 
 namespace mt {
 
+TypeConstraintGenerator::TypeConstraintGenerator(Substitution& substitution,
+                                                 Store& store,
+                                                 TypeStore& type_store,
+                                                 Library& library,
+                                                 StringRegistry& string_registry) :
+substitution(substitution),
+store(store),
+type_store(type_store),
+library(library),
+string_registry(string_registry) {
+  //
+  assignment_state.push_non_assignment_target_rvalue();
+  value_category_state.push_rhs();
+  push_monomorphic_functions();
+}
+
 void TypeConstraintGenerator::show_type_distribution() const {
   auto counts = type_store.type_distribution();
   const auto num_types = double(type_store.size());
@@ -22,6 +38,8 @@ void TypeConstraintGenerator::show_type_distribution() const {
 void TypeConstraintGenerator::root_block(const RootBlock& block) {
   ScopeState<const MatlabScope>::Helper matlab_scope_helper(scopes, block.scope);
   ScopeState<const TypeScope>::Helper type_scope_helper(type_scopes, block.type_scope);
+  BooleanState::Helper ctor_state_helper(struct_is_constructor_state, false);
+
   block.block->accept_const(*this);
 }
 
@@ -336,6 +354,16 @@ void TypeConstraintGenerator::scalar_type_node(const ScalarTypeNode& node) {
   push_type_equation_term(make_term(&node.source_token, type));
 }
 
+void TypeConstraintGenerator::infer_type_node(const InferTypeNode& node) {
+  assert(node.type);
+  push_type_equation_term(make_term(&node.source_token, node.type));
+}
+
+void TypeConstraintGenerator::constructor_type_node(const ConstructorTypeNode& node) {
+  BooleanState::Helper ctor_state_helper(struct_is_constructor_state, true);
+  node.stmt->accept_const(*this);
+}
+
 /*
  * Expr
  */
@@ -370,7 +398,83 @@ void TypeConstraintGenerator::literal_field_reference_expr(const LiteralFieldRef
   push_type_equation_term(make_term(&expr.source_token, const_type));
 }
 
+void TypeConstraintGenerator::struct_as_constructor(const FunctionCallExpr& expr) {
+  /*
+   * @T constructor
+   * X = struct( 'x', some_value(), 'y', some_other_value() );
+   */
+  bool expect_char = true;
+  auto record_type = type_store.make_record();
+  types::ConstantValue* field_name = nullptr;
+  bool success = true;
+
+  for (const auto& arg : expr.arguments) {
+    if (expect_char && arg->is_char_literal_expr()) {
+      const auto& literal_expr = static_cast<const CharLiteralExpr&>(*arg);
+      TypeIdentifier ident(string_registry.register_string(literal_expr.source_token.lexeme));
+      field_name = type_store.make_constant_value(ident);
+      expect_char = false;
+
+    } else if (!expect_char && field_name && !record_type->has_field(*field_name)) {
+      Type* field_type = nullptr;
+
+      if (arg->is_grouping_expr() &&
+          static_cast<const GroupingExpr&>(*arg).method == GroupingMethod::brace) {
+        //  struct( 'a', {1, 2, 3} );
+        const auto& group_expr = static_cast<GroupingExpr&>(*arg);
+        auto components = grouping_expr_components(group_expr);
+        if (components.empty()) {
+          //  struct( 'a', {} );
+          field_type = type_store.make_tuple();
+        } else {
+          //  struct( 'a', {1, 2, 3} );
+          field_type = components[0];
+
+          for (int64_t i = 1; i < int64_t(components.size()); i++) {
+            auto term0 = make_term(&group_expr.source_token, field_type);
+            auto term1 = make_term(&group_expr.source_token, components[i]);
+            push_type_equation(make_eq(term0, term1));
+          }
+        }
+
+      } else {
+        field_type = visit_expr(arg, expr.source_token).term;
+      }
+
+      types::Record::Field field{field_name, field_type};
+      record_type->fields.push_back(field);
+
+      field_name = nullptr;
+      expect_char = true;
+
+    } else {
+      success = false;
+    }
+  }
+
+  if (success) {
+    push_type_equation_term(make_term(&expr.source_token, record_type));
+  } else {
+    //  @TODO: Error messages for this.
+    BooleanState::Helper retry_helper(struct_is_constructor_state, false);
+    function_call_expr(expr);
+  }
+}
+
+namespace {
+  inline bool name_is_struct(const FunctionReference& ref, const Library& library) {
+    return ref.name == MatlabIdentifier(library.special_identifiers.identifier_struct);
+  }
+}
+
 void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
+  const auto ref = store.get(expr.reference_handle);
+
+  if (struct_is_constructor() && name_is_struct(ref, library)) {
+    struct_as_constructor(expr);
+    return;
+  }
+
   TypePtrs members;
   members.reserve(expr.arguments.size());
 
@@ -378,8 +482,6 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
     const auto result = visit_expr(arg, expr.source_token);
     members.push_back(result.term);
   }
-
-  const auto ref = store.get(expr.reference_handle);
 
   const auto args_type = type_store.make_rvalue_destructured_tuple(std::move(members));
   auto result_type = make_fresh_type_variable_reference();
@@ -827,6 +929,10 @@ TypeConstraintGenerator::ConstraintRepository& TypeConstraintGenerator::current_
 void TypeConstraintGenerator::pop_constraint_repository() {
   assert(!constraint_repositories.empty() && "No constraints to pop.");
   constraint_repositories.pop_back();
+}
+
+bool TypeConstraintGenerator::struct_is_constructor() const {
+  return struct_is_constructor_state.value();
 }
 
 void TypeConstraintGenerator::push_type_equation_term(const TypeEquationTerm& term) {

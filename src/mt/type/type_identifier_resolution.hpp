@@ -93,6 +93,7 @@ public:
   void record_type_node(const RecordTypeNode& node) override;
   void declare_type_node(const DeclareTypeNode& node) override;
   void namespace_type_node(const NamespaceTypeNode& node) override;
+  void infer_type_node(const InferTypeNode& node) override;
 
   void type_let(const TypeLet& node) override;
 

@@ -74,6 +74,8 @@ public:
   std::string type_assertion(const TypeAssertion& assertion) const;
   std::string type_import_node(const TypeImportNode& import) const;
   std::string declare_type_node(const DeclareTypeNode& node) const;
+  std::string constructor_type_node(const ConstructorTypeNode& node) const;
+  std::string infer_type_node(const InferTypeNode& node) const;
 
 private:
   std::string class_def(const ClassDef& def) const;

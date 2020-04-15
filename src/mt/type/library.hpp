@@ -28,6 +28,7 @@ struct TypeScope;
     explicit SpecialIdentifierStore(StringRegistry& string_registry);
     int64_t subsref;
     int64_t subsindex;
+    int64_t identifier_struct;
   };
 
 /*

@@ -30,7 +30,7 @@ public:
   }
 
   template <typename... Args>
-  Type* make_constant_value(Args&&... args) {
+  types::ConstantValue* make_constant_value(Args&&... args) {
     return make_type<types::ConstantValue>(std::forward<Args>(args)...);
   }
 

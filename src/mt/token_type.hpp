@@ -98,6 +98,7 @@ enum class TokenType : unsigned int {
   keyword_fun_type,
   keyword_end_type,
   keyword_declare,
+  keyword_constructor,
   //  Typing meta
   type_annotation_macro,
   //  Meta

@@ -614,6 +614,17 @@ std::string StringVisitor::declare_type_node(const DeclareTypeNode& node) const 
   return declare_str;
 }
 
+std::string StringVisitor::constructor_type_node(const ConstructorTypeNode& node) const {
+  std::string ctor_str("constructor ");
+  maybe_colorize(ctor_str, node.source_token.type);
+  ctor_str += "\n" + tab_str() + node.stmt->accept(*this);
+  return ctor_str;
+}
+
+std::string StringVisitor::infer_type_node(const InferTypeNode&) const {
+  return "?";
+}
+
 std::string StringVisitor::inline_type(const InlineType& type) const {
   return type.type->accept(*this);
 }

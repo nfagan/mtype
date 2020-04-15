@@ -550,5 +550,6 @@ namespace mt {
 #define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))
 #define MT_SCALAR_MUT_PTR(a) static_cast<mt::types::Scalar*>((a))
 #define MT_SCHEME_MUT_PTR(a) static_cast<mt::types::Scheme*>((a))
+#define MT_CONST_VAL_MUT_PTR(a) static_cast<mt::types::ConstantValue*>((a))
 #define MT_DT_MUT_PTR(a) static_cast<mt::types::DestructuredTuple*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

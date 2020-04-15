@@ -27,6 +27,26 @@ void TypeAnnotMacro::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * ConstructorTypeNode
+ */
+
+std::string ConstructorTypeNode::accept(const StringVisitor& vis) const {
+  return vis.constructor_type_node(*this);
+}
+
+ConstructorTypeNode* ConstructorTypeNode::accept(IdentifierClassifier& classifier) {
+  return classifier.constructor_type_node(*this);
+}
+
+void ConstructorTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.constructor_type_node(*this);
+}
+
+void ConstructorTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.constructor_type_node(*this);
+}
+
+/*
  * NamespaceTypeNode
  */
 
@@ -220,6 +240,22 @@ void RecordTypeNode::accept_const(TypePreservingVisitor& vis) const {
 
 void RecordTypeNode::accept(TypePreservingVisitor& vis) {
   vis.record_type_node(*this);
+}
+
+/*
+ * InferTypeNode
+ */
+
+std::string InferTypeNode::accept(const StringVisitor& vis) const {
+  return vis.infer_type_node(*this);
+}
+
+void InferTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.infer_type_node(*this);
+}
+
+void InferTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.infer_type_node(*this);
 }
 
 /*

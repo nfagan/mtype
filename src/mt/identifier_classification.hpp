@@ -238,6 +238,7 @@ public:
   FunTypeNode* fun_type_node(FunTypeNode& node);
   TypeAnnotMacro* type_annot_macro(TypeAnnotMacro& node);
   TypeAssertion* type_assertion(TypeAssertion& node);
+  ConstructorTypeNode* constructor_type_node(ConstructorTypeNode& node);
 
   void if_branch(IfBranch& branch);
   void subscripts(std::vector<Subscript>& subscripts, int64_t begin);

@@ -9,6 +9,10 @@ namespace mt {
 
 class StringRegistry;
 struct FunctionTypeNode;
+struct AssignmentStmt;
+struct IdentifierReferenceExpr;
+struct Type;
+
 using BoxedFunctionTypeNode = std::unique_ptr<FunctionTypeNode>;
 
 namespace types {
@@ -49,6 +53,23 @@ struct NamespaceTypeNode : public TypeAnnot {
   Token source_token;
   TypeIdentifier identifier;
   BoxedTypeAnnots enclosing;
+};
+
+struct ConstructorTypeNode : public TypeAnnot {
+  ConstructorTypeNode(const Token& source_token, std::unique_ptr<AssignmentStmt> stmt,
+                      IdentifierReferenceExpr* struct_function_call) :
+  source_token(source_token), stmt(std::move(stmt)), struct_function_call(struct_function_call) {
+    //
+  }
+  ~ConstructorTypeNode() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  ConstructorTypeNode* accept(IdentifierClassifier& classifier) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  std::unique_ptr<AssignmentStmt> stmt;
+  IdentifierReferenceExpr* struct_function_call;
 };
 
 struct DeclareTypeNode : public TypeAnnot {
@@ -247,6 +268,20 @@ struct RecordTypeNode : public TypeNode {
   TypeIdentifier identifier;
   types::Record* type;
   Fields fields;
+};
+
+struct InferTypeNode : public TypeNode {
+  InferTypeNode(const Token& source_token, Type* type) : source_token(source_token), type(type) {
+    //
+  }
+  ~InferTypeNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  Type* type;
 };
 
 struct UnionTypeNode : public TypeNode {

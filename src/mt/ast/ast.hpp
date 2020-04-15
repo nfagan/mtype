@@ -73,6 +73,10 @@ struct Expr : public AstNode {
     return false;
   }
 
+  virtual bool is_char_literal_expr() const {
+    return false;
+  }
+
   virtual bool is_identifier_reference_expr() const {
     return false;
   }

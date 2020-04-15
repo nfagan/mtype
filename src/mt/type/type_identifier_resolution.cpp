@@ -204,6 +204,11 @@ void TypeIdentifierResolver::scalar_type_node(const ScalarTypeNode& node) {
   }
 }
 
+void TypeIdentifierResolver::infer_type_node(const InferTypeNode& node) {
+  assert(node.type);
+  instance->collectors.current().push(node.type);
+}
+
 void TypeIdentifierResolver::fun_type_node(const FunTypeNode& node) {
   //  Push polymorphic functions
   BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, true);

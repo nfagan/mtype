@@ -2,12 +2,16 @@
 
 TODO
 
-1. global variables not handled.
-2. * in packages, register entry-function (and entry-function only) using the
-package namespace.
-3. * ternary colon operator (1:2:3)
-4. * search super-classes.
-5. * spmd and parfor statements
-6. single-line if statements (if 1 true; else false)
+. global variables not handled.
+. * ternary colon operator (1:2:3)
+. * search super-classes.
+. * spmd and parfor statements
+. single-line if statements (if 1 true; else false)
+. * static method lookup; wildcard imports; proper method dispatch
+. classes / methods in @-folders
+. * proper scheme simplification / relation
+. * Don't recreate types in the constraint generator that were made in
+  the identifier resolver.
+. * varargin
 
 %}

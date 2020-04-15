@@ -119,9 +119,9 @@ private:
 
 class ClassDefState {
   struct Stack {
-    static void push(ClassDefState& state, const ClassDefHandle& handle,
-                     types::Class* type, const MatlabIdentifier& name) {
-      state.push_class(handle, type, name);
+    template <typename... Args>
+    static void push(ClassDefState& state, Args&&... args) {
+      state.push_class(std::forward<Args>(args)...);
     }
     static void pop(ClassDefState& state) {
       state.pop_class();
@@ -138,6 +138,7 @@ public:
   ClassDefHandle enclosing_class() const;
   types::Class* enclosing_class_type() const;
   MatlabIdentifier enclosing_class_name() const;
+  MatlabIdentifier unqualified_enclosing_class_name() const;
 
   bool is_within_class() const;
 
@@ -151,6 +152,8 @@ public:
 
 private:
   void push_class(const ClassDefHandle& handle, types::Class* type, const MatlabIdentifier& name);
+  void push_class(const ClassDefHandle& handle, types::Class* type,
+                  const MatlabIdentifier& full_name, const MatlabIdentifier& unqualified_name);
   void pop_class();
 
 private:
@@ -158,6 +161,7 @@ private:
   std::vector<ClassDefHandle> class_defs;
   std::vector<types::Class*> class_types;
   std::vector<MatlabIdentifier> class_names;
+  std::vector<MatlabIdentifier> unqualified_class_names;
 };
 
 template <typename T>
