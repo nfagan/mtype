@@ -24,12 +24,12 @@ struct TypeScope;
  * SpecialIdentifierStore
  */
 
-  struct SpecialIdentifierStore {
-    explicit SpecialIdentifierStore(StringRegistry& string_registry);
-    int64_t subsref;
-    int64_t subsindex;
-    int64_t identifier_struct;
-  };
+struct SpecialIdentifierStore {
+  explicit SpecialIdentifierStore(StringRegistry& string_registry);
+  int64_t subsref;
+  int64_t subsindex;
+  int64_t identifier_struct;
+};
 
 /*
  * ScalarTypeStore

@@ -409,8 +409,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   iterator.advance();
 
   if (!parse_instance->registered_file_type) {
-    bool success = parse_instance->register_file_type(CodeFileType::function_def);
-    assert(success);
+    parse_instance->register_file_type(CodeFileType::function_def);
   }
   parse_instance->mark_visited_function();
 
