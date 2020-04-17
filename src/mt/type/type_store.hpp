@@ -79,7 +79,7 @@ public:
   }
 
   template <typename... Args>
-  Type* make_abstraction(Args&&... args) {
+  types::Abstraction* make_abstraction(Args&&... args) {
     return make_type<types::Abstraction>(std::forward<Args>(args)...);
   }
 

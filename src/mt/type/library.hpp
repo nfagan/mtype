@@ -141,7 +141,6 @@ public:
 
   //  Test a <: b
   bool subtype_related(const Type* lhs, const Type* rhs) const;
-//  bool subtype_related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const;
 
   Optional<Type*> get_number_type() const;
   Optional<Type*> get_char_type() const;
@@ -159,6 +158,7 @@ private:
   void make_feval();
   void make_deal();
   void make_logicals();
+  void make_subtype_debug();
 
   Optional<types::Class*> class_wrapper(const Type* type) const;
 
@@ -168,7 +168,7 @@ private:
 
   void add_type_with_known_subscript(const Type* t);
 
-  Type* make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs);
+  types::Abstraction* make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs);
   types::Class* make_class_wrapper(const TypeIdentifier& name, Type* source);
   types::Scalar* make_named_scalar_type(const char* name);
   void process_scalar_type(types::Scalar* type);

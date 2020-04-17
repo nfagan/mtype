@@ -30,25 +30,6 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   return false;
 }
 
-//bool Library::subtype_related(const Type*, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const {
-//  if (a.identifier == b.identifier) {
-//    return true;
-//  }
-//
-//  const auto& sub_it = class_types.find(a.identifier);
-//  if (sub_it == class_types.end()) {
-//    return false;
-//  }
-//
-//  for (const auto& supertype : sub_it->second->supertypes) {
-//    if (supertype == rhs || subtype_related(supertype, rhs)) {
-//      return true;
-//    }
-//  }
-//
-//  return false;
-//}
-
 Library::FunctionSearchResult Library::search_function(const types::Abstraction& func) const {
   const auto def_handle = maybe_extract_function_def(func);
 
@@ -255,6 +236,7 @@ void Library::make_known_types() {
   make_subscript_references();
   make_free_functions();
   make_concatenations();
+  make_subtype_debug();
 }
 
 void Library::make_base_type_scope() {
@@ -394,7 +376,29 @@ void Library::make_logicals() {
   function_types[fls_copy] = fls;
 }
 
-Type* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs) {
+void Library::make_subtype_debug() {
+  auto rec0 = store.make_record();
+  auto f0_name = store.make_constant_value(TypeIdentifier(string_registry.register_string("x")));
+  auto f0 = types::Record::Field{f0_name, get_number_type().value()};
+  rec0->fields.push_back(f0);
+  auto cls0 = store.make_class(TypeIdentifier(string_registry.register_string("cls0")), rec0);
+  auto method0 = make_simple_function("method1", TypePtrs{cls0}, TypePtrs{get_number_type().value()});
+  class_types[cls0->name] = cls0;
+  method_store.add_method(cls0, *method0, method0);
+
+  auto rec1 = store.make_record(*rec0);
+  auto cls1 = store.make_class(TypeIdentifier(string_registry.register_string("cls1")), rec1);
+  cls1->supertypes.push_back(cls0);
+  class_types[cls1->name] = cls1;
+
+  auto make_cls0 = make_simple_function("make_cls0", TypePtrs{}, TypePtrs{cls0});
+  auto make_cls1 = make_simple_function("make_cls1", TypePtrs{}, TypePtrs{cls1});
+
+  function_types[*make_cls0] = make_cls0;
+  function_types[*make_cls1] = make_cls1;
+}
+
+types::Abstraction* Library::make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs) {
   auto input_tup = store.make_input_destructured_tuple(std::move(args));
   auto output_tup = store.make_output_destructured_tuple(std::move(outs));
   MatlabIdentifier name_ident(string_registry.register_string(name));

@@ -343,7 +343,7 @@ void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
   const auto output = store.make_output_destructured_tuple(std::move(outputs));
   auto abstr = store.make_abstraction(function_name, node.ref_handle, input, output);
 
-  auto emplaced_type = abstr;
+  Type* emplaced_type = abstr;
   if (instance->polymorphic_function_state.value()) {
     emplaced_type = store.make_scheme(abstr, std::move(all_parameters));
   }
