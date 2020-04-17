@@ -102,8 +102,8 @@ bool TypeRelation::related_different_types(const Type* a, const Type* b, bool re
   }
 }
 
-bool TypeRelation::related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const {
-  return relationship.related(lhs, rhs, a, b, rev);
+bool TypeRelation::related(const Type* lhs, const Type* rhs, const types::Scalar&, const types::Scalar&, bool rev) const {
+  return relationship.related(lhs, rhs, rev);
 }
 
 bool TypeRelation::related_list(const TypePtrs& a, const TypePtrs& b, int64_t* ia, int64_t* ib,

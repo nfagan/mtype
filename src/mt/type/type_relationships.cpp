@@ -7,19 +7,23 @@ namespace mt {
  * TypeEquivalence
  */
 
-bool EquivalenceRelation::related(const Type*, const Type*, const types::Scalar& a, const types::Scalar& b, bool) const {
-  return a.identifier == b.identifier;
+bool EquivalenceRelation::related(const Type* lhs, const Type* rhs, bool) const {
+  if (lhs->is_scalar() && rhs->is_scalar()) {
+    return MT_SCALAR_REF(*lhs).identifier == MT_SCALAR_REF(*rhs).identifier;
+  }
+
+  return false;
 }
 
 /*
  * SubtypeRelated
  */
 
-bool SubtypeRelation::related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const {
+bool SubtypeRelation::related(const Type* lhs, const Type* rhs, bool rev) const {
   if (rev) {
-    return library.subtype_related(rhs, lhs, b, a);
+    return library.subtype_related(rhs, lhs);
   } else {
-    return library.subtype_related(lhs, rhs, a, b);
+    return library.subtype_related(lhs, rhs);
   }
 }
 

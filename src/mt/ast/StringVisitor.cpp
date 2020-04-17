@@ -152,11 +152,11 @@ std::string StringVisitor::class_def(const ClassDef& def) const {
   maybe_colorize(class_def_kw, TokenType::keyword_classdef);
   auto result = class_def_kw + " " + std::string(string_registry->at(def.name.full_name()));
 
-  if (!def.superclass_names.empty()) {
+  if (!def.superclasses.empty()) {
     result += " < ";
-    for (int64_t i = 0; i < int64_t(def.superclass_names.size()); i++) {
-      result += string_registry->at(def.superclass_names[i].full_name());
-      if (i < int64_t(def.superclass_names.size()) - 1) {
+    for (int64_t i = 0; i < int64_t(def.superclasses.size()); i++) {
+      result += string_registry->at(def.superclasses[i].name.full_name());
+      if (i < int64_t(def.superclasses.size()) - 1) {
         result += " & ";
       }
     }

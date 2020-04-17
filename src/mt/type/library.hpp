@@ -29,6 +29,7 @@ struct SpecialIdentifierStore {
   int64_t subsref;
   int64_t subsindex;
   int64_t identifier_struct;
+  int64_t handle;
 };
 
 /*
@@ -121,6 +122,7 @@ public:
 
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
   MT_NODISCARD Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
+  MT_NODISCARD Optional<Type*> lookup_method(const Type* type, const types::Abstraction& func) const;
   MT_NODISCARD FunctionSearchResult search_function(const types::Abstraction& func) const;
 
   MT_NODISCARD Optional<types::Class*> lookup_class(const TypeIdentifier& name) const;
@@ -129,6 +131,7 @@ public:
   MT_NODISCARD Optional<const types::Class*> class_for_type(const Type* type) const;
 
   bool is_known_subscript_type(const Type* type) const;
+  bool is_builtin_class(const MatlabIdentifier& ident) const;
 
   MT_NODISCARD Optional<std::string> type_name(const Type* type) const;
 
@@ -138,7 +141,7 @@ public:
 
   //  Test a <: b
   bool subtype_related(const Type* lhs, const Type* rhs) const;
-  bool subtype_related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const;
+//  bool subtype_related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const;
 
   Optional<Type*> get_number_type() const;
   Optional<Type*> get_char_type() const;

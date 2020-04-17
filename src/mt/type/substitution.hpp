@@ -13,13 +13,8 @@ public:
     //
   }
 
-  int64_t num_type_equations() const {
-    return type_equations.size();
-  }
-
-  int64_t num_bound_terms() const {
-    return bound_terms.size();
-  }
+  int64_t num_type_equations() const;
+  int64_t num_bound_terms() const;
 
   void push_type_equation(const TypeEquation& eq);
   Optional<Type*> bound_type(const TypeEquationTerm& for_type) const;

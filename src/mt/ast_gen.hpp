@@ -55,6 +55,8 @@ struct ParseInstance {
   bool has_parent_package() const;
   void mark_visited_function();
   bool register_file_type(CodeFileType file_type);
+  void set_file_entry_function_ref(const FunctionReferenceHandle& ref_handle);
+  void set_file_entry_class_def(const ClassDefHandle& def_handle);
 
   bool is_file_entry_function() const;
   bool is_function_file() const;
@@ -78,6 +80,9 @@ struct ParseInstance {
   int64_t num_visited_functions;
   bool registered_file_type;
   CodeFileType file_type;
+
+  ClassDefHandle file_entry_class_def;
+  FunctionReferenceHandle file_entry_function_ref;
 };
 
 /*
@@ -126,7 +131,7 @@ private:
 
   Optional<BoxedAstNode> class_def();
   Optional<MatlabIdentifier> superclass_name();
-  Optional<std::vector<MatlabIdentifier>> superclass_names();
+  Optional<ClassDef::Superclasses> superclasses();
 
   bool methods_block(const ClassDefHandle& enclosing_class,
                      std::set<int64_t>& method_names,

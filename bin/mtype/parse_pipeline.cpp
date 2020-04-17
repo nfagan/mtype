@@ -103,14 +103,106 @@ AstStore::Entry* run_parse_file(ParseInstance& parse_instance,
 
   assert(parse_instance.root_block->type_scope->is_root());
   auto& root_block = parse_instance.root_block;
-  return ast_store.insert(file_path, AstStore::Entry(std::move(root_block), true, false, false));
+  const auto& maybe_class_def = parse_instance.file_entry_class_def;
+  const auto& maybe_function_def = parse_instance.file_entry_function_ref;
+
+  AstStore::Entry entry(std::move(root_block), maybe_class_def, maybe_function_def);
+  return ast_store.insert(file_path, std::move(entry));
 }
 
-ParseError make_error_unresolved_type_import(const ParseSourceData& source_data,
-                                             const Token& token,
-                                             const std::string& ident) {
+ParseError make_error_unresolved_file(const ParseSourceData& source_data,
+                                      const Token& token,
+                                      const std::string& ident) {
   std::string msg = "Failed to locate: `" + ident + "`.";
   return ParseError(source_data.source, token, msg, source_data.file_descriptor);
+}
+
+ParseError make_error_superclass_is_not_class_file(const ParseSourceData& source_data,
+                                                   const Token& token,
+                                                   const std::string& ident) {
+  std::string msg = "Superclass `" + ident + "` is not a classdef file.";
+  return ParseError(source_data.source, token, msg, source_data.file_descriptor);
+}
+
+bool traverse_imports(const PendingTypeImports& pending_type_imports,
+                      ParsePipelineInstanceData& pipe_instance,
+                      const ParseSourceData& source_data) {
+  bool success = true;
+  const auto search_dir = fs::directory_name(source_data.file_descriptor->file_path);
+
+  for (auto& pending_import : pending_type_imports) {
+    const auto ident_str = pipe_instance.string_registry.at(pending_import.identifier);
+    const auto search_res = pipe_instance.search_path.search_for(ident_str, search_dir);
+    if (!search_res) {
+      auto err = make_error_unresolved_file(source_data, pending_import.source_token, ident_str);
+      pipe_instance.add_error(err);
+      success = false;
+      continue;
+    }
+
+    auto maybe_import = file_entry(pipe_instance, search_res.value()->defining_file);
+    if (!maybe_import || !maybe_import->root_block) {
+      success = false;
+      continue;
+    }
+
+    auto exported_type_scope = maybe_import->root_block->type_scope;
+    pending_import.into_scope->add_import(TypeImport(exported_type_scope, pending_import.is_exported));
+  }
+
+  return success;
+}
+
+bool traverse_superclasses(const ClassDefHandle& class_def,
+                           ParsePipelineInstanceData& pipe_instance,
+                           const ParseSourceData& source_data) {
+  std::vector<ClassDef::Superclass> superclasses;
+  Token source_token;
+
+  pipe_instance.store.use<Store::ReadConst>([&](const auto& reader) {
+    const ClassDef& def = reader.at(class_def);
+    superclasses = def.superclasses;
+    source_token = def.source_token;
+  });
+
+  bool success = true;
+  const auto search_dir = fs::directory_name(source_data.file_descriptor->file_path);
+
+  for (int64_t i = 0; i < int64_t(superclasses.size()); i++) {
+    const auto& superclass = superclasses[i];
+    const auto ident_str = pipe_instance.string_registry.at(superclass.name.full_name());
+    const auto search_res = pipe_instance.search_path.search_for(ident_str, search_dir);
+    if (!search_res) {
+      auto err = make_error_unresolved_file(source_data, source_token, ident_str);
+      pipe_instance.add_error(err);
+      success = false;
+      continue;
+    }
+
+    auto maybe_superclass = file_entry(pipe_instance, search_res.value()->defining_file);
+    if (!maybe_superclass || !maybe_superclass->root_block) {
+      success = false;
+      continue;
+    }
+
+    const auto& maybe_class_def = maybe_superclass->file_entry_class_def;
+    if (!maybe_class_def.is_valid()) {
+      auto err = make_error_superclass_is_not_class_file(source_data, source_token, ident_str);
+      pipe_instance.add_error(err);
+      success = false;
+      continue;
+    }
+
+    //  Register the super class definition.
+    pipe_instance.store.use<Store::ReadMut>([&](auto& reader) {
+      ClassDef& def = reader.at(class_def);
+      auto& super_ref = def.superclasses[i];
+      assert(!super_ref.def_handle.is_valid());
+      super_ref.def_handle = maybe_class_def;
+    });
+  }
+
+  return success;
 }
 
 }
@@ -189,28 +281,17 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance, const File
   pipe_instance.roots.insert(root_res->root_block.get());
   pipe_instance.root_files.insert(file_path);
 
-  bool had_unresolved_import = false;
-
-  for (auto& pending_import : parse_instance.pending_type_imports) {
-    const auto& ident_str = pipe_instance.string_registry.at(pending_import.identifier);
-    const auto search_res = pipe_instance.search_path.search_for(ident_str, fs::directory_name(file_path));
-    if (!search_res) {
-      const auto str_ident = pipe_instance.string_registry.at(pending_import.identifier);
-      auto err = make_error_unresolved_type_import(source_data, pending_import.source_token, str_ident);
-      pipe_instance.add_error(err);
-      had_unresolved_import = true;
-      continue;
-    }
-
-    auto maybe_import = file_entry(pipe_instance, search_res.value()->defining_file);
-
-    if (maybe_import && maybe_import->root_block) {
-      auto exported_type_scope = maybe_import->root_block->type_scope;
-      pending_import.into_scope->add_import(TypeImport(exported_type_scope, pending_import.is_exported));
+  if (parse_instance.is_class_file()) {
+    //  Traverse superclasses
+    assert(parse_instance.file_entry_class_def.is_valid());
+    bool super_success = traverse_superclasses(parse_instance.file_entry_class_def, pipe_instance, source_data);
+    if (!super_success) {
+      return nullptr;
     }
   }
 
-  if (had_unresolved_import) {
+  bool import_success = traverse_imports(parse_instance.pending_type_imports, pipe_instance, source_data);
+  if (!import_success) {
     return nullptr;
   }
 

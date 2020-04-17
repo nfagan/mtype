@@ -156,8 +156,8 @@ bool Simplifier::simplify_different_types(Type* lhs, Type*, const types::Paramet
   return true;
 }
 
-bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev) {
-  const bool success = unifier.subtype_relationship.related(lhs, rhs, t0, t1, rev);
+bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scalar&, const types::Scalar&, bool rev) {
+  const bool success = unifier.subtype_relationship.related(lhs, rhs, rev);
   check_emplace_simplification_failure(success, lhs, rhs);
   return success;
 }
@@ -210,7 +210,9 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
 }
 
 bool Simplifier::simplify(const types::Class& t0, const types::Class& t1, bool rev) {
-  return simplify(t0.source, t1.source, rev);
+  bool success = unifier.subtype_relationship.related(&t0, &t1, rev);
+  check_emplace_simplification_failure(success, &t0, &t1);
+  return success;
 }
 
 bool Simplifier::simplify(const types::Record& t0, const types::Record& t1, bool rev) {

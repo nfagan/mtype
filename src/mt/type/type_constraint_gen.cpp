@@ -271,8 +271,11 @@ void TypeConstraintGenerator::handle_class_method(const TypePtrs& function_input
 
 void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   MatlabIdentifier name;
+  ClassDef::Superclasses superclasses;
   store.use<Store::ReadConst>([&](const auto& reader) {
-    name = reader.at(node.handle).name;
+    const auto& def = reader.at(node.handle);
+    name = def.name;
+    superclasses = def.superclasses;
   });
 
   const auto maybe_class = library.lookup_local_class(node.handle);
@@ -280,6 +283,13 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   auto* class_type = maybe_class.value();
   assert(class_type->source->is_record());
   const auto& record_type = MT_RECORD_REF(*class_type->source);
+
+  for (const auto& superclass : superclasses) {
+    const auto maybe_superclass = library.lookup_local_class(superclass.def_handle);
+    assert(maybe_superclass);
+    auto* superclass_type = maybe_superclass.value();
+    class_type->supertypes.push_back(superclass_type);
+  }
 
   for (const auto& prop : node.properties) {
     if (prop.initializer) {
@@ -321,7 +331,7 @@ void TypeConstraintGenerator::type_assertion(const TypeAssertion& assertion) {
   assertion.node->accept_const(*this);
   auto actual_type = pop_type_equation_term();
 
-  push_type_equation(make_eq(expected_type, actual_type));
+  push_type_equation(make_eq(actual_type, expected_type));
 }
 
 void TypeConstraintGenerator::function_type_node(const FunctionTypeNode& node) {
@@ -403,10 +413,10 @@ void TypeConstraintGenerator::struct_as_constructor(const FunctionCallExpr& expr
    * @T constructor
    * X = struct( 'x', some_value(), 'y', some_other_value() );
    */
-  bool expect_char = true;
   auto record_type = type_store.make_record();
   types::ConstantValue* field_name = nullptr;
   bool success = true;
+  bool expect_char = true;
 
   for (const auto& arg : expr.arguments) {
     if (expect_char && arg->is_char_literal_expr()) {
@@ -420,7 +430,7 @@ void TypeConstraintGenerator::struct_as_constructor(const FunctionCallExpr& expr
 
       if (arg->is_grouping_expr() &&
           static_cast<const GroupingExpr&>(*arg).method == GroupingMethod::brace) {
-        //  struct( 'a', {1, 2, 3} );
+        //  x = struct( 'a', {1, 2, 3} ) creates a 1x3 struct where x(1).a is 1, x(2).a is 2, ...
         const auto& group_expr = static_cast<GroupingExpr&>(*arg);
         auto components = grouping_expr_components(group_expr);
         if (components.empty()) {
@@ -436,7 +446,6 @@ void TypeConstraintGenerator::struct_as_constructor(const FunctionCallExpr& expr
             push_type_equation(make_eq(term0, term1));
           }
         }
-
       } else {
         field_type = visit_expr(arg, expr.source_token).term;
       }

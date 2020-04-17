@@ -9,31 +9,45 @@
 namespace mt {
 
 bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
-  if (lhs->is_scalar() && rhs->is_scalar()) {
-    return subtype_related(lhs, rhs, MT_SCALAR_REF(*lhs), MT_SCALAR_REF(*rhs));
-  } else {
-    return false;
-  }
-}
+  auto maybe_lhs_cls = class_for_type(lhs);
+  auto maybe_rhs_cls = class_for_type(rhs);
 
-bool Library::subtype_related(const Type*, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const {
-  if (a.identifier == b.identifier) {
+  if (!maybe_lhs_cls || !maybe_rhs_cls) {
+    return false;
+  } else if (maybe_lhs_cls.value() == maybe_rhs_cls.value()) {
     return true;
   }
 
-  const auto& sub_it = class_types.find(a.identifier);
-  if (sub_it == class_types.end()) {
-    return false;
-  }
+  const auto* lhs_cls = maybe_lhs_cls.value();
+  const auto* rhs_cls = maybe_rhs_cls.value();
 
-  for (const auto& supertype : sub_it->second->supertypes) {
-    if (supertype == rhs || subtype_related(supertype, rhs)) {
+  for (const auto& supertype : lhs_cls->supertypes) {
+    if (supertype == rhs_cls || subtype_related(supertype, rhs_cls)) {
       return true;
     }
   }
 
   return false;
 }
+
+//bool Library::subtype_related(const Type*, const Type* rhs, const types::Scalar& a, const types::Scalar& b) const {
+//  if (a.identifier == b.identifier) {
+//    return true;
+//  }
+//
+//  const auto& sub_it = class_types.find(a.identifier);
+//  if (sub_it == class_types.end()) {
+//    return false;
+//  }
+//
+//  for (const auto& supertype : sub_it->second->supertypes) {
+//    if (supertype == rhs || subtype_related(supertype, rhs)) {
+//      return true;
+//    }
+//  }
+//
+//  return false;
+//}
 
 Library::FunctionSearchResult Library::search_function(const types::Abstraction& func) const {
   const auto def_handle = maybe_extract_function_def(func);
@@ -87,13 +101,28 @@ Optional<Type*> Library::method_dispatch(const types::Abstraction& func, const T
       return NullOpt{};
     }
 
-    const auto maybe_class = class_for_type(maybe_arg_lookup.value());
+    const auto maybe_method = lookup_method(maybe_arg_lookup.value(), func);
+    if (maybe_method) {
+      return maybe_method;
+    }
+  }
 
-    if (maybe_class) {
-      const auto maybe_method = method_store.lookup_method(maybe_class.value(), func);
+  return NullOpt{};
+}
 
-      if (maybe_method) {
-        return Optional<Type*>(maybe_method.value());
+Optional<Type*> Library::lookup_method(const Type* type, const types::Abstraction& func) const {
+  const auto maybe_class = class_for_type(type);
+
+  if (maybe_class) {
+    const auto maybe_method = method_store.lookup_method(maybe_class.value(), func);
+    if (maybe_method) {
+      return Optional<Type*>(maybe_method.value());
+    }
+
+    for (const auto& supertype : maybe_class.value()->supertypes) {
+      auto maybe_super_method = lookup_method(supertype, func);
+      if (maybe_super_method) {
+        return maybe_super_method;
       }
     }
   }
@@ -117,6 +146,7 @@ Optional<Type*> Library::lookup_local_function(const FunctionDefHandle& def_hand
 }
 
 Optional<types::Class*> Library::lookup_local_class(const ClassDefHandle& def_handle) const {
+  assert(def_handle.is_valid());
   const auto class_it = local_class_types.find(def_handle);
   return class_it == local_class_types.end() ? NullOpt{} : Optional<types::Class*>(class_it->second);
 }
@@ -160,6 +190,10 @@ bool Library::is_known_subscript_type(const Type* handle) const {
   }
 
   return false;
+}
+
+bool Library::is_builtin_class(const MatlabIdentifier& ident) const {
+  return ident == MatlabIdentifier(special_identifiers.handle);
 }
 
 Optional<std::string> Library::type_name(const Type* type) const {
@@ -490,9 +524,10 @@ Optional<Type*> ScalarTypeStore::lookup(const TypeIdentifier& name) const {
  */
 
 SpecialIdentifierStore::SpecialIdentifierStore(StringRegistry& string_registry) :
-subsref(string_registry.register_string("subsref")),
-subsindex(string_registry.register_string("subsindex")),
-identifier_struct(string_registry.register_string("struct")) {
+  subsref(string_registry.register_string("subsref")),
+  subsindex(string_registry.register_string("subsindex")),
+  identifier_struct(string_registry.register_string("struct")),
+  handle(string_registry.register_string("handle")) {
   //
 }
 

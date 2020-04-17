@@ -152,16 +152,23 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    //  Type identifier resolution
+    //  Type identifier resolution.
     bool any_resolution_errors = false;
 
     for (const auto& root_file : pipeline_instance.root_files) {
+      auto entry = ast_store.lookup(root_file);
+      assert(!entry->resolved_type_identifiers);
+      if (entry->resolved_type_identifiers) {
+        continue;
+      }
+
       const auto source_data = scan_result_store.at(root_file)->to_parse_source_data();
       TypeIdentifierResolverInstance instance(type_store, library, store, str_registry, source_data);
       TypeIdentifierResolver type_identifier_resolver(&instance);
 
-      const auto& root = ast_store.lookup(root_file)->root_block;
+      const auto& root = entry->root_block;
       root->accept_const(type_identifier_resolver);
+      entry->resolved_type_identifiers = true;
 
       if (instance.had_error()) {
         parse_errors.insert(parse_errors.end(), instance.errors.cbegin(), instance.errors.cend());
@@ -173,46 +180,39 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    const auto& root_ptr = root_res->root_block;
-    const auto constraint_t0 = clock::now();
-    root_ptr->accept_const(constraint_generator);
-    root_res->generated_type_constraints = true;  //  Mark that constraints were generated.
-    const auto constraint_t1 = clock::now();
-    constraint_time += std::chrono::duration<double>(constraint_t1 - constraint_t0).count() * 1e3;
-
-    Optional<Type*> maybe_local_func;
-    Optional<FunctionDefNode*> maybe_top_level_func;
-    Optional<FunctionReference> maybe_local_func_ref;
-
-    auto code_file_type = code_file_type_from_root_block(*root_ptr);
-
-    if (code_file_type == CodeFileType::function_def) {
-      maybe_top_level_func = root_ptr->extract_top_level_function_def();
-
-    } else if (code_file_type == CodeFileType::class_def) {
-      maybe_top_level_func = root_ptr->extract_constructor_function_def(store);
-
-    } else {
-      std::cout << "Top level kind for: " << file_path << ": " << to_string(code_file_type) << std::endl;
+    //  Type constraint generation.
+    for (const auto& root_file : pipeline_instance.root_files) {
+      auto entry = ast_store.lookup(root_file);
+      if (entry->generated_type_constraints) {
+        continue;
+      }
+      entry->root_block->accept_const(constraint_generator);
+      entry->generated_type_constraints = true;
     }
 
-    if (maybe_top_level_func) {
-      auto ref = store.get(maybe_top_level_func.value()->ref_handle);
-      maybe_local_func = library.lookup_local_function(ref.def_handle);
-      maybe_local_func_ref = Optional<FunctionReference>(ref);
-    }
+    for (const auto& root_file : pipeline_instance.root_files) {
+      const auto& root_ptr = ast_store.lookup(root_file)->root_block;
 
-    if (maybe_local_func) {
-      assert(maybe_local_func_ref);
-      const auto& ref = maybe_local_func_ref.value();
+      Optional<Type*> maybe_local_func;
+      FunctionReference local_func_ref;
 
-      const auto func_name = str_registry.at(ref.name.full_name());
-      const auto func_dir = fs::directory_name(ref.scope->file_descriptor->file_path);
+      const auto root_entry = ast_store.lookup(root_file);
+      if (root_entry->file_entry_function_ref.is_valid()) {
+        local_func_ref = store.get(root_entry->file_entry_function_ref);
+        maybe_local_func = library.lookup_local_function(local_func_ref.def_handle);
+      }
+
+      if (!maybe_local_func) {
+        continue;
+      }
+
+      const auto func_name = str_registry.at(local_func_ref.name.full_name());
+      const auto func_dir = fs::directory_name(local_func_ref.scope->file_descriptor->file_path);
       auto search_res = search_path.search_for(func_name, func_dir);
       Token source_token;
 
       store.use<Store::ReadConst>([&](const auto& reader) {
-        source_token = reader.at(ref.def_handle).header.name_token;
+        source_token = reader.at(local_func_ref.def_handle).header.name_token;
       });
 
       temporary_source_tokens.push_back(std::make_unique<Token>(source_token));
@@ -234,9 +234,7 @@ int main(int argc, char** argv) {
     unify_time += std::chrono::duration<double>(unify_t1 - unify_t0).count() * 1e3;
 
     if (unify_res.is_error()) {
-      for (auto& err : unify_res.errors) {
-        type_errors.push_back(std::move(err));
-      }
+      std::move(unify_res.errors.begin(), unify_res.errors.end(), std::back_inserter(type_errors));
       if (unify_res.errors.empty()) {
         std::cout << "ERROR: An error occurred, but no explicit errors were generated." << std::endl;
       }
@@ -245,7 +243,7 @@ int main(int argc, char** argv) {
     if (arguments.show_ast) {
       StringVisitor str_visitor(&str_registry, &store);
       str_visitor.colorize = arguments.rich_text;
-      std::cout << root_ptr->accept(str_visitor) << std::endl;
+      std::cout << root_res->root_block->accept(str_visitor) << std::endl;
     }
   }
 

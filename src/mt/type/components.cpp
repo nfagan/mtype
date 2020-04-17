@@ -27,10 +27,6 @@ TypeEquation make_eq(const TypeEquationTerm& lhs, const TypeEquationTerm& rhs) {
   return TypeEquation(lhs, rhs);
 }
 
-TypeReference make_ref(const Token* source_token, Type* term, const TypeScope* scope) {
-  return TypeReference(source_token, term, scope);
-}
-
 MatlabIdentifier to_matlab_identifier(const TypeIdentifier& ident) {
   return MatlabIdentifier(ident.full_name());
 }

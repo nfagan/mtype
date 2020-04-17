@@ -234,27 +234,33 @@ struct VariableDef {
 };
 
 struct ClassDef {
+  struct Superclass {
+    MatlabIdentifier name;
+    ClassDefHandle def_handle;
+  };
+
   struct Property {
     Property() = default;
     explicit Property(const MatlabIdentifier& name) : name(name) {
       //
     }
-    ~Property() = default;
 
     MatlabIdentifier name;
   };
+
   using Properties = std::vector<Property>;
   using Methods = std::vector<FunctionDefHandle>;
+  using Superclasses = std::vector<Superclass>;
 
   ClassDef() = default;
   ClassDef(const Token& source_token,
            const MatlabIdentifier& name,
-           std::vector<MatlabIdentifier>&& superclasses,
+           Superclasses&& superclasses,
            Properties&& properties,
            Methods&& methods) :
     source_token(source_token),
     name(name),
-    superclass_names(std::move(superclasses)),
+    superclasses(std::move(superclasses)),
     properties(std::move(properties)),
     methods(std::move(methods)) {
     //
@@ -265,7 +271,7 @@ struct ClassDef {
 
   Token source_token;
   MatlabIdentifier name;
-  std::vector<MatlabIdentifier> superclass_names;
+  Superclasses superclasses;
   Properties properties;
   Methods methods;
 };

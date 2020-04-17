@@ -2,6 +2,14 @@
 
 namespace mt {
 
+int64_t Substitution::num_type_equations() const {
+  return type_equations.size();
+}
+
+int64_t Substitution::num_bound_terms() const {
+  return bound_terms.size();
+}
+
 void Substitution::push_type_equation(const TypeEquation& eq) {
   type_equations.push_back(eq);
 }

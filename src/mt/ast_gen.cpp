@@ -62,6 +62,15 @@ bool ParseInstance::register_file_type(CodeFileType ft) {
   return true;
 }
 
+void ParseInstance::set_file_entry_function_ref(const FunctionReferenceHandle& ref_handle) {
+  assert(!file_entry_function_ref.is_valid());
+  file_entry_function_ref = ref_handle;
+}
+void ParseInstance::set_file_entry_class_def(const ClassDefHandle& def_handle) {
+  assert(!file_entry_class_def.is_valid());
+  file_entry_class_def = def_handle;
+}
+
 bool ParseInstance::is_function_file() const {
   return file_type == CodeFileType::function_def;
 }
@@ -504,6 +513,11 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
+  //  Mark this function as the function accessible to external files by its filename.
+  if (parse_instance->is_file_entry_function() || attrs.is_constructor()) {
+    parse_instance->set_file_entry_function_ref(ref_handle);
+  }
+
   auto ast_node = std::make_unique<FunctionDefNode>(source_token, def_handle, ref_handle,
                                                     child_scope, child_type_scope);
   return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
@@ -529,8 +543,8 @@ Optional<MatlabIdentifier> AstGenerator::superclass_name() {
   return Optional<MatlabIdentifier>(identifier);
 }
 
-Optional<std::vector<MatlabIdentifier>> AstGenerator::superclass_names() {
-  std::vector<MatlabIdentifier> names;
+Optional<ClassDef::Superclasses> AstGenerator::superclasses() {
+  ClassDef::Superclasses supers;
 
   while (iterator.has_next()) {
     auto one_name_res = superclass_name();
@@ -538,7 +552,10 @@ Optional<std::vector<MatlabIdentifier>> AstGenerator::superclass_names() {
       return NullOpt{};
     }
 
-    names.emplace_back(one_name_res.rvalue());
+    if (!parse_instance->library->is_builtin_class(one_name_res.value())) {
+      ClassDef::Superclass super{one_name_res.value(), ClassDefHandle()};
+      supers.push_back(super);
+    }
 
     if (iterator.peek().type == TokenType::ampersand) {
       iterator.advance();
@@ -547,7 +564,7 @@ Optional<std::vector<MatlabIdentifier>> AstGenerator::superclass_names() {
     }
   }
 
-  return Optional<std::vector<MatlabIdentifier>>(std::move(names));
+  return Optional<ClassDef::Superclasses>(std::move(supers));
 }
 
 Optional<BoxedAstNode> AstGenerator::class_def() {
@@ -582,18 +599,18 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     return NullOpt{};
   }
 
-  std::vector<MatlabIdentifier> superclasses;
+  ClassDef::Superclasses supers;
 
   //  classdef X < Y
   if (iterator.peek().type == TokenType::less) {
     iterator.advance();
 
-    auto superclass_res = superclass_names();
+    auto superclass_res = superclasses();
     if (!superclass_res) {
       return NullOpt{};
     }
 
-    superclasses = std::move(superclass_res.rvalue());
+    supers = std::move(superclass_res.rvalue());
   }
 
   ClassDef::Properties properties;
@@ -652,7 +669,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     return NullOpt{};
   }
 
-  ClassDef class_def(source_token, qualified_name, std::move(superclasses),
+  ClassDef class_def(source_token, qualified_name, std::move(supers),
                      std::move(properties), std::move(methods));
 
   {
@@ -668,6 +685,9 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
     add_error(make_error_duplicate_class_def(source_token));
     return NullOpt{};
   }
+
+  //  Add file entry class definition handle.
+  parse_instance->set_file_entry_class_def(class_handle);
 
   const auto class_identifier = maybe_namespace_enclose_type_identifier(TypeIdentifier(qualified_name.full_name()));
   //  @Note: Class definition are always exported.

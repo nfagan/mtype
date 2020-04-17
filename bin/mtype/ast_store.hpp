@@ -9,12 +9,15 @@ class AstStore {
 public:
   struct Entry {
     Entry();
-    Entry(BoxedRootBlock root_block, bool parsed, bool generated_constraints, bool resolved_identifiers);
+    Entry(BoxedRootBlock root_block, const ClassDefHandle& maybe_class_def,
+          const FunctionReferenceHandle& maybe_function_ref);
 
     BoxedRootBlock root_block;
     bool parsed_successfully;
     bool generated_type_constraints;
     bool resolved_type_identifiers;
+    ClassDefHandle file_entry_class_def;
+    FunctionReferenceHandle file_entry_function_ref;
   };
 
   AstStore::Entry* insert(const FilePath& file_path, Entry&& entry);

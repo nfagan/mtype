@@ -13,7 +13,7 @@ public:
   TypeRelationship() = default;
   virtual ~TypeRelationship() = default;
 
-  virtual bool related(const Type* lhs, const Type* rhs, const types::Scalar& a, const types::Scalar& b, bool rev) const = 0;
+  virtual bool related(const Type* lhs, const Type* rhs, bool rev) const = 0;
 };
 
 class TypeRelation {
