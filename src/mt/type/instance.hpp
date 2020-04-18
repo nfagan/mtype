@@ -32,6 +32,8 @@ private:
   Type* clone(const types::Subscript& sub, IV replacing);
   Type* clone(const types::Scheme& scheme, IV replacing);
   Type* clone(const types::Assignment& assign, IV replacing);
+  Type* clone(const types::Class& cls, IV replacing);
+  Type* clone(const types::Record& record, IV replacing);
   Type* clone(const types::Variable& var, Type* source, IV replacing);
   Type* clone(const types::Scalar& scl, Type* source, IV replacing);
   Type* clone(const types::Parameters& params, Type* source, IV replacing);

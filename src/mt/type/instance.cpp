@@ -50,6 +50,10 @@ Type* Instantiation::clone(Type* source, IV replacing) {
       return clone(MT_ASSIGN_REF(*source), replacing);
     case Type::Tag::parameters:
       return clone(MT_PARAMS_REF(*source), source, replacing);
+    case Type::Tag::class_type:
+      return clone(MT_CLASS_REF(*source), replacing);
+    case Type::Tag::record:
+      return clone(MT_RECORD_REF(*source), replacing);
     default:
       std::cout << to_string(source->tag) << std::endl;
       assert(false && "Unhandled.");
@@ -111,6 +115,20 @@ Type* Instantiation::clone(const types::Parameters&, Type* source, IV replacing)
   } else {
     return source;
   }
+}
+
+Type* Instantiation::clone(const types::Class& cls, IV replacing) {
+  auto cls_b = cls;
+  cls_b.source = clone(cls_b.source, replacing);
+  return store.make_class(std::move(cls_b));
+}
+
+Type* Instantiation::clone(const types::Record& record, IV replacing) {
+  auto record_b = record;
+  for (auto& field : record_b.fields) {
+    field.type = clone(field.type, replacing);
+  }
+  return store.make_record(std::move(record_b));
 }
 
 Type* Instantiation::clone(const types::Scalar&, Type* source, IV) {
