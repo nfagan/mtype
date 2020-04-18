@@ -4,6 +4,7 @@
 #include "debug.hpp"
 #include "type_properties.hpp"
 #include "../string.hpp"
+#include "../search_path.hpp"
 #include <algorithm>
 
 #define MT_REVERSE_UNIFY (0)
@@ -681,7 +682,7 @@ void PendingExternalFunctions::add_candidate(const SearchCandidate* candidate, T
   candidates[candidate] = type;
 }
 
-bool PendingExternalFunctions::has_candidate(const mt::SearchCandidate* candidate) {
+bool PendingExternalFunctions::has_candidate(const mt::SearchCandidate* candidate) const {
   return candidates.count(candidate) > 0;
 }
 

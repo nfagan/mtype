@@ -25,7 +25,7 @@ struct PendingExternalFunctions {
   using PendingCandidates = std::unordered_map<const SearchCandidate*, Type*>;
   PendingExternalFunctions() = default;
 
-  bool has_candidate(const SearchCandidate* candidate);
+  bool has_candidate(const SearchCandidate* candidate) const;
   void add_candidate(const SearchCandidate* candidate, Type* with_type);
   Type* require_candidate_type(const SearchCandidate* candidate, TypeStore& store);
   //
