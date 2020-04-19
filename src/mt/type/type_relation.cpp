@@ -66,6 +66,8 @@ bool TypeRelation::related_same_types(const Type* a, const Type* b, bool rev) co
       return true;
     case Type::Tag::scheme:
       return related(MT_SCHEME_REF(*a), MT_SCHEME_REF(*b), rev);
+    case Type::Tag::class_type:
+      return related(MT_CLASS_REF(*a), MT_CLASS_REF(*b), rev);
     default:
       type_printer().show2(a, b);
       std::cout << std::endl;
@@ -177,7 +179,8 @@ bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool 
 }
 
 bool TypeRelation::related(const types::Class& a, const types::Class& b, bool rev) const {
-  return related(a.source, b.source, rev);
+  return relationship.related(&a, &b, rev);
+//  return related(a.source, b.source, rev);
 }
 
 bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {
