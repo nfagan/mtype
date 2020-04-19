@@ -7,6 +7,8 @@
 #include "../source_data.hpp"
 #include <vector>
 
+#define MT_ALTERNATE_TYPE_ASSSERT (0)
+
 namespace mt {
 
 struct TypeScope;
@@ -103,6 +105,10 @@ public:
 private:
   void scalar_type_declaration(const DeclareTypeNode& node);
   void method_type_declaration(const DeclareTypeNode& node);
+
+#if MT_ALTERNATE_TYPE_ASSSERT
+  void alternate_type_assertion(const TypeAssertion& assertion);
+#endif
 
 private:
   TypeIdentifierResolverInstance* instance;

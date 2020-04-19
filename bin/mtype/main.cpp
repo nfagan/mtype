@@ -55,6 +55,20 @@ bool locate_root_identifiers(const std::vector<std::string>& idents,
   return true;
 }
 
+void run_unify(mt::Unifier& unifier,
+               mt::Substitution& substitution,
+               mt::PendingExternalFunctions& external_functions,
+               mt::TypeErrors& type_errors) {
+  auto unify_res = unifier.unify(&substitution, &external_functions);
+
+  if (unify_res.is_error()) {
+    std::move(unify_res.errors.begin(), unify_res.errors.end(), std::back_inserter(type_errors));
+    if (unify_res.errors.empty()) {
+      std::cout << "ERROR: An error occurred, but no explicit errors were generated." << std::endl;
+    }
+  }
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -190,13 +204,15 @@ int main(int argc, char** argv) {
       entry->generated_type_constraints = true;
     }
 
-    for (const auto& root_file : pipeline_instance.root_files) {
-      const auto& root_ptr = ast_store.lookup(root_file)->root_block;
+    run_unify(unifier, substitution, external_functions, type_errors);
+
+    for (const auto& ast_it : ast_store.asts) {
+      const auto* root_entry = &ast_it.second;
+      const auto& root_ptr = root_entry->root_block;
 
       Optional<Type*> maybe_local_func;
       FunctionReference local_func_ref;
 
-      const auto root_entry = ast_store.lookup(root_file);
       if (root_entry->file_entry_function_ref.is_valid()) {
         local_func_ref = store.get(root_entry->file_entry_function_ref);
         maybe_local_func = library.lookup_local_function(local_func_ref.def_handle);
@@ -227,18 +243,8 @@ int main(int argc, char** argv) {
       }
     }
 
-    const auto unify_t0 = clock::now();
-    auto unify_res = unifier.unify(&substitution, &external_functions);
+    run_unify(unifier, substitution, external_functions, type_errors);
     external_it = external_functions.candidates.begin();
-    const auto unify_t1 = clock::now();
-    unify_time += std::chrono::duration<double>(unify_t1 - unify_t0).count() * 1e3;
-
-    if (unify_res.is_error()) {
-      std::move(unify_res.errors.begin(), unify_res.errors.end(), std::back_inserter(type_errors));
-      if (unify_res.errors.empty()) {
-        std::cout << "ERROR: An error occurred, but no explicit errors were generated." << std::endl;
-      }
-    }
 
     if (arguments.show_ast) {
       StringVisitor str_visitor(&str_registry, &store);

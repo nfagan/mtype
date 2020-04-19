@@ -4,7 +4,6 @@ TODO
 
 . global variables not handled.
 . * ternary colon operator (1:2:3)
-. * super-classes.
 . * spmd and parfor statements
 . single-line if statements (if 1 true; else false)
 . * static method lookup; wildcard imports; proper method dispatch
@@ -13,7 +12,8 @@ TODO
 . * Don't recreate types in the constraint generator that were made in
   the identifier resolver.
 . * varargin
-. Allow non-method defs in methods block.
 . Fix subscripts
+. Property types in classdef; allow non-method defs in methods block.
+. * Distinguish application and abstraction
 
 %}

@@ -131,8 +131,12 @@ void TypeIdentifierResolver::type_begin(const TypeBegin& begin) {
 }
 
 void TypeIdentifierResolver::type_assertion(const TypeAssertion& node) {
+#if MT_ALTERNATE_TYPE_ASSSERT
+  alternate_type_assertion(node);
+#else
   node.has_type->accept_const(*this);
   node.node->accept_const(*this);
+#endif
 }
 
 void TypeIdentifierResolver::type_let(const TypeLet& node) {
@@ -396,5 +400,60 @@ void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
     instance->library.method_store.add_method(class_type, MT_ABSTR_REF(*func_type), source_type);
   }
 }
+
+#if MT_ALTERNATE_TYPE_ASSSERT
+void TypeIdentifierResolver::alternate_type_assertion(const TypeAssertion& assertion) {
+  assert(assertion.node->represents_function_def() && assertion.has_type->is_function_type());
+  const auto& function_def = static_cast<const FunctionDefNode&>(*assertion.node);
+  const auto& function_type = static_cast<const FunctionTypeNode&>(*assertion.has_type);
+
+  FunctionInputParameters input_params;
+  std::vector<MatlabIdentifier> output_params;
+  const Block* body = nullptr;
+
+  instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
+    const FunctionDef& def = reader.at(function_def.def_handle);
+    input_params = def.header.inputs;
+    output_params = def.header.outputs;
+    body = def.body.get();
+  });
+
+  ScopeState<const MatlabScope>::Helper matlab_scope_helper(instance->matlab_scopes, function_def.scope);
+  ScopeState<TypeScope>::Helper type_scope_helper(instance->scopes, function_def.type_scope);
+
+  auto maybe_inputs = collect_types(*this, *instance, function_type.inputs);
+  auto maybe_outputs = collect_types(*this, *instance, function_type.outputs);
+  assert(maybe_inputs && maybe_outputs);
+  assert(maybe_inputs.value().size() == input_params.size());
+  assert(maybe_outputs.value().size() == output_params.size());
+
+  int64_t i = 0;
+  for (const auto& input : input_params) {
+    const auto var_handle = instance->matlab_scopes.current()->local_variables.at(input.name);
+    instance->library.emplace_local_variable_type(var_handle, maybe_inputs.value()[i]);
+    i++;
+  }
+  i = 0;
+  for (const auto& output : output_params) {
+    const auto var_handle = instance->matlab_scopes.current()->local_variables.at(output);
+    instance->library.emplace_local_variable_type(var_handle, maybe_outputs.value()[i]);
+    i++;
+  }
+
+  auto inputs = instance->type_store.make_input_destructured_tuple(maybe_inputs.rvalue());
+  auto outputs = instance->type_store.make_output_destructured_tuple(maybe_outputs.rvalue());
+  auto func = instance->type_store.make_abstraction(inputs, outputs);
+
+  instance->library.emplace_local_function_type(function_def.def_handle, func);
+
+  if (body) {
+    //  Push monomorphic functions.
+    BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, false);
+    body->accept_const(*this);
+  }
+
+  instance->collectors.current().push(func);
+}
+#endif
 
 }

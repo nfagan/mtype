@@ -73,6 +73,9 @@ void Unifier::check_push_function(Type* source, TermRef term, const types::Abstr
     const auto lhs_term = make_term(term.source_token, source);
     const auto rhs_term = make_term(term.source_token, type);
     substitution->push_type_equation(make_eq(lhs_term, rhs_term));
+    //  @TODO: We need to distinguish application and abstraction. For now, pushing equations in
+    //  both directions results in an invariance relationship.
+    substitution->push_type_equation(make_eq(rhs_term, lhs_term));
 
   } else {
     add_error(make_unresolved_function_error(term.source_token, source));

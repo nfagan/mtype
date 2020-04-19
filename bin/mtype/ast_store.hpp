@@ -32,7 +32,7 @@ public:
 
   int64_t num_visited_files() const;
 
-private:
+public:
   std::unordered_map<FilePath, Entry, FilePath::Hash> asts;
 };
 
