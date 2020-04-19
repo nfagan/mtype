@@ -19,6 +19,216 @@ namespace {
       return instance->parent_package + "." + std::string(ident);
     }
   }
+
+  std::array<TokenType, 5> type_annotation_block_possible_types() {
+    return std::array<TokenType, 5>{
+      {TokenType::keyword_begin, TokenType::keyword_given, TokenType::keyword_let,
+        TokenType::keyword_fun_type, TokenType::double_colon
+      }};
+  }
+
+  std::array<TokenType, 5> sub_block_possible_types() {
+    return {
+      {TokenType::keyword_if, TokenType::keyword_for, TokenType::keyword_while,
+        TokenType::keyword_try, TokenType::keyword_switch}
+    };
+  }
+
+  ParseError make_error_expected_token_type(const ParseInstance* instance, const Token& at_token,
+                                            const TokenType* types, int64_t num_types) {
+    std::vector<std::string> type_strs;
+
+    for (int64_t i = 0; i < num_types; i++) {
+      std::string type_str = std::string("`") + to_string(types[i]) + "`";
+      type_strs.emplace_back(type_str);
+    }
+
+    const auto expected_str = join(type_strs, ", ");
+    std::string message = "Expected to receive one of these types: \n\n" + expected_str;
+    message += (std::string("\n\nInstead, received: `") + to_string(at_token.type) + "`.");
+
+    return ParseError(instance->source_text(), at_token, std::move(message), instance->file_descriptor());
+  }
+
+  template <size_t N>
+  ParseError make_error_expected_token_type(const ParseInstance* instance, const Token& at_token,
+                                            const std::array<TokenType, N>& types) {
+    return make_error_expected_token_type(instance, at_token, types.data(), types.size());
+  }
+
+  ParseError make_error_reference_after_parens_reference_expr(const ParseInstance* instance, const Token& at_token) {
+    const char* msg = "`()` indexing must appear last in an index expression.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_invalid_expr_token(const ParseInstance* instance, const Token& at_token) {
+    const auto type_name = "`" + std::string(to_string(at_token.type)) + "`";
+    const auto message = std::string("Token ") + type_name + " is not permitted in expressions.";
+    return ParseError(instance->source_text(), at_token, message, instance->file_descriptor());
+  }
+
+  ParseError make_error_incomplete_expr(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Expression is incomplete.", instance->file_descriptor());
+  }
+
+  ParseError make_error_invalid_assignment_target(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "The expression on the left is not a valid target for assignment.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_lhs(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Expected an expression on the left hand side.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_multiple_exprs_in_parens_grouping_expr(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "`()` grouping expressions cannot contain multiple sub-expressions or span multiple lines.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_otherwise_in_switch_stmt(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Duplicate `otherwise` in `switch` statement.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_non_empty_type_variable_identifiers(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Expected a non-empty list of identifiers.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_input_parameter_in_expr(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Anonymous function contains a duplicate input parameter identifier.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_loop_control_flow_manipulator_outside_loop(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "A `break` or `continue` statement cannot appear outside a loop statement.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_invalid_function_def_location(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "A `function` definition cannot appear here.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_local_function(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Duplicate local function.", instance->file_descriptor());
+  }
+
+  ParseError make_error_incomplete_import_stmt(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "An `import` statement must include a compound identifier.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_invalid_period_qualified_function_def(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "A period-qualified `function` is invalid here.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_class_property(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Duplicate property.", instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_method(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Duplicate method.", instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_class_def(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Duplicate class definition.", instance->file_descriptor());
+  }
+
+  ParseError make_error_invalid_superclass_method_reference_expr(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Invalid superclass method reference.", instance->file_descriptor());
+  }
+
+  ParseError make_error_unrecognized_method_attribute(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Unrecognized method attribute.", instance->file_descriptor());
+  }
+
+  ParseError make_error_invalid_boolean_attribute_value(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Expected attribute value to be one of `true` or `false`.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_invalid_access_attribute_value(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Unrecognized access attribute value.", instance->file_descriptor());
+  }
+
+  ParseError make_error_empty_brace_subscript(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "`{}` subscripts require arguments.", instance->file_descriptor());
+  }
+
+  ParseError make_error_non_assignment_stmt_in_fun_declaration(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "`fun` definition must precede an assignment statement.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_non_anonymous_function_rhs_in_fun_declaration(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "`fun` definition rhs must be an anonymous function.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_non_identifier_lhs_in_fun_declaration(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "`fun` definition lhs must be a scalar identifier.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_non_scalar_outputs_in_ctor(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "A class constructor must have exactly one output parameter.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_no_class_instance_parameter_in_method(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "A non-static method must have at least one input parameter.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_type_identifier(const ParseInstance* instance, const Token& at_token) {
+    std::string msg = make_error_message_duplicate_type_identifier(at_token.lexeme);
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_duplicate_record_field_name(const ParseInstance* instance, const Token& at_token) {
+    std::string msg = "Duplicate field name `" + std::string(at_token.lexeme) + "`.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_unrecognized_type_declaration_kind(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Unrecognized declaration kind.", instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_function_type(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Expected function type.", instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_type_assertion(const ParseInstance* instance, const Token& at_token) {
+    return ParseError(instance->source_text(), at_token, "Expected type assertion.", instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_assignment_stmt_in_ctor(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Expected assignment statement following constructor statement.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_identifier_reference_expr_in_ctor(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Expected identifier reference expression following constructor statement.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_struct_function_call(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "A constructor statement must include a call to `struct`, without subscripts.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_expected_even_number_of_arguments_in_ctor(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Expected an even number of arguments in `struct` call.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_stmts_preceding_class_def(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "A classdef file cannot have functions or statements preceding the definition.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
 }
 
 /*
@@ -83,6 +293,14 @@ bool ParseInstance::is_file_entry_function() const {
   return is_function_file() && num_visited_functions == 1;
 }
 
+const CodeFileDescriptor* ParseInstance::file_descriptor() const {
+  return source_data.file_descriptor;
+}
+
+std::string_view ParseInstance::source_text() const {
+  return source_data.source;
+}
+
 struct BlockStmtScopeHelper {
   BlockStmtScopeHelper(int* scope) : scope(scope) {
     (*scope)++;
@@ -124,7 +342,6 @@ void AstGenerator::parse(ParseInstance* instance, const std::vector<Token>& toke
   parse_instance = instance;
 
   iterator = TokenIterator(&tokens);
-  is_end_terminated_function = instance->functions_are_end_terminated;
   string_registry = instance->string_registry;
   store = instance->store;
 
@@ -221,7 +438,7 @@ Optional<std::vector<std::string_view>> AstGenerator::compound_identifier_compon
     const auto expected_type = expect_identifier ? TokenType::identifier : TokenType::period;
     if (tok.type != expected_type) {
       if (expect_identifier) {
-        add_error(make_error_expected_token_type(tok, &expected_type, 1));
+        add_error(make_error_expected_token_type(parse_instance, tok, &expected_type, 1));
         return NullOpt{};
       } else {
         break;
@@ -324,7 +541,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
       use_compound_name = true;
 
     } else {
-      add_error(make_error_invalid_period_qualified_function_def(iterator.peek()));
+      add_error(make_error_invalid_period_qualified_function_def(parse_instance, iterator.peek()));
       return NullOpt{};
     }
   }
@@ -408,7 +625,7 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
 
   } else {
     std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
-    add_error(make_error_expected_token_type(tok, possible_types));
+    add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
     return NullOpt{};
   }
 }
@@ -427,7 +644,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
 
   if (is_within_end_terminated_stmt_block()) {
     //  It's illegal to define a function within an if statement, etc.
-    add_error(make_error_invalid_function_def_location(source_token));
+    add_error(make_error_invalid_function_def_location(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -452,7 +669,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
       return NullOpt{};
     }
 
-    if (is_end_terminated_function) {
+    if (parse_instance->functions_are_end_terminated) {
       auto err = consume(TokenType::keyword_end);
       if (err) {
         add_error(err.rvalue());
@@ -475,12 +692,12 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
 
       if (header.outputs.size() != 1) {
         //  Constructor of the form [] = (arg...) is invalid.
-        add_error(make_error_non_scalar_outputs_in_ctor(header.name_token));
+        add_error(make_error_non_scalar_outputs_in_ctor(parse_instance, header.name_token));
         return NullOpt{};
       }
     } else if (!attrs.is_static() && header.inputs.empty()) {
       //  Non-static method must accept at least one argument (the class instance).
-      add_error(make_error_no_class_instance_parameter_in_method(header.name_token));
+      add_error(make_error_no_class_instance_parameter_in_method(parse_instance, header.name_token));
       return NullOpt{};
     }
   }
@@ -509,7 +726,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   }
 
   if (!register_success) {
-    add_error(make_error_duplicate_local_function(source_token));
+    add_error(make_error_duplicate_local_function(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -572,7 +789,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   iterator.advance();
 
   if (!parse_instance->register_file_type(CodeFileType::class_def)) {
-    add_error(make_error_stmts_preceding_class_def(source_token));
+    add_error(make_error_stmts_preceding_class_def(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -658,7 +875,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
         {TokenType::keyword_properties, TokenType::keyword_methods}
       };
 
-      add_error(make_error_expected_token_type(tok, possible_types));
+      add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
       return NullOpt{};
     }
   }
@@ -682,7 +899,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
 
   bool register_success = parent_scope->register_class(qualified_name, class_handle);
   if (!register_success) {
-    add_error(make_error_duplicate_class_def(source_token));
+    add_error(make_error_duplicate_class_def(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -694,7 +911,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   const bool is_type_export = true;
 
   if (!parent_type_scope->can_register_local_identifier(class_identifier, is_type_export)) {
-    add_error(make_error_duplicate_type_identifier(name_token));
+    add_error(make_error_duplicate_type_identifier(parse_instance, name_token));
     return NullOpt{};
   }
 
@@ -735,7 +952,7 @@ Optional<FunctionAttributes> AstGenerator::method_attributes(const ClassDefHandl
     const auto& attribute_name = identifier_res.value();
 
     if (!matlab::is_method_attribute(attribute_name)) {
-      add_error(make_error_unrecognized_method_attribute(tok));
+      add_error(make_error_unrecognized_method_attribute(parse_instance, tok));
       return NullOpt{};
     }
 
@@ -826,7 +1043,7 @@ Optional<AccessSpecifier> AstGenerator::access_specifier() {
     const auto& attribute_value = identifier_res.value();
 
     if (!matlab::is_access_attribute_value(attribute_value)) {
-      add_error(make_error_invalid_access_attribute_value(tok));
+      add_error(make_error_invalid_access_attribute_value(parse_instance, tok));
       return NullOpt{};
     } else {
       type = access_type_from_access_attribute_value(attribute_value);
@@ -848,7 +1065,7 @@ Optional<bool> AstGenerator::boolean_attribute_value() {
   const auto& value = identifier_res.value();
 
   if (!matlab::is_boolean(value)) {
-    add_error(make_error_invalid_boolean_attribute_value(source_token));
+    add_error(make_error_invalid_boolean_attribute_value(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -903,7 +1120,7 @@ bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
             TokenType::identifier, TokenType::left_bracket, TokenType::keyword_function
           }};
 
-          add_error(make_error_expected_token_type(tok, possible_types));
+          add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
           return false;
         }
       }
@@ -930,7 +1147,7 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
   auto func_name = header_res.value().name;
 
   if (method_names.count(func_name.full_name()) > 0) {
-    add_error(make_error_duplicate_method(source_token));
+    add_error(make_error_duplicate_method(parse_instance, source_token));
     return false;
 
   } else {
@@ -963,7 +1180,7 @@ bool AstGenerator::method_def(const Token& source_token,
   const auto func_name = reader.at(def_handle).header.name;
 
   if (method_names.count(func_name.full_name()) > 0) {
-    add_error(make_error_duplicate_method(source_token));
+    add_error(make_error_duplicate_method(parse_instance, source_token));
     return false;
 
   } else {
@@ -1012,7 +1229,7 @@ bool AstGenerator::properties_block(std::set<int64_t>& property_names,
 
         if (property_names.count(prop_name) > 0) {
           //  Duplicate property
-          add_error(make_error_duplicate_class_property(tok));
+          add_error(make_error_duplicate_class_property(parse_instance, tok));
           return false;
         } else {
           property_names.emplace(prop_name);
@@ -1180,7 +1397,7 @@ Optional<std::unique_ptr<Block>> AstGenerator::sub_block() {
         break;
       }
       case TokenType::keyword_function: {
-        if (is_end_terminated_function) {
+        if (parse_instance->functions_are_end_terminated) {
           auto def_res = function_def();
           if (def_res) {
             node = def_res.rvalue();
@@ -1288,7 +1505,7 @@ Optional<Subscript> AstGenerator::non_period_subscript(const Token& source_token
   }
 
   if (method == SubscriptMethod::brace && args.empty()) {
-    add_error(make_error_empty_brace_subscript(source_token));
+    add_error(make_error_empty_brace_subscript(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -1311,7 +1528,7 @@ Optional<Subscript> AstGenerator::period_subscript(const Token& source_token) {
       break;
     default:
       std::array<TokenType, 2> possible_types{{TokenType::identifier, TokenType::left_parens}};
-      add_error(make_error_expected_token_type(tok, possible_types));
+      add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
       return NullOpt{};
   }
 
@@ -1365,7 +1582,7 @@ Optional<BoxedExpr> AstGenerator::identifier_reference_expr(const Token& source_
 
     if (prev_method == SubscriptMethod::parens && sub_expr.method != SubscriptMethod::period) {
       //  a(1, 1)(1) is an error, but a.('x')(1) is allowed.
-      add_error(make_error_reference_after_parens_reference_expr(tok));
+      add_error(make_error_reference_after_parens_reference_expr(parse_instance, tok));
       return NullOpt{};
     } else {
       prev_method = sub_expr.method;
@@ -1476,13 +1693,13 @@ Optional<BoxedExpr> AstGenerator::grouping_expr(const Token& source_token) {
       std::array<TokenType, 4> possible_types{
         {TokenType::comma, TokenType::semicolon, TokenType::new_line, terminator}
       };
-      add_error(make_error_expected_token_type(next, possible_types));
+      add_error(make_error_expected_token_type(parse_instance, next, possible_types));
       return NullOpt{};
     }
 
     if (source_token.type == TokenType::left_parens && next.type != terminator) {
       //  (1, 2) or (1; 3) is not a valid expression.
-      add_error(make_error_multiple_exprs_in_parens_grouping_expr(next));
+      add_error(make_error_multiple_exprs_in_parens_grouping_expr(parse_instance, next));
       return NullOpt{};
     }
 
@@ -1552,7 +1769,7 @@ Optional<ParseError> AstGenerator::postfix_unary_expr(const mt::Token& source_to
   iterator.advance();
 
   if (completed.empty()) {
-    return Optional<ParseError>(make_error_expected_lhs(source_token));
+    return Optional<ParseError>(make_error_expected_lhs(parse_instance, source_token));
   }
 
   const auto op = unary_operator_from_token_type(source_token.type);
@@ -1626,7 +1843,7 @@ Optional<ParseError> AstGenerator::pending_binary_expr(const mt::Token& source_t
   iterator.advance(); //  Consume operator token.
 
   if (completed.empty()) {
-    return Optional<ParseError>(make_error_expected_lhs(source_token));
+    return Optional<ParseError>(make_error_expected_lhs(parse_instance, source_token));
   }
 
   auto left = std::move(completed.back());
@@ -1666,7 +1883,7 @@ Optional<BoxedExpr> AstGenerator::presumed_superclass_method_reference_expr(cons
   if (!method_reference_expr->is_static_identifier_reference_expr() ||
       !superclass_method_expr->is_identifier_reference_expr()) {
     //
-    add_error(make_error_invalid_superclass_method_reference_expr(source_token));
+    add_error(make_error_invalid_superclass_method_reference_expr(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -1737,7 +1954,7 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
       break;
 
     } else {
-      add_error(make_error_invalid_expr_token(tok));
+      add_error(make_error_invalid_expr_token(parse_instance, tok));
       return NullOpt{};
     }
 
@@ -1773,7 +1990,7 @@ Optional<BoxedExpr> AstGenerator::expr(bool allow_empty) {
     const bool is_valid = is_complete && allow_empty;
 
     if (!is_valid) {
-      add_error(make_error_incomplete_expr(iterator.peek()));
+      add_error(make_error_incomplete_expr(parse_instance, iterator.peek()));
       return NullOpt{};
     } else {
       return Optional<BoxedExpr>(nullptr);
@@ -1786,7 +2003,7 @@ Optional<BoxedStmt> AstGenerator::control_stmt(const Token& source_token) {
 
   const auto kind = control_flow_manipulator_from_token_type(source_token.type);
   if (is_loop_control_flow_manipulator(kind) && !is_within_loop()) {
-    add_error(make_error_loop_control_flow_manipulator_outside_loop(source_token));
+    add_error(make_error_loop_control_flow_manipulator_outside_loop(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -1849,7 +2066,7 @@ Optional<BoxedStmt> AstGenerator::switch_stmt(const mt::Token& source_token) {
 
         if (otherwise) {
           //  Duplicate otherwise in switch statement.
-          add_error(make_error_duplicate_otherwise_in_switch_stmt(tok));
+          add_error(make_error_duplicate_otherwise_in_switch_stmt(parse_instance, tok));
           return NullOpt{};
         }
 
@@ -1863,7 +2080,7 @@ Optional<BoxedStmt> AstGenerator::switch_stmt(const mt::Token& source_token) {
       }
       default: {
         std::array<TokenType, 2> possible_types{{TokenType::keyword_case, TokenType::keyword_otherwise}};
-        add_error(make_error_expected_token_type(tok, possible_types));
+        add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
         return NullOpt{};
       }
     }
@@ -2031,7 +2248,7 @@ Optional<BoxedStmt> AstGenerator::assignment_stmt(BoxedExpr lhs, const Token& in
   iterator.advance(); //  consume =
 
   if (!lhs->is_valid_assignment_target()) {
-    add_error(make_error_invalid_assignment_target(initial_token));
+    add_error(make_error_invalid_assignment_target(parse_instance, initial_token));
     return NullOpt{};
   }
 
@@ -2068,7 +2285,7 @@ Optional<BoxedStmt> AstGenerator::variable_declaration_stmt(const Token& source_
         //  e.g. global 1
         iterator.advance();
         const auto expected_type = TokenType::identifier;
-        add_error(make_error_expected_token_type(tok, &expected_type, 1));
+        add_error(make_error_expected_token_type(parse_instance, tok, &expected_type, 1));
         return NullOpt{};
     }
   }
@@ -2117,7 +2334,7 @@ Optional<Import> AstGenerator::one_import(const mt::Token& source_token, bool is
         break;
       } else {
         std::array<TokenType, 2> possible_types{{TokenType::identifier, TokenType::period}};
-        add_error(make_error_expected_token_type(tok, possible_types));
+        add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
         return NullOpt{};
       }
     }
@@ -2135,7 +2352,7 @@ Optional<Import> AstGenerator::one_import(const mt::Token& source_token, bool is
 
   if (num_components < minimum_size) {
     //  import; or import a;
-    add_error(make_error_incomplete_import_stmt(source_token));
+    add_error(make_error_incomplete_import_stmt(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -2362,7 +2579,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token
 
     default:
       auto possible_types = type_annotation_block_possible_types();
-      add_error(make_error_expected_token_type(source_token, possible_types));
+      add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
       return NullOpt{};
   }
 }
@@ -2404,23 +2621,23 @@ Optional<BoxedTypeAnnot> AstGenerator::type_fun_enclosing_anonymous_function(con
 
   auto stmt_node = std::move(stmt_res.rvalue());
   if (!stmt_node->is_assignment_stmt()) {
-    add_error(make_error_non_assignment_stmt_in_fun_declaration(source_token));
+    add_error(make_error_non_assignment_stmt_in_fun_declaration(parse_instance, source_token));
     return NullOpt{};
   }
 
   const auto& assign_stmt = dynamic_cast<const AssignmentStmt&>(*stmt_node);
   if (!assign_stmt.of_expr->is_anonymous_function_expr()) {
-    add_error(make_error_non_anonymous_function_rhs_in_fun_declaration(source_token));
+    add_error(make_error_non_anonymous_function_rhs_in_fun_declaration(parse_instance, source_token));
     return NullOpt{};
 
   } else if (!assign_stmt.to_expr->is_identifier_reference_expr()) {
-    add_error(make_error_non_identifier_lhs_in_fun_declaration(source_token));
+    add_error(make_error_non_identifier_lhs_in_fun_declaration(parse_instance, source_token));
     return NullOpt{};
   }
 
   const auto& ref_expr_lhs = dynamic_cast<const IdentifierReferenceExpr&>(*assign_stmt.to_expr);
   if (!ref_expr_lhs.subscripts.empty()) {
-    add_error(make_error_non_identifier_lhs_in_fun_declaration(source_token));
+    add_error(make_error_non_identifier_lhs_in_fun_declaration(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -2481,7 +2698,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
   const bool is_export = type_identifier_export_state.is_export();
 
   if (!scope->can_register_local_identifier(identifier, is_export)) {
-    add_error(make_error_duplicate_type_identifier(name_token));
+    add_error(make_error_duplicate_type_identifier(parse_instance, name_token));
     return NullOpt{};
   }
 
@@ -2503,7 +2720,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
   }
 
   if (identifier_res.value().empty()) {
-    add_error(make_error_expected_non_empty_type_variable_identifiers(ident_token));
+    add_error(make_error_expected_non_empty_type_variable_identifiers(parse_instance, ident_token));
     return NullOpt{};
   }
 
@@ -2516,7 +2733,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
       break;
     default: {
       std::array<TokenType, 1> possible_types{{TokenType::keyword_let}};
-      add_error(make_error_expected_token_type(source_token, possible_types));
+      add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
       return NullOpt{};
     }
   }
@@ -2548,7 +2765,7 @@ Optional<std::vector<std::string_view>> AstGenerator::type_variable_identifiers(
 
   } else {
     std::array<TokenType, 2> possible_types{{TokenType::less, TokenType::identifier}};
-    add_error(make_error_expected_token_type(source_token, possible_types));
+    add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
     return NullOpt{};
   }
 
@@ -2671,7 +2888,7 @@ Optional<BoxedTypeAnnot> AstGenerator::scalar_type_declaration(const Token& sour
   const bool is_export = type_identifier_export_state.is_export();
 
   if (!scope->can_register_local_identifier(ident, is_export)) {
-    add_error(make_error_duplicate_type_identifier(name_token));
+    add_error(make_error_duplicate_type_identifier(parse_instance, name_token));
     return NullOpt{};
   }
 
@@ -2704,13 +2921,13 @@ Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& sour
 
   auto& annot = annot_res.value();
   if (!annot->is_type_assertion()) {
-    add_error(make_error_expected_type_assertion(assert_tok));
+    add_error(make_error_expected_type_assertion(parse_instance, assert_tok));
     return NullOpt{};
   }
 
   auto type_assert = static_cast<TypeAssertion*>(annot.get());
   if (!type_assert->has_type->is_function_type()) {
-    add_error(make_error_expected_function_type(assert_tok));
+    add_error(make_error_expected_function_type(parse_instance, assert_tok));
     return NullOpt{};
   }
 
@@ -2730,7 +2947,7 @@ Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& sour
     method = DeclareTypeNode::Method(name, std::move(func_type));
 
   } else {
-    add_error(make_error_expected_function_type(func_token));
+    add_error(make_error_expected_function_type(parse_instance, func_token));
     return NullOpt{};
   }
 
@@ -2749,7 +2966,7 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
 
   auto maybe_kind = DeclareTypeNode::kind_from_string(kind_res.value());
   if (!maybe_kind) {
-    add_error(make_error_unrecognized_type_declaration_kind(kind_token));
+    add_error(make_error_unrecognized_type_declaration_kind(parse_instance, kind_token));
     return NullOpt{};
   }
 
@@ -2779,7 +2996,7 @@ Optional<BoxedTypeAnnot> AstGenerator::constructor_type(const Token& source_toke
   if (!stmt_res) {
     return NullOpt{};
   } else if (!stmt_res.value()->is_assignment_stmt()) {
-    add_error(make_error_expected_assignment_stmt_in_ctor(source_token));
+    add_error(make_error_expected_assignment_stmt_in_ctor(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -2787,7 +3004,7 @@ Optional<BoxedTypeAnnot> AstGenerator::constructor_type(const Token& source_toke
   auto stmt = std::unique_ptr<AssignmentStmt>(stmt_ptr);
 
   if (!stmt->of_expr->is_identifier_reference_expr()) {
-    add_error(make_error_expected_identifier_reference_expr_in_ctor(source_token));
+    add_error(make_error_expected_identifier_reference_expr_in_ctor(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -2797,11 +3014,11 @@ Optional<BoxedTypeAnnot> AstGenerator::constructor_type(const Token& source_toke
   if (full_name != parse_instance->library->special_identifiers.identifier_struct ||
       !expr_ptr->is_maybe_non_subscripted_function_call()) {
     //  Ensure identifier reference expression is of the form struct(a, b, c);
-    add_error(make_error_expected_struct_function_call(source_token));
+    add_error(make_error_expected_struct_function_call(parse_instance, source_token));
     return NullOpt{};
 
   } else if ((expr_ptr->num_primary_subscript_arguments() % 2) != 0) {
-    add_error(make_error_expected_even_number_of_arguments_in_ctor(source_token));
+    add_error(make_error_expected_even_number_of_arguments_in_ctor(parse_instance, source_token));
     return NullOpt{};
   }
 
@@ -2834,7 +3051,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
         } else {
           auto& field = field_res.value();
           if (field_names.count(field.name) > 0) {
-            add_error(make_error_duplicate_record_field_name(tok));
+            add_error(make_error_duplicate_record_field_name(parse_instance, tok));
             return NullOpt{};
           }
           field_names.insert(field.name);
@@ -2856,7 +3073,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
   const bool is_export = type_identifier_export_state.is_export();
 
   if (!scope->can_register_local_identifier(identifier, is_export)) {
-    add_error(make_error_duplicate_type_identifier(name_token));
+    add_error(make_error_duplicate_type_identifier(parse_instance, name_token));
     return NullOpt{};
   }
 
@@ -2944,7 +3161,7 @@ Optional<BoxedType> AstGenerator::one_type(const mt::Token& source_token) {
 
     default: {
       std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
-      add_error(make_error_expected_token_type(source_token, possible_types));
+      add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
       return NullOpt{};
     }
   }
@@ -2969,7 +3186,7 @@ Optional<std::vector<BoxedType>> AstGenerator::type_sequence(TokenType terminato
 
     } else if (next_type != terminator) {
       std::array<TokenType, 2> possible_types{{TokenType::comma, terminator}};
-      add_error(make_error_expected_token_type(iterator.peek(), possible_types));
+      add_error(make_error_expected_token_type(parse_instance, iterator.peek(), possible_types));
       return NullOpt{};
     }
   }
@@ -3048,20 +3265,6 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
   return Optional<BoxedType>(std::move(node));
 }
 
-std::array<TokenType, 5> AstGenerator::type_annotation_block_possible_types() {
-  return std::array<TokenType, 5>{
-    {TokenType::keyword_begin, TokenType::keyword_given, TokenType::keyword_let,
-     TokenType::keyword_fun_type, TokenType::double_colon
-  }};
-}
-
-std::array<TokenType, 5> AstGenerator::sub_block_possible_types() {
-  return {
-    {TokenType::keyword_if, TokenType::keyword_for, TokenType::keyword_while,
-    TokenType::keyword_try, TokenType::keyword_switch}
-  };
-}
-
 bool AstGenerator::is_unary_prefix_expr(const mt::Token& curr_token) const {
   return represents_prefix_unary_operator(curr_token.type) &&
     (curr_token.type == TokenType::tilde ||
@@ -3099,28 +3302,12 @@ bool AstGenerator::is_within_end_terminated_stmt_block() const {
     is_within_loop();
 }
 
-bool AstGenerator::is_within_function() const {
-  return block_depths.function_def > 0;
-}
-
 bool AstGenerator::is_within_top_level_function() const {
   return block_depths.function_def == 1;
 }
 
-bool AstGenerator::parent_function_is_class_method() const {
-  return is_within_class() && block_depths.function_def == 1;
-}
-
 bool AstGenerator::is_within_class() const {
   return block_depths.class_def > 0;
-}
-
-bool AstGenerator::is_within_class_file() const {
-  return block_depths.class_def_file > 0;
-}
-
-bool AstGenerator::is_within_methods() const {
-  return block_depths.methods > 0;
 }
 
 bool AstGenerator::is_within_loop() const {
@@ -3133,7 +3320,7 @@ void AstGenerator::push_scope() {
   const auto root_tscope = root_type_scope();
 
   Store::Write writer(*store);
-  scopes.push_back(writer.make_matlab_scope(curr_matlab_scope, file_descriptor()));
+  scopes.push_back(writer.make_matlab_scope(curr_matlab_scope, parse_instance->file_descriptor()));
 
   auto new_type_scope = writer.make_type_scope(root_tscope, curr_type_scope);
   type_scopes.push_back(new_type_scope);
@@ -3177,14 +3364,6 @@ TypeScope* AstGenerator::root_type_scope() {
   return type_scopes.empty() ? nullptr : type_scopes.front();
 }
 
-const CodeFileDescriptor* AstGenerator::file_descriptor() const {
-  return parse_instance->source_data.file_descriptor;
-}
-
-std::string_view AstGenerator::source_text() const {
-  return parse_instance->source_data.source;
-}
-
 void AstGenerator::register_import(mt::Import&& import) {
   current_scope()->register_import(std::move(import));
 }
@@ -3196,7 +3375,7 @@ Optional<ParseError> AstGenerator::consume(mt::TokenType type) {
     iterator.advance();
     return NullOpt{};
   } else {
-    return Optional<ParseError>(make_error_expected_token_type(tok, &type, 1));
+    return Optional<ParseError>(make_error_expected_token_type(parse_instance, tok, &type, 1));
   }
 }
 
@@ -3210,7 +3389,7 @@ Optional<ParseError> AstGenerator::consume_one_of(const mt::TokenType* types, in
     }
   }
 
-  return Optional<ParseError>(make_error_expected_token_type(tok, types, num_types));
+  return Optional<ParseError>(make_error_expected_token_type(parse_instance, tok, types, num_types));
 }
 
 void AstGenerator::consume_if_matches(TokenType type) {
@@ -3221,7 +3400,7 @@ void AstGenerator::consume_if_matches(TokenType type) {
 
 Optional<ParseError>
 AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& source_token,
-                                                                   const std::vector<FunctionInputParameter>& inputs) const {
+                                                                   const FunctionInputParameters& inputs) const {
   std::set<int64_t> uniques;
   for (const auto& input : inputs) {
     if (input.is_ignored) {
@@ -3234,7 +3413,7 @@ AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& 
 
     if (orig_size == uniques.size()) {
       //  This value is not new.
-      return Optional<ParseError>(make_error_duplicate_input_parameter_in_expr(source_token));
+      return Optional<ParseError>(make_error_duplicate_input_parameter_in_expr(parse_instance, source_token));
     }
   }
   return NullOpt{};
@@ -3242,183 +3421,6 @@ AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& 
 
 void AstGenerator::add_error(mt::ParseError&& err) {
   parse_instance->errors.emplace_back(std::move(err));
-}
-
-ParseError AstGenerator::make_error_reference_after_parens_reference_expr(const mt::Token& at_token) const {
-  const char* msg = "`()` indexing must appear last in an index expression.";
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_invalid_expr_token(const mt::Token& at_token) const {
-  const auto type_name = "`" + std::string(to_string(at_token.type)) + "`";
-  const auto message = std::string("Token ") + type_name + " is not permitted in expressions.";
-  return ParseError(source_text(), at_token, message, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_incomplete_expr(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "Expression is incomplete.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_invalid_assignment_target(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "The expression on the left is not a valid target for assignment.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_lhs(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "Expected an expression on the left hand side.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_multiple_exprs_in_parens_grouping_expr(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token,
-    "`()` grouping expressions cannot contain multiple sub-expressions or span multiple lines.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Duplicate `otherwise` in `switch` statement.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_non_empty_type_variable_identifiers(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "Expected a non-empty list of identifiers.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_input_parameter_in_expr(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token,
-    "Anonymous function contains a duplicate input parameter identifier.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_loop_control_flow_manipulator_outside_loop(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token,
-    "A `break` or `continue` statement cannot appear outside a loop statement.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_invalid_function_def_location(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "A `function` definition cannot appear here.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_local_function(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "Duplicate local function.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_incomplete_import_stmt(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "An `import` statement must include a compound identifier.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_invalid_period_qualified_function_def(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "A period-qualified `function` is invalid here.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_class_property(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Duplicate property.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_method(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Duplicate method.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_class_def(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Duplicate class definition.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_invalid_superclass_method_reference_expr(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Invalid superclass method reference.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_unrecognized_method_attribute(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Unrecognized method attribute.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_invalid_boolean_attribute_value(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Expected attribute value to be one of `true` or `false`.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_invalid_access_attribute_value(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Unrecognized access attribute value.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_empty_brace_subscript(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "`{}` subscripts require arguments.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_non_assignment_stmt_in_fun_declaration(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "`fun` definition must precede an assignment statement.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_non_anonymous_function_rhs_in_fun_declaration(const mt::Token& at_token) const {
-  return ParseError(source_text(), at_token, "`fun` definition rhs must be an anonymous function.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "`fun` definition lhs must be a scalar identifier.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_non_scalar_outputs_in_ctor(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "A class constructor must have exactly one output parameter.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_no_class_instance_parameter_in_method(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "A non-static method must have at least one input parameter.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_type_identifier(const Token& at_token) const {
-  std::string msg = make_error_message_duplicate_type_identifier(at_token.lexeme);
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_duplicate_record_field_name(const Token& at_token) const {
-  std::string msg = "Duplicate field name `" + std::string(at_token.lexeme) + "`.";
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_unrecognized_type_declaration_kind(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Unrecognized declaration kind.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_function_type(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Expected function type.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_type_assertion(const Token& at_token) const {
-  return ParseError(source_text(), at_token, "Expected type assertion.", file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_assignment_stmt_in_ctor(const Token& at_token) const {
-  const auto msg = "Expected assignment statement following constructor statement.";
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_identifier_reference_expr_in_ctor(const Token& at_token) const {
-  const auto msg = "Expected identifier reference expression following constructor statement.";
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_struct_function_call(const Token& at_token) const {
-  const auto msg = "A constructor statement must include a call to `struct`, without subscripts.";
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_even_number_of_arguments_in_ctor(const Token& at_token) const {
-  const auto msg = "Expected an even number of arguments in `struct` call.";
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_stmts_preceding_class_def(const Token& at_token) const {
-  const auto msg = "A classdef file cannot have functions or statements preceding the definition.";
-  return ParseError(source_text(), at_token, msg, file_descriptor());
-}
-
-ParseError AstGenerator::make_error_expected_token_type(const mt::Token& at_token, const mt::TokenType* types,
-                                                        int64_t num_types) const {
-  std::vector<std::string> type_strs;
-
-  for (int64_t i = 0; i < num_types; i++) {
-    std::string type_str = std::string("`") + to_string(types[i]) + "`";
-    type_strs.emplace_back(type_str);
-  }
-
-  const auto expected_str = join(type_strs, ", ");
-  std::string message = "Expected to receive one of these types: \n\n" + expected_str;
-  message += (std::string("\n\nInstead, received: `") + to_string(at_token.type) + "`.");
-
-  return ParseError(source_text(), at_token, std::move(message), file_descriptor());
 }
 
 }

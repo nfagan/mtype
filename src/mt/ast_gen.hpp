@@ -62,6 +62,9 @@ struct ParseInstance {
   bool is_function_file() const;
   bool is_class_file() const;
 
+  MT_NODISCARD const CodeFileDescriptor* file_descriptor() const;
+  MT_NODISCARD std::string_view source_text() const;
+
   Store* store;
   TypeStore* type_store;
   Library* library;
@@ -108,7 +111,7 @@ class AstGenerator {
 
 public:
   AstGenerator() :
-  parse_instance(nullptr), string_registry(nullptr), store(nullptr), is_end_terminated_function(true) {
+  parse_instance(nullptr), string_registry(nullptr), store(nullptr) {
     //
   }
 
@@ -237,64 +240,16 @@ private:
   Optional<std::vector<BoxedType>> type_sequence(TokenType terminator);
   Optional<std::vector<std::string_view>> type_variable_identifiers(const Token& source_token);
 
-  template <size_t N>
-  ParseError make_error_expected_token_type(const Token& at_token, const std::array<TokenType, N>& types) const {
-    return make_error_expected_token_type(at_token, types.data(), types.size());
-  }
-
-  ParseError make_error_expected_token_type(const Token& at_token, const TokenType* types, int64_t num_types) const;
-  ParseError make_error_reference_after_parens_reference_expr(const Token& at_token) const;
-  ParseError make_error_invalid_expr_token(const Token& at_token) const;
-  ParseError make_error_incomplete_expr(const Token& at_token) const;
-  ParseError make_error_invalid_assignment_target(const Token& at_token) const;
-  ParseError make_error_expected_lhs(const Token& at_token) const;
-  ParseError make_error_multiple_exprs_in_parens_grouping_expr(const Token& at_token) const;
-  ParseError make_error_duplicate_otherwise_in_switch_stmt(const Token& at_token) const;
-  ParseError make_error_expected_non_empty_type_variable_identifiers(const Token& at_token) const;
-  ParseError make_error_duplicate_input_parameter_in_expr(const Token& at_token) const;
-  ParseError make_error_loop_control_flow_manipulator_outside_loop(const Token& at_token) const;
-  ParseError make_error_invalid_function_def_location(const Token& at_token) const;
-  ParseError make_error_duplicate_local_function(const Token& at_token) const;
-  ParseError make_error_incomplete_import_stmt(const Token& at_token) const;
-  ParseError make_error_invalid_period_qualified_function_def(const Token& at_token) const;
-  ParseError make_error_duplicate_class_property(const Token& at_token) const;
-  ParseError make_error_duplicate_method(const Token& at_token) const;
-  ParseError make_error_duplicate_class_def(const Token& at_token) const;
-  ParseError make_error_invalid_superclass_method_reference_expr(const Token& at_token) const;
-  ParseError make_error_unrecognized_method_attribute(const Token& at_token) const;
-  ParseError make_error_invalid_boolean_attribute_value(const Token& at_token) const;
-  ParseError make_error_invalid_access_attribute_value(const Token& at_token) const;
-  ParseError make_error_empty_brace_subscript(const Token& at_token) const;
-  ParseError make_error_non_assignment_stmt_in_fun_declaration(const Token& at_token) const;
-  ParseError make_error_non_anonymous_function_rhs_in_fun_declaration(const Token& at_token) const;
-  ParseError make_error_non_identifier_lhs_in_fun_declaration(const Token& at_token) const;
-  ParseError make_error_non_scalar_outputs_in_ctor(const Token& at_token) const;
-  ParseError make_error_no_class_instance_parameter_in_method(const Token& at_token) const;
-  ParseError make_error_duplicate_type_identifier(const Token& at_token) const;
-  ParseError make_error_duplicate_record_field_name(const Token& at_token) const;
-  ParseError make_error_unrecognized_type_declaration_kind(const Token& at_token) const;
-  ParseError make_error_expected_function_type(const Token& at_token) const;
-  ParseError make_error_expected_type_assertion(const Token& at_token) const;
-  ParseError make_error_expected_assignment_stmt_in_ctor(const Token& at_token) const;
-  ParseError make_error_expected_identifier_reference_expr_in_ctor(const Token& at_token) const;
-  ParseError make_error_expected_struct_function_call(const Token& at_token) const;
-  ParseError make_error_expected_even_number_of_arguments_in_ctor(const Token& at_token) const;
-  ParseError make_error_stmts_preceding_class_def(const Token& at_token) const;
-
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
   void consume_if_matches(TokenType type);
   Optional<ParseError> check_anonymous_function_input_parameters_are_unique(const Token& source_token,
-                                                                            const std::vector<FunctionInputParameter>& inputs) const;
+                                                                            const FunctionInputParameters& inputs) const;
 
   bool is_within_loop() const;
   bool is_within_end_terminated_stmt_block() const;
-  bool is_within_function() const;
   bool is_within_top_level_function() const;
   bool is_within_class() const;
-  bool is_within_class_file() const;
-  bool is_within_methods() const;
-  bool parent_function_is_class_method() const;
 
   void push_scope();
   void pop_scope();
@@ -302,19 +257,12 @@ private:
   TypeScope* current_type_scope();
   TypeScope* root_type_scope();
 
-  const CodeFileDescriptor* file_descriptor() const;
-  std::string_view source_text() const;
-
   void push_function_attributes(FunctionAttributes&& attrs);
   void pop_function_attributes();
-  const FunctionAttributes& current_function_attributes() const;
+  MT_NODISCARD const FunctionAttributes& current_function_attributes() const;
 
   void register_import(Import&& import);
-
   void add_error(ParseError&& err);
-
-  static std::array<TokenType, 5> type_annotation_block_possible_types();
-  static std::array<TokenType, 5> sub_block_possible_types();
 
 private:
   ParseInstance* parse_instance;
@@ -330,8 +278,6 @@ private:
   std::vector<MatlabScope*> scopes;
   std::vector<TypeScope*> type_scopes;
   std::vector<FunctionAttributes> function_attributes;
-
-  bool is_end_terminated_function;
 };
 
 }
