@@ -137,6 +137,7 @@ public:
 
   void emplace_local_function_type(const FunctionDefHandle& handle, Type* type);
   void emplace_local_class_type(const ClassDefHandle& handle, types::Class* type);
+  void emplace_local_variable_type(const VariableDefHandle& handle, Type* type);
   Type* require_local_variable_type(const VariableDefHandle& handle);
 
   //  Test a <: b

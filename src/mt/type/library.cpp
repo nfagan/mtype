@@ -152,6 +152,10 @@ void Library::emplace_local_class_type(const ClassDefHandle& handle, types::Clas
   local_class_types[handle] = type;
 }
 
+void Library::emplace_local_variable_type(const VariableDefHandle& handle, Type* type) {
+  local_variables_types[handle] = type;
+}
+
 Type* Library::require_local_variable_type(const VariableDefHandle& handle) {
   auto it = local_variables_types.find(handle);
   if (it == local_variables_types.end()) {
