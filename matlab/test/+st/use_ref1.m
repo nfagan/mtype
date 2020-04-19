@@ -16,6 +16,7 @@ end
 
 function user()
 
+% Error: No such function: sub1_method(st.base) ? [T7] (20:0)
 use_ref2( @(x) sub1_method(x) );
 
 end
