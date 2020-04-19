@@ -346,6 +346,7 @@ void AstGenerator::parse(ParseInstance* instance, const std::vector<Token>& toke
   store = instance->store;
 
   scopes.clear();
+  type_scopes.clear();
   function_attributes.clear();
 
   block_depths = BlockDepths();
