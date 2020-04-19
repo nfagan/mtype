@@ -21,6 +21,8 @@ struct FunctionDefNode;
 class Store;
 struct TypeScope;
 
+struct IdentifierReferenceExpr;
+
 struct AstNode {
   AstNode() = default;
   virtual ~AstNode() = default;
@@ -41,6 +43,12 @@ struct AstNode {
     return false;
   }
   virtual bool represents_type_annot_macro() const {
+    return false;
+  }
+  virtual bool is_property() const {
+    return false;
+  }
+  virtual bool is_stmt() const {
     return false;
   }
   virtual Optional<AstNode*> enclosed_code_ast_node() const {
@@ -96,6 +104,10 @@ struct Expr : public AstNode {
   virtual bool append_to_compound_identifier(std::vector<int64_t>&) const {
     return false;
   }
+
+  virtual Optional<const IdentifierReferenceExpr*> expect_identifier_reference_expr() const {
+    return NullOpt{};
+  }
 };
 
 struct Stmt : public AstNode {
@@ -109,7 +121,15 @@ struct Stmt : public AstNode {
     return false;
   }
 
+  virtual bool is_expr_stmt() const {
+    return false;
+  }
+
   bool represents_stmt_or_stmts() const override {
+    return true;
+  }
+
+  bool is_stmt() const override {
     return true;
   }
 
@@ -146,6 +166,7 @@ struct TypeNode : public TypeAnnot {
 };
 
 using BoxedAstNode = std::unique_ptr<AstNode>;
+using BoxedAstNodes = std::vector<BoxedAstNode>;
 using BoxedExpr = std::unique_ptr<Expr>;
 using BoxedStmt = std::unique_ptr<Stmt>;
 using BoxedTypeAnnot = std::unique_ptr<TypeAnnot>;

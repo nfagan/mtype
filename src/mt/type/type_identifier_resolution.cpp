@@ -35,6 +35,11 @@ TypeIdentifierResolverInstance::TypeCollector& TypeIdentifierResolverInstance::T
   return type_collectors.back();
 }
 
+TypeIdentifierResolverInstance::TypeCollector& TypeIdentifierResolverInstance::TypeCollectorState::parent() {
+  assert(type_collectors.size() > 1);
+  return type_collectors[type_collectors.size()-2];
+}
+
 TypeIdentifierResolverInstance::TypeCollector::TypeCollector() : had_error(false) {
   //
 }
@@ -69,6 +74,10 @@ source_data(source_data) {
 
 void TypeIdentifierResolverInstance::add_error(const ParseError& err) {
   errors.push_back(err);
+}
+
+void TypeIdentifierResolverInstance::mark_parent_collector_error() {
+  collectors.parent().mark_error();
 }
 
 bool TypeIdentifierResolverInstance::had_error() const {
@@ -226,6 +235,7 @@ void TypeIdentifierResolver::record_type_node(const RecordTypeNode& node) {
 
     auto& collector = instance->collectors.current();
     if (collector.had_error) {
+      instance->mark_parent_collector_error();
       return;
     }
 
@@ -270,6 +280,7 @@ void TypeIdentifierResolver::method_type_declaration(const DeclareTypeNode& node
   node.maybe_method.type->accept_const(*this);
   auto& current_collector = instance->collectors.current();
   if (current_collector.had_error) {
+    instance->mark_parent_collector_error();
     return;
   }
 
@@ -363,6 +374,30 @@ void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
   instance->collectors.current().push(emplaced_type);
 }
 
+void TypeIdentifierResolver::property_node(const PropertyNode& node) {
+  Type* prop_type;
+
+  if (node.type) {
+    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    node.type->accept_const(*this);
+    auto collector = std::move(instance->collectors.current());
+    if (collector.had_error) {
+      instance->mark_parent_collector_error();
+      return;
+    }
+    assert(collector.types.size() == 1);
+    prop_type = collector.types[0];
+  } else {
+    prop_type = instance->type_store.make_fresh_type_variable_reference();
+  }
+
+  TypeIdentifier prop_name = to_type_identifier(node.name);
+  const auto name_type = instance->type_store.make_constant_value(prop_name);
+
+  instance->collectors.current().push(name_type);
+  instance->collectors.current().push(prop_type);
+}
+
 void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
   TypeIdentifier class_name = to_type_identifier(instance->def_store.get_name(node.handle));
   auto maybe_class = instance->scopes.current()->lookup_type(class_name);
@@ -375,9 +410,17 @@ void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
 
   types::Record::Fields fields;
   for (const auto& prop : node.properties) {
-    TypeIdentifier prop_name(prop.name);
-    const auto name_type = instance->type_store.make_constant_value(prop_name);
-    const auto prop_type = instance->type_store.make_fresh_type_variable_reference();
+    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    prop->accept_const(*this);
+    auto collector = std::move(instance->collectors.current());
+    if (collector.had_error) {
+      instance->mark_parent_collector_error();
+      return;
+    }
+
+    assert(collector.types.size() == 2);
+    const auto name_type = collector.types[0];
+    const auto prop_type = collector.types[1];
     fields.push_back(types::Record::Field{name_type, prop_type});
   }
 

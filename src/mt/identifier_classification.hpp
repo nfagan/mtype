@@ -225,6 +225,7 @@ public:
   Expr* function_reference_expr(FunctionReferenceExpr& expr);
   Expr* superclass_method_reference_expr(SuperclassMethodReferenceExpr& expr);
   ClassDefNode* class_def_node(ClassDefNode& ref);
+  PropertyNode* property_node(PropertyNode& node);
 
   IfStmt* if_stmt(IfStmt& stmt);
   ExprStmt* expr_stmt(ExprStmt& stmt);

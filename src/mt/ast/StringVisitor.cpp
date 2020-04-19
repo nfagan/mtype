@@ -147,6 +147,18 @@ std::string StringVisitor::class_def_node(const ClassDefNode& ref) const {
   return class_def(def);
 }
 
+std::string StringVisitor::property_node(const PropertyNode& node) const {
+  auto prop_str = string_registry->at(node.name.full_name());
+
+  if (node.initializer) {
+    prop_str += " = ";
+    prop_str += node.initializer->accept(*this);
+  }
+
+  prop_str += ";";
+  return prop_str;
+}
+
 std::string StringVisitor::class_def(const ClassDef& def) const {
   std::string class_def_kw = tab_str() + "classdef";
   maybe_colorize(class_def_kw, TokenType::keyword_classdef);

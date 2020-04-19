@@ -292,13 +292,13 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   }
 
   for (const auto& prop : node.properties) {
-    if (prop.initializer) {
-      const auto maybe_field = record_type.find_field(TypeIdentifier(prop.name));
+    if (prop->initializer) {
+      const auto maybe_field = record_type.find_field(to_type_identifier(prop->name));
       assert(maybe_field);
       auto prop_type = maybe_field->type;
 
-      auto init_term = visit_expr(prop.initializer, prop.source_token);
-      auto prop_term = make_term(&prop.source_token, prop_type);
+      auto init_term = visit_expr(prop->initializer, prop->source_token);
+      auto prop_term = make_term(&prop->source_token, prop_type);
       push_type_equation(make_eq(init_term, prop_term));
     }
   }

@@ -229,6 +229,11 @@ namespace {
     const auto msg = "A classdef file cannot have functions or statements preceding the definition.";
     return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
   }
+
+  ParseError make_error_invalid_typed_property(const ParseInstance* instance, const Token& at_token) {
+    const auto msg = "Invalid typed property.";
+    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+  }
 }
 
 /*
@@ -834,7 +839,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   ClassDef::Properties properties;
   ClassDef::Methods methods;
   std::vector<std::unique_ptr<FunctionDefNode>> method_def_nodes;
-  std::vector<ClassDefNode::Property> property_nodes;
+  BoxedPropertyNodes property_nodes;
 
   std::set<int64_t> property_names;
   std::set<int64_t> method_names;
@@ -1193,9 +1198,70 @@ bool AstGenerator::method_def(const Token& source_token,
   return true;
 }
 
+Optional<BoxedPropertyNode> AstGenerator::typed_property(const Token& source_token) {
+  iterator.advance();
+  auto type_assert_res = type_assertion(iterator.peek(), /*expect_enclosing_node=*/ true);
+  if (!type_assert_res) {
+    return NullOpt{};
+  }
+
+  auto& assert_ref = static_cast<TypeAssertion&>(*type_assert_res.value());
+  if (!assert_ref.node->is_stmt()) {
+    add_error(make_error_invalid_typed_property(parse_instance, source_token));
+    return NullOpt{};
+  }
+
+  auto& stmt_node = static_cast<Stmt&>(*assert_ref.node);
+  Optional<const IdentifierReferenceExpr*> property_lhs;
+  BoxedExpr maybe_initializer;
+
+  if (stmt_node.is_assignment_stmt()) {
+    auto& assign_node = static_cast<AssignmentStmt&>(stmt_node);
+    property_lhs = assign_node.to_expr->expect_identifier_reference_expr();
+    maybe_initializer = std::move(assign_node.of_expr);
+
+  } else if (stmt_node.is_expr_stmt()) {
+    auto& expr_node = static_cast<ExprStmt&>(stmt_node);
+    property_lhs = expr_node.expr->expect_identifier_reference_expr();
+  }
+
+  if (!property_lhs || !property_lhs.value()->is_non_subscripted_scalar_reference()) {
+    add_error(make_error_invalid_typed_property(parse_instance, source_token));
+    return NullOpt{};
+  }
+
+  auto type = std::move(assert_ref.has_type);
+  auto name = property_lhs.value()->primary_identifier;
+  auto prop_node = std::make_unique<PropertyNode>(source_token, name, std::move(maybe_initializer), std::move(type));
+
+  return Optional<BoxedPropertyNode>(std::move(prop_node));
+}
+
+
+bool AstGenerator::emplace_property(const Token& source_token,
+                                    BoxedPropertyNode property_node,
+                                    std::set<int64_t>& property_names,
+                                    std::vector<ClassDef::Property>& properties,
+                                    BoxedPropertyNodes& property_nodes) {
+
+  const auto& prop_name = property_node->name;
+
+  if (property_names.count(prop_name.full_name()) > 0) {
+    //  Duplicate property
+    add_error(make_error_duplicate_class_property(parse_instance, source_token));
+    return false;
+  } else {
+    property_names.emplace(prop_name.full_name());
+    properties.emplace_back(ClassDef::Property(prop_name));
+    property_nodes.push_back(std::move(property_node));
+  }
+
+  return true;
+}
+
 bool AstGenerator::properties_block(std::set<int64_t>& property_names,
                                     std::vector<ClassDef::Property>& properties,
-                                    std::vector<ClassDefNode::Property>& property_nodes) {
+                                    BoxedPropertyNodes& property_nodes) {
   iterator.advance(); //  consume properties
 
   //  properties (SetAccess = ...)
@@ -1219,23 +1285,27 @@ bool AstGenerator::properties_block(std::set<int64_t>& property_names,
       case TokenType::new_line:
         iterator.advance();
         break;
+      case TokenType::type_annotation_macro: {
+        auto typed_prop_res = typed_property(iterator.peek());
+        if (!typed_prop_res) {
+          return false;
+        }
+        auto prop_node = std::move(typed_prop_res.rvalue());
+        bool success = emplace_property(tok, std::move(prop_node), property_names, properties, property_nodes);
+        if (!success) {
+          return false;
+        }
+        break;
+      }
       default: {
         auto prop_res = property(iterator.peek());
         if (!prop_res) {
           return false;
         }
-
         auto property_node = std::move(prop_res.rvalue());
-        const auto prop_name = property_node.name;
-
-        if (property_names.count(prop_name) > 0) {
-          //  Duplicate property
-          add_error(make_error_duplicate_class_property(parse_instance, tok));
+        bool success = emplace_property(tok, std::move(property_node), property_names, properties, property_nodes);
+        if (!success) {
           return false;
-        } else {
-          property_names.emplace(prop_name);
-          properties.emplace_back(ClassDef::Property(MatlabIdentifier(prop_name)));
-          property_nodes.emplace_back(std::move(property_node));
         }
       }
     }
@@ -1250,7 +1320,7 @@ bool AstGenerator::properties_block(std::set<int64_t>& property_names,
   return true;
 }
 
-Optional<ClassDefNode::Property> AstGenerator::property(const Token& source_token) {
+Optional<BoxedPropertyNode> AstGenerator::property(const Token& source_token) {
   auto identifier_res = one_identifier();
   if (!identifier_res) {
     return NullOpt{};
@@ -1268,9 +1338,11 @@ Optional<ClassDefNode::Property> AstGenerator::property(const Token& source_toke
     }
   }
 
-  auto name = string_registry->register_string(identifier_res.value());
-  ClassDefNode::Property property(source_token, name, std::move(initializer));
-  return Optional<ClassDefNode::Property>(std::move(property));
+  auto name = MatlabIdentifier(string_registry->register_string(identifier_res.value()));
+  //  No type.
+  auto node = std::make_unique<PropertyNode>(source_token, name, std::move(initializer), nullptr);
+
+  return Optional<BoxedPropertyNode>(std::move(node));
 }
 
 Optional<std::unique_ptr<Block>> AstGenerator::block() {
@@ -2464,6 +2536,25 @@ Optional<BoxedStmt> AstGenerator::try_stmt(const mt::Token& source_token) {
   return Optional<BoxedStmt>(std::move(node));
 }
 
+Optional<BoxedAstNode> AstGenerator::stmt_or_function_def() {
+  const auto& token = iterator.peek();
+  if (token.type == TokenType::keyword_function) {
+    auto def_res = function_def();
+    if (!def_res) {
+      return NullOpt{};
+    } else {
+      return Optional<BoxedAstNode>(def_res.rvalue());
+    }
+  } else {
+    auto stmt_res = stmt();
+    if (!stmt_res) {
+      return NullOpt{};
+    } else {
+      return Optional<BoxedAstNode>(stmt_res.rvalue());
+    }
+  }
+}
+
 Optional<BoxedStmt> AstGenerator::stmt() {
   const auto& token = iterator.peek();
 
@@ -2603,11 +2694,11 @@ Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token,
   BoxedAstNode enclosing_node;
 
   if (expect_enclosing_node) {
-    auto func_res = function_def();
-    if (!func_res) {
+    auto enclosing_res = stmt_or_function_def();
+    if (!enclosing_res) {
       return NullOpt{};
     }
-    enclosing_node = std::move(func_res.rvalue());
+    enclosing_node = std::move(enclosing_res.rvalue());
   }
 
   auto assert_node = std::make_unique<TypeAssertion>(source_token, std::move(enclosing_node), type_res.rvalue());

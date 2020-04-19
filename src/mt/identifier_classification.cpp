@@ -830,6 +830,13 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
   return &def_node;
 }
 
+PropertyNode* IdentifierClassifier::property_node(PropertyNode& node) {
+  if (node.initializer) {
+    conditional_reset(node.initializer, node.initializer->accept(*this));
+  }
+  return &node;
+}
+
 ClassDefNode* IdentifierClassifier::class_def_node(ClassDefNode& ref) {
   ClassDefState::Helper class_helper(class_state, ref.handle, nullptr, MatlabIdentifier());
 
@@ -838,11 +845,7 @@ ClassDefNode* IdentifierClassifier::class_def_node(ClassDefNode& ref) {
   }
 
   for (auto& property : ref.properties) {
-    auto& initializer = property.initializer;
-
-    if (initializer) {
-      conditional_reset(initializer, initializer->accept(*this));
-    }
+    conditional_reset(property, property->accept(*this));
   }
 
   return &ref;

@@ -3,6 +3,7 @@
 #include "ast.hpp"
 #include "../handles.hpp"
 #include "../token.hpp"
+#include "../identifier.hpp"
 #include "../lang_components.hpp"
 #include "../utility.hpp"
 
@@ -39,27 +40,37 @@ struct FunctionDefNode : public AstNode {
   TypeScope* type_scope;
 };
 
+struct PropertyNode : public AstNode {
+  PropertyNode(const Token& source_token, const MatlabIdentifier& name, BoxedExpr initializer, BoxedTypeAnnot type) :
+    source_token(source_token), name(name), initializer(std::move(initializer)), type(std::move(type)) {
+    //
+  }
+
+  ~PropertyNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  PropertyNode* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+
+  bool is_property() const override {
+    return true;
+  }
+
+  Token source_token;
+  MatlabIdentifier name;
+  BoxedExpr initializer;
+  BoxedTypeAnnot type;
+};
+
+using BoxedPropertyNode = std::unique_ptr<PropertyNode>;
+using BoxedPropertyNodes = std::vector<BoxedPropertyNode>;
+
 struct ClassDefNode : public AstNode {
-public:
-  struct Property {
-    Property() = default;
-    Property(const Token& source_token, int64_t name, BoxedExpr initializer) :
-      source_token(source_token), name(name), initializer(std::move(initializer)) {
-      //
-    }
-    Property(Property&& other) MSVC_MISSING_NOEXCEPT = default;
-    Property& operator=(Property&& other) MSVC_MISSING_NOEXCEPT = default;
-    ~Property() = default;
-
-    Token source_token;
-    int64_t name;
-    BoxedExpr initializer;
-  };
-
 public:
   ClassDefNode(const Token& source_token,
                const ClassDefHandle& handle,
-               std::vector<Property>&& properties,
+               BoxedPropertyNodes&& properties,
                std::vector<std::unique_ptr<FunctionDefNode>>&& method_defs) :
                source_token(source_token),
                handle(handle),
@@ -80,7 +91,7 @@ public:
 
   Token source_token;
   ClassDefHandle handle;
-  std::vector<Property> properties;
+  BoxedPropertyNodes properties;
   std::vector<std::unique_ptr<FunctionDefNode>> method_defs;
 };
 

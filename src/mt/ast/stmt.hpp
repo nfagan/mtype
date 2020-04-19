@@ -265,6 +265,10 @@ struct ExprStmt : public Stmt {
   void accept(TypePreservingVisitor& vis) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 
+  bool is_expr_stmt() const override {
+    return true;
+  }
+
   BoxedExpr expr;
 };
 

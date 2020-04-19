@@ -291,10 +291,13 @@ struct IdentifierReferenceExpr : public Expr {
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 
+  bool is_non_subscripted_scalar_reference() const;
   bool is_maybe_non_subscripted_function_call() const;
   int64_t num_primary_subscript_arguments() const;
 
   std::vector<int64_t> make_compound_identifier(int64_t* end) const;
+
+  Optional<const IdentifierReferenceExpr*> expect_identifier_reference_expr() const override;
 
   Token source_token;
   MatlabIdentifier primary_identifier;

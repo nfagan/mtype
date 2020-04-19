@@ -42,6 +42,7 @@ public:
     void push();
     void pop();
     TypeCollector& current();
+    TypeCollector& parent();
 
     std::vector<TypeCollector> type_collectors;
   };
@@ -59,6 +60,7 @@ public:
   bool had_error() const;
   void add_error(const ParseError& err);
   void add_unresolved_identifier(const TypeIdentifier& ident, TypeScope* in_scope);
+  void mark_parent_collector_error();
 
 public:
   TypeStore& type_store;
@@ -101,6 +103,7 @@ public:
 
   void function_def_node(const FunctionDefNode& node) override;
   void class_def_node(const ClassDefNode& node) override;
+  void property_node(const PropertyNode& node) override;
 
 private:
   void scalar_type_declaration(const DeclareTypeNode& node);

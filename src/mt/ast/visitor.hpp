@@ -40,6 +40,7 @@ struct ExprStmt;
 
 struct ClassDefNode;
 struct FunctionDefNode;
+struct PropertyNode;
 
 struct RecordTypeNode;
 struct UnionTypeNode;
@@ -93,6 +94,7 @@ public:
 
   MT_VISITOR_METHOD(class_def_node, ClassDefNode)
   MT_VISITOR_METHOD(function_def_node, FunctionDefNode)
+  MT_VISITOR_METHOD(property_node, PropertyNode)
 
   MT_VISITOR_METHOD(infer_type_node, InferTypeNode)
   MT_VISITOR_METHOD(constructor_type_node, ConstructorTypeNode)

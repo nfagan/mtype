@@ -6,6 +6,26 @@
 namespace mt {
 
 /*
+ * PropertyNode
+ */
+
+std::string PropertyNode::accept(const StringVisitor& vis) const {
+  return vis.property_node(*this);
+}
+
+PropertyNode* PropertyNode::accept(IdentifierClassifier& classifier) {
+  return classifier.property_node(*this);
+}
+
+void PropertyNode::accept(TypePreservingVisitor& vis) {
+  vis.property_node(*this);
+}
+
+void PropertyNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.property_node(*this);
+}
+
+/*
  * ClassDefNode
  */
 

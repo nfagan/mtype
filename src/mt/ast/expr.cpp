@@ -265,6 +265,10 @@ std::vector<int64_t> IdentifierReferenceExpr::make_compound_identifier(int64_t* 
   return identifier_components;
 }
 
+bool IdentifierReferenceExpr::is_non_subscripted_scalar_reference() const {
+  return subscripts.empty();
+}
+
 bool IdentifierReferenceExpr::is_maybe_non_subscripted_function_call() const {
   if (subscripts.size() > 1) {
     return false;
@@ -277,6 +281,10 @@ bool IdentifierReferenceExpr::is_maybe_non_subscripted_function_call() const {
 
 int64_t IdentifierReferenceExpr::num_primary_subscript_arguments() const {
   return subscripts.empty() ? 0 : subscripts[0].arguments.size();
+}
+
+Optional<const IdentifierReferenceExpr*> IdentifierReferenceExpr::expect_identifier_reference_expr() const {
+  return Optional<const IdentifierReferenceExpr*>(this);
 }
 
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {

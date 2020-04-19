@@ -149,8 +149,13 @@ private:
                           ClassDef::Methods& methods);
   bool properties_block(std::set<int64_t>& property_names,
                         std::vector<ClassDef::Property>& properties,
-                        std::vector<ClassDefNode::Property>& property_nodes);
-  Optional<ClassDefNode::Property> property(const Token& source_token);
+                        BoxedPropertyNodes& property_nodes);
+  Optional<BoxedPropertyNode> property(const Token& source_token);
+  bool emplace_property(const Token& source_token,
+                        BoxedPropertyNode property_node,
+                        std::set<int64_t>& property_names,
+                        std::vector<ClassDef::Property>& properties,
+                        BoxedPropertyNodes& property_nodes);
 
   Optional<FunctionAttributes> method_attributes(const ClassDefHandle& enclosing_class);
   Optional<bool> boolean_attribute_value();
@@ -204,6 +209,8 @@ private:
   Optional<BoxedStmt> variable_declaration_stmt(const Token& source_token);
   Optional<BoxedStmt> stmt();
 
+  Optional<BoxedAstNode> stmt_or_function_def();
+
   Optional<IfBranch> if_branch(const Token& source_token);
   Optional<SwitchCase> switch_case(const Token& source_token);
   Optional<Import> one_import(const Token& source_token, bool is_matlab_import);
@@ -220,6 +227,8 @@ private:
   Optional<BoxedTypeAnnot> type_record(const Token& source_token);
   Optional<BoxedTypeAnnot> type_namespace(const Token& source_token);
   Optional<BoxedTypeAnnot> constructor_type(const Token& source_token);
+
+  Optional<BoxedPropertyNode> typed_property(const Token& source_token);
 
   Optional<BoxedTypeAnnot> declare_type(const Token& source_token);
   Optional<BoxedTypeAnnot> scalar_type_declaration(const Token& source_token);

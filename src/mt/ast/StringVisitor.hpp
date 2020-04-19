@@ -29,6 +29,7 @@ public:
   std::string block(const Block& block) const;
   std::string root_block(const RootBlock& block) const;
   std::string function_def_node(const FunctionDefNode& reference) const;
+  std::string property_node(const PropertyNode& node) const;
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
