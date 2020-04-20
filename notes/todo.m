@@ -13,7 +13,7 @@ TODO
   the identifier resolver.
 . * varargin
 . Fix subscripts
-. Property types in classdef; allow non-method defs in methods block.
+. For method definition, use provided type as canonical type
 . * Distinguish application and abstraction
 
 %}

@@ -30,6 +30,7 @@ public:
   std::string root_block(const RootBlock& block) const;
   std::string function_def_node(const FunctionDefNode& reference) const;
   std::string property_node(const PropertyNode& node) const;
+  std::string method_node(const MethodNode& node) const;
 
   std::string expr_stmt(const ExprStmt& stmt) const;
   std::string assignment_stmt(const AssignmentStmt& stmt) const;
@@ -79,14 +80,12 @@ public:
   std::string infer_type_node(const InferTypeNode& node) const;
 
 private:
-  std::string class_def(const ClassDef& def) const;
   std::string variable_def(const VariableDef& def) const;
   std::string function_def(const FunctionDef& def) const;
   std::string function_header(const FunctionHeader& header) const;
 
-  std::string properties(const ClassDef::Properties& properties) const;
-  std::string property(const ClassDef::Property& prop) const;
-  std::string methods(const ClassDef& def) const;
+  std::string properties(const BoxedPropertyNodes& properties) const;
+  std::string methods(const BoxedMethodNodes& nodes) const;
 
   std::string if_branch(const IfBranch& branch, const char* branch_prefix) const;
   std::string else_branch(const ElseBranch& branch) const;

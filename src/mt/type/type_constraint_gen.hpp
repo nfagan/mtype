@@ -60,6 +60,7 @@ public:
 
   void function_def_node(const FunctionDefNode& node) override;
   void class_def_node(const ClassDefNode& node) override;
+  void method_node(const MethodNode& node) override;
 
   void fun_type_node(const FunTypeNode& node) override;
   void type_annot_macro(const TypeAnnotMacro& macro) override;

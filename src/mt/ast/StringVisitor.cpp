@@ -144,22 +144,7 @@ std::string StringVisitor::function_def(const FunctionDef& def) const {
 
 std::string StringVisitor::class_def_node(const ClassDefNode& ref) const {
   const auto& def = store_reader.at(ref.handle);
-  return class_def(def);
-}
 
-std::string StringVisitor::property_node(const PropertyNode& node) const {
-  auto prop_str = string_registry->at(node.name.full_name());
-
-  if (node.initializer) {
-    prop_str += " = ";
-    prop_str += node.initializer->accept(*this);
-  }
-
-  prop_str += ";";
-  return prop_str;
-}
-
-std::string StringVisitor::class_def(const ClassDef& def) const {
   std::string class_def_kw = tab_str() + "classdef";
   maybe_colorize(class_def_kw, TokenType::keyword_classdef);
   auto result = class_def_kw + " " + std::string(string_registry->at(def.name.full_name()));
@@ -175,20 +160,38 @@ std::string StringVisitor::class_def(const ClassDef& def) const {
   }
 
   result += "\n";
-  result += properties(def.properties) + "\n";
-  result += methods(def) + "\n";
+  result += properties(ref.properties) + "\n";
+  result += methods(ref.method_defs) + "\n";
   result += tab_str() + end_str();
 
   return result;
 }
 
-std::string StringVisitor::property(const ClassDef::Property& prop) const {
-  auto prop_str = string_registry->at(prop.name.full_name());
+std::string StringVisitor::property_node(const PropertyNode& node) const {
+  auto prop_str = string_registry->at(node.name.full_name());
+
+  if (node.type) {
+    prop_str += " :: " + node.type->accept(*this);
+  }
+
+  if (node.initializer) {
+    prop_str += " = ";
+    prop_str += node.initializer->accept(*this);
+  }
+
   prop_str += ";";
   return prop_str;
 }
 
-std::string StringVisitor::properties(const ClassDef::Properties& properties) const {
+std::string StringVisitor::method_node(const MethodNode& node) const {
+  if (node.type) {
+    return tab_str() + node.type->accept(*this) + "\n" + node.def->accept(*this);
+  } else {
+    return node.def->accept(*this);
+  }
+}
+
+std::string StringVisitor::properties(const BoxedPropertyNodes& properties) const {
   enter_block();
 
   std::string prop_str = "properties\n";
@@ -198,7 +201,7 @@ std::string StringVisitor::properties(const ClassDef::Properties& properties) co
   enter_block();
 
   for (const auto& prop : properties) {
-    prop_str += tab_str() + property(prop) + "\n";
+    prop_str += tab_str() + prop->accept(*this) + "\n";
   }
 
   exit_block();
@@ -208,7 +211,7 @@ std::string StringVisitor::properties(const ClassDef::Properties& properties) co
   return prop_str;
 }
 
-std::string StringVisitor::methods(const ClassDef& def) const {
+std::string StringVisitor::methods(const BoxedMethodNodes& nodes) const {
   enter_block();
 
   std::string method_str("methods");
@@ -218,9 +221,8 @@ std::string StringVisitor::methods(const ClassDef& def) const {
   enter_block();
 
   std::string func_def_strs;
-  for (const auto& def_handle : def.methods) {
-    const auto& func_def = store_reader.at(def_handle);
-    func_def_strs += tab_str() + function_def(func_def) + "\n";
+  for (const auto& node : nodes) {
+    func_def_strs += node->accept(*this) + "\n";
   }
 
   exit_block();

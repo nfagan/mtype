@@ -26,6 +26,26 @@ void PropertyNode::accept_const(TypePreservingVisitor& vis) const {
 }
 
 /*
+ * MethodNode
+ */
+
+std::string MethodNode::accept(const StringVisitor& vis) const {
+  return vis.method_node(*this);
+}
+
+MethodNode* MethodNode::accept(IdentifierClassifier& classifier) {
+  return classifier.method_node(*this);
+}
+
+void MethodNode::accept(TypePreservingVisitor& vis) {
+  vis.method_node(*this);
+}
+
+void MethodNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.method_node(*this);
+}
+
+/*
  * ClassDefNode
  */
 

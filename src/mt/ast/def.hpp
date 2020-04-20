@@ -40,6 +40,9 @@ struct FunctionDefNode : public AstNode {
   TypeScope* type_scope;
 };
 
+using BoxedFunctionDefNode = std::unique_ptr<FunctionDefNode>;
+using BoxedFunctionDefNodes = std::vector<BoxedFunctionDefNode>;
+
 struct PropertyNode : public AstNode {
   PropertyNode(const Token& source_token, const MatlabIdentifier& name, BoxedExpr initializer, BoxedTypeAnnot type) :
     source_token(source_token), name(name), initializer(std::move(initializer)), type(std::move(type)) {
@@ -63,15 +66,32 @@ struct PropertyNode : public AstNode {
   BoxedTypeAnnot type;
 };
 
+struct MethodNode : public AstNode {
+  MethodNode(BoxedFunctionDefNode def, BoxedTypeAnnot type) : def(std::move(def)), type(std::move(type)) {
+    //
+  }
+  ~MethodNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  MethodNode* accept(IdentifierClassifier& classifier) override;
+  void accept(TypePreservingVisitor& vis) override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+
+  BoxedFunctionDefNode def;
+  BoxedTypeAnnot type;
+};
+
 using BoxedPropertyNode = std::unique_ptr<PropertyNode>;
 using BoxedPropertyNodes = std::vector<BoxedPropertyNode>;
+using BoxedMethodNode = std::unique_ptr<MethodNode>;
+using BoxedMethodNodes = std::vector<BoxedMethodNode>;
 
 struct ClassDefNode : public AstNode {
 public:
   ClassDefNode(const Token& source_token,
                const ClassDefHandle& handle,
                BoxedPropertyNodes&& properties,
-               std::vector<std::unique_ptr<FunctionDefNode>>&& method_defs) :
+               BoxedMethodNodes&& method_defs) :
                source_token(source_token),
                handle(handle),
                properties(std::move(properties)),
@@ -92,7 +112,7 @@ public:
   Token source_token;
   ClassDefHandle handle;
   BoxedPropertyNodes properties;
-  std::vector<std::unique_ptr<FunctionDefNode>> method_defs;
+  BoxedMethodNodes method_defs;
 };
 
 

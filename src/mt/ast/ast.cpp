@@ -44,14 +44,14 @@ Optional<FunctionDefNode*> RootBlock::extract_constructor_function_def(const Sto
       auto class_node = static_cast<ClassDefNode*>(node_ptr);
 
       for (const auto& method : class_node->method_defs) {
-        const auto def_handle = method->def_handle;
+        const auto def_handle = method->def->def_handle;
         FunctionDefNode* maybe_ctor_node = nullptr;
 
         if (def_handle.is_valid()) {
           store.use<Store::ReadConst>([&](const auto& reader) {
             const auto& def = reader.at(def_handle);
             if (def.attributes.is_constructor()) {
-              maybe_ctor_node = method.get();
+              maybe_ctor_node = method->def.get();
             }
           });
         }

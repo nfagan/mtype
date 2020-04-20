@@ -366,6 +366,7 @@ void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
   instance->library.emplace_local_function_type(node.def_handle, emplaced_type);
 
   if (body) {
+    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
     //  Push monomorphic functions.
     BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, false);
     body->accept_const(*this);
@@ -375,7 +376,7 @@ void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
 }
 
 void TypeIdentifierResolver::property_node(const PropertyNode& node) {
-  Type* prop_type;
+  Type* prop_type = nullptr;
 
   if (node.type) {
     TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
@@ -396,6 +397,15 @@ void TypeIdentifierResolver::property_node(const PropertyNode& node) {
 
   instance->collectors.current().push(name_type);
   instance->collectors.current().push(prop_type);
+}
+
+void TypeIdentifierResolver::method_node(const MethodNode& node) {
+  if (node.type) {
+    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    node.type->accept_const(*this);
+  }
+
+  node.def->accept_const(*this);
 }
 
 void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {

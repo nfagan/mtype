@@ -837,6 +837,11 @@ PropertyNode* IdentifierClassifier::property_node(PropertyNode& node) {
   return &node;
 }
 
+MethodNode* IdentifierClassifier::method_node(MethodNode& node) {
+  conditional_reset(node.def, node.def->accept(*this));
+  return &node;
+}
+
 ClassDefNode* IdentifierClassifier::class_def_node(ClassDefNode& ref) {
   ClassDefState::Helper class_helper(class_state, ref.handle, nullptr, MatlabIdentifier());
 

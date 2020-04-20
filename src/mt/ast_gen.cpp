@@ -234,6 +234,11 @@ namespace {
     const auto msg = "Invalid typed property.";
     return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
   }
+
+//  ParseError make_error_invalid_typed_method(const ParseInstance* instance, const Token& at_token) {
+//    const auto msg = "Invalid typed method.";
+//    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
+//  }
 }
 
 /*
@@ -838,7 +843,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
 
   ClassDef::Properties properties;
   ClassDef::Methods methods;
-  std::vector<std::unique_ptr<FunctionDefNode>> method_def_nodes;
+  BoxedMethodNodes method_def_nodes;
   BoxedPropertyNodes property_nodes;
 
   std::set<int64_t> property_names;
@@ -1078,10 +1083,74 @@ Optional<bool> AstGenerator::boolean_attribute_value() {
   return Optional<bool>(value == "true");
 }
 
+namespace {
+  bool untyped_method_dispatch(AstGenerator* ast_gen,
+                               const Token& tok,
+                               std::set<int64_t>& method_names,
+                               ClassDef::Methods& methods,
+                               BoxedMethodNodes& method_nodes) {
+    if (tok.type == TokenType::identifier || tok.type == TokenType::left_bracket) {
+      auto res = ast_gen->method_declaration(tok, method_names, methods);
+      if (!res) {
+        return false;
+      }
+
+    } else if (tok.type == TokenType::keyword_function) {
+      auto res = ast_gen->method_def(tok, method_names, methods, method_nodes);
+      if (!res) {
+        return false;
+      }
+
+    } else {
+      std::array<TokenType, 3> possible_types{{
+        TokenType::identifier, TokenType::left_bracket, TokenType::keyword_function
+      }};
+
+      ast_gen->add_error(make_error_expected_token_type(ast_gen->parse_instance, tok, possible_types));
+      return false;
+    }
+
+    return true;
+  }
+
+  bool typed_method_dispatch(AstGenerator* ast_gen,
+                             std::set<int64_t>& method_names,
+                             ClassDef::Methods& methods,
+                             BoxedMethodNodes& method_def_nodes) {
+    ast_gen->iterator.advance();
+    auto maybe_err = ast_gen->consume(TokenType::double_colon);
+    if (maybe_err) {
+      ast_gen->add_error(maybe_err.rvalue());
+      return false;
+    }
+
+    auto type_res = ast_gen->type(ast_gen->iterator.peek());
+    if (!type_res) {
+      return false;
+    }
+
+    auto end_type_err = ast_gen->consume(TokenType::keyword_end_type);
+    if (end_type_err) {
+      ast_gen->add_error(end_type_err.rvalue());
+      return false;
+    }
+
+    bool res = untyped_method_dispatch(ast_gen, ast_gen->iterator.peek(), method_names, methods, method_def_nodes);
+    if (!res) {
+      return false;
+    }
+
+    auto& last_method = method_def_nodes.back();
+    last_method->type = std::move(type_res.rvalue());
+
+    return true;
+  }
+}
+
 bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
                                  std::set<int64_t>& method_names,
                                  ClassDef::Methods& methods,
-                                 std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes) {
+                                 BoxedMethodNodes& method_def_nodes) {
   iterator.advance(); //  consume methods
 
   //  methods (SetAccess = ...)
@@ -1108,25 +1177,16 @@ bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
       case TokenType::new_line:
         iterator.advance();
         break;
+      case TokenType::type_annotation_macro: {
+        bool success = typed_method_dispatch(this, method_names, methods, method_def_nodes);
+        if (!success) {
+          return false;
+        }
+        break;
+      }
       default: {
-        if (tok.type == TokenType::identifier || tok.type == TokenType::left_bracket) {
-          auto res = method_declaration(tok, method_names, methods);
-          if (!res) {
-            return false;
-          }
-
-        } else if (tok.type == TokenType::keyword_function) {
-          auto res = method_def(tok, method_names, methods, method_def_nodes);
-          if (!res) {
-            return false;
-          }
-
-        } else {
-          std::array<TokenType, 3> possible_types{{
-            TokenType::identifier, TokenType::left_bracket, TokenType::keyword_function
-          }};
-
-          add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
+        bool success = untyped_method_dispatch(this, tok, method_names, methods, method_def_nodes);
+        if (!success) {
           return false;
         }
       }
@@ -1175,7 +1235,7 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
 bool AstGenerator::method_def(const Token& source_token,
                               std::set<int64_t>& method_names,
                               mt::ClassDef::Methods& methods,
-                              std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes) {
+                              BoxedMethodNodes& method_nodes) {
   auto func_res = function_def();
   if (!func_res) {
     return false;
@@ -1192,7 +1252,9 @@ bool AstGenerator::method_def(const Token& source_token,
   } else {
     method_names.emplace(func_name.full_name());
     methods.emplace_back(def_handle);
-    method_def_nodes.emplace_back(std::move(func_res.rvalue()));
+
+    auto untyped_node = std::make_unique<MethodNode>(func_res.rvalue(), nullptr);
+    method_nodes.push_back(std::move(untyped_node));
   }
 
   return true;
@@ -3352,7 +3414,6 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
     }
   }
 
-//  auto identifier = TypeIdentifier(string_registry->register_string(source_token.lexeme));
   auto node = std::make_unique<ScalarTypeNode>(source_token, identifier, std::move(arguments));
   return Optional<BoxedType>(std::move(node));
 }

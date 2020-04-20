@@ -310,6 +310,23 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   }
 }
 
+void TypeConstraintGenerator::method_node(const MethodNode& node) {
+  Type* maybe_type = nullptr;
+  if (node.type) {
+    node.type->accept_const(*this);
+    maybe_type = pop_type_equation_term().term;
+  }
+
+  node.def->accept_const(*this);
+
+  if (maybe_type) {
+    auto lhs_type = pop_type_equation_term().term;
+    auto lhs_term = make_term(&node.def->source_token, lhs_type);
+    auto rhs_term = make_term(&node.def->source_token, maybe_type);
+    push_type_equation(make_eq(lhs_term, rhs_term));
+  }
+}
+
 /*
  * TypeAnnot
  */

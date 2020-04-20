@@ -104,6 +104,7 @@ public:
   void function_def_node(const FunctionDefNode& node) override;
   void class_def_node(const ClassDefNode& node) override;
   void property_node(const PropertyNode& node) override;
+  void method_node(const MethodNode& node) override;
 
 private:
   void scalar_type_declaration(const DeclareTypeNode& node);

@@ -119,7 +119,7 @@ public:
 
   void parse(ParseInstance* parse_instance, const std::vector<Token>& tokens);
 
-private:
+//private:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
   Optional<std::unique_ptr<FunctionDefNode>> function_def();
@@ -139,11 +139,11 @@ private:
   bool methods_block(const ClassDefHandle& enclosing_class,
                      std::set<int64_t>& method_names,
                      ClassDef::Methods& methods,
-                     std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes);
+                     BoxedMethodNodes& method_def_nodes);
   bool method_def(const Token& source_token,
                   std::set<int64_t>& method_names,
                   ClassDef::Methods& methods,
-                  std::vector<std::unique_ptr<FunctionDefNode>>& method_def_nodes);
+                  BoxedMethodNodes& method_def_nodes);
   bool method_declaration(const Token& source_token,
                           std::set<int64_t>& method_names,
                           ClassDef::Methods& methods);
@@ -273,7 +273,7 @@ private:
   void register_import(Import&& import);
   void add_error(ParseError&& err);
 
-private:
+//private:
   ParseInstance* parse_instance;
 
   TokenIterator iterator;
