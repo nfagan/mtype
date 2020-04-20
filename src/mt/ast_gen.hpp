@@ -20,6 +20,10 @@ class CodeFileDescriptor;
 class TypeStore;
 class Library;
 
+namespace types {
+  struct Scheme;
+}
+
 /*
  * PendingTypeImport
  */
@@ -287,6 +291,7 @@ public:
   std::vector<MatlabScope*> scopes;
   std::vector<TypeScope*> type_scopes;
   std::vector<FunctionAttributes> function_attributes;
+  std::vector<types::Scheme*> enclosing_schemes;
 };
 
 }

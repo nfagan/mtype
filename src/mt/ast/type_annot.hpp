@@ -4,6 +4,7 @@
 #include "../token.hpp"
 #include "../identifier.hpp"
 #include "../lang_components.hpp"
+#include <unordered_set>
 
 namespace mt {
 
@@ -17,6 +18,7 @@ using BoxedFunctionTypeNode = std::unique_ptr<FunctionTypeNode>;
 
 namespace types {
   struct Record;
+  struct Scheme;
 }
 
 struct TypeAnnotMacro : public TypeAnnot {
@@ -202,10 +204,12 @@ struct TypeLet : public TypeAnnot {
 struct TypeGiven : public TypeAnnot {
   TypeGiven(const Token& source_token,
             std::vector<int64_t>&& identifiers,
-            BoxedTypeAnnot declaration) :
+            BoxedTypeAnnot declaration,
+            types::Scheme* scheme) :
             source_token(source_token),
             identifiers(std::move(identifiers)),
-            declaration(std::move(declaration)) {
+            declaration(std::move(declaration)),
+            scheme(scheme) {
     //
   }
   ~TypeGiven() override = default;
@@ -217,6 +221,7 @@ struct TypeGiven : public TypeAnnot {
   Token source_token;
   std::vector<int64_t> identifiers;
   BoxedTypeAnnot declaration;
+  types::Scheme* scheme;
 };
 
 struct TypeBegin : public TypeAnnot {
@@ -249,6 +254,7 @@ struct RecordTypeNode : public TypeNode {
   };
 
   using Fields = std::vector<Field>;
+  using FieldNames = std::unordered_set<TypeIdentifier, TypeIdentifier::Hash>;
 
   RecordTypeNode(const Token& source_token, const Token& name_token,
                  const TypeIdentifier& identifier, types::Record* type, Fields&& fields) :
@@ -300,7 +306,7 @@ struct UnionTypeNode : public TypeNode {
 struct ScalarTypeNode : public TypeNode {
   ScalarTypeNode(const Token& source_token,
                  const TypeIdentifier& identifier,
-                 std::vector<BoxedType>&& arguments) :
+                 BoxedTypes&& arguments) :
                  source_token(source_token),
                  identifier(identifier),
                  arguments(std::move(arguments)) {
@@ -314,7 +320,7 @@ struct ScalarTypeNode : public TypeNode {
 
   Token source_token;
   TypeIdentifier identifier;
-  std::vector<BoxedType> arguments;
+  BoxedTypes arguments;
 };
 
 struct FunctionTypeNode : public TypeNode {

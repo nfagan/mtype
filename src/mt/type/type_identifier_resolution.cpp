@@ -5,21 +5,62 @@
 #include "../string.hpp"
 #include "library.hpp"
 #include "type_store.hpp"
+#include "instance.hpp"
 #include <cassert>
 
 namespace mt {
 
+namespace {
+  void visit_array(TypeIdentifierResolver& resolver, const std::vector<BoxedType>& types) {
+    for (const auto& type : types) {
+      type->accept_const(resolver);
+    }
+  }
+
+  Optional<TypePtrs> collect_types(TypeIdentifierResolver& resolver,
+                                   TypeIdentifierResolverInstance& instance,
+                                   const std::vector<BoxedType>& types) {
+    instance.collectors.push();
+    MT_SCOPE_EXIT {
+      instance.collectors.pop();
+    };
+
+    visit_array(resolver, types);
+    auto& collector = instance.collectors.current();
+    if (collector.had_error) {
+      return NullOpt{};
+    } else {
+      return Optional<TypePtrs>(std::move(collector.types));
+    }
+  }
+
+  ParseError make_error_unresolved_type_identifier(const TypeIdentifierResolverInstance& instance,
+                                                   const Token& token, const std::string& ident) {
+    auto msg = "Unresolved type identifier: `" + ident + "`.";
+    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+  }
+
+  ParseError make_error_duplicate_method(const TypeIdentifierResolverInstance& instance, const Token& token) {
+    const auto msg = "Duplicate method.";
+    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+  }
+
+  ParseError make_error_duplicate_scheme_variable(const TypeIdentifierResolverInstance& instance,
+                                                  const Token& token, const std::string& ident) {
+    auto msg = "Duplicate scheme variable identifier: `" + ident + "`.";
+    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+  }
+
+  ParseError make_error_incorrect_num_arguments_to_scheme(const TypeIdentifierResolverInstance& instance,
+                                                          const Token& token) {
+    auto msg = "Incorrect number of arguments to type scheme.";
+    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+  }
+}
+
 /*
  * TypeIdentifierResolverInstance::UnresolvedIdentifier
  */
-
-void TypeIdentifierResolverInstance::TypeCollectorState::Stack::push(TypeCollectorState& collector) {
-  collector.push();
-}
-
-void TypeIdentifierResolverInstance::TypeCollectorState::Stack::pop(TypeCollectorState& collector) {
-  collector.pop();
-}
 
 void TypeIdentifierResolverInstance::TypeCollectorState::push() {
   type_collectors.emplace_back();
@@ -88,6 +129,24 @@ void TypeIdentifierResolverInstance::add_unresolved_identifier(const TypeIdentif
   unresolved_identifiers.emplace_back(ident, in_scope);
 }
 
+void TypeIdentifierResolverInstance::push_scheme() {
+  scheme_variables.emplace_back();
+}
+
+void TypeIdentifierResolverInstance::pop_scheme() {
+  assert(!scheme_variables.empty());
+  scheme_variables.pop_back();
+}
+
+TypeIdentifierResolverInstance::SchemeVariables& TypeIdentifierResolverInstance::current_scheme_variables() {
+  assert(!scheme_variables.empty());
+  return scheme_variables.back();
+}
+
+bool TypeIdentifierResolverInstance::has_scheme() const {
+  return !scheme_variables.empty();
+}
+
 /*
  * TypeIdentifierResolver
  */
@@ -103,12 +162,18 @@ instance(instance) {
 
 void TypeIdentifierResolver::root_block(const RootBlock& block) {
   //  Push root type scope.
-  ScopeState<TypeScope>::Helper scope_helper(instance->scopes, block.type_scope);
-  ScopeState<const MatlabScope>::Helper matlab_scope_helper(instance->matlab_scopes, block.scope);
-  //  Push empty type collector.
-  TypeIdentifierResolverInstance::TypeCollectorState::Helper collect_helper(instance->collectors);
+  instance->scopes.push(block.type_scope);
+  instance->matlab_scopes.push(block.scope);
+  instance->collectors.push();
   //  Push monomorphic functions.
-  BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, false);
+  instance->polymorphic_function_state.push(false);
+
+  MT_SCOPE_EXIT {
+    instance->scopes.pop();
+    instance->matlab_scopes.pop();
+    instance->collectors.pop();
+    instance->polymorphic_function_state.pop();
+  };
 
   block.block->accept_const(*this);
 }
@@ -132,7 +197,10 @@ void TypeIdentifierResolver::inline_type(const InlineType& node) {
 }
 
 void TypeIdentifierResolver::type_begin(const TypeBegin& begin) {
-  TypeIdentifierExportState::Helper state_helper(instance->export_state, begin.is_exported);
+  instance->export_state.dispatched_push(begin.is_exported);
+  MT_SCOPE_EXIT {
+    instance->export_state.pop_state();
+  };
 
   for (const auto& node : begin.contents) {
     node->accept_const(*this);
@@ -152,37 +220,43 @@ void TypeIdentifierResolver::type_let(const TypeLet& node) {
   node.equal_to_type->accept_const(*this);
 }
 
-namespace {
-  void visit_array(TypeIdentifierResolver& resolver, const std::vector<BoxedType>& types) {
-    for (const auto& type : types) {
-      type->accept_const(resolver);
+void TypeIdentifierResolver::type_given(const TypeGiven& node) {
+  instance->push_scheme();
+  MT_SCOPE_EXIT {
+    instance->pop_scheme();
+  };
+
+  auto& scheme_variables = instance->current_scheme_variables();
+  assert(node.scheme->parameters.empty());
+
+  for (const auto& ident : node.identifiers) {
+    //  Duplicate variable.
+    TypeIdentifier type_ident(ident);
+
+    if (scheme_variables.variables.count(type_ident) > 0) {
+      const auto ident_str = instance->string_registry.at(ident);
+      instance->add_error(make_error_duplicate_scheme_variable(*instance, node.source_token, ident_str));
+      return;
     }
+
+    const auto tvar = instance->type_store.make_fresh_type_variable_reference();
+    scheme_variables.variables[type_ident] = tvar;
+    node.scheme->parameters.push_back(tvar);
   }
 
-  Optional<TypePtrs> collect_types(TypeIdentifierResolver& resolver,
-                                   TypeIdentifierResolverInstance& instance,
-                                   const std::vector<BoxedType>& types) {
-    TypeIdentifierResolverInstance::TypeCollectorState::Helper helper(instance.collectors);
-    visit_array(resolver, types);
-    auto& collector = instance.collectors.current();
-    if (collector.had_error) {
-      return NullOpt{};
-    } else {
-      return Optional<TypePtrs>(std::move(collector.types));
-    }
+  instance->collectors.push();
+  MT_SCOPE_EXIT {
+    instance->collectors.pop();
+  };
+
+  node.declaration->accept_const(*this);
+  const auto& collector = instance->collectors.current();
+  if (collector.had_error) {
+    instance->mark_parent_collector_error();
+    return;
   }
 
-  ParseError make_error_unresolved_type_identifier(const TypeIdentifierResolverInstance& instance,
-                                                   const Token& token, const std::string& ident) {
-    auto msg = "Unresolved type identifier: `" + ident + "`.";
-    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
-  }
-
-  ParseError make_error_duplicate_method(const TypeIdentifierResolverInstance& instance,
-                                         const Token& token) {
-    const auto msg = "Duplicate method.";
-    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
-  }
+  assert(collector.types.size() == 1);
 }
 
 void TypeIdentifierResolver::function_type_node(const FunctionTypeNode& node) {
@@ -202,19 +276,82 @@ void TypeIdentifierResolver::function_type_node(const FunctionTypeNode& node) {
   instance->collectors.current().push(func);
 }
 
-void TypeIdentifierResolver::scalar_type_node(const ScalarTypeNode& node) {
-  const auto& ident = node.identifier;
-  auto* scope = instance->scopes.current();
+Type* TypeIdentifierResolver::resolve_identifier_reference(const ScalarTypeNode& node) const {
+  //  First check if this is a scheme variable.
+  if (instance->has_scheme()) {
+    const auto& scheme = instance->current_scheme_variables();
+    if (scheme.variables.count(node.identifier) > 0) {
+      return scheme.variables.at(node.identifier);
+    }
+  }
 
+  auto* scope = instance->scopes.current();
   const auto maybe_ref = scope->lookup_type(node.identifier);
-  if (!maybe_ref) {
+
+  return maybe_ref ? maybe_ref.value()->type : nullptr;
+}
+
+Type* TypeIdentifierResolver::instantiate_scheme(const types::Scheme& scheme, const ScalarTypeNode& node) {
+  if (scheme.parameters.size() != node.arguments.size()) {
+    instance->add_error(make_error_incorrect_num_arguments_to_scheme(*instance, node.source_token));
+    instance->collectors.current().mark_error();
+    return nullptr;
+  }
+
+  TypePtrs args;
+  args.reserve(node.arguments.size());
+
+  for (const auto& arg : node.arguments) {
+    instance->collectors.push();
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+    };
+
+    arg->accept_const(*this);
+    auto& collector = instance->collectors.current();
+    if (collector.had_error) {
+      instance->mark_parent_collector_error();
+      return nullptr;
+    }
+
+    assert(collector.types.size() == 1);
+    args.push_back(collector.types[0]);
+  }
+
+  Instantiation::InstanceVars instance_vars;
+  for (int64_t i = 0; i < int64_t(args.size()); i++) {
+    const auto source = scheme.parameters[i];
+    const auto map_to = args[i];
+    instance_vars[source] = map_to;
+  }
+
+  Instantiation instantiation(instance->type_store);
+  return instantiation.instantiate(scheme, instance_vars);
+}
+
+void TypeIdentifierResolver::scalar_type_node(const ScalarTypeNode& node) {
+  auto type = resolve_identifier_reference(node);
+
+  if (!type) {
     const auto str_ident = instance->string_registry.at(node.identifier.full_name());
     instance->add_error(make_error_unresolved_type_identifier(*instance, node.source_token, str_ident));
-    instance->add_unresolved_identifier(ident, scope);
+    instance->add_unresolved_identifier(node.identifier, instance->scopes.current());
     instance->collectors.current().mark_error();
-  } else {
-    instance->collectors.current().push(maybe_ref.value()->type);
+    return;
   }
+
+  auto result_type = type;
+
+  if (type->is_scheme()) {
+    auto maybe_result_type = instantiate_scheme(MT_SCHEME_REF(*type), node);
+    if (!maybe_result_type) {
+      return;
+    } else {
+      result_type = maybe_result_type;
+    }
+  }
+
+  instance->collectors.current().push(result_type);
 }
 
 void TypeIdentifierResolver::infer_type_node(const InferTypeNode& node) {
@@ -224,13 +361,20 @@ void TypeIdentifierResolver::infer_type_node(const InferTypeNode& node) {
 
 void TypeIdentifierResolver::fun_type_node(const FunTypeNode& node) {
   //  Push polymorphic functions
-  BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, true);
+  instance->polymorphic_function_state.push(true);
+  MT_SCOPE_EXIT {
+    instance->polymorphic_function_state.pop();
+  };
+
   node.definition->accept_const(*this);
 }
 
 void TypeIdentifierResolver::record_type_node(const RecordTypeNode& node) {
   for (const auto& field : node.fields) {
-    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    instance->collectors.push();
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+    };
     field.type->accept_const(*this);
 
     auto& collector = instance->collectors.current();
@@ -245,6 +389,8 @@ void TypeIdentifierResolver::record_type_node(const RecordTypeNode& node) {
 
     node.type->fields.push_back(types::Record::Field{field_name, field_type});
   }
+
+  instance->collectors.current().push(node.type);
 }
 
 void TypeIdentifierResolver::declare_type_node(const DeclareTypeNode& node) {
@@ -276,7 +422,11 @@ void TypeIdentifierResolver::method_type_declaration(const DeclareTypeNode& node
     return;
   }
 
-  TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+  instance->collectors.push();
+  MT_SCOPE_EXIT {
+    instance->collectors.pop();
+  };
+
   node.maybe_method.type->accept_const(*this);
   auto& current_collector = instance->collectors.current();
   if (current_collector.had_error) {
@@ -308,7 +458,11 @@ void TypeIdentifierResolver::method_type_declaration(const DeclareTypeNode& node
 }
 
 void TypeIdentifierResolver::namespace_type_node(const NamespaceTypeNode& node) {
-  TypeIdentifierNamespaceState::Helper namespace_helper(instance->namespace_state, node.identifier);
+  instance->namespace_state.push(node.identifier);
+  MT_SCOPE_EXIT {
+    instance->namespace_state.pop();
+  };
+
   for (const auto& enclosed : node.enclosing) {
     enclosed->accept_const(*this);
   }
@@ -319,8 +473,13 @@ void TypeIdentifierResolver::namespace_type_node(const NamespaceTypeNode& node) 
  */
 
 void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
-  ScopeState<const MatlabScope>::Helper matlab_scope_helper(instance->matlab_scopes, node.scope);
-  ScopeState<TypeScope>::Helper scope_helper(instance->scopes, node.type_scope);
+  instance->matlab_scopes.push(node.scope);
+  instance->scopes.push(node.type_scope);
+
+  MT_SCOPE_EXIT {
+    instance->matlab_scopes.pop();
+    instance->scopes.pop();
+  };
 
   MatlabIdentifier function_name;
   const Block* body = nullptr;
@@ -366,9 +525,15 @@ void TypeIdentifierResolver::function_def_node(const FunctionDefNode& node) {
   instance->library.emplace_local_function_type(node.def_handle, emplaced_type);
 
   if (body) {
-    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    instance->collectors.push();
     //  Push monomorphic functions.
-    BooleanState::Helper polymorphic_helper(instance->polymorphic_function_state, false);
+    instance->polymorphic_function_state.push(false);
+
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+      instance->polymorphic_function_state.pop();
+    };
+
     body->accept_const(*this);
   }
 
@@ -379,7 +544,10 @@ void TypeIdentifierResolver::property_node(const PropertyNode& node) {
   Type* prop_type = nullptr;
 
   if (node.type) {
-    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    instance->collectors.push();
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+    };
     node.type->accept_const(*this);
     auto collector = std::move(instance->collectors.current());
     if (collector.had_error) {
@@ -401,7 +569,10 @@ void TypeIdentifierResolver::property_node(const PropertyNode& node) {
 
 void TypeIdentifierResolver::method_node(const MethodNode& node) {
   if (node.type) {
-    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    instance->collectors.push();
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+    };
     node.type->accept_const(*this);
   }
 
@@ -420,7 +591,11 @@ void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
 
   types::Record::Fields fields;
   for (const auto& prop : node.properties) {
-    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    instance->collectors.push();
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+    };
+
     prop->accept_const(*this);
     auto collector = std::move(instance->collectors.current());
     if (collector.had_error) {
@@ -437,7 +612,11 @@ void TypeIdentifierResolver::class_def_node(const ClassDefNode& node) {
   class_type->source = instance->type_store.make_record(std::move(fields));
 
   for (const auto& method : node.method_defs) {
-    TypeIdentifierResolverInstance::TypeCollectorState::Helper collector_helper(instance->collectors);
+    instance->collectors.push();
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+    };
+
     method->accept_const(*this);
 
     auto& collector = instance->collectors.current();

@@ -58,8 +58,13 @@ bool locate_root_identifiers(const std::vector<std::string>& idents,
 void run_unify(mt::Unifier& unifier,
                mt::Substitution& substitution,
                mt::PendingExternalFunctions& external_functions,
-               mt::TypeErrors& type_errors) {
+               mt::TypeErrors& type_errors,
+               double& unify_time) {
+
+  auto t0 = std::chrono::high_resolution_clock::now();
   auto unify_res = unifier.unify(&substitution, &external_functions);
+  auto t1 = std::chrono::high_resolution_clock::now();
+  unify_time += std::chrono::duration<double>(t1 - t0).count() * 1e3;
 
   if (unify_res.is_error()) {
     std::move(unify_res.errors.begin(), unify_res.errors.end(), std::back_inserter(type_errors));
@@ -204,7 +209,7 @@ int main(int argc, char** argv) {
       entry->generated_type_constraints = true;
     }
 
-    run_unify(unifier, substitution, external_functions, type_errors);
+    run_unify(unifier, substitution, external_functions, type_errors, unify_time);
 
     for (const auto& ast_it : ast_store.asts) {
       const auto* root_entry = &ast_it.second;
@@ -243,7 +248,7 @@ int main(int argc, char** argv) {
       }
     }
 
-    run_unify(unifier, substitution, external_functions, type_errors);
+    run_unify(unifier, substitution, external_functions, type_errors, unify_time);
     external_it = external_functions.candidates.begin();
 
     if (arguments.show_ast) {

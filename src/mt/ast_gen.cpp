@@ -4,6 +4,7 @@
 #include "type/type_store.hpp"
 #include "fs/code_file.hpp"
 #include "type/library.hpp"
+#include "type/types.hpp"
 #include <array>
 #include <cassert>
 #include <functional>
@@ -358,9 +359,15 @@ void AstGenerator::parse(ParseInstance* instance, const std::vector<Token>& toke
   scopes.clear();
   type_scopes.clear();
   function_attributes.clear();
+  enclosing_schemes.clear();
 
   block_depths = BlockDepths();
   class_state = ClassDefState();
+
+  enclosing_schemes.push_back(nullptr);
+  MT_SCOPE_EXIT {
+    enclosing_schemes.pop_back();
+  };
 
   //  Push root scope.
   ParseScopeHelper scope_helper(*this);
@@ -2878,16 +2885,23 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
     return NullOpt{};
   }
 
+  auto new_enclosing_scheme = parse_instance->type_store->make_scheme();
+  enclosing_schemes.push_back(new_enclosing_scheme);
+  MT_SCOPE_EXIT {
+    enclosing_schemes.pop_back();
+  };
+
   const auto& decl_token = iterator.peek();
   Optional<BoxedTypeAnnot> decl_res;
 
   switch (decl_token.type) {
-    case TokenType::keyword_let:
-      decl_res = type_let(decl_token);
+    case TokenType::keyword_record:
+      decl_res = type_record(decl_token);
       break;
+
     default: {
-      std::array<TokenType, 1> possible_types{{TokenType::keyword_let}};
-      add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
+      std::array<TokenType, 1> possible_types{{TokenType::keyword_record}};
+      add_error(make_error_expected_token_type(parse_instance, decl_token, possible_types));
       return NullOpt{};
     }
   }
@@ -2898,7 +2912,8 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
 
   auto identifiers = string_registry->register_strings(identifier_res.value());
 
-  auto node = std::make_unique<TypeGiven>(source_token, std::move(identifiers), decl_res.rvalue());
+  auto node = std::make_unique<TypeGiven>(source_token, std::move(identifiers),
+                                          decl_res.rvalue(), new_enclosing_scheme);
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
@@ -3180,6 +3195,35 @@ Optional<BoxedTypeAnnot> AstGenerator::constructor_type(const Token& source_toke
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
+namespace {
+
+bool maybe_record_field(AstGenerator* instance, RecordTypeNode::Fields& fields,
+                        RecordTypeNode::FieldNames& field_names) {
+  auto tok = instance->iterator.peek();
+  if (tok.type == TokenType::new_line) {
+    instance->iterator.advance();
+    return true;
+  }
+
+  auto field_res = instance->record_field();
+  if (!field_res) {
+    return false;
+  }
+
+  auto& field = field_res.value();
+  if (field_names.count(field.name) > 0) {
+    instance->add_error(make_error_duplicate_record_field_name(instance->parse_instance, tok));
+    return false;
+  }
+
+  field_names.insert(field.name);
+  fields.push_back(std::move(field));
+
+  return true;
+}
+
+}
+
 Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
   iterator.advance();
   const auto name_token = iterator.peek();
@@ -3189,28 +3233,21 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
     return NullOpt{};
   }
 
+  auto maybe_enclosing_scheme = enclosing_schemes.back();
+
+  //  No longer in a scheme.
+  enclosing_schemes.push_back(nullptr);
+  MT_SCOPE_EXIT {
+    enclosing_schemes.pop_back();
+  };
+
   RecordTypeNode::Fields fields;
-  std::unordered_set<TypeIdentifier, TypeIdentifier::Hash> field_names;
+  RecordTypeNode::FieldNames field_names;
 
   while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end_type) {
-    auto tok = iterator.peek();
-    switch (tok.type) {
-      case TokenType::new_line:
-        iterator.advance();
-        break;
-      default:
-        auto field_res = record_field();
-        if (!field_res) {
-          return NullOpt{};
-        } else {
-          auto& field = field_res.value();
-          if (field_names.count(field.name) > 0) {
-            add_error(make_error_duplicate_record_field_name(parse_instance, tok));
-            return NullOpt{};
-          }
-          field_names.insert(field.name);
-          fields.push_back(std::move(field));
-        }
+    bool success = maybe_record_field(this, fields, field_names);
+    if (!success) {
+      return NullOpt{};
     }
   }
 
@@ -3231,11 +3268,20 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
     return NullOpt{};
   }
 
-  auto record_type = parse_instance->type_store->make_record();
-  auto record_node = std::make_unique<RecordTypeNode>(source_token, name_token,
-    identifier, record_type, std::move(fields));
+  auto& type_store = parse_instance->type_store;
+  auto record_type = type_store->make_record();
+  auto record_node = std::make_unique<RecordTypeNode>(source_token, name_token, identifier,
+                                                      record_type, std::move(fields));
+  Type* emplaced_type = record_type;
+
+  if (maybe_enclosing_scheme) {
+    assert(!maybe_enclosing_scheme->type);
+    maybe_enclosing_scheme->type = record_type;
+    emplaced_type = maybe_enclosing_scheme;
+  }
+
   //  @Note: Source token must be a pointer to a source token stored in the AST.
-  const auto type_ref = parse_instance->type_store->make_type_reference(&record_node->name_token, record_type, scope);
+  const auto type_ref = type_store->make_type_reference(&record_node->name_token, emplaced_type, scope);
   scope->emplace_type(identifier, type_ref, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(record_node));

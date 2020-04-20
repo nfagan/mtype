@@ -15,5 +15,6 @@ TODO
 . Fix subscripts
 . For method definition, use provided type as canonical type
 . * Distinguish application and abstraction
+. Distinguish concatenation types - horz vs. vert
 
 %}

@@ -3,7 +3,7 @@
 
 namespace mt {
 
-void Instantiation::make_instance_variables(const types::Scheme& from_scheme, InstanceVariables& into) {
+void Instantiation::make_instance_variables(const types::Scheme& from_scheme, InstanceVars& into) {
   for (const auto& param : from_scheme.parameters) {
     if (into.count(param) == 0) {
       const auto new_var = param->is_parameters() ? store.make_fresh_parameters() : store.make_fresh_type_variable_reference();
@@ -12,23 +12,23 @@ void Instantiation::make_instance_variables(const types::Scheme& from_scheme, In
   }
 }
 
-Instantiation::InstanceVariables Instantiation::make_instance_variables(const types::Scheme& from_scheme) {
-  InstanceVariables replacing;
+Instantiation::InstanceVars Instantiation::make_instance_variables(const types::Scheme& from_scheme) {
+  InstanceVars replacing;
   make_instance_variables(from_scheme, replacing);
   return replacing;
 }
 
 Type* Instantiation::instantiate(const types::Scheme& scheme) {
-  InstanceVariables vars;
+  InstanceVars vars;
   make_instance_variables(scheme, vars);
   return instantiate(scheme, vars);
 }
 
-Type* Instantiation::instantiate(const types::Scheme& scheme, IV replacing) {
+Type* Instantiation::instantiate(const types::Scheme& scheme, InstanceVars& replacing) {
   return clone(scheme.type, replacing);
 }
 
-Type* Instantiation::clone(Type* source, IV replacing) {
+Type* Instantiation::clone(Type* source, InstanceVars& replacing) {
   switch (source->tag) {
     case Type::Tag::abstraction:
       return clone(MT_ABSTR_REF(*source), replacing);
@@ -61,22 +61,22 @@ Type* Instantiation::clone(Type* source, IV replacing) {
   }
 }
 
-Type* Instantiation::clone(const types::DestructuredTuple& tup, IV replacing) {
+Type* Instantiation::clone(const types::DestructuredTuple& tup, InstanceVars& replacing) {
   return store.make_destructured_tuple(tup.usage, clone(tup.members, replacing));
 }
 
-Type* Instantiation::clone(const types::Abstraction& abstr, IV replacing) {
+Type* Instantiation::clone(const types::Abstraction& abstr, InstanceVars& replacing) {
   auto new_abstr = abstr;
   new_abstr.inputs = clone(new_abstr.inputs, replacing);
   new_abstr.outputs = clone(new_abstr.outputs, replacing);
   return store.make_abstraction(std::move(new_abstr));
 }
 
-Type* Instantiation::clone(const types::Tuple& tup, IV replacing) {
+Type* Instantiation::clone(const types::Tuple& tup, InstanceVars& replacing) {
   return store.make_tuple(clone(tup.members, replacing));
 }
 
-TypePtrs Instantiation::clone(const TypePtrs& a, IV replacing) {
+TypePtrs Instantiation::clone(const TypePtrs& a, InstanceVars& replacing) {
   TypePtrs res;
   res.reserve(a.size());
   for (const auto& mem : a) {
@@ -85,11 +85,11 @@ TypePtrs Instantiation::clone(const TypePtrs& a, IV replacing) {
   return res;
 }
 
-Type* Instantiation::clone(const types::List& list, IV replacing) {
+Type* Instantiation::clone(const types::List& list, InstanceVars& replacing) {
   return store.make_list(clone(list.pattern, replacing));
 }
 
-Type* Instantiation::clone(const types::Subscript& sub, IV replacing) {
+Type* Instantiation::clone(const types::Subscript& sub, InstanceVars& replacing) {
   auto sub_b = sub;
   sub_b.principal_argument = clone(sub_b.principal_argument, replacing);
   sub_b.outputs = clone(sub_b.outputs, replacing);
@@ -101,7 +101,7 @@ Type* Instantiation::clone(const types::Subscript& sub, IV replacing) {
   return store.make_subscript(std::move(sub_b));
 }
 
-Type* Instantiation::clone(const types::Variable&, Type* source, IV replacing) {
+Type* Instantiation::clone(const types::Variable&, Type* source, InstanceVars& replacing) {
   if (replacing.count(source) > 0) {
     return replacing.at(source);
   } else {
@@ -109,7 +109,7 @@ Type* Instantiation::clone(const types::Variable&, Type* source, IV replacing) {
   }
 }
 
-Type* Instantiation::clone(const types::Parameters&, Type* source, IV replacing) {
+Type* Instantiation::clone(const types::Parameters&, Type* source, InstanceVars& replacing) {
   if (replacing.count(source) > 0) {
     return replacing.at(source);
   } else {
@@ -117,13 +117,13 @@ Type* Instantiation::clone(const types::Parameters&, Type* source, IV replacing)
   }
 }
 
-Type* Instantiation::clone(const types::Class& cls, IV replacing) {
+Type* Instantiation::clone(const types::Class& cls, InstanceVars& replacing) {
   auto cls_b = cls;
   cls_b.source = clone(cls_b.source, replacing);
   return store.make_class(std::move(cls_b));
 }
 
-Type* Instantiation::clone(const types::Record& record, IV replacing) {
+Type* Instantiation::clone(const types::Record& record, InstanceVars& replacing) {
   auto record_b = record;
   for (auto& field : record_b.fields) {
     field.type = clone(field.type, replacing);
@@ -131,11 +131,11 @@ Type* Instantiation::clone(const types::Record& record, IV replacing) {
   return store.make_record(std::move(record_b));
 }
 
-Type* Instantiation::clone(const types::Scalar&, Type* source, IV) {
+Type* Instantiation::clone(const types::Scalar&, Type* source, InstanceVars&) {
   return source;
 }
 
-Type* Instantiation::clone(const types::Scheme& scheme, IV replacing) {
+Type* Instantiation::clone(const types::Scheme& scheme, InstanceVars& replacing) {
   auto scheme_b = scheme;
   auto& new_replacing = replacing;
   make_instance_variables(scheme_b, new_replacing);
@@ -150,7 +150,7 @@ Type* Instantiation::clone(const types::Scheme& scheme, IV replacing) {
   return store.make_scheme(std::move(scheme_b));
 }
 
-Type* Instantiation::clone(const types::Assignment& assign, IV replacing) {
+Type* Instantiation::clone(const types::Assignment& assign, InstanceVars& replacing) {
   const auto lhs = clone(assign.lhs, replacing);
   const auto rhs = clone(assign.rhs, replacing);
   return store.make_assignment(lhs, rhs);

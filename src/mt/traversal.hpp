@@ -47,6 +47,8 @@ public:
   void push_non_export();
   void pop_state();
   bool is_export() const;
+  void dispatched_push(bool val);
+
 private:
   std::vector<bool> state;
 };

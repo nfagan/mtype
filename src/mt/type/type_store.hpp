@@ -84,7 +84,7 @@ public:
   }
 
   template <typename... Args>
-  Type* make_scheme(Args&&... args) {
+  types::Scheme* make_scheme(Args&&... args) {
     return make_type<types::Scheme>(std::forward<Args>(args)...);
   }
 

@@ -19,6 +19,10 @@ class Library;
 struct Type;
 class StringRegistry;
 
+namespace types {
+  struct Scheme;
+}
+
 class TypeIdentifierResolverInstance {
 public:
   friend class TypeIdentifierResolver;
@@ -33,12 +37,6 @@ public:
   };
 
   struct TypeCollectorState {
-    struct Stack {
-      static void push(TypeCollectorState& collector);
-      static void pop(TypeCollectorState& collector);
-    };
-    using Helper = StackHelper<TypeCollectorState, Stack>;
-
     void push();
     void pop();
     TypeCollector& current();
@@ -53,6 +51,10 @@ public:
     TypeIdentifier identifier;
     TypeScope* scope;
   };
+
+  struct SchemeVariables {
+    std::unordered_map<TypeIdentifier, Type*, TypeIdentifier::Hash> variables;
+  };
 public:
   TypeIdentifierResolverInstance(TypeStore& type_store, Library& library, const Store& def_store,
                                  const StringRegistry& string_registry, const ParseSourceData& source_data);
@@ -61,6 +63,10 @@ public:
   void add_error(const ParseError& err);
   void add_unresolved_identifier(const TypeIdentifier& ident, TypeScope* in_scope);
   void mark_parent_collector_error();
+  void push_scheme();
+  void pop_scheme();
+  bool has_scheme() const;
+  SchemeVariables& current_scheme_variables();
 
 public:
   TypeStore& type_store;
@@ -77,6 +83,7 @@ public:
   ScopeState<const MatlabScope> matlab_scopes;
   TypeCollectorState collectors;
   BooleanState polymorphic_function_state;
+  std::vector<SchemeVariables> scheme_variables;
 };
 
 class TypeIdentifierResolver : public TypePreservingVisitor {
@@ -90,6 +97,7 @@ public:
   void inline_type(const InlineType& node) override;
   void type_begin(const TypeBegin& begin) override;
   void type_assertion(const TypeAssertion& node) override;
+  void type_given(const TypeGiven& node) override;
 
   void fun_type_node(const FunTypeNode& node) override;
   void function_type_node(const FunctionTypeNode& node) override;
@@ -109,6 +117,9 @@ public:
 private:
   void scalar_type_declaration(const DeclareTypeNode& node);
   void method_type_declaration(const DeclareTypeNode& node);
+
+  Type* resolve_identifier_reference(const ScalarTypeNode& node) const;
+  Type* instantiate_scheme(const types::Scheme& scheme, const ScalarTypeNode& node);
 
 #if MT_ALTERNATE_TYPE_ASSSERT
   void alternate_type_assertion(const TypeAssertion& assertion);

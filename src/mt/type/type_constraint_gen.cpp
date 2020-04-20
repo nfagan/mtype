@@ -740,7 +740,9 @@ void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr
     if (i == 0 || last_dir == current_dir) {
       arg_handles.back().push_back(res.term);
     } else {
-      assert(false && "Unhandled.");
+      //  @TODO: Discriminate different concatenation types.
+      arg_handles.back().push_back(res.term);
+//      assert(false && "Unhandled.");
     }
 
     last_dir = current_dir;

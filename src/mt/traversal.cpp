@@ -46,15 +46,19 @@ bool TypeIdentifierNamespaceState::has_enclosing_namespace() const {
  */
 
 void TypeIdentifierExportState::Stack::push(TypeIdentifierExportState& state, bool value) {
-  if (value) {
-    state.push_export();
-  } else {
-    state.push_non_export();
-  }
+  state.dispatched_push(value);
 }
 
 void TypeIdentifierExportState::Stack::pop(TypeIdentifierExportState& state) {
   state.pop_state();
+}
+
+void TypeIdentifierExportState::dispatched_push(bool val) {
+  if (val) {
+    push_export();
+  } else {
+    push_non_export();
+  }
 }
 
 void TypeIdentifierExportState::push_export() {
