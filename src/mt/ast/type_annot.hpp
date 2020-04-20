@@ -304,6 +304,21 @@ struct UnionTypeNode : public TypeNode {
   std::vector<BoxedType> members;
 };
 
+struct TupleTypeNode : public TypeNode {
+  explicit TupleTypeNode(const Token& source_token, BoxedTypes&& members) :
+  source_token(source_token), members(std::move(members)) {
+    //
+  }
+  ~TupleTypeNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  BoxedTypes members;
+};
+
 struct ScalarTypeNode : public TypeNode {
   ScalarTypeNode(const Token& source_token,
                  const TypeIdentifier& identifier,

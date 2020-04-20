@@ -574,6 +574,10 @@ std::string StringVisitor::union_type_node(const UnionTypeNode& type) const {
   return visit_array(type.members, " | ");
 }
 
+std::string StringVisitor::tuple_type_node(const TupleTypeNode& type) const {
+  return "{" +  visit_array(type.members, ", ") + "}";
+}
+
 std::string StringVisitor::scalar_type_node(const ScalarTypeNode& type) const {
   auto str = std::string(string_registry->at(type.identifier.full_name()));
   if (!type.arguments.empty()) {

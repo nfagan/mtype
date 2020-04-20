@@ -45,6 +45,7 @@ struct MethodNode;
 
 struct RecordTypeNode;
 struct UnionTypeNode;
+struct TupleTypeNode;
 struct ScalarTypeNode;
 struct FunctionTypeNode;
 struct FunTypeNode;
@@ -104,6 +105,7 @@ public:
   MT_VISITOR_METHOD(declare_type_node, DeclareTypeNode)
   MT_VISITOR_METHOD(record_type_node, RecordTypeNode)
   MT_VISITOR_METHOD(union_type_node, UnionTypeNode)
+  MT_VISITOR_METHOD(tuple_type_node, TupleTypeNode)
   MT_VISITOR_METHOD(scalar_type_node, ScalarTypeNode)
   MT_VISITOR_METHOD(function_type_node, FunctionTypeNode)
   MT_VISITOR_METHOD(fun_type_node, FunTypeNode)

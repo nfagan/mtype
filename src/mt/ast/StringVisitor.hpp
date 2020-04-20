@@ -65,6 +65,7 @@ public:
   std::string namespace_type_node(const NamespaceTypeNode& type) const;
   std::string record_type_node(const RecordTypeNode& type) const;
   std::string union_type_node(const UnionTypeNode& type) const;
+  std::string tuple_type_node(const TupleTypeNode& type) const;
   std::string scalar_type_node(const ScalarTypeNode& type) const;
   std::string function_type_node(const FunctionTypeNode& type) const;
   std::string type_begin(const TypeBegin& begin) const;

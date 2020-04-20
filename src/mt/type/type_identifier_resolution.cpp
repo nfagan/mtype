@@ -298,6 +298,17 @@ void TypeIdentifierResolver::function_type_node(FunctionTypeNode& node) {
   node.resolved_type = func;
 }
 
+void TypeIdentifierResolver::tuple_type_node(TupleTypeNode& node) {
+  auto maybe_members = collect_types(*this, *instance, node.members);
+  if (!maybe_members) {
+    instance->collectors.current().mark_error();
+    return;
+  }
+
+  auto tuple_type = instance->type_store.make_tuple(std::move(maybe_members.rvalue()));
+  instance->collectors.current().push(tuple_type);
+}
+
 Type* TypeIdentifierResolver::resolve_identifier_reference(ScalarTypeNode& node) const {
   //  First check if this is a scheme variable.
   if (instance->has_scheme()) {

@@ -3362,6 +3362,9 @@ Optional<BoxedType> AstGenerator::one_type(const mt::Token& source_token) {
     case TokenType::left_bracket:
       return function_type(source_token);
 
+    case TokenType::left_brace:
+      return tuple_type(source_token);
+
     case TokenType::identifier:
       return scalar_type(source_token);
 
@@ -3369,7 +3372,8 @@ Optional<BoxedType> AstGenerator::one_type(const mt::Token& source_token) {
       return infer_type(source_token);
 
     default: {
-      std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
+      std::array<TokenType, 4> possible_types{{TokenType::left_bracket, TokenType::identifier,
+                                               TokenType::question, TokenType::left_brace}};
       add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
       return NullOpt{};
     }
@@ -3472,6 +3476,18 @@ Optional<BoxedType> AstGenerator::scalar_type(const mt::Token& source_token) {
   }
 
   auto node = std::make_unique<ScalarTypeNode>(source_token, identifier, std::move(arguments));
+  return Optional<BoxedType>(std::move(node));
+}
+
+Optional<BoxedType> AstGenerator::tuple_type(const Token& source_token) {
+  iterator.advance();
+
+  auto seq_res = type_sequence(TokenType::right_brace);
+  if (!seq_res) {
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<TupleTypeNode>(source_token, std::move(seq_res.rvalue()));
   return Optional<BoxedType>(std::move(node));
 }
 

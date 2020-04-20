@@ -275,6 +275,22 @@ void UnionTypeNode::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * TupleTypeNode
+ */
+
+std::string TupleTypeNode::accept(const StringVisitor& vis) const {
+  return vis.tuple_type_node(*this);
+}
+
+void TupleTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.tuple_type_node(*this);
+}
+
+void TupleTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.tuple_type_node(*this);
+}
+
+/*
  * ScalarTypeNode
  */
 
