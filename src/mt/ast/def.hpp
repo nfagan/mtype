@@ -11,6 +11,7 @@ namespace mt {
 
 class TypePreservingVisitor;
 struct TypeScope;
+struct Type;
 
 struct FunctionDefNode : public AstNode {
   FunctionDefNode(const Token& source_token,
@@ -67,7 +68,8 @@ struct PropertyNode : public AstNode {
 };
 
 struct MethodNode : public AstNode {
-  MethodNode(BoxedFunctionDefNode def, BoxedTypeAnnot type) : def(std::move(def)), type(std::move(type)) {
+  MethodNode(BoxedFunctionDefNode def, BoxedTypeAnnot type, Type* resolved_type) :
+  def(std::move(def)), type(std::move(type)), resolved_type(resolved_type) {
     //
   }
   ~MethodNode() override = default;
@@ -79,6 +81,7 @@ struct MethodNode : public AstNode {
 
   BoxedFunctionDefNode def;
   BoxedTypeAnnot type;
+  Type* resolved_type;
 };
 
 using BoxedPropertyNode = std::unique_ptr<PropertyNode>;

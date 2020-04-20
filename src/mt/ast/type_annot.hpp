@@ -146,8 +146,8 @@ struct TypeImportNode : public TypeAnnot {
 };
 
 struct TypeAssertion : public TypeAnnot {
-  TypeAssertion(const Token& source_token, BoxedAstNode node, BoxedType has_type) :
-  source_token(source_token), node(std::move(node)), has_type(std::move(has_type)) {
+  TypeAssertion(const Token& source_token, BoxedAstNode node, BoxedType has_type, Type* resolved_type) :
+  source_token(source_token), node(std::move(node)), has_type(std::move(has_type)), resolved_type(resolved_type) {
     //
   }
 
@@ -166,6 +166,7 @@ struct TypeAssertion : public TypeAnnot {
   Token source_token;
   BoxedAstNode node;
   BoxedType has_type;
+  Type* resolved_type;
 };
 
 struct InlineType : public TypeAnnot {
@@ -326,10 +327,12 @@ struct ScalarTypeNode : public TypeNode {
 struct FunctionTypeNode : public TypeNode {
   FunctionTypeNode(const Token& source_token,
                    std::vector<BoxedType>&& outputs,
-                   std::vector<BoxedType>&& inputs) :
+                   std::vector<BoxedType>&& inputs,
+                   Type* resolved_type) :
                    source_token(source_token),
                    outputs(std::move(outputs)),
-                   inputs(std::move(inputs)) {
+                   inputs(std::move(inputs)),
+                   resolved_type(resolved_type) {
     //
   }
   ~FunctionTypeNode() override = default;
@@ -345,6 +348,7 @@ struct FunctionTypeNode : public TypeNode {
   Token source_token;
   std::vector<BoxedType> outputs;
   std::vector<BoxedType> inputs;
+  Type* resolved_type;
 };
 
 struct FunTypeNode : public TypeNode {

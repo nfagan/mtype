@@ -148,8 +148,8 @@ struct TypeAnnot : public AstNode {
     return this;
   }
 
-  virtual void accept(TypePreservingVisitor&) override {}
-  virtual void accept_const(TypePreservingVisitor&) const override {}
+  void accept(TypePreservingVisitor&) override {}
+  void accept_const(TypePreservingVisitor&) const override {}
   virtual bool is_type_assertion() const {
     return false;
   }
@@ -163,6 +163,8 @@ struct TypeNode : public TypeAnnot {
   ~TypeNode() override = default;
 
   std::string accept(const StringVisitor& vis) const override = 0;
+  void accept(TypePreservingVisitor&) override {}
+  void accept_const(TypePreservingVisitor&) const override {}
 };
 
 using BoxedAstNode = std::unique_ptr<AstNode>;

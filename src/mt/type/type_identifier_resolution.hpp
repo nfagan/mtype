@@ -7,8 +7,6 @@
 #include "../source_data.hpp"
 #include <vector>
 
-#define MT_ALTERNATE_TYPE_ASSSERT (0)
-
 namespace mt {
 
 struct TypeScope;
@@ -90,40 +88,36 @@ class TypeIdentifierResolver : public TypePreservingVisitor {
 public:
   TypeIdentifierResolver(TypeIdentifierResolverInstance* instance);
 
-  void root_block(const RootBlock& block) override;
-  void block(const Block& block) override;
+  void root_block(RootBlock& block) override;
+  void block(Block& block) override;
 
-  void type_annot_macro(const TypeAnnotMacro& macro) override;
-  void inline_type(const InlineType& node) override;
-  void type_begin(const TypeBegin& begin) override;
-  void type_assertion(const TypeAssertion& node) override;
-  void type_given(const TypeGiven& node) override;
+  void type_annot_macro(TypeAnnotMacro& macro) override;
+  void inline_type(InlineType& node) override;
+  void type_begin(TypeBegin& begin) override;
+  void type_assertion(TypeAssertion& node) override;
+  void type_given(TypeGiven& node) override;
 
-  void fun_type_node(const FunTypeNode& node) override;
-  void function_type_node(const FunctionTypeNode& node) override;
-  void scalar_type_node(const ScalarTypeNode& node) override;
-  void record_type_node(const RecordTypeNode& node) override;
-  void declare_type_node(const DeclareTypeNode& node) override;
-  void namespace_type_node(const NamespaceTypeNode& node) override;
-  void infer_type_node(const InferTypeNode& node) override;
+  void fun_type_node(FunTypeNode& node) override;
+  void function_type_node(FunctionTypeNode& node) override;
+  void scalar_type_node(ScalarTypeNode& node) override;
+  void record_type_node(RecordTypeNode& node) override;
+  void declare_type_node(DeclareTypeNode& node) override;
+  void namespace_type_node(NamespaceTypeNode& node) override;
+  void infer_type_node(InferTypeNode& node) override;
 
-  void type_let(const TypeLet& node) override;
+  void type_let(TypeLet& node) override;
 
-  void function_def_node(const FunctionDefNode& node) override;
-  void class_def_node(const ClassDefNode& node) override;
-  void property_node(const PropertyNode& node) override;
-  void method_node(const MethodNode& node) override;
+  void function_def_node(FunctionDefNode& node) override;
+  void class_def_node(ClassDefNode& node) override;
+  void property_node(PropertyNode& node) override;
+  void method_node(MethodNode& node) override;
 
 private:
-  void scalar_type_declaration(const DeclareTypeNode& node);
-  void method_type_declaration(const DeclareTypeNode& node);
+  void scalar_type_declaration(DeclareTypeNode& node);
+  void method_type_declaration(DeclareTypeNode& node);
 
-  Type* resolve_identifier_reference(const ScalarTypeNode& node) const;
-  Type* instantiate_scheme(const types::Scheme& scheme, const ScalarTypeNode& node);
-
-#if MT_ALTERNATE_TYPE_ASSSERT
-  void alternate_type_assertion(const TypeAssertion& assertion);
-#endif
+  Type* resolve_identifier_reference(ScalarTypeNode& node) const;
+  Type* instantiate_scheme(const types::Scheme& scheme, ScalarTypeNode& node);
 
 private:
   TypeIdentifierResolverInstance* instance;

@@ -1260,7 +1260,7 @@ bool AstGenerator::method_def(const Token& source_token,
     method_names.emplace(func_name.full_name());
     methods.emplace_back(def_handle);
 
-    auto untyped_node = std::make_unique<MethodNode>(func_res.rvalue(), nullptr);
+    auto untyped_node = std::make_unique<MethodNode>(func_res.rvalue(), nullptr, nullptr);
     method_nodes.push_back(std::move(untyped_node));
   }
 
@@ -2770,7 +2770,10 @@ Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token,
     enclosing_node = std::move(enclosing_res.rvalue());
   }
 
-  auto assert_node = std::make_unique<TypeAssertion>(source_token, std::move(enclosing_node), type_res.rvalue());
+  //  Actual type not yet known.
+  Type* resolved_type = nullptr;
+  auto assert_node = std::make_unique<TypeAssertion>(source_token, std::move(enclosing_node),
+                                                     type_res.rvalue(), resolved_type);
   return Optional<BoxedTypeAnnot>(std::move(assert_node));
 }
 
@@ -2911,6 +2914,12 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
   }
 
   auto identifiers = string_registry->register_strings(identifier_res.value());
+
+  auto& type_store = parse_instance->type_store;
+  for (const auto& ident : identifiers) {
+    (void) ident;
+    new_enclosing_scheme->parameters.push_back(type_store->make_fresh_type_variable_reference());
+  }
 
   auto node = std::make_unique<TypeGiven>(source_token, std::move(identifiers),
                                           decl_res.rvalue(), new_enclosing_scheme);
@@ -3434,8 +3443,10 @@ Optional<BoxedType> AstGenerator::function_type(const Token& source_token) {
     return NullOpt{};
   }
 
-  auto type_node = std::make_unique<FunctionTypeNode>(source_token,
-                                                      output_res.rvalue(), input_res.rvalue());
+  //  Resolved type not yet known.
+  Type* resolved_type = nullptr;
+  auto type_node = std::make_unique<FunctionTypeNode>(source_token, output_res.rvalue(),
+                                                      input_res.rvalue(), resolved_type);
   return Optional<BoxedType>(std::move(type_node));
 }
 

@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
       TypeIdentifierResolver type_identifier_resolver(&instance);
 
       const auto& root = entry->root_block;
-      root->accept_const(type_identifier_resolver);
+      root->accept(type_identifier_resolver);
       entry->resolved_type_identifiers = true;
 
       if (instance.had_error()) {

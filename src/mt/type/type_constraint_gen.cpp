@@ -312,9 +312,8 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
 
 void TypeConstraintGenerator::method_node(const MethodNode& node) {
   Type* maybe_type = nullptr;
-  if (node.type) {
-    node.type->accept_const(*this);
-    maybe_type = pop_type_equation_term().term;
+  if (node.resolved_type) {
+    maybe_type = node.resolved_type;
   }
 
   node.def->accept_const(*this);
@@ -342,16 +341,20 @@ void TypeConstraintGenerator::type_annot_macro(const TypeAnnotMacro& macro) {
 }
 
 void TypeConstraintGenerator::type_assertion(const TypeAssertion& assertion) {
-  assertion.has_type->accept_const(*this);
-  auto expected_type = pop_type_equation_term();
+  assert(assertion.resolved_type);
+  auto expected_term = make_term(&assertion.source_token, assertion.resolved_type);
+//  assertion.has_type->accept_const(*this);
+//  auto expected_term = pop_type_equation_term();
 
   assertion.node->accept_const(*this);
   auto actual_type = pop_type_equation_term();
 
-  push_type_equation(make_eq(actual_type, expected_type));
+  push_type_equation(make_eq(actual_type, expected_term));
 }
 
 void TypeConstraintGenerator::function_type_node(const FunctionTypeNode& node) {
+  assert(false);
+
   TypePtrs args;
   for (const auto& arg : node.inputs) {
     arg->accept_const(*this);
