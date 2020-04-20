@@ -236,7 +236,7 @@ public:
 
   Optional<RecordTypeNode::Field> record_field();
   Optional<std::vector<BoxedTypeAnnot>> type_annotation_block();
-  TypeIdentifier maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident);
+  TypeIdentifier maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident) const;
 
   Optional<BoxedTypeAnnot> type_fun_enclosing_function(const Token& source_token);
   Optional<BoxedTypeAnnot> type_fun_enclosing_anonymous_function(const Token& source_token);

@@ -3241,7 +3241,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
   return Optional<BoxedTypeAnnot>(std::move(record_node));
 }
 
-TypeIdentifier AstGenerator::maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident) {
+TypeIdentifier AstGenerator::maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident) const {
   if (namespace_state.has_enclosing_namespace()) {
     std::vector<int64_t> namespace_components;
     namespace_state.gather_components(namespace_components);
