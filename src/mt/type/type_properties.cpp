@@ -17,6 +17,8 @@ bool TypeProperties::is_concrete_argument(const Type* type) const {
       return is_concrete_argument(MT_SCHEME_REF(*type));
     case Tag::class_type:
       return is_concrete_argument(MT_CLASS_REF(*type));
+    case Tag::alias:
+      return is_concrete_argument(MT_ALIAS_REF(*type));
     case Tag::tuple:
     case Tag::scalar:
     case Tag::record:
@@ -54,6 +56,10 @@ bool TypeProperties::is_concrete_argument(const types::Scheme& scheme) const {
 
 bool TypeProperties::is_concrete_argument(const types::Class& class_type) const {
   return is_concrete_argument(class_type.source);
+}
+
+bool TypeProperties::is_concrete_argument(const types::Alias& alias) const {
+  return is_concrete_argument(alias.source);
 }
 
 }

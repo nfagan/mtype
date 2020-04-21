@@ -165,6 +165,10 @@ void Arguments::build_parse_spec() {
     [this](int, int, char**) {
     return true_param(&show_explicit_destructured_tuples);
   });
+  arguments.emplace_back(ParameterName("--explicit-aliases", "-ea"), "Print aliases explicitly.",
+    [this](int, int, char**) {
+    return true_param(&show_explicit_aliases);
+  });
   arguments.emplace_back(ParameterName("--plain-text", "-pt"), "Use ASCII text and no control characters when printing.",
     [this](int, int, char**) {
     return false_param(&rich_text);

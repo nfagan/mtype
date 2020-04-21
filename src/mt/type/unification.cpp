@@ -167,6 +167,8 @@ bool Unifier::occurs(const Type* type, TermRef term, const Type* lhs) const {
       return occurs(MT_RECORD_REF(*type), term, lhs);
     case Type::Tag::constant_value:
       return occurs(MT_CONST_VAL_REF(*type), term, lhs);
+    case Type::Tag::alias:
+      return occurs(MT_ALIAS_REF(*type), term, lhs);
     case Type::Tag::scalar:
       return false;
     case Type::Tag::variable:
@@ -230,9 +232,7 @@ bool Unifier::occurs(const types::Class& class_type, TermRef term, const Type* l
 
 bool Unifier::occurs(const types::Record& record, TermRef term, const Type* lhs) const {
   for (const auto& field : record.fields) {
-    if (occurs(field.name, term, lhs)) {
-      return true;
-    } else if (occurs(field.type, term, lhs)) {
+    if (occurs(field.name, term, lhs) || occurs(field.type, term, lhs)) {
       return true;
     }
   }
@@ -241,6 +241,10 @@ bool Unifier::occurs(const types::Record& record, TermRef term, const Type* lhs)
 
 bool Unifier::occurs(const types::ConstantValue&, TermRef, const Type*) const {
   return false;
+}
+
+bool Unifier::occurs(const types::Alias& alias, TermRef term, const Type* lhs) const {
+  return occurs(alias.source, term, lhs);
 }
 
 Type* Unifier::apply_to(types::Variable& var, TermRef) {
@@ -326,6 +330,11 @@ Type* Unifier::apply_to(types::ConstantValue& val, TermRef) {
   return &val;
 }
 
+Type* Unifier::apply_to(types::Alias& alias, TermRef term) {
+  alias.source = apply_to(alias.source, term);
+  return &alias;
+}
+
 Type* Unifier::apply_to(Type* source, TermRef term) {
   switch (source->tag) {
     case Type::Tag::variable:
@@ -354,6 +363,8 @@ Type* Unifier::apply_to(Type* source, TermRef term) {
       return apply_to(MT_RECORD_MUT_REF(*source), term);
     case Type::Tag::constant_value:
       return apply_to(MT_CONST_VAL_MUT_REF(*source), term);
+    case Type::Tag::alias:
+      return apply_to(MT_ALIAS_MUT_REF(*source), term);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -395,6 +406,8 @@ Type* Unifier::substitute_one(Type* source, TermRef term, TermRef lhs, TermRef r
       return substitute_one(MT_RECORD_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::constant_value:
       return substitute_one(MT_CONST_VAL_MUT_REF(*source), term, lhs, rhs);
+    case Type::Tag::alias:
+      return substitute_one(MT_ALIAS_MUT_REF(*source), term, lhs, rhs);
     default:
       MT_SHOW1("Unhandled: ", source);
       assert(false);
@@ -438,6 +451,11 @@ Type* Unifier::substitute_one(types::Record& record, TermRef term, TermRef lhs, 
 Type* Unifier::substitute_one(types::ConstantValue& val, TermRef, TermRef, TermRef) {
   //  Nothing to do yet.
   return &val;
+}
+
+Type* Unifier::substitute_one(types::Alias& alias, TermRef term, TermRef lhs, TermRef rhs) {
+  alias.source = substitute_one(alias.source, term, lhs, rhs);
+  return &alias;
 }
 
 Type* Unifier::substitute_one(types::Abstraction& func, TermRef term, TermRef lhs, TermRef rhs) {

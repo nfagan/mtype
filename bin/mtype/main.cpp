@@ -14,6 +14,7 @@ mt::TypeToString make_type_to_string(Args&&... args) {
 
 void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::Arguments& args) {
   type_to_string.explicit_destructured_tuples = args.show_explicit_destructured_tuples;
+  type_to_string.explicit_aliases = args.show_explicit_aliases;
   type_to_string.arrow_function_notation = args.use_arrow_function_notation;
   type_to_string.max_num_type_variables = 3;
   type_to_string.show_class_source_type = args.show_class_source_type;
@@ -173,6 +174,7 @@ int main(int argc, char** argv) {
 
     //  Type identifier resolution.
     bool any_resolution_errors = false;
+    std::vector<TypeIdentifierResolverInstance::PendingScheme> pending_schemes;
 
     for (const auto& root_file : pipeline_instance.root_files) {
       auto entry = ast_store.lookup(root_file);
@@ -192,11 +194,19 @@ int main(int argc, char** argv) {
       if (instance.had_error()) {
         parse_errors.insert(parse_errors.end(), instance.errors.cbegin(), instance.errors.cend());
         any_resolution_errors = true;
+      } else {
+        //  Push schemes that need instantiation.
+        std::move(instance.pending_schemes.begin(), instance.pending_schemes.end(),
+          std::back_inserter(pending_schemes));
       }
     }
 
     if (any_resolution_errors) {
       continue;
+    }
+
+    for (const auto& pending_scheme : pending_schemes) {
+      pending_scheme.instantiate(type_store);
     }
 
     //  Type constraint generation.

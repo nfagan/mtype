@@ -18,12 +18,6 @@ Instantiation::InstanceVars Instantiation::make_instance_variables(const types::
   return replacing;
 }
 
-Type* Instantiation::instantiate(const types::Scheme& scheme) {
-  InstanceVars vars;
-  make_instance_variables(scheme, vars);
-  return instantiate(scheme, vars);
-}
-
 Type* Instantiation::instantiate(const types::Scheme& scheme, InstanceVars& replacing) {
   return clone(scheme.type, replacing);
 }
@@ -54,6 +48,8 @@ Type* Instantiation::clone(Type* source, InstanceVars& replacing) {
       return clone(MT_CLASS_REF(*source), replacing);
     case Type::Tag::record:
       return clone(MT_RECORD_REF(*source), replacing);
+    case Type::Tag::alias:
+      return clone(MT_ALIAS_REF(*source), replacing);
     default:
       std::cout << to_string(source->tag) << std::endl;
       assert(false && "Unhandled.");
@@ -129,6 +125,10 @@ Type* Instantiation::clone(const types::Record& record, InstanceVars& replacing)
     field.type = clone(field.type, replacing);
   }
   return store.make_record(std::move(record_b));
+}
+
+Type* Instantiation::clone(const types::Alias& alias, InstanceVars& replacing) {
+  return store.make_alias(clone(alias.source, replacing));
 }
 
 Type* Instantiation::clone(const types::Scalar&, Type* source, InstanceVars&) {

@@ -13,6 +13,8 @@ public:
   void maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub);
 
 private:
+  void principal_argument_dispatch(Type* source, TermRef term, types::Subscript& sub, const Type* arg0);
+
   void maybe_unify_non_function_subscript(Type* source, TermRef term, types::Subscript& sub);
   Type* record_period_subscript(Type* record_source, const Token* source_token, const types::Subscript::Sub& sub0,
                                 const types::Record& arg0);

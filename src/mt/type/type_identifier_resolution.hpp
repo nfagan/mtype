@@ -19,6 +19,7 @@ class StringRegistry;
 
 namespace types {
   struct Scheme;
+  struct Alias;
 }
 
 class TypeIdentifierResolverInstance {
@@ -50,6 +51,17 @@ public:
     TypeScope* scope;
   };
 
+  struct PendingScheme {
+    PendingScheme(const types::Scheme* scheme, std::vector<Type*> arguments, types::Alias* target);
+    void instantiate(TypeStore& store) const;
+
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(PendingScheme)
+
+    const types::Scheme* scheme;
+    std::vector<Type*> arguments;
+    types::Alias* target;
+  };
+
   struct SchemeVariables {
     std::unordered_map<TypeIdentifier, Type*, TypeIdentifier::Hash> variables;
   };
@@ -66,6 +78,8 @@ public:
   bool has_scheme() const;
   SchemeVariables& current_scheme_variables();
 
+  void push_pending_scheme(PendingScheme&& pending_scheme);
+
 public:
   TypeStore& type_store;
   Library& library;
@@ -75,6 +89,8 @@ public:
 
   ParseErrors errors;
   std::vector<UnresolvedIdentifier> unresolved_identifiers;
+  std::vector<PendingScheme> pending_schemes;
+
   TypeIdentifierExportState export_state;
   TypeIdentifierNamespaceState namespace_state;
   ScopeState<TypeScope> scopes;
@@ -86,7 +102,7 @@ public:
 
 class TypeIdentifierResolver : public TypePreservingVisitor {
 public:
-  TypeIdentifierResolver(TypeIdentifierResolverInstance* instance);
+  explicit TypeIdentifierResolver(TypeIdentifierResolverInstance* instance);
 
   void root_block(RootBlock& block) override;
   void block(Block& block) override;
@@ -119,7 +135,7 @@ private:
   void method_type_declaration(DeclareTypeNode& node);
 
   Type* resolve_identifier_reference(ScalarTypeNode& node) const;
-  Type* instantiate_scheme(const types::Scheme& scheme, ScalarTypeNode& node);
+  Type* handle_pending_scheme(const types::Scheme* scheme, ScalarTypeNode& node);
 
 private:
   TypeIdentifierResolverInstance* instance;

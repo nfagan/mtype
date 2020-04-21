@@ -26,6 +26,18 @@ const char* tuple_usage_shorthand(types::DestructuredTuple::Usage usage) {
 
 }
 
+TypeToString::TypeToString(const Library *library, const StringRegistry *string_registry) :
+  library(library),
+  string_registry(string_registry),
+  rich_text(true),
+  explicit_destructured_tuples(true),
+  explicit_aliases(true),
+  arrow_function_notation(false),
+  show_class_source_type(true),
+  max_num_type_variables(-1) {
+  //
+}
+
 void TypeToString::apply(const Type* t, std::stringstream& into) const {
   t->accept(*this, into);
 }
@@ -183,6 +195,13 @@ void TypeToString::apply(const types::Record& record, std::stringstream& into) c
     }
   }
   into << "}";
+}
+
+void TypeToString::apply(const types::Alias& alias, std::stringstream& into) const {
+  if (explicit_aliases) {
+    into << "alias: ";
+  }
+  apply(alias.source, into);
 }
 
 void TypeToString::apply(const TypePtrs& handles, std::stringstream& stream, const char* delim) const {

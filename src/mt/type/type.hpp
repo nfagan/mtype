@@ -28,7 +28,8 @@ struct Type {
     assignment,
     parameters,
     class_type,
-    record
+    record,
+    alias
   };
 
   Type() = delete;
@@ -41,6 +42,14 @@ struct Type {
 
   virtual std::size_t bytes() const = 0;
   virtual void accept(const TypeToString& to_str, std::stringstream& into) const = 0;
+
+  virtual Type* alias_source() {
+    return this;
+  }
+
+  virtual const Type* alias_source() const {
+    return this;
+  }
 
   MT_NODISCARD bool is_scalar() const {
     return tag == Tag::scalar;
@@ -84,6 +93,10 @@ struct Type {
 
   MT_NODISCARD bool is_constant_value() const {
     return tag == Tag::constant_value;
+  }
+
+  MT_NODISCARD bool is_alias() const {
+    return tag == Tag::alias;
   }
 
   Tag tag;

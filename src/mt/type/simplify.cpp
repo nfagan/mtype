@@ -69,6 +69,8 @@ bool Simplifier::simplify_same_types(Type* lhs, Type* rhs, bool rev) {
       return simplify(MT_RECORD_REF(*lhs), MT_RECORD_REF(*rhs), rev);
     case Tag::constant_value:
       return simplify(MT_CONST_VAL_REF(*lhs), MT_CONST_VAL_REF(*rhs), rev);
+    case Tag::alias:
+      return simplify(MT_ALIAS_REF(*lhs).source, MT_ALIAS_REF(*rhs).source, rev);
     case Tag::variable:
       return simplify_make_type_equation(lhs, rhs, rev);
     default:
@@ -88,7 +90,13 @@ bool Simplifier::simplify_different_types(Type* lhs, Type* rhs, bool rev) {
     return simplify_make_type_equation(lhs, rhs, rev);
   }
 
-  if (lhs->is_destructured_tuple()) {
+  if (lhs->is_alias()) {
+    return simplify(MT_ALIAS_REF(*lhs).source, rhs, rev);
+
+  } else if (rhs->is_alias()) {
+    return simplify(lhs, MT_ALIAS_REF(*rhs).source, rev);
+
+  } else if (lhs->is_destructured_tuple()) {
     return simplify_different_types(MT_DT_REF(*lhs), lhs, rhs, rev);
 
   } else if (rhs->is_destructured_tuple()) {

@@ -87,6 +87,7 @@ private:
   MT_NODISCARD Type* apply_to(types::Class& class_type, TermRef term);
   MT_NODISCARD Type* apply_to(types::Record& record, TermRef term);
   MT_NODISCARD Type* apply_to(types::ConstantValue& val, TermRef term);
+  MT_NODISCARD Type* apply_to(types::Alias& alias, TermRef term);
   MT_NODISCARD Type* apply_to(Type* source, TermRef term);
   void apply_to(TypePtrs& sources, TermRef term);
 
@@ -105,6 +106,7 @@ private:
   MT_NODISCARD Type* substitute_one(types::Class& class_type, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Record& record, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::ConstantValue& val, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD Type* substitute_one(types::Alias& val, TermRef term, TermRef lhs, TermRef rhs);
 
   bool occurs(const Type* t, TermRef term, const Type* lhs) const;
   bool occurs(const TypePtrs& ts, TermRef term, const Type* lhs) const;
@@ -118,6 +120,7 @@ private:
   bool occurs(const types::Class& class_type, TermRef term, const Type* lhs) const;
   bool occurs(const types::Record& record, TermRef term, const Type* lhs) const;
   bool occurs(const types::ConstantValue& val, TermRef term, const Type* lhs) const;
+  bool occurs(const types::Alias& alias, TermRef term, const Type* lhs) const;
 
   void check_assignment(Type* source, TermRef term, const types::Assignment& assignment);
   void check_push_function(Type* source, TermRef term, const types::Abstraction& func);

@@ -5,6 +5,38 @@
 namespace mt {
 
 /*
+ * Alias
+ */
+
+std::size_t types::Alias::bytes() const {
+  return sizeof(Alias);
+}
+
+void types::Alias::accept(const TypeToString& to_str, std::stringstream& into) const {
+  to_str.apply(*this, into);
+}
+
+namespace {
+  template <typename T, typename U>
+  U* root_alias_source_impl(U* source) {
+    //  Assumes no cycles of course.
+    while (source->is_alias()) {
+      auto tmp = static_cast<T*>(source);
+      source = tmp;
+    }
+    return source;
+  }
+}
+
+const Type* types::Alias::alias_source() const {
+  return root_alias_source_impl<const types::Alias, const Type>(source);
+}
+
+Type* types::Alias::alias_source() {
+  return root_alias_source_impl<types::Alias, Type>(source);
+}
+
+/*
  * Record
  */
 

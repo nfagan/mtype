@@ -18,14 +18,10 @@ public:
     //
   }
 
-  TypeToString(const Library* library, const StringRegistry* string_registry) :
-    library(library), string_registry(string_registry),
-    rich_text(true), explicit_destructured_tuples(true), arrow_function_notation(false),
-    show_class_source_type(true), max_num_type_variables(-1) {
-    //
-  }
+  TypeToString(const Library* library, const StringRegistry* string_registry);
 
   MT_NODISCARD std::string apply(const Type* t) const;
+
   void apply(const Type* handle, std::stringstream& into) const;
   void apply(const types::Scalar& scl, std::stringstream& into) const;
   void apply(const types::Tuple& tup, std::stringstream& into) const;
@@ -41,6 +37,7 @@ public:
   void apply(const types::ConstantValue& val, std::stringstream& into) const;
   void apply(const types::Class& cls, std::stringstream& into) const;
   void apply(const types::Record& record, std::stringstream& into) const;
+  void apply(const types::Alias& alias, std::stringstream& into) const;
   void apply(const TypePtrs& handles, std::stringstream& into, const char* delim = ", ") const;
 
   const char* color(const char* color_code) const;
@@ -62,6 +59,7 @@ private:
 public:
   bool rich_text;
   bool explicit_destructured_tuples;
+  bool explicit_aliases;
   bool arrow_function_notation;
   bool show_class_source_type;
   int max_num_type_variables;

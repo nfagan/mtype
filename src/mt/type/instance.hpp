@@ -15,7 +15,6 @@ public:
     //
   }
 
-  Type* instantiate(const types::Scheme& scheme);
   Type* instantiate(const types::Scheme& scheme, InstanceVars& replacing);
 
   Type* clone(Type* source, InstanceVars& replacing);
@@ -33,6 +32,7 @@ private:
   Type* clone(const types::Assignment& assign, InstanceVars& replacing);
   Type* clone(const types::Class& cls, InstanceVars& replacing);
   Type* clone(const types::Record& record, InstanceVars& replacing);
+  Type* clone(const types::Alias& alias, InstanceVars& replacing);
   Type* clone(const types::Variable& var, Type* source, InstanceVars& replacing);
   Type* clone(const types::Scalar& scl, Type* source, InstanceVars& replacing);
   Type* clone(const types::Parameters& params, Type* source, InstanceVars& replacing);

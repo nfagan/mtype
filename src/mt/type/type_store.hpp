@@ -108,6 +108,11 @@ public:
   }
 
   template <typename... Args>
+  types::Alias* make_alias(Args&&... args) {
+    return make_type<types::Alias>(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   TypeReference* make_type_reference(Args&&... args) {
     auto ref = std::make_unique<TypeReference>(std::forward<Args>(args)...);
     auto ptr = ref.get();
@@ -115,7 +120,7 @@ public:
     return ptr;
   }
 
-  std::unordered_map<Type::Tag, double> type_distribution() const;
+  MT_NODISCARD std::unordered_map<Type::Tag, double> type_distribution() const;
 
 private:
   void reserve() {

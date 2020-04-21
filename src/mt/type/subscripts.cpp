@@ -23,8 +23,14 @@ SubscriptHandler::SubscriptHandler(mt::Unifier& unifier) : unifier(unifier), lib
 void SubscriptHandler::maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub) {
   const auto arg0 = sub.principal_argument;
 
-  if (unifier.is_visited_type(source) || !unifier.is_concrete_argument(sub.principal_argument)) {
-    return;
+  if (!unifier.is_visited_type(source) && unifier.is_concrete_argument(arg0)) {
+    principal_argument_dispatch(source, term, sub, arg0);
+  }
+}
+
+void SubscriptHandler::principal_argument_dispatch(Type* source, TermRef term, types::Subscript& sub, const Type* arg0) {
+  if (arg0->is_alias()) {
+    principal_argument_dispatch(source, term, sub, MT_ALIAS_REF(*arg0).source);
 
   } else if (arg0->is_abstraction()) {
     function_call_subscript(source, term, MT_ABSTR_REF(*arg0), sub);
@@ -39,7 +45,7 @@ void SubscriptHandler::maybe_unify_subscript(Type* source, TermRef term, types::
 
 void SubscriptHandler::maybe_unify_non_function_subscript(Type* source, TermRef term, types::Subscript& sub) {
   assert(!sub.subscripts.empty());
-  const auto& arg0 = sub.principal_argument;
+  const auto arg0 = sub.principal_argument->alias_source();
   const auto& sub0 = sub.subscripts[0];
 
   if (!unifier.are_concrete_arguments(sub0.arguments)) {

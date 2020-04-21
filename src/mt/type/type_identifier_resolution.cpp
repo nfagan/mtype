@@ -106,6 +106,28 @@ TypeIdentifierResolverInstance::UnresolvedIdentifier::UnresolvedIdentifier(const
   //
 }
 
+TypeIdentifierResolverInstance::PendingScheme::PendingScheme(const types::Scheme* scheme,
+                                                             TypePtrs args,
+                                                             types::Alias* target) :
+scheme(scheme), arguments(std::move(args)), target(target) {
+  //
+}
+
+void TypeIdentifierResolverInstance::PendingScheme::instantiate(TypeStore& store) const {
+  assert(arguments.size() == scheme->parameters.size());
+  assert(!target->source);
+
+  Instantiation::InstanceVars instance_vars;
+  for (int64_t i = 0; i < int64_t(arguments.size()); i++) {
+    const auto source = scheme->parameters[i];
+    const auto map_to = arguments[i];
+    instance_vars[source] = map_to;
+  }
+
+  Instantiation instantiation(store);
+  target->source = instantiation.instantiate(*scheme, instance_vars);
+}
+
 /*
  * TypeIdentifierResolverInstance
  */
@@ -152,6 +174,10 @@ TypeIdentifierResolverInstance::SchemeVariables& TypeIdentifierResolverInstance:
 
 bool TypeIdentifierResolverInstance::has_scheme() const {
   return !scheme_variables.empty();
+}
+
+void TypeIdentifierResolverInstance::push_pending_scheme(PendingScheme&& pending_scheme) {
+  pending_schemes.push_back(std::move(pending_scheme));
 }
 
 /*
@@ -335,8 +361,8 @@ Type* TypeIdentifierResolver::resolve_identifier_reference(ScalarTypeNode& node)
   return maybe_ref ? maybe_ref.value()->type : nullptr;
 }
 
-Type* TypeIdentifierResolver::instantiate_scheme(const types::Scheme& scheme, ScalarTypeNode& node) {
-  if (scheme.parameters.size() != node.arguments.size()) {
+Type* TypeIdentifierResolver::handle_pending_scheme(const types::Scheme* scheme, ScalarTypeNode& node) {
+  if (scheme->parameters.size() != node.arguments.size()) {
     instance->add_error(make_error_incorrect_num_arguments_to_scheme(*instance, node.source_token));
     instance->collectors.current().mark_error();
     return nullptr;
@@ -362,15 +388,13 @@ Type* TypeIdentifierResolver::instantiate_scheme(const types::Scheme& scheme, Sc
     args.push_back(collector.types[0]);
   }
 
-  Instantiation::InstanceVars instance_vars;
-  for (int64_t i = 0; i < int64_t(args.size()); i++) {
-    const auto source = scheme.parameters[i];
-    const auto map_to = args[i];
-    instance_vars[source] = map_to;
-  }
+  //  We can't directly instantiate a scheme here, because the scheme's source might be an imported
+  //  type which has been declared, but not yet defined.
+  auto alias = instance->type_store.make_alias();
+  TypeIdentifierResolverInstance::PendingScheme pending_scheme(scheme, std::move(args), alias);
+  instance->push_pending_scheme(std::move(pending_scheme));
 
-  Instantiation instantiation(instance->type_store);
-  return instantiation.instantiate(scheme, instance_vars);
+  return alias;
 }
 
 void TypeIdentifierResolver::scalar_type_node(ScalarTypeNode& node) {
@@ -387,7 +411,7 @@ void TypeIdentifierResolver::scalar_type_node(ScalarTypeNode& node) {
   auto result_type = type;
 
   if (type->is_scheme()) {
-    auto maybe_result_type = instantiate_scheme(MT_SCHEME_REF(*type), node);
+    auto maybe_result_type = handle_pending_scheme(MT_SCHEME_PTR(type), node);
     if (!maybe_result_type) {
       return;
     } else {

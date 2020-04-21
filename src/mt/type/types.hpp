@@ -18,6 +18,33 @@ class Optional;
 namespace mt::types {
 
 /*
+ * Alias
+ */
+
+struct Alias : public Type {
+  Alias() : Alias(nullptr) {
+    //
+  }
+
+  explicit Alias(Type* source) : Type(Type::Tag::alias), source(source) {
+    //
+  }
+
+  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Alias)
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Alias)
+
+  ~Alias() override = default;
+
+  std::size_t bytes() const override;
+  void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  const Type* alias_source() const override;
+  Type* alias_source() override;
+
+  Type* source;
+};
+
+/*
  * Record
  */
 
@@ -527,6 +554,7 @@ namespace mt {
 #define MT_CLASS_REF(a) static_cast<const mt::types::Class&>((a))
 #define MT_RECORD_REF(a) static_cast<const mt::types::Record&>((a))
 #define MT_CONST_VAL_REF(a) static_cast<const mt::types::ConstantValue&>((a))
+#define MT_ALIAS_REF(a) static_cast<const mt::types::Alias&>((a))
 
 #define MT_CLASS_PTR(a) static_cast<const mt::types::Class*>((a))
 #define MT_SCHEME_PTR(a) static_cast<const mt::types::Scheme*>((a))
@@ -546,6 +574,7 @@ namespace mt {
 #define MT_CLASS_MUT_REF(a) static_cast<mt::types::Class&>((a))
 #define MT_RECORD_MUT_REF(a) static_cast<mt::types::Record&>((a))
 #define MT_CONST_VAL_MUT_REF(a) static_cast<mt::types::ConstantValue&>((a))
+#define MT_ALIAS_MUT_REF(a) static_cast<mt::types::Alias&>((a))
 
 #define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))
 #define MT_SCALAR_MUT_PTR(a) static_cast<mt::types::Scalar*>((a))
