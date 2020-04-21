@@ -127,14 +127,14 @@ public:
   Optional<std::unique_ptr<Block>> block();
   Optional<std::unique_ptr<Block>> sub_block();
   Optional<std::unique_ptr<FunctionDefNode>> function_def();
-  Optional<FunctionHeader> function_header();
+  Optional<FunctionHeader> function_header(bool* has_varargin, bool* has_varargout);
   Optional<MatlabIdentifier> compound_function_name(std::string_view first_component);
-  Optional<std::vector<FunctionInputParameter>> function_inputs();
-  Optional<std::vector<std::string_view>> function_outputs(bool* provided_outputs);
+  Optional<FunctionParameters> function_inputs(bool* has_varargin);
+  Optional<FunctionParameters> function_outputs(bool* provided_outputs, bool* has_varargout);
   Optional<std::string_view> one_identifier();
   Optional<std::vector<std::string_view>> identifier_sequence(TokenType terminator);
   Optional<std::vector<std::string_view>> compound_identifier_components();
-  Optional<std::vector<FunctionInputParameter>> anonymous_function_input_parameters();
+  Optional<std::vector<FunctionParameter>> function_parameters(bool* has_varargin);
 
   Optional<BoxedAstNode> class_def();
   Optional<MatlabIdentifier> superclass_name();
@@ -259,8 +259,8 @@ public:
   Optional<ParseError> consume(TokenType type);
   Optional<ParseError> consume_one_of(const TokenType* types, int64_t num_types);
   void consume_if_matches(TokenType type);
-  Optional<ParseError> check_anonymous_function_input_parameters_are_unique(const Token& source_token,
-                                                                            const FunctionInputParameters& inputs) const;
+  Optional<ParseError> check_parameters_are_unique(const Token& source_token,
+                                                   const FunctionParameters& params) const;
 
   bool is_within_loop() const;
   bool is_within_end_terminated_stmt_block() const;

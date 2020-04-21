@@ -544,6 +544,23 @@ void TypeIdentifierResolver::namespace_type_node(NamespaceTypeNode& node) {
  * Def
  */
 
+namespace {
+  void gather_function_parameters(const TypeIdentifierResolverInstance& instance,
+                                  const FunctionParameters& params,
+                                  TypePtrs& current_types,
+                                  TypePtrs& all_types) {
+    const auto& matlab_scope = *instance.matlab_scopes.current();
+
+    for (const auto& arg : params) {
+      if (!arg.is_ignored()) {
+        auto param = instance.library.require_local_variable_type(matlab_scope.local_variables.at(arg.name));
+        current_types.push_back(param);
+        all_types.push_back(param);
+      }
+    }
+  }
+}
+
 void TypeIdentifierResolver::function_def_node(FunctionDefNode& node) {
   instance->matlab_scopes.push(node.scope);
   instance->scopes.push(node.type_scope);
@@ -561,24 +578,12 @@ void TypeIdentifierResolver::function_def_node(FunctionDefNode& node) {
   TypePtrs outputs;
   TypePtrs all_parameters;
 
-  const auto& matlab_scope = *instance->matlab_scopes.current();
-
   instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
     const auto& def = reader.at(node.def_handle);
     function_name = def.header.name;
 
-    for (const auto& arg : def.header.inputs) {
-      if (!arg.is_ignored) {
-        auto input = instance->library.require_local_variable_type(matlab_scope.local_variables.at(arg.name));
-        inputs.push_back(input);
-        all_parameters.push_back(input);
-      }
-    }
-    for (const auto& out : def.header.outputs) {
-      auto output = instance->library.require_local_variable_type(matlab_scope.local_variables.at(out));
-      outputs.push_back(output);
-      all_parameters.push_back(output);
-    }
+    gather_function_parameters(*instance, def.header.inputs, inputs, all_parameters);
+    gather_function_parameters(*instance, def.header.outputs, outputs, all_parameters);
 
     body = def.body.get();
     attributes = def.attributes;

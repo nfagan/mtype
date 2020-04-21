@@ -73,21 +73,23 @@ std::string StringVisitor::subscripts(const std::vector<Subscript>& subs) const 
   return sub_str;
 }
 
-std::string StringVisitor::function_input_parameters(const std::vector<FunctionInputParameter>& inputs) const {
-  std::string params("(");
-  for (int64_t i = 0; i < int64_t(inputs.size()); i++) {
-    const auto& input = inputs[i];
-    if (input.is_ignored) {
-      params += "~";
+std::string StringVisitor::function_parameters(const FunctionParameters& params,
+                                               const char* open,
+                                               const char* close) const {
+  std::string str(open);
+  for (int64_t i = 0; i < int64_t(params.size()); i++) {
+    const auto& param = params[i];
+    if (param.is_ignored()) {
+      str += "~";
     } else {
-      params += string_registry->at(input.name.full_name());
+      str += string_registry->at(param.name.full_name());
     }
-    if (i < int64_t(inputs.size()) - 1) {
-      params += ", ";
+    if (i < int64_t(params.size()) - 1) {
+      str += ", ";
     }
   }
-  params += ")";
-  return params;
+  str += close;
+  return str;
 }
 
 std::string StringVisitor::root_block(const RootBlock& block) const {
@@ -102,17 +104,12 @@ std::string StringVisitor::block(const Block& block) const {
 }
 
 std::string StringVisitor::function_header(const FunctionHeader& header) const {
-  std::vector<std::string> output_strs;
-  for (const auto& output : header.outputs) {
-    output_strs.emplace_back(string_registry->at(output.full_name()));
-  }
-
-  auto outputs = join(output_strs, ", ");
-  auto inputs = function_input_parameters(header.inputs);
+  auto outputs = function_parameters(header.outputs, "[", "]");
+  auto inputs = function_parameters(header.inputs, "(", ")");
   auto name = string_registry->at(header.name.full_name());
   auto func = std::string("function");
   maybe_colorize(func, TokenType::keyword_function);
-  return func + " [" + outputs + "]" + " = " + name + inputs;
+  return func + outputs + " = " + name + inputs;
 }
 
 std::string StringVisitor::function_def_node(const FunctionDefNode& def_node) const {
@@ -421,7 +418,7 @@ std::string StringVisitor::function_call_expr(const FunctionCallExpr& expr) cons
 }
 
 std::string StringVisitor::anonymous_function_expr(const AnonymousFunctionExpr& expr) const {
-  const auto inputs = function_input_parameters(expr.inputs);
+  const auto inputs = function_parameters(expr.inputs, "(", ")");
   auto header = std::string("@") + inputs + " ";
   auto body = expr.expr->accept(*this);
   auto str = header + body;

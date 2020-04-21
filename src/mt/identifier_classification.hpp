@@ -280,9 +280,7 @@ private:
   void register_function_parameter(Store::Write& read_write, const Token& source_token,
     const MatlabIdentifier& identifier);
   void register_function_parameters(Store::Write& read_write, const Token& source_token,
-    const std::vector<MatlabIdentifier>& identifiers);
-  void register_function_parameters(Store::Write& read_write, const Token& source_token,
-    const std::vector<FunctionInputParameter>& identifiers);
+    const std::vector<FunctionParameter>& identifiers);
 
   IdentifierScope::AssignmentResult register_variable_assignment(const Token& source_token,
                                                                  const MatlabIdentifier& primary_identifier);

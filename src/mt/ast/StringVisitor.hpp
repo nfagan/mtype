@@ -105,7 +105,7 @@ private:
   std::string end_str() const;
 
   std::string subscripts(const std::vector<Subscript>& subs) const;
-  std::string function_input_parameters(const std::vector<FunctionInputParameter>& inputs) const;
+  std::string function_parameters(const FunctionParameters& params, const char* open, const char* close) const;
 
   template <typename T>
   std::string visit_array(const T& visitables, const std::string& delim) const;

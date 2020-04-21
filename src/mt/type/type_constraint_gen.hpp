@@ -82,9 +82,8 @@ public:
 private:
   std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);
 
-  void gather_function_inputs(const MatlabScope& scope, const FunctionInputParameters& inputs, TypePtrs& into);
-  void push_function_inputs(const MatlabScope& scope, const TypePtrs& inputs, const FunctionHeader& header);
-  void push_function_outputs(const MatlabScope& scope, const TypePtrs& outputs, const FunctionHeader& header);
+  void gather_function_inputs(const MatlabScope& scope, const FunctionParameters& inputs, TypePtrs& into);
+  void push_function_parameters(const MatlabScope& scope, const TypePtrs& args, const FunctionParameters& params);
 
   void handle_class_method(const TypePtrs& function_inputs,
                            const TypePtrs& function_outputs,

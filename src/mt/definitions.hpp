@@ -67,18 +67,40 @@ struct Import {
   std::vector<int64_t> identifier_components;
 };
 
-struct FunctionInputParameter {
-  explicit FunctionInputParameter(const MatlabIdentifier& name) : name(name), is_ignored(false) {
+struct FunctionParameter {
+  struct AttributeFlags {
+    using FlagType = uint8_t;
+    static constexpr FlagType is_ignored = 1u;
+    static constexpr FlagType is_vararg = 1u << 1u;
+  };
+
+  explicit FunctionParameter(const MatlabIdentifier& name) : name(name), flags(0) {
     //
   }
-  FunctionInputParameter() : is_ignored(true) {
-    //
+  FunctionParameter() : flags(0) {
+    mark_is_ignored();
   }
+
+  void mark_is_ignored() {
+    flags |= AttributeFlags::is_ignored;
+  }
+  void mark_is_vararg() {
+    flags |= AttributeFlags::is_vararg;
+  }
+
+  bool is_ignored() const {
+    return flags & AttributeFlags::is_ignored;
+  }
+
+  bool is_vararg() const {
+    return flags & AttributeFlags::is_vararg;
+  }
+
   MatlabIdentifier name;
-  bool is_ignored;
+  AttributeFlags::FlagType flags;
 };
 
-using FunctionInputParameters = std::vector<FunctionInputParameter>;
+using FunctionParameters = std::vector<FunctionParameter>;
 
 struct AccessSpecifier {
   AccessSpecifier() : type(AccessType::private_access), num_classes(0) {
@@ -109,6 +131,8 @@ public:
     static constexpr Flag is_sealed_method = 1u << 2u;
     static constexpr Flag is_static_method = 1u << 3u;
     static constexpr Flag is_constructor = 1u << 4u;
+    static constexpr Flag has_varargin = 1u << 5u;
+    static constexpr Flag has_varargout = 1u << 6u;
   };
 public:
   FunctionAttributes() : FunctionAttributes(ClassDefHandle()) {
@@ -136,6 +160,12 @@ public:
   void mark_constructor() {
     boolean_attributes |= AttributeFlags::is_constructor;
   }
+  void mark_has_varargin() {
+    boolean_attributes |= AttributeFlags::has_varargin;
+  }
+  void mark_has_varargout() {
+    boolean_attributes |= AttributeFlags::has_varargout;
+  }
 
   bool is_abstract() const {
     return boolean_attributes & AttributeFlags::is_abstract_method;
@@ -155,6 +185,12 @@ public:
   bool is_constructor() const {
     return boolean_attributes & AttributeFlags::is_constructor;
   }
+  bool has_varargin() const {
+    return boolean_attributes & AttributeFlags::has_varargin;
+  }
+  bool has_varargout() const {
+    return boolean_attributes & AttributeFlags::has_varargout;
+  }
 
 public:
   ClassDefHandle class_handle;
@@ -168,8 +204,8 @@ struct FunctionHeader {
   FunctionHeader() = default;
   FunctionHeader(const Token& name_token,
                  const MatlabIdentifier& name,
-                 std::vector<MatlabIdentifier>&& outputs,
-                 std::vector<FunctionInputParameter>&& inputs) :
+                 FunctionParameters&& outputs,
+                 FunctionParameters&& inputs) :
     name_token(name_token),
     name(name),
     outputs(std::move(outputs)),
@@ -182,8 +218,8 @@ struct FunctionHeader {
 
   Token name_token;
   MatlabIdentifier name;
-  std::vector<MatlabIdentifier> outputs;
-  std::vector<FunctionInputParameter> inputs;
+  FunctionParameters outputs;
+  FunctionParameters inputs;
 };
 
 struct FunctionDef {

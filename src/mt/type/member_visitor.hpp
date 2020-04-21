@@ -53,6 +53,22 @@ int64_t DestructuredMemberVisitor<T>::expect_to_match(const DT& parent, const DT
   }
 }
 
+namespace detail {
+  template <typename T>
+  inline bool empty_value_tuple_matches_list_inputs(const types::DestructuredTuple& a,
+                                                    const types::DestructuredTuple& b,
+                                                    int64_t ia, int64_t ib) {
+    //  Check whether dt-r[] or dt-l[] matches dt-i[list<T>]. Intuitively, if a function is given
+    //  the type: [] = (list<double>) (i.e., in MATLAB, function [] = my_varargin(varargin))
+    //  then calling the function with no arguments should be okay.
+    return a.is_value_usage() &&
+           b.is_inputs() &&
+           ia == a.size() &&
+           ib == a.size() && ib < b.size() &&
+           b.members[ib]->is_list();
+  }
+}
+
 template<typename T>
 bool DestructuredMemberVisitor<T>::expand_members(T lhs, T rhs, const DT& a, const DT& b, bool rev) const {
   const int64_t num_a = a.size();
@@ -76,6 +92,10 @@ bool DestructuredMemberVisitor<T>::expand_members(T lhs, T rhs, const DT& a, con
 
   } else if (b.is_outputs() && a.is_value_usage()) {
     return ia == num_a && ib == num_a;
+
+  } else if (detail::empty_value_tuple_matches_list_inputs<T>(a, b, ia, ib) ||
+             detail::empty_value_tuple_matches_list_inputs<T>(b, a, ib, ia)) {
+    return true;
 
   } else {
     return false;

@@ -236,6 +236,16 @@ namespace {
     return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
   }
 
+  ParseError make_error_varargout_in_incorrect_position(const ParseInstance* instance, const Token& token) {
+    const auto msg = "`varargout` must be the last output parameter.";
+    return ParseError(instance->source_text(), token, msg, instance->file_descriptor());
+  }
+
+  ParseError make_error_varargin_in_incorrect_position(const ParseInstance* instance, const Token& token) {
+    const auto msg = "`varargin` must be the last input parameter.";
+    return ParseError(instance->source_text(), token, msg, instance->file_descriptor());
+  }
+
 //  ParseError make_error_invalid_typed_method(const ParseInstance* instance, const Token& at_token) {
 //    const auto msg = "Invalid typed method.";
 //    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
@@ -403,9 +413,15 @@ Optional<std::string_view> AstGenerator::one_identifier() {
   }
 }
 
-Optional<std::vector<FunctionInputParameter>> AstGenerator::anonymous_function_input_parameters() {
-  std::vector<FunctionInputParameter> input_parameters;
+Optional<std::vector<FunctionParameter>> AstGenerator::function_parameters(bool* has_varargin) {
+  std::vector<FunctionParameter> parameters;
   bool expect_parameter = true;
+  *has_varargin = false;
+
+  int64_t iter = 0;
+  int64_t varargin_index = -1;
+  const auto varargin_ident = parse_instance->library->special_identifiers.varargin;
+  Token varargin_token;
 
   while (iterator.has_next() && iterator.peek().type != TokenType::right_parens) {
     const auto& tok = iterator.peek();
@@ -424,15 +440,25 @@ Optional<std::vector<FunctionInputParameter>> AstGenerator::anonymous_function_i
     }
 
     if (tok.type == TokenType::identifier) {
-      MatlabIdentifier name(string_registry->register_string(tok.lexeme));
-      input_parameters.emplace_back(name);
+      const auto full_name = string_registry->register_string(tok.lexeme);
+      auto param = FunctionParameter(MatlabIdentifier(full_name));
+
+      if (full_name == varargin_ident) {
+        varargin_index = iter;
+        varargin_token = tok;
+        *has_varargin = true;
+        param.mark_is_vararg();
+      }
+
+      parameters.push_back(param);
 
     } else if (tok.type == TokenType::tilde) {
       //  @(~, y)
-      input_parameters.emplace_back();
+      parameters.emplace_back();
     }
 
     expect_parameter = !expect_parameter;
+    iter++;
   }
 
   auto err = consume(TokenType::right_parens);
@@ -441,7 +467,13 @@ Optional<std::vector<FunctionInputParameter>> AstGenerator::anonymous_function_i
     return NullOpt{};
   }
 
-  return Optional<std::vector<FunctionInputParameter>>(std::move(input_parameters));
+  //  If function has a `varargin` parameter, it must be the last one.
+  if (varargin_index >= 0 && (varargin_index + 1) != iter) {
+    add_error(make_error_varargin_in_incorrect_position(parse_instance, varargin_token));
+    return NullOpt{};
+  }
+
+  return Optional<std::vector<FunctionParameter>>(std::move(parameters));
 }
 
 Optional<std::vector<std::string_view>> AstGenerator::compound_identifier_components() {
@@ -521,10 +553,11 @@ Optional<MatlabIdentifier> AstGenerator::compound_function_name(std::string_view
   return Optional<MatlabIdentifier>(MatlabIdentifier(compound_name, component_ids.size()));
 }
 
-Optional<FunctionHeader> AstGenerator::function_header() {
+Optional<FunctionHeader> AstGenerator::function_header(bool* has_varargin, bool* has_varargout) {
   //  @TODO: Ensure parameter names are unique.
   bool provided_outputs;
-  auto output_res = function_outputs(&provided_outputs);
+
+  auto output_res = function_outputs(&provided_outputs, has_varargout);
   if (!output_res) {
     return NullOpt{};
   }
@@ -564,7 +597,7 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     }
   }
 
-  auto input_res = function_inputs();
+  auto input_res = function_inputs(has_varargin);
   if (!input_res) {
     return NullOpt{};
   }
@@ -593,39 +626,37 @@ Optional<FunctionHeader> AstGenerator::function_header() {
     name = MatlabIdentifier(single_name_component);
   }
 
-  const auto& output_strs = output_res.value();
-  std::vector<MatlabIdentifier> output_names;
-  output_names.reserve(output_strs.size());
-
-  for (const auto& str : output_strs) {
-    MatlabIdentifier output_name(string_registry->register_string(str));
-    output_names.emplace_back(output_name);
-  }
-
-  FunctionHeader header(name_token, name, std::move(output_names), std::move(input_res.rvalue()));
+  FunctionHeader header(name_token, name, std::move(output_res.rvalue()), std::move(input_res.rvalue()));
   return Optional<FunctionHeader>(std::move(header));
 }
 
-Optional<std::vector<FunctionInputParameter>> AstGenerator::function_inputs() {
+Optional<FunctionParameters> AstGenerator::function_inputs(bool* has_varargin) {
   if (iterator.peek().type == TokenType::left_parens) {
     iterator.advance();
-    return anonymous_function_input_parameters();
+    return function_parameters(has_varargin);
   } else {
+    *has_varargin = false;
     //  Function declarations without parentheses are valid and indicate 0 inputs.
-    return Optional<std::vector<FunctionInputParameter>>(std::vector<FunctionInputParameter>());
+    return Optional<FunctionParameters>(FunctionParameters{});
   }
 }
 
-Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* provided_outputs) {
+Optional<FunctionParameters> AstGenerator::function_outputs(bool* provided_outputs, bool* has_varargout) {
   const auto& tok = iterator.peek();
-  std::vector<std::string_view> outputs;
+  std::vector<std::string_view> parameter_strs;
   *provided_outputs = false;
+  *has_varargout = false;
 
   if (tok.type == TokenType::left_bracket) {
     //  function [a, b, c] = example()
     iterator.advance();
     *provided_outputs = true;
-    return identifier_sequence(TokenType::right_bracket);
+    auto seq_res = identifier_sequence(TokenType::right_bracket);
+    if (!seq_res) {
+      return NullOpt{};
+    } else {
+      parameter_strs = std::move(seq_res.rvalue());
+    }
 
   } else if (tok.type == TokenType::identifier) {
     //  Either: function a = example() or function example(). I.e., the next identifier is either
@@ -635,17 +666,40 @@ Optional<std::vector<std::string_view>> AstGenerator::function_outputs(bool* pro
 
     if (is_single_output) {
       *provided_outputs = true;
-      outputs.push_back(tok.lexeme);
+      parameter_strs.push_back(tok.lexeme);
       iterator.advance();
     }
-
-    return Optional<std::vector<std::string_view>>(std::move(outputs));
 
   } else {
     std::array<TokenType, 2> possible_types{{TokenType::left_bracket, TokenType::identifier}};
     add_error(make_error_expected_token_type(parse_instance, tok, possible_types));
     return NullOpt{};
   }
+
+  FunctionParameters outputs;
+  outputs.reserve(parameter_strs.size());
+  const auto varargout_ident = parse_instance->library->special_identifiers.varargout;
+  const int64_t num_params = parameter_strs.size();
+
+  for (int64_t i = 0; i < num_params; i++) {
+    const auto full_name = string_registry->register_string(parameter_strs[i]);
+    auto param = FunctionParameter(MatlabIdentifier(full_name));
+
+    //  `varargout` must be last output parameter.
+    if (full_name == varargout_ident) {
+      if (i != num_params-1) {
+        add_error(make_error_varargout_in_incorrect_position(parse_instance, tok));
+        return NullOpt{};
+      } else {
+        *has_varargout = true;
+        param.mark_is_vararg();
+      }
+    }
+
+    outputs.push_back(param);
+  }
+
+  return Optional<FunctionParameters>(std::move(outputs));
 }
 
 Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
@@ -666,7 +720,9 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
-  auto header_result = function_header();
+  bool has_varargin;
+  bool has_varargout;
+  auto header_result = function_header(&has_varargin, &has_varargout);
 
   if (!header_result) {
     return NullOpt{};
@@ -718,6 +774,13 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
       add_error(make_error_no_class_instance_parameter_in_method(parse_instance, header.name_token));
       return NullOpt{};
     }
+  }
+
+  if (has_varargin) {
+    attrs.mark_has_varargin();
+  }
+  if (has_varargout) {
+    attrs.mark_has_varargout();
   }
 
   FunctionDef function_def(header_result.rvalue(), attrs, body_res.rvalue());
@@ -1204,7 +1267,9 @@ bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
 bool AstGenerator::method_declaration(const mt::Token& source_token,
                                       std::set<int64_t>& method_names,
                                       ClassDef::Methods& methods) {
-  auto header_res = function_header();
+  bool has_varargin;
+  bool has_varargout;
+  auto header_res = function_header(&has_varargin, &has_varargout);
   if (!header_res) {
     return false;
   }
@@ -1218,7 +1283,14 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
   } else {
     method_names.emplace(func_name.full_name());
     FunctionDefHandle pending_def_handle;
-    const auto& attrs = current_function_attributes();
+
+    auto attrs = current_function_attributes();
+    if (has_varargin) {
+      attrs.mark_has_varargin();
+    }
+    if (has_varargout) {
+      attrs.mark_has_varargout();
+    }
 
     {
       Store::Write writer(*store);
@@ -1762,8 +1834,9 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
   ParseScopeHelper scope_helper(*this);
   auto scope = current_scope();
   auto type_scope = current_type_scope();
+  bool has_varargin;
 
-  auto input_res = anonymous_function_input_parameters();
+  auto input_res = function_parameters(&has_varargin);
   if (!input_res) {
     return NullOpt{};
   }
@@ -1785,7 +1858,7 @@ Optional<BoxedExpr> AstGenerator::anonymous_function_expr(const mt::Token& sourc
 
   auto input_identifiers = std::move(input_res.rvalue());
 
-  auto params_err = check_anonymous_function_input_parameters_are_unique(source_token, input_identifiers);
+  auto params_err = check_parameters_are_unique(source_token, input_identifiers);
   if (params_err) {
     add_error(params_err.rvalue());
     return NullOpt{};
@@ -3639,11 +3712,11 @@ void AstGenerator::consume_if_matches(TokenType type) {
 }
 
 Optional<ParseError>
-AstGenerator::check_anonymous_function_input_parameters_are_unique(const Token& source_token,
-                                                                   const FunctionInputParameters& inputs) const {
+AstGenerator::check_parameters_are_unique(const Token& source_token,
+                                          const FunctionParameters& params) const {
   std::set<int64_t> uniques;
-  for (const auto& input : inputs) {
-    if (input.is_ignored) {
+  for (const auto& input : params) {
+    if (input.is_ignored()) {
       //  Input argument is ignored (~)
       continue;
     }

@@ -86,10 +86,10 @@ void TypeConstraintGenerator::show_variable_types(const TypeToString& printer) c
 }
 
 void TypeConstraintGenerator::gather_function_inputs(const MatlabScope& scope,
-                                                     const FunctionInputParameters& inputs,
+                                                     const FunctionParameters& inputs,
                                                      TypePtrs& into) {
   for (const auto& input : inputs) {
-    if (!input.is_ignored) {
+    if (!input.is_ignored()) {
       assert(input.name.full_name() >= 0);
 
       const auto variable_def_handle = scope.local_variables.at(input.name);
@@ -103,25 +103,21 @@ void TypeConstraintGenerator::gather_function_inputs(const MatlabScope& scope,
   }
 }
 
-void TypeConstraintGenerator::push_function_inputs(const MatlabScope& scope, const TypePtrs& function_inputs,
-                                                   const FunctionHeader& header) {
-  assert(function_inputs.size() == header.inputs.size());
-  for (int64_t i = 0; i < int64_t(function_inputs.size()); i++) {
-    const auto& input = header.inputs[i];
-    if (!input.is_ignored) {
-      const auto& var_handle = scope.local_variables.at(input.name);
-      bind_type_variable_to_variable_def(var_handle, function_inputs[i]);
-    }
-  }
-}
+void TypeConstraintGenerator::push_function_parameters(const MatlabScope& scope, const TypePtrs& args,
+                                                       const FunctionParameters& params) {
+  assert(args.size() == params.size());
+  const int64_t num_args = args.size();
 
-void TypeConstraintGenerator::push_function_outputs(const MatlabScope& scope, const TypePtrs& function_outputs,
-                                                    const FunctionHeader& header) {
-  assert(function_outputs.size() == header.outputs.size());
-  for (int64_t i = 0; i < int64_t(function_outputs.size()); i++) {
-    const auto& output = header.outputs[i];
-    const auto& var_handle = scope.local_variables.at(output);
-    bind_type_variable_to_variable_def(var_handle, function_outputs[i]);
+  for (int64_t i = 0; i < num_args; i++) {
+    const auto& arg = params[i];
+    if (!arg.is_ignored()) {
+      //  Inside the function, vararg arguments are wrapped in a cell / tuple {}.
+      auto assigned_type = arg.is_vararg() ?
+        type_store.make_tuple(args[i]) : args[i];
+
+      const auto& var_handle = scope.local_variables.at(arg.name);
+      bind_type_variable_to_variable_def(var_handle, assigned_type);
+    }
   }
 }
 
@@ -157,8 +153,8 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     const auto& def = reader.at(node.def_handle);
     function_name = def.header.name;
 
-    push_function_inputs(scope, function_inputs, def.header);
-    push_function_outputs(scope, function_outputs, def.header);
+    push_function_parameters(scope, function_inputs, def.header.inputs);
+    push_function_parameters(scope, function_outputs, def.header.outputs);
 
     function_body = def.body.get();
     function_attrs = def.attributes;

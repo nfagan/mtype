@@ -203,6 +203,8 @@ bool Simplifier::simplify(const types::List& t0, const types::List& t1, bool rev
 
   if ((num_a == 0 || num_b == 0) && sz > 0) {
     //  Empty list with non-empty list.
+    //  @TODO: Should this really be an error?
+    check_emplace_simplification_failure(false, &t0, &t1);
     return false;
   }
 

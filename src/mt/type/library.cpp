@@ -222,16 +222,22 @@ void Library::make_builtin_types() {
   auto string_t = make_named_scalar_type("string");
   auto char_t = make_named_scalar_type("char");
   auto log_t = make_named_scalar_type("logical");
+  //  For debugging subtype relations.
+  auto sub_double_t = make_named_scalar_type("sub-double");
 
   double_id = double_t->identifier;
   string_id = string_t->identifier;
   char_id = char_t->identifier;
   logical_id = log_t->identifier;
+  sub_double_id = sub_double_t->identifier;
 
   add_type_to_base_scope(double_id, double_t);
   add_type_to_base_scope(string_id, string_t);
   add_type_to_base_scope(char_id, char_t);
   add_type_to_base_scope(logical_id, log_t);
+
+  auto sub_wrapper = make_class_wrapper(sub_double_id, sub_double_t);
+  sub_wrapper->supertypes.push_back(double_t);
 }
 
 void Library::make_known_types() {
@@ -445,6 +451,10 @@ Optional<Type*> Library::get_number_type() const {
   return scalar_store.lookup(double_id);
 }
 
+Optional<Type*> Library::get_sub_number_type() const {
+  return scalar_store.lookup(sub_double_id);
+}
+
 Optional<Type*> Library::get_char_type() const {
   return scalar_store.lookup(char_id);
 }
@@ -535,7 +545,9 @@ SpecialIdentifierStore::SpecialIdentifierStore(StringRegistry& string_registry) 
   subsref(string_registry.register_string("subsref")),
   subsindex(string_registry.register_string("subsindex")),
   identifier_struct(string_registry.register_string("struct")),
-  handle(string_registry.register_string("handle")) {
+  handle(string_registry.register_string("handle")),
+  varargin(string_registry.register_string("varargin")),
+  varargout(string_registry.register_string("varargout")) {
   //
 }
 

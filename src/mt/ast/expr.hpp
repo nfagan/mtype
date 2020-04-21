@@ -12,7 +12,7 @@ class TypePreservingVisitor;
 
 struct FunctionDef;
 struct VariableDef;
-struct FunctionInputParameter;
+struct FunctionParameter;
 struct IdentifierReferenceExpr;
 struct TypeScope;
 
@@ -39,7 +39,7 @@ struct SuperclassMethodReferenceExpr : public Expr {
 
 struct AnonymousFunctionExpr : public Expr {
   AnonymousFunctionExpr(const Token& source_token,
-                        std::vector<FunctionInputParameter>&& input_identifiers,
+                        std::vector<FunctionParameter>&& input_identifiers,
                         BoxedExpr expr,
                         MatlabScope* scope,
                         TypeScope* type_scope) :
@@ -62,7 +62,7 @@ struct AnonymousFunctionExpr : public Expr {
   }
 
   Token source_token;
-  std::vector<FunctionInputParameter> inputs;
+  std::vector<FunctionParameter> inputs;
   BoxedExpr expr;
   MatlabScope* scope;
   TypeScope* type_scope;

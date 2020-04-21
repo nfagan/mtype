@@ -430,17 +430,9 @@ void IdentifierClassifier::register_local_functions(IdentifierScope* scope) {
 
 void IdentifierClassifier::register_function_parameters(Store::Write& read_write,
                                                         const Token& source_token,
-                                                        const std::vector<MatlabIdentifier>& identifiers) {
-  for (const auto& id : identifiers) {
-    register_function_parameter(read_write, source_token, id);
-  }
-}
-
-void IdentifierClassifier::register_function_parameters(Store::Write& read_write,
-                                                        const Token& source_token,
-                                                        const std::vector<FunctionInputParameter>& inputs) {
+                                                        const std::vector<FunctionParameter>& inputs) {
   for (const auto& input : inputs) {
-    if (!input.is_ignored) {
+    if (!input.is_ignored()) {
       register_function_parameter(read_write, source_token, input.name);
     }
   }

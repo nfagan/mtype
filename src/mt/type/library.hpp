@@ -26,10 +26,13 @@ struct TypeScope;
 
 struct SpecialIdentifierStore {
   explicit SpecialIdentifierStore(StringRegistry& string_registry);
+
   int64_t subsref;
   int64_t subsindex;
   int64_t identifier_struct;
   int64_t handle;
+  int64_t varargin;
+  int64_t varargout;
 };
 
 /*
@@ -144,6 +147,7 @@ public:
   bool subtype_related(const Type* lhs, const Type* rhs) const;
 
   Optional<Type*> get_number_type() const;
+  Optional<Type*> get_sub_number_type() const;
   Optional<Type*> get_char_type() const;
   Optional<Type*> get_string_type() const;
   Optional<Type*> get_logical_type() const;
@@ -199,6 +203,7 @@ private:
   const SearchPath& search_path;
 
   TypeIdentifier double_id;
+  TypeIdentifier sub_double_id;
   TypeIdentifier char_id;
   TypeIdentifier string_id;
   TypeIdentifier logical_id;

@@ -227,7 +227,14 @@ bool TypeRelation::related_different_types(const types::Scheme& a, const Type* b
 }
 
 bool TypeRelation::related_different_types(const types::DestructuredTuple& a, const Type* b, bool rev) const {
-  return a.size() == 1 && related(a.members[0], b, rev);
+  const auto sz = a.size();
+  if (sz == 0) {
+    return b->is_list();
+  } else if (sz == 1) {
+    return related(a.members[0], b, rev);
+  } else {
+    return false;
+  }
 }
 
 bool TypeRelation::related_different_types(const types::List& a, const Type* b, bool rev) const {
