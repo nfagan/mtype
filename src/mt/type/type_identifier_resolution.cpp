@@ -309,6 +309,17 @@ void TypeIdentifierResolver::tuple_type_node(TupleTypeNode& node) {
   instance->collectors.current().push(tuple_type);
 }
 
+void TypeIdentifierResolver::list_type_node(ListTypeNode& node) {
+  auto maybe_pattern = collect_types(*this, *instance, node.pattern);
+  if (!maybe_pattern) {
+    instance->collectors.current().mark_error();
+    return;
+  }
+
+  auto list_type = instance->type_store.make_list(std::move(maybe_pattern.rvalue()));
+  instance->collectors.current().push(list_type);
+}
+
 Type* TypeIdentifierResolver::resolve_identifier_reference(ScalarTypeNode& node) const {
   //  First check if this is a scheme variable.
   if (instance->has_scheme()) {

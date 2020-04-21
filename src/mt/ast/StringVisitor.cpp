@@ -574,6 +574,10 @@ std::string StringVisitor::union_type_node(const UnionTypeNode& type) const {
   return visit_array(type.members, " | ");
 }
 
+std::string StringVisitor::list_type_node(const ListTypeNode& type) const {
+  return "list<" + visit_array(type.pattern, ", ") + ">";
+}
+
 std::string StringVisitor::tuple_type_node(const TupleTypeNode& type) const {
   return "{" +  visit_array(type.members, ", ") + "}";
 }

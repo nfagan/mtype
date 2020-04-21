@@ -305,7 +305,7 @@ struct UnionTypeNode : public TypeNode {
 };
 
 struct TupleTypeNode : public TypeNode {
-  explicit TupleTypeNode(const Token& source_token, BoxedTypes&& members) :
+  TupleTypeNode(const Token& source_token, BoxedTypes&& members) :
   source_token(source_token), members(std::move(members)) {
     //
   }
@@ -317,6 +317,21 @@ struct TupleTypeNode : public TypeNode {
 
   Token source_token;
   BoxedTypes members;
+};
+
+struct ListTypeNode : public TypeNode {
+  ListTypeNode(const Token& source_token, BoxedTypes&& pattern) :
+  source_token(source_token), pattern(std::move(pattern)) {
+    //
+  }
+  ~ListTypeNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  BoxedTypes pattern;
 };
 
 struct ScalarTypeNode : public TypeNode {

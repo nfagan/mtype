@@ -251,6 +251,7 @@ public:
   Optional<BoxedType> one_type(const Token& source_token);
   Optional<BoxedType> scalar_type(const Token& source_token);
   Optional<BoxedType> tuple_type(const Token& source_token);
+  Optional<BoxedType> list_type(const Token& source_token);
 
   Optional<std::vector<BoxedType>> type_sequence(TokenType terminator);
   Optional<std::vector<std::string_view>> type_variable_identifiers(const Token& source_token);

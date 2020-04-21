@@ -196,9 +196,9 @@ void TypeToString::apply(const TypePtrs& handles, std::stringstream& stream, con
 }
 
 void TypeToString::apply(const types::List& list, std::stringstream& stream) const {
-  stream << list_color() << "list" << dflt_color() << "[";
+  stream << list_color() << "list" << dflt_color() << "<";
   apply(list.pattern, stream, ", ");
-  stream << "]";
+  stream << ">";
 }
 
 void TypeToString::apply(const types::Subscript& subscript, std::stringstream& stream) const {

@@ -101,6 +101,7 @@ public:
   void function_type_node(FunctionTypeNode& node) override;
   void scalar_type_node(ScalarTypeNode& node) override;
   void tuple_type_node(TupleTypeNode& node) override;
+  void list_type_node(ListTypeNode& node) override;
   void record_type_node(RecordTypeNode& node) override;
   void declare_type_node(DeclareTypeNode& node) override;
   void namespace_type_node(NamespaceTypeNode& node) override;

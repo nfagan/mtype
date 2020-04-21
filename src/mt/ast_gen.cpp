@@ -1097,16 +1097,10 @@ namespace {
                                ClassDef::Methods& methods,
                                BoxedMethodNodes& method_nodes) {
     if (tok.type == TokenType::identifier || tok.type == TokenType::left_bracket) {
-      auto res = ast_gen->method_declaration(tok, method_names, methods);
-      if (!res) {
-        return false;
-      }
+      return ast_gen->method_declaration(tok, method_names, methods);
 
     } else if (tok.type == TokenType::keyword_function) {
-      auto res = ast_gen->method_def(tok, method_names, methods, method_nodes);
-      if (!res) {
-        return false;
-      }
+      return ast_gen->method_def(tok, method_names, methods, method_nodes);
 
     } else {
       std::array<TokenType, 3> possible_types{{
@@ -1116,8 +1110,6 @@ namespace {
       ast_gen->add_error(make_error_expected_token_type(ast_gen->parse_instance, tok, possible_types));
       return false;
     }
-
-    return true;
   }
 
   bool typed_method_dispatch(AstGenerator* ast_gen,
@@ -3371,9 +3363,13 @@ Optional<BoxedType> AstGenerator::one_type(const mt::Token& source_token) {
     case TokenType::question:
       return infer_type(source_token);
 
+    case TokenType::keyword_list:
+      return list_type(source_token);
+
     default: {
-      std::array<TokenType, 4> possible_types{{TokenType::left_bracket, TokenType::identifier,
-                                               TokenType::question, TokenType::left_brace}};
+      std::array<TokenType, 5> possible_types{{TokenType::left_bracket, TokenType::identifier,
+                                               TokenType::question, TokenType::left_brace,
+                                               TokenType::keyword_list}};
       add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
       return NullOpt{};
     }
@@ -3419,6 +3415,24 @@ Optional<BoxedType> AstGenerator::infer_type(const Token& source_token) {
   auto type = parse_instance->type_store->make_fresh_type_variable_reference();
   auto node = std::make_unique<InferTypeNode>(source_token, type);
 
+  return Optional<BoxedType>(std::move(node));
+}
+
+Optional<BoxedType> AstGenerator::list_type(const Token& source_token) {
+  iterator.advance();
+
+  auto lt_err = consume(TokenType::less);
+  if (lt_err) {
+    add_error(lt_err.rvalue());
+    return NullOpt{};
+  }
+
+  auto type_res = type_sequence(TokenType::greater);
+  if (!type_res) {
+    return NullOpt{};
+  }
+
+  auto node = std::make_unique<ListTypeNode>(source_token, std::move(type_res.rvalue()));
   return Optional<BoxedType>(std::move(node));
 }
 

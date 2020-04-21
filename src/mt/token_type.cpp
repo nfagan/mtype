@@ -81,7 +81,8 @@ TokenType from_symbol(std::string_view s) {
     {"@T", TokenType::type_annotation_macro},
     {"::", TokenType::double_colon},
     {"declare", TokenType::keyword_declare},
-    {"constructor", TokenType::keyword_constructor}
+    {"constructor", TokenType::keyword_constructor},
+    {"list", TokenType::keyword_list}
   };
 
   const auto it = symbol_map.find(std::string(s));
@@ -266,6 +267,8 @@ const char* to_symbol(TokenType type) {
       return "declare";
     case TokenType::keyword_constructor:
       return "constructor";
+    case TokenType::keyword_list:
+      return "list";
     case TokenType::null:
       return "<null>";
   }
@@ -442,6 +445,8 @@ const char* to_string(TokenType type) {
       return "keyword_declare";
     case TokenType::keyword_constructor:
       return "keyword_constructor";
+    case TokenType::keyword_list:
+      return "keyword_list";
     case TokenType::type_annotation_macro:
       return "type_annotation_macro";
     case TokenType::null:
