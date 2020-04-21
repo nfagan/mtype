@@ -50,17 +50,17 @@ bool Simplifier::simplify_same_types(Type* lhs, Type* rhs, bool rev) {
 
   switch (lhs->tag) {
     case Tag::abstraction:
-      return simplify(lhs, rhs, MT_ABSTR_REF(*lhs), MT_ABSTR_REF(*rhs), rev);
+      return simplify(MT_ABSTR_REF(*lhs), MT_ABSTR_REF(*rhs), rev);
     case Tag::scalar:
-      return simplify(lhs, rhs, MT_SCALAR_REF(*lhs), MT_SCALAR_REF(*rhs), rev);
+      return simplify(MT_SCALAR_REF(*lhs), MT_SCALAR_REF(*rhs), rev);
     case Tag::tuple:
-      return simplify(lhs, rhs, MT_TUPLE_REF(*lhs), MT_TUPLE_REF(*rhs), rev);
+      return simplify(MT_TUPLE_REF(*lhs), MT_TUPLE_REF(*rhs), rev);
     case Tag::destructured_tuple:
       return simplify(lhs, rhs, MT_DT_REF(*lhs), MT_DT_REF(*rhs), rev);
     case Tag::list:
       return simplify(MT_LIST_REF(*lhs), MT_LIST_REF(*rhs), rev);
     case Tag::scheme:
-      return simplify(lhs, rhs, MT_SCHEME_REF(*lhs), MT_SCHEME_REF(*rhs), rev);
+      return simplify(MT_SCHEME_REF(*lhs), MT_SCHEME_REF(*rhs), rev);
     case Tag::subscript:
       return simplify(MT_SUBS_REF(*lhs), MT_SUBS_REF(*rhs), rev);
     case Tag::class_type:
@@ -164,17 +164,16 @@ bool Simplifier::simplify_different_types(Type* lhs, Type*, const types::Paramet
   return true;
 }
 
-bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scalar&, const types::Scalar&, bool rev) {
-  const bool success = unifier.subtype_relationship.related(lhs, rhs, rev);
-  check_emplace_simplification_failure(success, lhs, rhs);
+bool Simplifier::simplify(const types::Scalar& t0, const types::Scalar& t1, bool rev) {
+  const bool success = unifier.subtype_relationship.related(&t0, &t1, rev);
+  check_emplace_simplification_failure(success, &t0, &t1);
   return success;
 }
 
-bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Abstraction& t0, const types::Abstraction& t1, bool rev) {
+bool Simplifier::simplify(const types::Abstraction& t0, const types::Abstraction& t1, bool rev) {
   //  Contravariance for inputs.
-  bool success = simplify(t0.inputs, t1.inputs, !rev);
-  success = success && simplify(t0.outputs, t1.outputs, rev);
-  check_emplace_simplification_failure(success, lhs, rhs);
+  bool success = simplify(t0.inputs, t1.inputs, !rev) && simplify(t0.outputs, t1.outputs, rev);
+  check_emplace_simplification_failure(success, &t0, &t1);
   return success;
 }
 
@@ -262,11 +261,12 @@ bool Simplifier::simplify(const types::ConstantValue& t0, const types::ConstantV
   return false;
 }
 
-bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Scheme&, const types::Scheme&, bool rev) {
+bool Simplifier::simplify(const types::Scheme& t0, const types::Scheme& t1, bool rev) {
+  //  @TODO: Proper scheme relation. Currently this fails when the two scheme sources are concrete.
   EquivalenceRelation equiv;
   TypeRelation relate(equiv, store);
-  const bool success = relate.related_entry(lhs, rhs, rev);
-  check_emplace_simplification_failure(success, lhs, rhs);
+  const bool success = relate.related_entry(&t0, &t1, rev);
+  check_emplace_simplification_failure(success, &t0, &t1);
   return success;
 }
 
@@ -289,9 +289,9 @@ bool Simplifier::simplify(const types::Subscript& t0, const types::Subscript& t1
   return simplify(t0.outputs, t1.outputs, rev);
 }
 
-bool Simplifier::simplify(Type* lhs, Type* rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev) {
+bool Simplifier::simplify(const types::Tuple& t0, const types::Tuple& t1, bool rev) {
   bool success = simplify(t0.members, t1.members, rev);
-  check_emplace_simplification_failure(success, lhs, rhs);
+  check_emplace_simplification_failure(success, &t0, &t1);
   return success;
 }
 

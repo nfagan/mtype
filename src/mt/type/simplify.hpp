@@ -26,11 +26,11 @@ private:
   bool simplify_same_types(Type* lhs, Type* rhs, bool rev);
   bool simplify_different_types(Type* lhs, Type* rhs, bool rev);
 
-  bool simplify(Type* lhs, Type* rhs, const types::Abstraction& t0, const types::Abstraction& t1, bool rev);
   bool simplify(Type* lhs, Type* rhs, const DT& t0, const DT& t1, bool rev);
-  bool simplify(Type* lhs, Type* rhs, const types::Scalar& t0, const types::Scalar& t1, bool rev);
-  bool simplify(Type* lhs, Type* rhs, const types::Scheme& t0, const types::Scheme& t1, bool rev);
-  bool simplify(Type* lhs, Type* rhs, const types::Tuple& t0, const types::Tuple& t1, bool rev);
+  bool simplify(const types::Abstraction& t0, const types::Abstraction& t1, bool rev);
+  bool simplify(const types::Scalar& t0, const types::Scalar& t1, bool rev);
+  bool simplify(const types::Scheme& t0, const types::Scheme& t1, bool rev);
+  bool simplify(const types::Tuple& t0, const types::Tuple& t1, bool rev);
   bool simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev);
   bool simplify(const types::List& t0, const types::List& t1, bool rev);
   bool simplify(const types::Class& t0, const types::Class& t1, bool rev);
