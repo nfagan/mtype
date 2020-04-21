@@ -9,7 +9,7 @@ class Library;
 
 class SubscriptHandler {
 public:
-  SubscriptHandler(Unifier& unifier);
+  explicit SubscriptHandler(Unifier& unifier);
   void maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub);
 
 private:
@@ -18,11 +18,8 @@ private:
                                 const types::Record& arg0);
   Type* tuple_brace_subscript(const Type* source, const Token* source_token, const types::Tuple& arg0);
 
-  void anonymous_function_call_subscript(Type* source, TermRef term, const types::Scheme& scheme, types::Subscript& sub);
+  void scheme_function_call_subscript(Type* source, TermRef term, const types::Scheme& scheme, types::Subscript& sub);
   void function_call_subscript(Type* source, TermRef term, const types::Abstraction& source_func, const types::Subscript& sub);
-
-  void maybe_unify_known_subscript_type(Type* source, TermRef term, types::Subscript& sub);
-  void maybe_unify_subscripted_class(Type* source, TermRef term, const types::Class& primary_arg, types::Subscript& sub);
 
   bool arguments_have_subsindex_defined(const TypePtrs& arguments) const;
   bool are_valid_subscript_arguments(const Type* arg0, const types::Subscript::Sub& sub) const;

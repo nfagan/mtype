@@ -20,29 +20,6 @@ SubscriptHandler::SubscriptHandler(mt::Unifier& unifier) : unifier(unifier), lib
   //
 }
 
-#if 0
-void SubscriptHandler::maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub) {
-  const auto arg0 = sub.principal_argument;
-
-  if (unifier.is_known_subscript_type(sub.principal_argument)) {
-    maybe_unify_known_subscript_type(source, term, sub);
-
-  } else if (arg0->is_abstraction()) {
-    //  a() where a is a variable, discovered to be a function reference.
-    maybe_unify_function_call_subscript(source, term, MT_ABSTR_REF(*arg0), sub);
-
-  } else if (arg0->is_scheme()) {
-    maybe_unify_anonymous_function_call_subscript(source, term, MT_SCHEME_REF(*arg0), sub);
-
-  } else if (arg0->is_class()) {
-    maybe_unify_subscripted_class(source, term, MT_CLASS_REF(*arg0), sub);
-
-  } else if (!arg0->is_variable() && !arg0->is_parameters()) {
-//    MT_SHOW1("Tried to unify subscript with principal arg: ", sub.principal_argument);
-  }
-}
-#else
-
 void SubscriptHandler::maybe_unify_subscript(Type* source, TermRef term, types::Subscript& sub) {
   const auto arg0 = sub.principal_argument;
 
@@ -53,7 +30,7 @@ void SubscriptHandler::maybe_unify_subscript(Type* source, TermRef term, types::
     function_call_subscript(source, term, MT_ABSTR_REF(*arg0), sub);
 
   } else if (arg0->is_scheme() && MT_SCHEME_REF(*arg0).type->is_abstraction()) {
-    anonymous_function_call_subscript(source, term, MT_SCHEME_REF(*arg0), sub);
+    scheme_function_call_subscript(source, term, MT_SCHEME_REF(*arg0), sub);
 
   } else {
     maybe_unify_non_function_subscript(source, term, sub);
@@ -119,8 +96,6 @@ void SubscriptHandler::maybe_unify_non_function_subscript(Type* source, TermRef 
     substitution->push_type_equation(make_eq(term, rhs_term));
   }
 }
-
-#endif
 
 Type* SubscriptHandler::tuple_brace_subscript(const Type* source,
                                               const Token* source_token,
@@ -205,9 +180,9 @@ bool SubscriptHandler::arguments_have_subsindex_defined(const TypePtrs& argument
   return true;
 }
 
-void SubscriptHandler::anonymous_function_call_subscript(Type* source, TermRef term,
-                                                         const types::Scheme& scheme,
-                                                         types::Subscript& sub) {
+void SubscriptHandler::scheme_function_call_subscript(Type* source, TermRef term,
+                                                      const types::Scheme& scheme,
+                                                      types::Subscript& sub) {
   if (unifier.is_visited_type(source)) {
     return;
   }
@@ -276,136 +251,6 @@ void SubscriptHandler::function_call_subscript(Type* source, TermRef term,
 
   unifier.check_push_function(lookup_handle, term, MT_ABSTR_REF(*lookup_handle));
   unifier.registered_funcs[source] = true;
-}
-
-void SubscriptHandler::maybe_unify_known_subscript_type(Type* source, TermRef term, types::Subscript& sub) {
-  using types::Subscript;
-  using types::Abstraction;
-  using types::DestructuredTuple;
-
-  if (unifier.registered_funcs.count(source) > 0) {
-    return;
-  }
-
-  assert(!sub.subscripts.empty() && "Expected at least one subscript.");
-  const auto& sub0 = sub.subscripts[0];
-
-  if (!unifier.are_concrete_arguments(sub0.arguments)) {
-    return;
-  }
-
-  TypePtrs into;
-  auto args = sub0.arguments;
-  args.insert(args.begin(), sub.principal_argument);
-
-  DestructuredTuple tup(DestructuredTuple::Usage::rvalue, std::move(args));
-
-  auto tup_type = unifier.store.make_destructured_tuple(std::move(tup));
-  Abstraction abstraction(sub0.method, tup_type, nullptr);
-
-  auto maybe_func = unifier.library.lookup_function(abstraction);
-  if (maybe_func) {
-//    MT_SHOW1("OK: found subscript signature: ", tup_type);
-    const auto func = maybe_func.value();
-
-    if (func->is_abstraction()) {
-      const auto lhs_term = make_term(term.source_token, sub.outputs);
-      const auto rhs_term = make_term(term.source_token, MT_ABSTR_REF(*func).outputs);
-      unifier.substitution->push_type_equation(make_eq(lhs_term, rhs_term));
-
-    } else {
-      assert(func->is_scheme());
-      const auto& func_scheme = MT_SCHEME_REF(*func);
-      const auto func_ref = unifier.instantiation.instantiate(func_scheme);
-      assert(func_ref->is_abstraction());
-
-      const auto sub_lhs_term = make_term(term.source_token, sub.outputs);
-      const auto sub_rhs_term = make_term(term.source_token, MT_ABSTR_REF(*func_ref).outputs);
-      unifier.substitution->push_type_equation(make_eq(sub_lhs_term, sub_rhs_term));
-
-      const auto tup_lhs_term = make_term(term.source_token, tup_type);
-      const auto tup_rhs_term = make_term(term.source_token, MT_ABSTR_REF(*func_ref).inputs);
-      unifier.substitution->push_type_equation(make_eq(tup_lhs_term, tup_rhs_term));
-    }
-
-    if (sub.subscripts.size() > 1) {
-      auto result_type = unifier.store.make_fresh_type_variable_reference();
-
-      const auto lhs_term = make_term(term.source_token, result_type);
-      const auto rhs_term = make_term(term.source_token, sub.outputs);
-      unifier.substitution->push_type_equation(make_eq(lhs_term, rhs_term));
-
-      sub.principal_argument = result_type;
-      sub.subscripts.erase(sub.subscripts.begin());
-      sub.outputs = unifier.store.make_fresh_type_variable_reference();
-
-    } else {
-      unifier.registered_funcs[source] = true;
-    }
-  } else {
-    unifier.add_error(unifier.make_unresolved_function_error(term.source_token, source));
-    unifier.registered_funcs[source] = true;
-  }
-}
-
-void SubscriptHandler::maybe_unify_subscripted_class(Type* source, TermRef term,
-                                                     const types::Class& primary_arg, types::Subscript& sub) {
-  if (unifier.registered_funcs.count(source) > 0) {
-    return;
-  }
-
-  assert(!sub.subscripts.empty() && "Expected at least one subscript.");
-  const auto& sub0 = sub.subscripts[0];
-
-  if (!unifier.are_concrete_arguments(sub0.arguments) || sub0.method != SubscriptMethod::period) {
-    return;
-  }
-
-  unifier.registered_funcs[source] = true;
-
-  assert(sub0.arguments.size() == 1 && "Expected 1 argument.");
-  assert(primary_arg.source->is_record());
-  const auto& record = MT_RECORD_REF(*primary_arg.source);
-  const auto& arg0 = sub0.arguments[0];
-
-  if (!arg0->is_constant_value()) {
-    unifier.add_error(unifier.make_non_constant_field_reference_expr_error(term.source_token, arg0));
-    return;
-  }
-
-  const auto& const_val = MT_CONST_VAL_REF(*arg0);
-  const auto* matching_field = record.find_field(const_val);
-
-  if (!matching_field) {
-    unifier.add_error(unifier.make_reference_to_non_existent_field_error(term.source_token, &primary_arg, arg0));
-    return;
-  }
-
-#if 0
-  const auto prop_type = store.make_list(matching_field->type);
-const auto output_type = store.make_output_destructured_tuple(prop_type);
-#else
-  const auto prop_type = matching_field->type;
-  const auto output_type = unifier.store.make_rvalue_destructured_tuple(prop_type);
-#endif
-
-  const auto lhs_term = make_term(term.source_token, sub.outputs);
-  const auto rhs_term = make_term(term.source_token, output_type);
-  unifier.substitution->push_type_equation(make_eq(lhs_term, rhs_term));
-
-  if (sub.subscripts.size() == 1) {
-    return;
-  }
-
-  auto rest_subs = sub.subscripts;
-  rest_subs.erase(rest_subs.begin());
-  auto& store = unifier.store;
-  auto& substitution = unifier.substitution;
-
-  auto new_sub_ptr = store.make_subscript(output_type, std::move(rest_subs), store.make_fresh_type_variable_reference());
-  const auto lhs_sub_term = make_term(term.source_token, store.make_fresh_type_variable_reference());
-  const auto rhs_sub_term = make_term(term.source_token, new_sub_ptr);
-  substitution->push_type_equation(make_eq(lhs_sub_term, rhs_sub_term));
 }
 
 }
