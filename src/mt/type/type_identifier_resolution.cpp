@@ -35,33 +35,44 @@ namespace {
     }
   }
 
+  ParseSourceData lookup_source_data(const TokenSourceMap& source_map, const Token& token) {
+    auto expect_source_data = source_map.lookup(token);
+    assert(expect_source_data);
+    return expect_source_data.value();
+  }
+
   ParseError make_error_unresolved_type_identifier(const TypeIdentifierResolverInstance& instance,
                                                    const Token& token, const std::string& ident) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
     auto msg = "Unresolved type identifier: `" + ident + "`.";
-    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
 
   ParseError make_error_duplicate_method(const TypeIdentifierResolverInstance& instance, const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
     const auto msg = "Duplicate method.";
-    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
 
   ParseError make_error_duplicate_scheme_variable(const TypeIdentifierResolverInstance& instance,
                                                   const Token& token, const std::string& ident) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
     auto msg = "Duplicate scheme variable identifier: `" + ident + "`.";
-    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
 
   ParseError make_error_incorrect_num_arguments_to_scheme(const TypeIdentifierResolverInstance& instance,
                                                           const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
     auto msg = "Incorrect number of arguments to type scheme.";
-    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
 
   ParseError make_error_type_arguments_to_non_scheme(const TypeIdentifierResolverInstance& instance,
                                                      const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
     auto msg = "Type arguments provided to non-scheme type.";
-    return ParseError(instance.source_data.source, token, msg, instance.source_data.file_descriptor);
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
 }
 
@@ -136,9 +147,9 @@ TypeIdentifierResolverInstance::TypeIdentifierResolverInstance(TypeStore& type_s
                                                                Library& library,
                                                                const Store& def_store,
                                                                const StringRegistry& string_registry,
-                                                               const ParseSourceData& source_data) :
+                                                               const TokenSourceMap& source_map) :
 type_store(type_store), library(library), def_store(def_store), string_registry(string_registry),
-source_data(source_data) {
+source_map(source_map) {
   //
 }
 
@@ -661,6 +672,19 @@ void TypeIdentifierResolver::method_node(MethodNode& node) {
   }
 
   node.def->accept(*this);
+
+  if (node.external_block) {
+    instance->collectors.push();
+    MT_SCOPE_EXIT {
+      instance->collectors.pop();
+    };
+    node.external_block->accept(*this);
+    auto& collector = instance->collectors.current();
+    if (collector.had_error) {
+      instance->mark_parent_collector_error();
+      return;
+    }
+  }
 }
 
 void TypeIdentifierResolver::class_def_node(ClassDefNode& node) {
@@ -704,7 +728,12 @@ void TypeIdentifierResolver::class_def_node(ClassDefNode& node) {
     method->accept(*this);
 
     auto& collector = instance->collectors.current();
-    assert(!collector.had_error && collector.types.size() == 1);
+    if (collector.had_error) {
+      instance->mark_parent_collector_error();
+      return;
+    }
+
+    assert(collector.types.size() == 1);
     auto* func_type = collector.types[0];
     auto* source_type = func_type;
 

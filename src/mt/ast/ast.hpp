@@ -21,6 +21,9 @@ struct FunctionDefNode;
 class Store;
 struct TypeScope;
 
+struct TypeAssertion;
+struct TypeAnnotMacro;
+
 struct IdentifierReferenceExpr;
 
 struct AstNode {
@@ -33,16 +36,16 @@ struct AstNode {
   virtual void accept(TypePreservingVisitor&) = 0;
   virtual void accept_const(TypePreservingVisitor&) const = 0;
 
-  virtual bool represents_class_def() const {
+  virtual bool is_class_def_node() const {
     return false;
   }
-  virtual bool represents_function_def() const {
+  virtual bool is_function_def_node() const {
     return false;
   }
   virtual bool represents_stmt_or_stmts() const {
     return false;
   }
-  virtual bool represents_type_annot_macro() const {
+  virtual bool is_type_annot_macro() const {
     return false;
   }
   virtual bool is_property() const {
@@ -52,6 +55,15 @@ struct AstNode {
     return false;
   }
   virtual Optional<AstNode*> enclosed_code_ast_node() const {
+    return NullOpt{};
+  }
+  virtual Optional<TypeAnnotMacro*> extract_type_annot_macro() {
+    return NullOpt{};
+  }
+  virtual Optional<TypeAssertion*> extract_type_assertion() {
+    return NullOpt{};
+  }
+  virtual Optional<FunctionDefNode*> extract_function_def_node() {
     return NullOpt{};
   }
 };
@@ -221,7 +233,12 @@ struct RootBlock : public AstNode {
   virtual void accept(TypePreservingVisitor& vis) override;
   virtual void accept_const(TypePreservingVisitor&) const override;
 
+  Optional<TypeAssertion*> extract_top_level_type_assertion() const;
+  Optional<int64_t> extract_top_level_type_assertion_index() const;
+
   Optional<FunctionDefNode*> extract_top_level_function_def() const;
+  Optional<int64_t> extract_top_level_function_def_index() const;
+
   Optional<FunctionDefNode*> extract_constructor_function_def(const Store& store) const;
 
   BoxedBlock block;

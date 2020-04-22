@@ -831,6 +831,11 @@ PropertyNode* IdentifierClassifier::property_node(PropertyNode& node) {
 
 MethodNode* IdentifierClassifier::method_node(MethodNode& node) {
   conditional_reset(node.def, node.def->accept(*this));
+
+  if (node.external_block) {
+    conditional_reset(node.external_block, node.external_block->accept(*this));
+  }
+
   return &node;
 }
 

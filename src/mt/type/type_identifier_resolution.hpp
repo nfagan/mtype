@@ -67,7 +67,7 @@ public:
   };
 public:
   TypeIdentifierResolverInstance(TypeStore& type_store, Library& library, const Store& def_store,
-                                 const StringRegistry& string_registry, const ParseSourceData& source_data);
+                                 const StringRegistry& string_registry, const TokenSourceMap& source_map);
 
   bool had_error() const;
   void add_error(const ParseError& err);
@@ -85,7 +85,7 @@ public:
   Library& library;
   const Store& def_store;
   const StringRegistry& string_registry;
-  const ParseSourceData& source_data;
+  const TokenSourceMap& source_map;
 
   ParseErrors errors;
   std::vector<UnresolvedIdentifier> unresolved_identifiers;

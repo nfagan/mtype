@@ -162,6 +162,10 @@ Optional<AstNode*> TypeAssertion::enclosed_code_ast_node() const {
   return Optional<AstNode*>(node.get());
 }
 
+Optional<TypeAssertion*> TypeAssertion::extract_type_assertion() {
+  return Optional<TypeAssertion*>(this);
+}
+
 /*
  * InlineType
  */

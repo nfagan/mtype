@@ -85,4 +85,8 @@ FunctionDefNode* FunctionDefNode::accept(IdentifierClassifier& classifier) {
   return classifier.function_def_node(*this);
 }
 
+Optional<FunctionDefNode*> FunctionDefNode::extract_function_def_node() {
+  return Optional<FunctionDefNode*>(this);
+}
+
 }

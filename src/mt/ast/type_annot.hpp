@@ -33,8 +33,12 @@ struct TypeAnnotMacro : public TypeAnnot {
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
 
-  bool represents_type_annot_macro() const override {
+  bool is_type_annot_macro() const override {
     return true;
+  }
+
+  Optional<TypeAnnotMacro*> extract_type_annot_macro() override {
+    return Optional<TypeAnnotMacro*>(this);
   }
 
   Token source_token;
@@ -157,7 +161,9 @@ struct TypeAssertion : public TypeAnnot {
   TypeAssertion* accept(IdentifierClassifier& classifier) override;
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
+
   Optional<AstNode*> enclosed_code_ast_node() const override;
+  Optional<TypeAssertion*> extract_type_assertion() override;
 
   bool is_type_assertion() const override {
     return true;

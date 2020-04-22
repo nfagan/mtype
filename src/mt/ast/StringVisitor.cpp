@@ -181,11 +181,19 @@ std::string StringVisitor::property_node(const PropertyNode& node) const {
 }
 
 std::string StringVisitor::method_node(const MethodNode& node) const {
-  if (node.type) {
-    return tab_str() + node.type->accept(*this) + "\n" + node.def->accept(*this);
-  } else {
-    return node.def->accept(*this);
+  std::string str = ([&]() {
+    if (node.type) {
+      return tab_str() + node.type->accept(*this) + "\n" + node.def->accept(*this);
+    } else {
+      return node.def->accept(*this);
+    }
+  })();
+
+  if (node.external_block) {
+    str += "\n" + node.external_block->accept(*this);
   }
+
+  return str;
 }
 
 std::string StringVisitor::properties(const BoxedPropertyNodes& properties) const {

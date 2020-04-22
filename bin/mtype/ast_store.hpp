@@ -10,7 +10,8 @@ public:
   struct Entry {
     Entry();
     Entry(BoxedRootBlock root_block, const ClassDefHandle& maybe_class_def,
-          const FunctionReferenceHandle& maybe_function_ref);
+          const FunctionReferenceHandle& maybe_function_ref,
+          CodeFileType file_type);
 
     BoxedRootBlock root_block;
     bool parsed_successfully;
@@ -18,9 +19,11 @@ public:
     bool resolved_type_identifiers;
     ClassDefHandle file_entry_class_def;
     FunctionReferenceHandle file_entry_function_ref;
+    CodeFileType file_type;
   };
 
   AstStore::Entry* insert(const FilePath& file_path, Entry&& entry);
+  bool remove(const FilePath& file_path);
   void emplace_parse_failure(const FilePath& file_path);
 
   Entry* lookup(const FilePath& file_path);

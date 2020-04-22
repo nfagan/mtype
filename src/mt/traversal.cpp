@@ -159,6 +159,10 @@ void ClassDefState::push_class(const ClassDefHandle& handle, types::Class* type,
   unqualified_class_names.push_back(unqualified_name);
 }
 
+void ClassDefState::push_class(const ClassDefHandle& handle, const MatlabIdentifier& name) {
+  push_class(handle, nullptr, name, name);
+}
+
 void ClassDefState::pop_class() {
   assert(!class_defs.empty() && "No class to pop.");
   class_defs.pop_back();

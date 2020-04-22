@@ -12,6 +12,7 @@ namespace mt {
 class TypePreservingVisitor;
 struct TypeScope;
 struct Type;
+struct TypeNode;
 
 struct FunctionDefNode : public AstNode {
   FunctionDefNode(const Token& source_token,
@@ -25,7 +26,7 @@ struct FunctionDefNode : public AstNode {
   }
   ~FunctionDefNode() override = default;
 
-  bool represents_function_def() const override {
+  bool is_function_def_node() const override {
     return true;
   }
 
@@ -33,6 +34,8 @@ struct FunctionDefNode : public AstNode {
   FunctionDefNode* accept(IdentifierClassifier& classifier) override;
   void accept(TypePreservingVisitor& vis) override;
   void accept_const(TypePreservingVisitor& vis) const override;
+
+  Optional<FunctionDefNode*> extract_function_def_node() override;
 
   Token source_token;
   FunctionDefHandle def_handle;
@@ -81,6 +84,7 @@ struct MethodNode : public AstNode {
 
   BoxedFunctionDefNode def;
   BoxedTypeAnnot type;
+  BoxedBlock external_block;
   Type* resolved_type;
 };
 
@@ -90,6 +94,18 @@ using BoxedMethodNode = std::unique_ptr<MethodNode>;
 using BoxedMethodNodes = std::vector<BoxedMethodNode>;
 
 struct ClassDefNode : public AstNode {
+public:
+  struct MethodDeclaration {
+    MethodDeclaration(const FunctionDefHandle& def_handle, std::unique_ptr<TypeNode> type_node) :
+    pending_def_handle(def_handle), maybe_type(std::move(type_node)) {
+      //
+    }
+
+    FunctionDefHandle pending_def_handle;
+    std::unique_ptr<TypeNode> maybe_type;
+  };
+  using MethodDeclarations = std::vector<MethodDeclaration>;
+
 public:
   ClassDefNode(const Token& source_token,
                const ClassDefHandle& handle,
@@ -103,7 +119,7 @@ public:
   }
   ~ClassDefNode() override = default;
 
-  bool represents_class_def() const override {
+  bool is_class_def_node() const override {
     return true;
   }
 

@@ -12,4 +12,5 @@ namespace mt {
 
 namespace mt::fs {
   Optional<std::unique_ptr<std::string>> read_file(const FilePath& path);
+  bool file_exists(const FilePath& path);
 }

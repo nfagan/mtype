@@ -1,8 +1,11 @@
 #include "directory.hpp"
 #include "../config.hpp"
-#include <dirent.h>
 #include <cstring>
+
+#if defined(MT_UNIX)
+#include <dirent.h>
 #include <sys/stat.h>
+#endif
 
 namespace mt {
 
@@ -119,9 +122,7 @@ bool fs::directory_exists(const FilePath& path) {
   return (sb.st_mode & S_IFMT) == S_IFDIR;
 }
 #elif defined(MT_WIN)
-/*
- * @TODO
- */
+#error "Not yet implemented for Windows."
 #else
 #error "Expected one of Unix or Windows for OS."
 #endif

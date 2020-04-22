@@ -166,6 +166,16 @@ public:
   void mark_has_varargout() {
     boolean_attributes |= AttributeFlags::has_varargout;
   }
+  void maybe_mark_has_varargin(bool value) {
+    if (value) {
+      mark_has_varargin();
+    }
+  }
+  void maybe_mark_has_varargout(bool value) {
+    if (value) {
+      mark_has_varargout();
+    }
+  }
 
   bool is_abstract() const {
     return boolean_attributes & AttributeFlags::is_abstract_method;
@@ -191,6 +201,8 @@ public:
   bool has_varargout() const {
     return boolean_attributes & AttributeFlags::has_varargout;
   }
+
+  static FunctionAttributes extract_methods_block_attributes(const FunctionAttributes& attribs);
 
 public:
   ClassDefHandle class_handle;

@@ -152,7 +152,7 @@ public:
 
   bool is_within_superclass_method_application() const;
 
-private:
+  void push_class(const ClassDefHandle& handle, const MatlabIdentifier& name);
   void push_class(const ClassDefHandle& handle, types::Class* type, const MatlabIdentifier& name);
   void push_class(const ClassDefHandle& handle, types::Class* type,
                   const MatlabIdentifier& full_name, const MatlabIdentifier& unqualified_name);

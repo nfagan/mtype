@@ -98,9 +98,9 @@ int main(int argc, char** argv) {
 
   Optional<SearchPath> maybe_search_path;
   if (arguments.use_search_path_file) {
-    maybe_search_path = SearchPath::build_from_path_file(arguments.search_path_file_path);
+    maybe_search_path = build_search_path_from_path_file(arguments.search_path_file_path);
   } else {
-    maybe_search_path = SearchPath::build_from_paths(arguments.search_paths);
+    maybe_search_path = build_search_path_from_paths(arguments.search_paths);
   }
 
   if (!maybe_search_path) {
@@ -184,7 +184,7 @@ int main(int argc, char** argv) {
       }
 
       const auto source_data = scan_result_store.at(root_file)->to_parse_source_data();
-      TypeIdentifierResolverInstance instance(type_store, library, store, str_registry, source_data);
+      TypeIdentifierResolverInstance instance(type_store, library, store, str_registry, source_data_by_token);
       TypeIdentifierResolver type_identifier_resolver(&instance);
 
       const auto& root = entry->root_block;
@@ -234,6 +234,8 @@ int main(int argc, char** argv) {
       }
 
       if (!maybe_local_func) {
+        //  @TODO: This can happen if a class doesn't provide an explicit constructor. We should
+        //  insert one in that case.
         continue;
       }
 

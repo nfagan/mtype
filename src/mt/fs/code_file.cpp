@@ -27,7 +27,7 @@ CodeFileType code_file_type_from_root_block(const RootBlock& root) {
   for (const auto& node : root.block->nodes) {
     auto node_ptr = node.get();
 
-    if (node_ptr->represents_type_annot_macro()) {
+    if (node_ptr->is_type_annot_macro()) {
       auto macro_ptr = static_cast<TypeAnnotMacro*>(node_ptr);
       auto maybe_enclosed_code_node = macro_ptr->annotation->enclosed_code_ast_node();
       if (maybe_enclosed_code_node) {
@@ -35,10 +35,10 @@ CodeFileType code_file_type_from_root_block(const RootBlock& root) {
       }
     }
 
-    if (node_ptr->represents_class_def()) {
+    if (node_ptr->is_class_def_node()) {
       return CodeFileType::class_def;
 
-    } else if (node_ptr->represents_function_def()) {
+    } else if (node_ptr->is_function_def_node()) {
       if (is_script) {
         return CodeFileType::script_with_local_functions;
       } else {

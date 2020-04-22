@@ -4,6 +4,14 @@
 
 namespace mt {
 
+FunctionAttributes FunctionAttributes::extract_methods_block_attributes(const FunctionAttributes& attribs) {
+  auto res = attribs;
+  res.boolean_attributes &= (~AttributeFlags::is_constructor);
+  res.boolean_attributes &= (~AttributeFlags::has_varargin);
+  res.boolean_attributes &= (~AttributeFlags::has_varargout);
+  return res;
+}
+
 void FunctionAttributes::mark_boolean_attribute_from_name(std::string_view name) {
   if (matlab::is_abstract_attribute(name)) {
     mark_abstract();

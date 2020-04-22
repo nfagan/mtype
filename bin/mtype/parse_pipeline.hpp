@@ -67,6 +67,9 @@ struct ParsePipelineInstanceData {
   void add_errors(const ParseErrors& errs);
   void add_warnings(const ParseErrors& warnings);
 
+  void add_root(const FilePath& file_path, RootBlock* root_block);
+  void remove_root(const FilePath& file_path);
+
   const SearchPath& search_path;
   Store& store;
   TypeStore& type_store;
@@ -83,6 +86,8 @@ struct ParsePipelineInstanceData {
   ParseErrors& parse_warnings;
 };
 
+AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance, const FilePath& file_path,
+                            OnBeforeParse on_before_parse);
 AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance, const FilePath& file_path);
 
 }

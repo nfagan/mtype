@@ -13,7 +13,7 @@ namespace mt {
 
 namespace {
   AstNode* extract_code_ast_node(AstNode* source) {
-    if (source->represents_type_annot_macro()) {
+    if (source->is_type_annot_macro()) {
       const auto macro_ptr = static_cast<TypeAnnotMacro*>(source);
       const auto maybe_enclosed_code_node = macro_ptr->annotation->enclosed_code_ast_node();
       if (maybe_enclosed_code_node) {
@@ -24,12 +24,36 @@ namespace {
   }
 }
 
+Optional<TypeAssertion*> RootBlock::extract_top_level_type_assertion() const {
+  for (const auto& node : block->nodes) {
+    if (node->is_type_annot_macro()) {
+      const auto macro_ptr = static_cast<const TypeAnnotMacro*>(node.get());
+      if (macro_ptr->annotation->is_type_assertion()) {
+        return Optional<TypeAssertion*>(static_cast<TypeAssertion*>(macro_ptr->annotation.get()));
+      }
+    }
+  }
+
+  return NullOpt{};
+}
+
 Optional<FunctionDefNode*> RootBlock::extract_top_level_function_def() const {
   for (const auto& node : block->nodes) {
     auto node_ptr = extract_code_ast_node(node.get());
 
-    if (node_ptr->represents_function_def()) {
+    if (node_ptr->is_function_def_node()) {
       return Optional<FunctionDefNode*>(static_cast<FunctionDefNode*>(node_ptr));
+    }
+  }
+
+  return NullOpt{};
+}
+
+Optional<int64_t> RootBlock::extract_top_level_function_def_index() const {
+  const int64_t num_nodes = block->nodes.size();
+  for (int64_t i = 0; i < num_nodes; i++) {
+    if (block->nodes[i]->is_function_def_node()) {
+      return Optional<int64_t>(i);
     }
   }
 
@@ -40,7 +64,7 @@ Optional<FunctionDefNode*> RootBlock::extract_constructor_function_def(const Sto
   for (const auto& node : block->nodes) {
     auto node_ptr = extract_code_ast_node(node.get());
 
-    if (node_ptr->represents_class_def()) {
+    if (node_ptr->is_class_def_node()) {
       auto class_node = static_cast<ClassDefNode*>(node_ptr);
 
       for (const auto& method : class_node->method_defs) {

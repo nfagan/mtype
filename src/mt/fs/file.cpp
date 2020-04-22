@@ -1,7 +1,12 @@
 #include "file.hpp"
 #include "path.hpp"
 #include "../Optional.hpp"
+#include "../config.hpp"
 #include <fstream>
+
+#if defined(MT_UNIX)
+#include <sys/stat.h>
+#endif
 
 namespace mt::fs {
 
@@ -16,5 +21,20 @@ Optional<std::unique_ptr<std::string>> read_file(const FilePath& path) {
 
   return Optional<std::unique_ptr<std::string>>(std::move(contents));
 }
+
+#if defined(MT_UNIX)
+bool file_exists(const FilePath& path) {
+  struct stat sb;
+  const int status = stat(path.c_str(), &sb);
+  if (status != 0) {
+    return false;
+  }
+  return (sb.st_mode & S_IFMT) == S_IFREG;
+}
+#elif defined(MT_WIN)
+#error "Not yet implemented for Windows."
+#else
+#error "Expected one of Unix or Windows for OS."
+#endif
 
 }

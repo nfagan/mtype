@@ -52,7 +52,6 @@ void TypeConstraintGenerator::block(const Block& block) {
 void TypeConstraintGenerator::show_local_function_types(const TypeToString& printer) const {
   for (const auto& func_it : function_types) {
     const auto& def_handle = func_it.first;
-//    const auto maybe_type = substitution.bound_type(make_term(nullptr, func_it.second));
     const auto maybe_type = library.lookup_local_function(def_handle);
     const auto& type = maybe_type ? maybe_type.value() : func_it.second;
 
@@ -319,6 +318,10 @@ void TypeConstraintGenerator::method_node(const MethodNode& node) {
     auto lhs_term = make_term(&node.def->source_token, lhs_type);
     auto rhs_term = make_term(&node.def->source_token, maybe_type);
     push_type_equation(make_eq(lhs_term, rhs_term));
+  }
+
+  if (node.external_block) {
+    node.external_block->accept_const(*this);
   }
 }
 

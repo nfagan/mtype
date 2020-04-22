@@ -52,12 +52,20 @@ std::string fs::package_name(const FilePath& path) {
   const auto& str = path.str();
   auto splt = split(str, separator_character);
   std::string package;
+  bool first_non_empty_dir = true;
 
   for (int64_t i = splt.size()-1; i >= 0; i--) {
     auto component = std::string(splt[i]);
 
     if (component.empty()) {
       continue;
+
+    } else if (first_non_empty_dir && component[0] == '@') {
+      //  E.g. for file +a/@b/b.m, skip the @b directory, because b.m should be
+      //  registered as a.b().
+      first_non_empty_dir = false;
+      continue;
+
     } else if (component[0] != '+') {
       break;
     }

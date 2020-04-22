@@ -19,6 +19,8 @@ class StringRegistry;
 class CodeFileDescriptor;
 class TypeStore;
 class Library;
+class AstGenerator;
+struct ParseInstance;
 
 namespace types {
   struct Scheme;
@@ -43,8 +45,40 @@ struct PendingTypeImport {
 using PendingTypeImports = std::vector<PendingTypeImport>;
 
 /*
+ * PendingExternalMethod
+ */
+
+struct PendingExternalMethod {
+  PendingExternalMethod(ClassDefNode::MethodDeclaration method_decl,
+                        const MatlabIdentifier& method_name,
+                        const Token& name_token,
+                        const FunctionAttributes& method_attributes,
+                        const ClassDefHandle& class_def_handle,
+                        const MatlabIdentifier& class_name,
+                        ClassDefNode* class_node,
+                        MatlabScope* matlab_scope,
+                        TypeScope* type_scope);
+
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(PendingExternalMethod)
+
+  ClassDefNode::MethodDeclaration method_declaration;
+  MatlabIdentifier method_name;
+  Token name_token;
+  FunctionAttributes method_attributes;
+  ClassDefHandle class_def_handle;
+  MatlabIdentifier class_name;
+  ClassDefNode* class_node;
+  MatlabScope* matlab_scope;
+  TypeScope* type_scope;
+};
+
+using PendingExternalMethods = std::vector<PendingExternalMethod>;
+
+/*
  * ParseInstance
  */
+
+using OnBeforeParse = std::function<void(AstGenerator&, ParseInstance&)>;
 
 struct ParseInstance {
   ParseInstance(Store* store,
@@ -52,7 +86,8 @@ struct ParseInstance {
                 Library* library,
                 StringRegistry* string_registry,
                 const ParseSourceData& source_data,
-                bool functions_are_end_terminated);
+                bool functions_are_end_terminated,
+                OnBeforeParse on_before_parse);
 
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(ParseInstance)
 
@@ -76,6 +111,8 @@ struct ParseInstance {
   ParseSourceData source_data;
   std::string parent_package;
   bool functions_are_end_terminated;
+  bool treat_root_as_external_method;
+  OnBeforeParse on_before_parse;
 
   BoxedRootBlock root_block;
   bool had_error;
@@ -83,6 +120,7 @@ struct ParseInstance {
   ParseErrors warnings;
 
   PendingTypeImports pending_type_imports;
+  PendingExternalMethods pending_external_methods;
 
   int64_t num_visited_functions;
   bool registered_file_type;
@@ -114,14 +152,11 @@ class AstGenerator {
   };
 
 public:
-  AstGenerator() :
-  parse_instance(nullptr), string_registry(nullptr), store(nullptr) {
-    //
-  }
-
+  AstGenerator(ParseInstance* parse_instance, const std::vector<Token>& tokens);
   ~AstGenerator() = default;
 
-  void parse(ParseInstance* parse_instance, const std::vector<Token>& tokens);
+  void parse();
+  void push_default_state();
 
 //private:
   Optional<std::unique_ptr<Block>> block();
@@ -143,6 +178,7 @@ public:
   bool methods_block(const ClassDefHandle& enclosing_class,
                      std::set<int64_t>& method_names,
                      ClassDef::Methods& methods,
+                     ClassDefNode::MethodDeclarations& method_decls,
                      BoxedMethodNodes& method_def_nodes);
   bool method_def(const Token& source_token,
                   std::set<int64_t>& method_names,
@@ -150,7 +186,7 @@ public:
                   BoxedMethodNodes& method_def_nodes);
   bool method_declaration(const Token& source_token,
                           std::set<int64_t>& method_names,
-                          ClassDef::Methods& methods);
+                          ClassDefNode::MethodDeclarations& method_decls);
   bool properties_block(std::set<int64_t>& property_names,
                         std::vector<ClassDef::Property>& properties,
                         BoxedPropertyNodes& property_nodes);
@@ -160,6 +196,8 @@ public:
                         std::set<int64_t>& property_names,
                         std::vector<ClassDef::Property>& properties,
                         BoxedPropertyNodes& property_nodes);
+
+  void enter_methods_block_via_external_method(const PendingExternalMethod& method);
 
   Optional<FunctionAttributes> method_attributes(const ClassDefHandle& enclosing_class);
   Optional<bool> boolean_attribute_value();
@@ -266,14 +304,18 @@ public:
   bool is_within_end_terminated_stmt_block() const;
   bool is_within_top_level_function() const;
   bool is_within_class() const;
+  bool root_is_external_method() const;
 
   void push_scope();
   void pop_scope();
+  void push_scope(MatlabScope* current_scope, TypeScope* current_type_scope);
+
   MatlabScope* current_scope();
+  MatlabScope* root_scope();
   TypeScope* current_type_scope();
   TypeScope* root_type_scope();
 
-  void push_function_attributes(FunctionAttributes&& attrs);
+  void push_function_attributes(const FunctionAttributes& attrs);
   void pop_function_attributes();
   MT_NODISCARD const FunctionAttributes& current_function_attributes() const;
 

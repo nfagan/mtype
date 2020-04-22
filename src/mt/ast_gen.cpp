@@ -253,6 +253,31 @@ namespace {
 }
 
 /*
+ * PendingExternalMethod
+ */
+
+PendingExternalMethod::PendingExternalMethod(ClassDefNode::MethodDeclaration method_decl,
+                                             const MatlabIdentifier& method_name,
+                                             const Token& name_token,
+                                             const FunctionAttributes& method_attributes,
+                                             const ClassDefHandle& class_def_handle,
+                                             const MatlabIdentifier& class_name,
+                                             ClassDefNode* class_node,
+                                             MatlabScope* matlab_scope,
+                                             TypeScope* type_scope) :
+    method_declaration(std::move(method_decl)),
+    method_name(method_name),
+    name_token(name_token),
+    method_attributes(method_attributes),
+    class_def_handle(class_def_handle),
+    class_name(class_name),
+    class_node(class_node),
+    matlab_scope(matlab_scope),
+    type_scope(type_scope) {
+    //
+  }
+
+/*
  * ParseInstance
  */
 
@@ -261,17 +286,20 @@ ParseInstance::ParseInstance(Store* store,
                              Library* library,
                              StringRegistry* string_registry,
                              const ParseSourceData& source_data,
-                             bool functions_are_end_terminated) :
-                             store(store),
-                             type_store(type_store),
-                             library(library),
-                             string_registry(string_registry),
-                             source_data(source_data),
-                             functions_are_end_terminated(functions_are_end_terminated),
-                             had_error(false),
-                             num_visited_functions(0),
-                             registered_file_type(false),
-                             file_type(CodeFileType::unknown) {
+                             bool functions_are_end_terminated,
+                             OnBeforeParse on_before_parse) :
+  store(store),
+  type_store(type_store),
+  library(library),
+  string_registry(string_registry),
+  source_data(source_data),
+  functions_are_end_terminated(functions_are_end_terminated),
+  treat_root_as_external_method(false),
+  on_before_parse(std::move(on_before_parse)),
+  had_error(false),
+  num_visited_functions(0),
+  registered_file_type(false),
+  file_type(CodeFileType::unknown) {
   parent_package = source_data.file_descriptor->containing_package();
 }
 
@@ -359,37 +387,33 @@ struct FunctionAttributeHelper : public StackHelper<AstGenerator, FunctionAttrib
   using StackHelper::StackHelper;
 };
 
-void AstGenerator::parse(ParseInstance* instance, const std::vector<Token>& tokens) {
-  parse_instance = instance;
+/*
+ * AstGenerator
+ */
 
-  iterator = TokenIterator(&tokens);
-  string_registry = instance->string_registry;
-  store = instance->store;
+AstGenerator::AstGenerator(ParseInstance* instance, const std::vector<Token>& tokens) :
+  parse_instance(instance),
+  iterator(TokenIterator(&tokens)),
+  string_registry(instance->string_registry),
+  store(instance->store) {
+  push_default_state();
+}
 
-  scopes.clear();
-  type_scopes.clear();
-  function_attributes.clear();
-  enclosing_schemes.clear();
-
-  block_depths = BlockDepths();
-  class_state = ClassDefState();
-
+void AstGenerator::push_default_state() {
+  //  No enclosing scheme
   enclosing_schemes.push_back(nullptr);
-  MT_SCOPE_EXIT {
-    enclosing_schemes.pop_back();
-  };
 
   //  Push root scope.
-  ParseScopeHelper scope_helper(*this);
+  push_scope();
 
   //  Push default function attributes.
   push_function_attributes(FunctionAttributes());
-  FunctionAttributeHelper attr_helper(*this);
 
   //  Push non-exported type identifiers.
-  TypeIdentifierExportState::Helper export_state_helper(type_identifier_export_state, false);
+  type_identifier_export_state.push_non_export();
+}
 
-  //  Main block.
+void AstGenerator::parse() {
   auto result = block();
 
   if (result) {
@@ -776,12 +800,8 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     }
   }
 
-  if (has_varargin) {
-    attrs.mark_has_varargin();
-  }
-  if (has_varargout) {
-    attrs.mark_has_varargout();
-  }
+  attrs.maybe_mark_has_varargin(has_varargin);
+  attrs.maybe_mark_has_varargout(has_varargout);
 
   FunctionDef function_def(header_result.rvalue(), attrs, body_res.rvalue());
 
@@ -800,7 +820,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
 
   bool register_success = true;
 
-  if (!is_within_class() || !is_within_top_level_function()) {
+  if (root_is_external_method() || !is_within_class() || !is_within_top_level_function()) {
     //  In a classdef file, adjacent top-level methods are not visible to one another, so we don't
     //  register them in the parent's scope.
     register_success = parent_scope.register_local_function(name, ref_handle);
@@ -865,6 +885,56 @@ Optional<ClassDef::Superclasses> AstGenerator::superclasses() {
   return Optional<ClassDef::Superclasses>(std::move(supers));
 }
 
+namespace {
+  void add_pending_external_methods(ParseInstance* parse_instance,
+                                    ClassDefNode::MethodDeclarations& method_decls,
+                                    const ClassDefHandle& class_handle,
+                                    const MatlabIdentifier& class_name,
+                                    ClassDefNode* class_node,
+                                    MatlabScope* matlab_scope,
+                                    TypeScope* type_scope) {
+    for (auto& decl : method_decls) {
+      MatlabIdentifier name;
+      FunctionAttributes method_attribs;
+      Token name_token;
+
+      parse_instance->store->use<Store::ReadConst>([&](const auto& reader) {
+        const auto& def = reader.at(decl.pending_def_handle);
+        name = def.header.name;
+        method_attribs = def.attributes;
+        name_token = def.header.name_token;
+      });
+
+      PendingExternalMethod pending_method(std::move(decl), name, name_token, method_attribs,
+                                           class_handle, class_name, class_node,
+                                           matlab_scope, type_scope);
+
+      parse_instance->pending_external_methods.push_back(std::move(pending_method));
+    }
+  }
+}
+
+void AstGenerator::enter_methods_block_via_external_method(const PendingExternalMethod& method) {
+  scopes.clear();
+  type_scopes.clear();
+
+  assert(method.matlab_scope && !method.matlab_scope->parent);
+  assert(method.type_scope && !method.type_scope->parent && method.type_scope->is_root());
+
+  scopes.push_back(method.matlab_scope);
+  type_scopes.push_back(method.type_scope);
+
+  assert(root_type_scope() == method.type_scope);
+  assert(root_scope() == method.matlab_scope);
+
+  block_depths.class_def++;
+  block_depths.class_def_file++;
+  block_depths.methods++;
+
+  push_function_attributes(method.method_attributes);
+  class_state.push_class(method.class_def_handle, method.class_name);
+}
+
 Optional<BoxedAstNode> AstGenerator::class_def() {
   const auto& source_token = iterator.peek();
   iterator.advance();
@@ -913,6 +983,8 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
 
   ClassDef::Properties properties;
   ClassDef::Methods methods;
+  ClassDefNode::MethodDeclarations method_decls;
+
   BoxedMethodNodes method_def_nodes;
   BoxedPropertyNodes property_nodes;
 
@@ -947,7 +1019,7 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
       }
 
     } else if (tok.type == TokenType::keyword_methods) {
-      auto method_res = methods_block(class_handle, method_names, methods, method_def_nodes);
+      auto method_res = methods_block(class_handle, method_names, methods, method_decls, method_def_nodes);
       if (!method_res) {
         return NullOpt{};
       }
@@ -1000,6 +1072,10 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   auto class_type = type_store->make_class(class_identifier, nullptr);
   auto class_ref = type_store->make_type_reference(&class_node->source_token, class_type, parent_type_scope);
   parent_type_scope->emplace_type(class_identifier, class_ref, is_type_export);
+
+  //  Add pending method declarations.
+  add_pending_external_methods(parse_instance, method_decls, class_handle, qualified_name,
+                               class_node.get(), parent_scope, parent_type_scope);
 
   return Optional<BoxedAstNode>(std::move(class_node));
 }
@@ -1158,14 +1234,20 @@ namespace {
                                const Token& tok,
                                std::set<int64_t>& method_names,
                                ClassDef::Methods& methods,
-                               BoxedMethodNodes& method_nodes) {
+                               ClassDefNode::MethodDeclarations& method_decls,
+                               BoxedMethodNodes& method_nodes,
+                               bool* was_declaration) {
     if (tok.type == TokenType::identifier || tok.type == TokenType::left_bracket) {
-      return ast_gen->method_declaration(tok, method_names, methods);
+      *was_declaration = true;
+      return ast_gen->method_declaration(tok, method_names, method_decls);
 
     } else if (tok.type == TokenType::keyword_function) {
+      *was_declaration = false;
       return ast_gen->method_def(tok, method_names, methods, method_nodes);
 
     } else {
+      *was_declaration = false;
+
       std::array<TokenType, 3> possible_types{{
         TokenType::identifier, TokenType::left_bracket, TokenType::keyword_function
       }};
@@ -1178,6 +1260,7 @@ namespace {
   bool typed_method_dispatch(AstGenerator* ast_gen,
                              std::set<int64_t>& method_names,
                              ClassDef::Methods& methods,
+                             ClassDefNode::MethodDeclarations& method_decls,
                              BoxedMethodNodes& method_def_nodes) {
     ast_gen->iterator.advance();
     auto maybe_err = ast_gen->consume(TokenType::double_colon);
@@ -1197,13 +1280,23 @@ namespace {
       return false;
     }
 
-    bool res = untyped_method_dispatch(ast_gen, ast_gen->iterator.peek(), method_names, methods, method_def_nodes);
+    bool was_decl;
+    bool res = untyped_method_dispatch(ast_gen, ast_gen->iterator.peek(), method_names,
+                                       methods, method_decls, method_def_nodes, &was_decl);
     if (!res) {
       return false;
     }
 
-    auto& last_method = method_def_nodes.back();
-    last_method->type = std::move(type_res.rvalue());
+    if (was_decl) {
+      assert(!method_decls.empty());
+      auto& last_decl = method_decls.back();
+      assert(!last_decl.maybe_type);
+      last_decl.maybe_type = std::move(type_res.rvalue());
+    } else {
+      assert(!method_def_nodes.empty());
+      auto& last_method = method_def_nodes.back();
+      last_method->type = std::move(type_res.rvalue());
+    }
 
     return true;
   }
@@ -1212,6 +1305,7 @@ namespace {
 bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
                                  std::set<int64_t>& method_names,
                                  ClassDef::Methods& methods,
+                                 ClassDefNode::MethodDeclarations& method_decls,
                                  BoxedMethodNodes& method_def_nodes) {
   iterator.advance(); //  consume methods
 
@@ -1222,7 +1316,7 @@ bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
       return false;
     }
 
-    push_function_attributes(attr_res.rvalue());
+    push_function_attributes(attr_res.value());
   } else {
     push_function_attributes(FunctionAttributes(enclosing_class));
   }
@@ -1240,14 +1334,17 @@ bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
         iterator.advance();
         break;
       case TokenType::type_annotation_macro: {
-        bool success = typed_method_dispatch(this, method_names, methods, method_def_nodes);
+        bool success = typed_method_dispatch(this, method_names, methods,
+                                             method_decls, method_def_nodes);
         if (!success) {
           return false;
         }
         break;
       }
       default: {
-        bool success = untyped_method_dispatch(this, tok, method_names, methods, method_def_nodes);
+        bool ignore_was_decl;
+        bool success = untyped_method_dispatch(this, tok, method_names, methods,
+                                               method_decls, method_def_nodes, &ignore_was_decl);
         if (!success) {
           return false;
         }
@@ -1266,7 +1363,7 @@ bool AstGenerator::methods_block(const ClassDefHandle& enclosing_class,
 
 bool AstGenerator::method_declaration(const mt::Token& source_token,
                                       std::set<int64_t>& method_names,
-                                      ClassDef::Methods& methods) {
+                                      ClassDefNode::MethodDeclarations& method_decls) {
   bool has_varargin;
   bool has_varargout;
   auto header_res = function_header(&has_varargin, &has_varargout);
@@ -1285,19 +1382,15 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
     FunctionDefHandle pending_def_handle;
 
     auto attrs = current_function_attributes();
-    if (has_varargin) {
-      attrs.mark_has_varargin();
-    }
-    if (has_varargout) {
-      attrs.mark_has_varargout();
-    }
+    attrs.maybe_mark_has_varargin(has_varargin);
+    attrs.maybe_mark_has_varargout(has_varargout);
 
     {
       Store::Write writer(*store);
       pending_def_handle = writer.make_function_declaration(header_res.rvalue(), attrs);
     }
 
-    methods.emplace_back(pending_def_handle);
+    method_decls.push_back(ClassDefNode::MethodDeclaration(pending_def_handle, nullptr));
   }
 
   return true;
@@ -1536,6 +1629,11 @@ Optional<std::unique_ptr<Block>> AstGenerator::block() {
           node = stmt_res.rvalue();
         } else {
           success = false;
+        }
+        //  If the first statement precedes a function or class definition, we know this file is
+        //  a script.
+        if (!parse_instance->registered_file_type) {
+          parse_instance->register_file_type(CodeFileType::script_with_local_functions);
         }
       }
     }
@@ -3623,13 +3721,19 @@ bool AstGenerator::is_within_class() const {
   return block_depths.class_def > 0;
 }
 
+bool AstGenerator::root_is_external_method() const {
+  return parse_instance->treat_root_as_external_method;
+}
+
 bool AstGenerator::is_within_loop() const {
   return block_depths.for_stmt > 0 || block_depths.parfor_stmt > 0 || block_depths.while_stmt > 0;
 }
 
 void AstGenerator::push_scope() {
-  const auto curr_matlab_scope = current_scope();
-  const auto curr_type_scope = current_type_scope();
+  push_scope(current_scope(), current_type_scope());
+}
+
+void AstGenerator::push_scope(MatlabScope* curr_matlab_scope, TypeScope* curr_type_scope) {
   const auto root_tscope = root_type_scope();
 
   Store::Write writer(*store);
@@ -3651,8 +3755,8 @@ void AstGenerator::pop_scope() {
   type_scopes.pop_back();
 }
 
-void AstGenerator::push_function_attributes(mt::FunctionAttributes&& attrs) {
-  function_attributes.emplace_back(std::move(attrs));
+void AstGenerator::push_function_attributes(const FunctionAttributes& attrs) {
+  function_attributes.push_back(attrs);
 }
 
 const FunctionAttributes& AstGenerator::current_function_attributes() const {
@@ -3667,6 +3771,10 @@ void AstGenerator::pop_function_attributes() {
 
 MatlabScope* AstGenerator::current_scope() {
   return scopes.empty() ? nullptr : scopes.back();
+}
+
+MatlabScope* AstGenerator::root_scope() {
+  return scopes.empty() ? nullptr : scopes.front();
 }
 
 TypeScope* AstGenerator::current_type_scope() {
