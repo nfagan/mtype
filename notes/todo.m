@@ -11,10 +11,11 @@ TODO
 . For method definition, use provided type as canonical type
 . * Distinguish application and abstraction
 . Distinguish concatenation types - horz vs. vert
-. * generic functions
+. * generic functions @T :: given <T> [T] = (T)
 . union types
 . function declarations
 . recursive types
 . store classes by name, rather than pointer
+. * error variable in catch expression
 
 %}

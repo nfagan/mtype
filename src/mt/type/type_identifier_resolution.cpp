@@ -29,9 +29,42 @@ namespace {
     visit_array(resolver, types);
     auto& collector = instance.collectors.current();
     if (collector.had_error) {
+      instance.mark_parent_collector_error();
       return NullOpt{};
     } else {
       return Optional<TypePtrs>(std::move(collector.types));
+    }
+  }
+
+  Optional<TypePtrs> collect_types(TypeIdentifierResolver& resolver,
+                                   TypeIdentifierResolverInstance& instance,
+                                   AstNode* node) {
+    instance.collectors.push();
+    MT_SCOPE_EXIT {
+      instance.collectors.pop();
+    };
+
+    node->accept(resolver);
+
+    auto& collector = instance.collectors.current();
+    if (collector.had_error) {
+      instance.mark_parent_collector_error();
+      return NullOpt{};
+    } else {
+      return Optional<TypePtrs>(std::move(collector.types));
+    }
+  }
+
+  Optional<Type*> collect_one_type(TypeIdentifierResolver& resolver,
+                                   TypeIdentifierResolverInstance& instance,
+                                   AstNode* node) {
+    auto maybe_ptrs = collect_types(resolver, instance, node);
+    if (!maybe_ptrs) {
+      return NullOpt{};
+    } else {
+      //  It's a bug if more or fewer than one type is present.
+      assert(maybe_ptrs.value().size() == 1);
+      return Optional<Type*>(maybe_ptrs.value()[0]);
     }
   }
 
@@ -252,21 +285,11 @@ void TypeIdentifierResolver::type_begin(TypeBegin& begin) {
 }
 
 void TypeIdentifierResolver::type_assertion(TypeAssertion& node) {
-  {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-
-    node.has_type->accept(*this);
-    auto& collector = instance->collectors.current();
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
-      return;
-    }
-
-    assert(collector.types.size() == 1 && !node.resolved_type);
-    node.resolved_type = collector.types[0];
+  auto maybe_resolved_type = collect_one_type(*this, *instance, node.has_type.get());
+  if (!maybe_resolved_type) {
+    return;
+  } else {
+    node.resolved_type = maybe_resolved_type.value();
   }
 
   node.node->accept(*this);
@@ -300,32 +323,20 @@ void TypeIdentifierResolver::type_given(TypeGiven& node) {
     scheme_variables.variables[type_ident] = tvar;
   }
 
-  instance->collectors.push();
-  MT_SCOPE_EXIT {
-    instance->collectors.pop();
-  };
-
-  node.declaration->accept(*this);
-  const auto& collector = instance->collectors.current();
-  if (collector.had_error) {
-    instance->mark_parent_collector_error();
-    return;
-  }
-
-  assert(collector.types.size() == 1);
+  (void) collect_one_type(*this, *instance, node.declaration.get());
 }
 
 void TypeIdentifierResolver::function_type_node(FunctionTypeNode& node) {
   auto maybe_inputs = collect_types(*this, *instance, node.inputs);
   if (!maybe_inputs) {
-    instance->collectors.current().mark_error();
     return;
   }
+
   auto maybe_outputs = collect_types(*this, *instance, node.outputs);
   if (!maybe_outputs) {
-    instance->collectors.current().mark_error();
     return;
   }
+
   auto inputs = instance->type_store.make_input_destructured_tuple(std::move(maybe_inputs.rvalue()));
   auto outputs = instance->type_store.make_output_destructured_tuple(std::move(maybe_outputs.rvalue()));
   auto func = instance->type_store.make_abstraction(inputs, outputs);
@@ -338,7 +349,6 @@ void TypeIdentifierResolver::function_type_node(FunctionTypeNode& node) {
 void TypeIdentifierResolver::tuple_type_node(TupleTypeNode& node) {
   auto maybe_members = collect_types(*this, *instance, node.members);
   if (!maybe_members) {
-    instance->collectors.current().mark_error();
     return;
   }
 
@@ -349,7 +359,6 @@ void TypeIdentifierResolver::tuple_type_node(TupleTypeNode& node) {
 void TypeIdentifierResolver::list_type_node(ListTypeNode& node) {
   auto maybe_pattern = collect_types(*this, *instance, node.pattern);
   if (!maybe_pattern) {
-    instance->collectors.current().mark_error();
     return;
   }
 
@@ -383,20 +392,12 @@ Type* TypeIdentifierResolver::handle_pending_scheme(const types::Scheme* scheme,
   args.reserve(node.arguments.size());
 
   for (auto& arg : node.arguments) {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-
-    arg->accept(*this);
-    auto& collector = instance->collectors.current();
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
+    auto maybe_type = collect_one_type(*this, *instance, arg.get());
+    if (!maybe_type) {
       return nullptr;
+    } else {
+      args.push_back(maybe_type.value());
     }
-
-    assert(collector.types.size() == 1);
-    args.push_back(collector.types[0]);
   }
 
   //  We can't directly instantiate a scheme here, because the scheme's source might be an imported
@@ -454,21 +455,13 @@ void TypeIdentifierResolver::fun_type_node(FunTypeNode& node) {
 
 void TypeIdentifierResolver::record_type_node(RecordTypeNode& node) {
   for (auto& field : node.fields) {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-    field.type->accept(*this);
-
-    auto& collector = instance->collectors.current();
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
+    auto maybe_field_type = collect_one_type(*this, *instance, field.type.get());
+    if (!maybe_field_type) {
       return;
     }
 
-    assert(collector.types.size() == 1);
     auto field_name = instance->type_store.make_constant_value(field.name);
-    auto field_type = collector.types[0];
+    auto field_type = maybe_field_type.value();
 
     node.type->fields.push_back(types::Record::Field{field_name, field_type});
   }
@@ -505,20 +498,14 @@ void TypeIdentifierResolver::method_type_declaration(DeclareTypeNode& node) {
     return;
   }
 
-  instance->collectors.push();
-  MT_SCOPE_EXIT {
-    instance->collectors.pop();
-  };
-
-  node.maybe_method.type->accept(*this);
-  auto& current_collector = instance->collectors.current();
-  if (current_collector.had_error) {
-    instance->mark_parent_collector_error();
+  auto maybe_collected_type = collect_one_type(*this, *instance, node.maybe_method.type.get());
+  if (!maybe_collected_type) {
     return;
   }
 
-  assert(current_collector.types.size() == 1 && current_collector.types[0]->is_abstraction());
-  auto& method = MT_ABSTR_MUT_REF(*current_collector.types[0]);
+  auto collected_type = maybe_collected_type.value();
+  assert(collected_type->is_abstraction());
+  auto& method = MT_ABSTR_MUT_REF(*collected_type);
 
   switch (node.maybe_method.kind) {
     case DeclareTypeNode::Method::Kind::unary_operator:
@@ -541,24 +528,17 @@ void TypeIdentifierResolver::method_type_declaration(DeclareTypeNode& node) {
 }
 
 void TypeIdentifierResolver::declare_function_type_node(DeclareFunctionTypeNode& node) {
-  instance->collectors.push();
-  MT_SCOPE_EXIT {
-    instance->collectors.pop();
-  };
-
-  node.type->accept(*this);
-  auto& current_collector = instance->collectors.current();
-  if (current_collector.had_error) {
-    instance->mark_parent_collector_error();
+  auto maybe_type = collect_one_type(*this, *instance, node.type.get());
+  if (!maybe_type) {
     return;
   }
 
-  assert(current_collector.types.size() == 1 && current_collector.types[0]->is_abstraction());
-  auto& abstr = MT_ABSTR_MUT_REF(*current_collector.types[0]);
+  auto type = maybe_type.value();
+  assert(type->is_abstraction());
+  auto& abstr = MT_ABSTR_MUT_REF(*type);
   abstr.assign_kind(to_matlab_identifier(node.identifier));
 
-  bool success =
-    instance->library.emplace_declared_function_type(abstr, current_collector.types[0]);
+  bool success = instance->library.emplace_declared_function_type(abstr, type);
   assert(success);
   if (!success) {
     //
@@ -658,18 +638,12 @@ void TypeIdentifierResolver::property_node(PropertyNode& node) {
   Type* prop_type = nullptr;
 
   if (node.type) {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-    node.type->accept(*this);
-    auto collector = std::move(instance->collectors.current());
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
+    auto maybe_prop_type = collect_one_type(*this, *instance, node.type.get());
+    if (!maybe_prop_type) {
       return;
+    } else {
+      prop_type = maybe_prop_type.value();
     }
-    assert(collector.types.size() == 1);
-    prop_type = collector.types[0];
   } else {
     prop_type = instance->type_store.make_fresh_type_variable_reference();
   }
@@ -683,18 +657,12 @@ void TypeIdentifierResolver::property_node(PropertyNode& node) {
 
 void TypeIdentifierResolver::method_node(MethodNode& node) {
   if (node.type) {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-    node.type->accept(*this);
-    auto& collector = instance->collectors.current();
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
+    auto maybe_method_type = collect_one_type(*this, *instance, node.type.get());
+    if (!maybe_method_type) {
       return;
     }
-    assert(collector.types.size() == 1 && !node.resolved_type);
-    node.resolved_type = collector.types[0];
+    assert(!node.resolved_type);
+    node.resolved_type = maybe_method_type.value();
   }
 
   node.def->accept(*this);
@@ -725,42 +693,27 @@ void TypeIdentifierResolver::class_def_node(ClassDefNode& node) {
 
   types::Record::Fields fields;
   for (const auto& prop : node.properties) {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-
-    prop->accept(*this);
-    auto collector = std::move(instance->collectors.current());
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
+    auto maybe_types = collect_types(*this, *instance, prop.get());
+    if (!maybe_types) {
       return;
     }
 
-    assert(collector.types.size() == 2);
-    const auto name_type = collector.types[0];
-    const auto prop_type = collector.types[1];
+    const auto& types = maybe_types.value();
+    assert(types.size() == 2);
+    const auto name_type = types[0];
+    const auto prop_type = types[1];
     fields.push_back(types::Record::Field{name_type, prop_type});
   }
 
   class_type->source = instance->type_store.make_record(std::move(fields));
 
   for (const auto& method : node.method_defs) {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-
-    method->accept(*this);
-
-    auto& collector = instance->collectors.current();
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
+    auto maybe_method_type = collect_one_type(*this, *instance, method.get());
+    if (!maybe_method_type) {
       return;
     }
 
-    assert(collector.types.size() == 1);
-    auto* func_type = collector.types[0];
+    auto* func_type = maybe_method_type.value();
     auto* source_type = func_type;
 
     if (!func_type->is_abstraction()) {
