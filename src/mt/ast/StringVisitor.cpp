@@ -641,6 +641,14 @@ std::string StringVisitor::declare_type_node(const DeclareTypeNode& node) const 
   return declare_str;
 }
 
+std::string StringVisitor::declare_function_type_node(const DeclareFunctionTypeNode& node) const {
+  std::string declare_str("declare function ");
+  maybe_colorize(declare_str, node.source_token.type);
+  declare_str += string_registry->at(node.identifier.full_name());
+  declare_str += " :: " + node.type->accept(*this);
+  return declare_str;
+}
+
 std::string StringVisitor::constructor_type_node(const ConstructorTypeNode& node) const {
   std::string ctor_str("constructor ");
   maybe_colorize(ctor_str, node.source_token.type);

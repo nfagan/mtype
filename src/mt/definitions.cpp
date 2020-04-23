@@ -99,6 +99,10 @@ bool MatlabScope::has_imported_function(const MatlabIdentifier& name) const {
   return lookup_imported_function(name).is_valid();
 }
 
+bool MatlabScope::has_local_variable(const MatlabIdentifier& name) const {
+  return local_variables.count(name) > 0;
+}
+
 /*
  * ClassDef
  */

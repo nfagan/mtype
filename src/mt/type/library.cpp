@@ -181,6 +181,23 @@ bool Library::is_builtin_class(const MatlabIdentifier& ident) const {
   return ident == MatlabIdentifier(special_identifiers.handle);
 }
 
+bool Library::has_declared_function_type(const TypeIdentifier& ident) const {
+  return declared_function_types.count(ident) > 0;
+}
+
+void Library::register_declared_function(const TypeIdentifier& ident) {
+  declared_function_types.insert(ident);
+}
+
+bool Library::emplace_declared_function_type(const types::Abstraction& abstr, Type* source) {
+  if (function_types.count(abstr) > 0) {
+    return false;
+  } else {
+    function_types[abstr] = source;
+    return true;
+  }
+}
+
 Optional<std::string> Library::type_name(const Type* type) const {
   if (!type->is_scalar()) {
     return NullOpt{};

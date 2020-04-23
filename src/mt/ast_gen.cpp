@@ -299,7 +299,8 @@ ParseInstance::ParseInstance(Store* store,
   had_error(false),
   num_visited_functions(0),
   registered_file_type(false),
-  file_type(CodeFileType::unknown) {
+  file_type(CodeFileType::unknown),
+  file_entry_function_def_node(nullptr) {
   parent_package = source_data.file_descriptor->containing_package();
 }
 
@@ -321,9 +322,11 @@ bool ParseInstance::register_file_type(CodeFileType ft) {
   return true;
 }
 
-void ParseInstance::set_file_entry_function_ref(const FunctionReferenceHandle& ref_handle) {
-  assert(!file_entry_function_ref.is_valid());
+void ParseInstance::set_file_entry_function_ref(const FunctionReferenceHandle& ref_handle,
+                                                FunctionDefNode* file_entry_node) {
+  assert(!file_entry_function_ref.is_valid() && !file_entry_function_def_node);
   file_entry_function_ref = ref_handle;
+  file_entry_function_def_node = file_entry_node;
 }
 void ParseInstance::set_file_entry_class_def(const ClassDefHandle& def_handle) {
   assert(!file_entry_class_def.is_valid());
@@ -831,13 +834,14 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
     return NullOpt{};
   }
 
-  //  Mark this function as the function accessible to external files by its filename.
-  if (parse_instance->is_file_entry_function() || attrs.is_constructor()) {
-    parse_instance->set_file_entry_function_ref(ref_handle);
-  }
-
   auto ast_node = std::make_unique<FunctionDefNode>(source_token, def_handle, ref_handle,
                                                     child_scope, child_type_scope);
+
+  //  Mark this function as the function accessible to external files by its filename.
+  if (parse_instance->is_file_entry_function() || attrs.is_constructor()) {
+    parse_instance->set_file_entry_function_ref(ref_handle, ast_node.get());
+  }
+
   return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
 }
 
@@ -1380,17 +1384,37 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
   } else {
     method_names.emplace(func_name.full_name());
     FunctionDefHandle pending_def_handle;
+    FunctionReferenceHandle pending_ref_handle;
 
     auto attrs = current_function_attributes();
     attrs.maybe_mark_has_varargin(has_varargin);
     attrs.maybe_mark_has_varargout(has_varargout);
 
-    {
-      Store::Write writer(*store);
-      pending_def_handle = writer.make_function_declaration(header_res.rvalue(), attrs);
+    push_scope();
+    MT_SCOPE_EXIT {
+      pop_scope();
+    };
+
+    auto& header = header_res.value();
+    auto curr_scope = current_scope();
+
+    for (auto& arg : header.inputs) {
+      arg.mark_is_part_of_decl();
+    }
+    for (auto& arg : header.outputs) {
+      arg.mark_is_part_of_decl();
     }
 
-    method_decls.push_back(ClassDefNode::MethodDeclaration(pending_def_handle, nullptr));
+    {
+      Store::Write writer(*store);
+      const auto name = header.name;
+
+      pending_def_handle = writer.make_function_declaration(std::move(header), attrs);
+      pending_ref_handle = writer.make_local_reference(name, pending_def_handle, curr_scope);
+    }
+
+    ClassDefNode::MethodDeclaration method_decl(pending_def_handle, pending_ref_handle, nullptr);
+    method_decls.push_back(std::move(method_decl));
   }
 
   return true;
@@ -3216,7 +3240,8 @@ Optional<BoxedTypeAnnot> AstGenerator::type_namespace(const Token& source_token)
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::scalar_type_declaration(const Token& source_token) {
-  const auto name_token = iterator.peek();
+  const auto ident_token = iterator.peek();
+
   auto ident_res = one_identifier();
   if (!ident_res) {
     return NullOpt{};
@@ -3229,7 +3254,7 @@ Optional<BoxedTypeAnnot> AstGenerator::scalar_type_declaration(const Token& sour
   const bool is_export = type_identifier_export_state.is_export();
 
   if (!scope->can_register_local_identifier(ident, is_export)) {
-    add_error(make_error_duplicate_type_identifier(parse_instance, name_token));
+    add_error(make_error_duplicate_type_identifier(parse_instance, ident_token));
     return NullOpt{};
   }
 
@@ -3239,6 +3264,65 @@ Optional<BoxedTypeAnnot> AstGenerator::scalar_type_declaration(const Token& sour
   scope->emplace_type(ident, declare_type, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(node));
+}
+
+namespace {
+  Optional<BoxedType> underlying_type_of_assertion(AstGenerator* ast_gen) {
+    const auto assert_tok = ast_gen->iterator.peek();
+    auto annot_res =
+      ast_gen->type_annotation(ast_gen->iterator.peek(), /*expect_enclosing_assert_node=*/false);
+    if (!annot_res) {
+      return NullOpt{};
+    }
+
+    auto& annot = annot_res.value();
+    if (!annot->is_type_assertion()) {
+      auto err = make_error_expected_type_assertion(ast_gen->parse_instance, assert_tok);
+      ast_gen->add_error(std::move(err));
+      return NullOpt{};
+    }
+
+    auto type_assert = static_cast<TypeAssertion*>(annot.get());
+    return Optional<BoxedType>(std::move(type_assert->has_type));
+  }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::function_type_declaration(const Token& source_token) {
+  iterator.advance();
+
+  auto ident_res = one_identifier();
+  if (!ident_res) {
+    return NullOpt{};
+  }
+
+  auto type_assert_res = underlying_type_of_assertion(this);
+  if (!type_assert_res) {
+    return NullOpt{};
+  }
+
+  auto underlying = std::move(type_assert_res.rvalue());
+  if (!underlying->is_function_type()) {
+    add_error(make_error_expected_function_type(parse_instance, source_token));
+    return NullOpt{};
+  }
+
+  auto func_type_ptr = static_cast<FunctionTypeNode*>(underlying.release());
+  std::unique_ptr<FunctionTypeNode> func_type_node(func_type_ptr);
+
+  TypeIdentifier ident(string_registry->register_string(ident_res.value()));
+  ident = maybe_namespace_enclose_type_identifier(ident);
+
+  if (parse_instance->library->has_declared_function_type(ident)) {
+    add_error(make_error_duplicate_local_function(parse_instance, source_token));
+    return NullOpt{};
+  } else {
+    parse_instance->library->register_declared_function(ident);
+  }
+
+  auto declare_node =
+    std::make_unique<DeclareFunctionTypeNode>(source_token, ident, std::move(func_type_node));
+
+  return Optional<BoxedTypeAnnot>(std::move(declare_node));
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& source_token) {
@@ -3254,26 +3338,19 @@ Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& sour
   auto func_token = iterator.peek();
   iterator.advance();
 
-  const auto assert_tok = iterator.peek();
-  auto annot_res = type_annotation(iterator.peek(), /*expect_enclosing_assert_node=*/false);
-  if (!annot_res) {
+  auto type_assert_res = underlying_type_of_assertion(this);
+  if (!type_assert_res) {
     return NullOpt{};
   }
 
-  auto& annot = annot_res.value();
-  if (!annot->is_type_assertion()) {
-    add_error(make_error_expected_type_assertion(parse_instance, assert_tok));
+  auto underlying = std::move(type_assert_res.rvalue());
+  if (!underlying->is_function_type()) {
+    add_error(make_error_expected_function_type(parse_instance, func_token));
     return NullOpt{};
   }
 
-  auto type_assert = static_cast<TypeAssertion*>(annot.get());
-  if (!type_assert->has_type->is_function_type()) {
-    add_error(make_error_expected_function_type(parse_instance, assert_tok));
-    return NullOpt{};
-  }
-
-  auto underlying = static_cast<FunctionTypeNode*>(type_assert->has_type.release());
-  auto func_type = std::unique_ptr<FunctionTypeNode>(underlying);
+  auto underlying_ptr = static_cast<FunctionTypeNode*>(underlying.release());
+  auto func_type = std::unique_ptr<FunctionTypeNode>(underlying_ptr);
 
   DeclareTypeNode::Method method;
 
@@ -3300,6 +3377,10 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
   iterator.advance();
 
   const auto kind_token = iterator.peek();
+  if (kind_token.type == TokenType::keyword_function_type) {
+    return function_type_declaration(kind_token);
+  }
+
   auto kind_res = one_identifier();
   if (!kind_res) {
     return NullOpt{};

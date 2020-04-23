@@ -58,6 +58,11 @@ VariableDefHandle Store::emplace_definition(mt::VariableDef&& def) {
   return VariableDefHandle(variable_definitions.size() - 1);
 }
 
+VariableDefHandle Store::make_variable_def(VariableDef&& def) {
+  Store::Write write(*this);
+  return emplace_definition(std::move(def));
+}
+
 const VariableDef& Store::at(const mt::VariableDefHandle& handle) const {
   return variable_definitions[handle.index];
 }

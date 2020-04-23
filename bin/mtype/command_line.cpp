@@ -145,7 +145,7 @@ void Arguments::build_parse_spec() {
     [this](int, int, char**) {
      return false_param(&use_arrow_function_notation);
   });
-  arguments.emplace_back(ParameterName("--arrow-function-types", "-aft"), "Print functions using arrow function notation.",
+  arguments.emplace_back(ParameterName("--arrow-function-types", "-aft"), "Print functions using the form: () -> [].",
     [this](int, int, char**) {
     return true_param(&use_arrow_function_notation);
   });

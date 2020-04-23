@@ -136,6 +136,10 @@ public:
   bool is_known_subscript_type(const Type* type) const;
   bool is_builtin_class(const MatlabIdentifier& ident) const;
 
+  bool has_declared_function_type(const TypeIdentifier& ident) const;
+  void register_declared_function(const TypeIdentifier& ident);
+  bool emplace_declared_function_type(const types::Abstraction& abstr, Type* source);
+
   MT_NODISCARD Optional<std::string> type_name(const Type* type) const;
 
   void emplace_local_function_type(const FunctionDefHandle& handle, Type* type);
@@ -199,6 +203,7 @@ private:
   std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> local_variables_types;
 
   std::unordered_map<TypeIdentifier, types::Class*, TypeIdentifier::Hash> class_types;
+  std::unordered_set<TypeIdentifier, TypeIdentifier::Hash> declared_function_types;
 
   const SearchPath& search_path;
 

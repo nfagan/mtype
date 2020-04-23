@@ -197,6 +197,8 @@ public:
   MatlabIdentifier get_name(const ClassDefHandle& handle) const;
   MatlabIdentifier get_name(const FunctionDefHandle& handle) const;
 
+  VariableDefHandle make_variable_def(VariableDef&& def);
+
 private:
   MatlabScope* make_matlab_scope(const MatlabScope* parent, const CodeFileDescriptor* file_descriptor);
   TypeScope* make_type_scope(TypeScope* root, const TypeScope* parent);

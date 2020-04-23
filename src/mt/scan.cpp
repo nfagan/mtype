@@ -2,6 +2,7 @@
 #include "character_traits.hpp"
 #include "keyword.hpp"
 #include "string.hpp"
+#include <cassert>
 
 namespace mt {
 
@@ -521,6 +522,10 @@ Result<ScanError, Token> Scanner::identifier_or_keyword_token() {
       }
 
       type = TokenType::keyword_end_type;
+    } else if (lexeme == "function") {
+      //  Have to manually code function type here.
+      type = TokenType::keyword_function_type;
+
     } else if (mt::is_end_terminated(lexeme)) {
       if (new_line_is_type_annotation_terminator) {
         auto err = make_error_at_start(start, "Cannot introduce an end-terminated annotation here.");

@@ -11,6 +11,7 @@ public:
     Entry();
     Entry(BoxedRootBlock root_block, const ClassDefHandle& maybe_class_def,
           const FunctionReferenceHandle& maybe_function_ref,
+          const FunctionDefNode* maybe_file_entry_function_node,
           CodeFileType file_type);
 
     BoxedRootBlock root_block;
@@ -19,6 +20,7 @@ public:
     bool resolved_type_identifiers;
     ClassDefHandle file_entry_class_def;
     FunctionReferenceHandle file_entry_function_ref;
+    const FunctionDefNode* file_entry_function_def_node;
     CodeFileType file_type;
   };
 

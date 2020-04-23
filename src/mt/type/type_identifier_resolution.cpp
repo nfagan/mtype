@@ -540,6 +540,31 @@ void TypeIdentifierResolver::method_type_declaration(DeclareTypeNode& node) {
   method_store.add_method(maybe_class.value(), method, &method);
 }
 
+void TypeIdentifierResolver::declare_function_type_node(DeclareFunctionTypeNode& node) {
+  instance->collectors.push();
+  MT_SCOPE_EXIT {
+    instance->collectors.pop();
+  };
+
+  node.type->accept(*this);
+  auto& current_collector = instance->collectors.current();
+  if (current_collector.had_error) {
+    instance->mark_parent_collector_error();
+    return;
+  }
+
+  assert(current_collector.types.size() == 1 && current_collector.types[0]->is_abstraction());
+  auto& abstr = MT_ABSTR_MUT_REF(*current_collector.types[0]);
+  abstr.assign_kind(to_matlab_identifier(node.identifier));
+
+  bool success =
+    instance->library.emplace_declared_function_type(abstr, current_collector.types[0]);
+  assert(success);
+  if (!success) {
+    //
+  }
+}
+
 void TypeIdentifierResolver::namespace_type_node(NamespaceTypeNode& node) {
   instance->namespace_state.push(node.identifier);
   MT_SCOPE_EXIT {
@@ -563,11 +588,12 @@ namespace {
     const auto& matlab_scope = *instance.matlab_scopes.current();
 
     for (const auto& arg : params) {
-      if (!arg.is_ignored()) {
-        auto param = instance.library.require_local_variable_type(matlab_scope.local_variables.at(arg.name));
-        current_types.push_back(param);
-        all_types.push_back(param);
-      }
+      auto tvar = (arg.is_ignored() || arg.is_part_of_decl()) ?
+        instance.type_store.make_fresh_type_variable_reference() :
+        instance.library.require_local_variable_type(matlab_scope.local_variables.at(arg.name));
+
+      current_types.push_back(tvar);
+      all_types.push_back(tvar);
     }
   }
 }

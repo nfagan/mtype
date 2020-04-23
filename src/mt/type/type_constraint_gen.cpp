@@ -109,7 +109,7 @@ void TypeConstraintGenerator::push_function_parameters(const MatlabScope& scope,
 
   for (int64_t i = 0; i < num_args; i++) {
     const auto& arg = params[i];
-    if (!arg.is_ignored()) {
+    if (!arg.is_ignored() && !arg.is_part_of_decl()) {
       //  Inside the function, vararg arguments are wrapped in a cell / tuple {}.
       auto assigned_type = arg.is_vararg() ?
         type_store.make_tuple(args[i]) : args[i];

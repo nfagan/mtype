@@ -120,6 +120,7 @@ public:
   void list_type_node(ListTypeNode& node) override;
   void record_type_node(RecordTypeNode& node) override;
   void declare_type_node(DeclareTypeNode& node) override;
+  void declare_function_type_node(DeclareFunctionTypeNode& node) override;
   void namespace_type_node(NamespaceTypeNode& node) override;
   void infer_type_node(InferTypeNode& node) override;
 

@@ -131,6 +131,22 @@ const char* DeclareTypeNode::kind_to_string(Kind kind) {
 }
 
 /*
+ * DeclareFunctionTypeNode
+ */
+
+std::string DeclareFunctionTypeNode::accept(const StringVisitor& vis) const {
+  return vis.declare_function_type_node(*this);
+}
+
+void DeclareFunctionTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.declare_function_type_node(*this);
+}
+
+void DeclareFunctionTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.declare_function_type_node(*this);
+}
+
+/*
  * TypeImportNode
  */
 

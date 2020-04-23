@@ -94,7 +94,8 @@ struct ParseInstance {
   bool has_parent_package() const;
   void mark_visited_function();
   bool register_file_type(CodeFileType file_type);
-  void set_file_entry_function_ref(const FunctionReferenceHandle& ref_handle);
+  void set_file_entry_function_ref(const FunctionReferenceHandle& ref_handle,
+                                   FunctionDefNode* file_entry_node);
   void set_file_entry_class_def(const ClassDefHandle& def_handle);
 
   bool is_file_entry_function() const;
@@ -128,6 +129,7 @@ struct ParseInstance {
 
   ClassDefHandle file_entry_class_def;
   FunctionReferenceHandle file_entry_function_ref;
+  FunctionDefNode* file_entry_function_def_node;
 };
 
 /*
@@ -275,6 +277,7 @@ public:
   Optional<BoxedTypeAnnot> declare_type(const Token& source_token);
   Optional<BoxedTypeAnnot> scalar_type_declaration(const Token& source_token);
   Optional<BoxedTypeAnnot> method_type_declaration(const Token& source_token);
+  Optional<BoxedTypeAnnot> function_type_declaration(const Token& source_token);
 
   Optional<RecordTypeNode::Field> record_field();
   Optional<std::vector<BoxedTypeAnnot>> type_annotation_block();

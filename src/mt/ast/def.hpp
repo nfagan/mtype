@@ -96,12 +96,19 @@ using BoxedMethodNodes = std::vector<BoxedMethodNode>;
 struct ClassDefNode : public AstNode {
 public:
   struct MethodDeclaration {
-    MethodDeclaration(const FunctionDefHandle& def_handle, std::unique_ptr<TypeNode> type_node) :
-    pending_def_handle(def_handle), maybe_type(std::move(type_node)) {
+    MethodDeclaration(const FunctionDefHandle& def_handle,
+                      const FunctionReferenceHandle& ref_handle,
+                      std::unique_ptr<TypeNode> type_node) :
+    pending_def_handle(def_handle),
+    pending_ref_handle(ref_handle),
+    maybe_type(std::move(type_node)) {
       //
     }
 
+    MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(MethodDeclaration)
+
     FunctionDefHandle pending_def_handle;
+    FunctionReferenceHandle pending_ref_handle;
     std::unique_ptr<TypeNode> maybe_type;
   };
   using MethodDeclarations = std::vector<MethodDeclaration>;

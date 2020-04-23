@@ -40,6 +40,7 @@ struct MatlabScope {
   FunctionReferenceHandle lookup_imported_function(const MatlabIdentifier& name) const;
 
   bool has_imported_function(const MatlabIdentifier& name) const;
+  bool has_local_variable(const MatlabIdentifier& name) const;
 
   const MatlabScope* parent;
   const CodeFileDescriptor* file_descriptor;
@@ -72,6 +73,7 @@ struct FunctionParameter {
     using FlagType = uint8_t;
     static constexpr FlagType is_ignored = 1u;
     static constexpr FlagType is_vararg = 1u << 1u;
+    static constexpr FlagType is_part_of_decl = 1u << 2u;
   };
 
   explicit FunctionParameter(const MatlabIdentifier& name) : name(name), flags(0) {
@@ -87,6 +89,9 @@ struct FunctionParameter {
   void mark_is_vararg() {
     flags |= AttributeFlags::is_vararg;
   }
+  void mark_is_part_of_decl() {
+    flags |= AttributeFlags::is_part_of_decl;
+  }
 
   bool is_ignored() const {
     return flags & AttributeFlags::is_ignored;
@@ -94,6 +99,10 @@ struct FunctionParameter {
 
   bool is_vararg() const {
     return flags & AttributeFlags::is_vararg;
+  }
+
+  bool is_part_of_decl() const {
+    return flags & AttributeFlags::is_part_of_decl;
   }
 
   MatlabIdentifier name;

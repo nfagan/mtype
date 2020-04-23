@@ -57,6 +57,7 @@ struct InlineType;
 struct TypeAnnotMacro;
 struct TypeAssertion;
 struct DeclareTypeNode;
+struct DeclareFunctionTypeNode;
 struct NamespaceTypeNode;
 struct ConstructorTypeNode;
 struct InferTypeNode;
@@ -104,6 +105,7 @@ public:
   MT_VISITOR_METHOD(constructor_type_node, ConstructorTypeNode)
   MT_VISITOR_METHOD(namespace_type_node, NamespaceTypeNode)
   MT_VISITOR_METHOD(declare_type_node, DeclareTypeNode)
+  MT_VISITOR_METHOD(declare_function_type_node, DeclareFunctionTypeNode)
   MT_VISITOR_METHOD(record_type_node, RecordTypeNode)
   MT_VISITOR_METHOD(union_type_node, UnionTypeNode)
   MT_VISITOR_METHOD(tuple_type_node, TupleTypeNode)

@@ -78,6 +78,24 @@ struct ConstructorTypeNode : public TypeAnnot {
   IdentifierReferenceExpr* struct_function_call;
 };
 
+struct DeclareFunctionTypeNode : public TypeAnnot {
+  DeclareFunctionTypeNode(const Token& source_token,
+                          const TypeIdentifier& identifier,
+                          BoxedFunctionTypeNode type) :
+    source_token(source_token), identifier(identifier), type(std::move(type)) {
+    //
+  }
+
+  ~DeclareFunctionTypeNode() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  TypeIdentifier identifier;
+  BoxedFunctionTypeNode type;
+};
+
 struct DeclareTypeNode : public TypeAnnot {
   struct Method {
     enum class Kind {

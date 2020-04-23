@@ -99,17 +99,22 @@ AstStore::Entry* run_parse_file(ParseInstance& parse_instance,
     pipeline_instance.add_errors(parse_instance.errors);
     ast_store.emplace_parse_failure(file_path);
     return nullptr;
+
   } else if (!parse_instance.warnings.empty()) {
     pipeline_instance.add_warnings(parse_instance.warnings);
   }
 
   assert(parse_instance.root_block->type_scope->is_root());
+
   auto& root_block = parse_instance.root_block;
   const auto& maybe_class_def = parse_instance.file_entry_class_def;
   const auto& maybe_function_def = parse_instance.file_entry_function_ref;
+  const auto maybe_function_def_node = parse_instance.file_entry_function_def_node;
   const auto file_type = parse_instance.file_type;
 
-  AstStore::Entry entry(std::move(root_block), maybe_class_def, maybe_function_def, file_type);
+  AstStore::Entry entry(std::move(root_block), maybe_class_def,
+                        maybe_function_def, maybe_function_def_node, file_type);
+
   return ast_store.insert(file_path, std::move(entry));
 }
 
@@ -224,7 +229,7 @@ bool traverse_superclasses(const ClassDefHandle& class_def,
 BoxedMethodNode extract_external_method(ParsePipelineInstanceData& pipe_instance,
                                         const ParseSourceData& source_data,
                                         const std::string& file_str,
-                                        const PendingExternalMethod& method,
+                                        PendingExternalMethod& method,
                                         AstStore::Entry* root_entry) {
   auto block = std::move(root_entry->root_block->block);
   const int64_t num_nodes = block->nodes.size();
@@ -232,11 +237,13 @@ BoxedMethodNode extract_external_method(ParsePipelineInstanceData& pipe_instance
   BoxedFunctionDefNode function_def_node;
   BoxedType maybe_type;
   bool extracted_definition = false;
+  const auto entry_def_node = root_entry->file_entry_function_def_node;
 
   for (int64_t i = 0; i < num_nodes; i++) {
     auto& node = block->nodes[i];
+    auto maybe_function_def_node = node->extract_function_def_node();
 
-    if (node->is_function_def_node()) {
+    if (maybe_function_def_node && maybe_function_def_node.value() == entry_def_node) {
       auto node_ptr = static_cast<FunctionDefNode*>(node.release());
       function_def_node = std::unique_ptr<FunctionDefNode>(node_ptr);
       extracted_definition = true;
@@ -247,7 +254,9 @@ BoxedMethodNode extract_external_method(ParsePipelineInstanceData& pipe_instance
     auto maybe_macro = node->extract_type_annot_macro();
     if (maybe_macro) {
       auto maybe_assert = maybe_macro.value()->annotation->extract_type_assertion();
-      if (maybe_assert && maybe_assert.value()->node->is_function_def_node()) {
+      if (maybe_assert &&
+          maybe_assert.value()->node->is_function_def_node() &&
+          static_cast<const FunctionDefNode*>(maybe_assert.value()->node.get()) == entry_def_node) {
         //  A type was provided both in the header file and in the definition.
         if (method.method_declaration.maybe_type) {
           auto err = make_error_duplicate_method_type_annotation(source_data, method.name_token);
@@ -271,6 +280,8 @@ BoxedMethodNode extract_external_method(ParsePipelineInstanceData& pipe_instance
       make_error_failed_to_extract_method_definition_from_file(source_data, method.name_token, file_str);
     pipe_instance.add_error(err);
     return nullptr;
+  } else if (method.method_declaration.maybe_type) {
+    maybe_type = std::move(method.method_declaration.maybe_type);
   }
 
   auto method_node =
@@ -281,26 +292,10 @@ BoxedMethodNode extract_external_method(ParsePipelineInstanceData& pipe_instance
   return method_node;
 }
 
-bool traverse_external_method(ParsePipelineInstanceData& pipe_instance,
-                              const ParseSourceData& source_data,
-                              const FilePath& class_directory_path,
-                              const PendingExternalMethod& method) {
-
-  const auto method_id = method.method_name.full_name();
-  auto method_file_name = pipe_instance.string_registry.at(method_id) + ".m";
-  const auto expect_method_file = fs::join(class_directory_path, FilePath(method_file_name));
-  const auto& file_str = expect_method_file.str();
-
-  const bool exists = fs::file_exists(expect_method_file);
-  if (!exists) {
-    if (!method.method_attributes.is_abstract()) {
-      //  Could not resolve method declaration, and method is not marked as abstract.
-      pipe_instance.add_error(make_error_unresolved_file(source_data, method.name_token, file_str));
-      return false;
-    }
-    return true;
-  }
-
+BoxedMethodNode defined_external_method(ParsePipelineInstanceData& pipe_instance,
+                                        const ParseSourceData& source_data,
+                                        PendingExternalMethod& method,
+                                        const FilePath& expect_method_file) {
   const auto on_before_parse = [&](AstGenerator& gen, ParseInstance& instance) {
     //  Mark that the root block is an external method.
     instance.treat_root_as_external_method = true;
@@ -310,36 +305,91 @@ bool traverse_external_method(ParsePipelineInstanceData& pipe_instance,
 
   const auto res = file_entry(pipe_instance, expect_method_file, on_before_parse);
   if (!res) {
-    return false;
+    return nullptr;
   }
+
+  const auto& file_str = expect_method_file.str();
 
   if (res->file_type != CodeFileType::function_def) {
     //  File must be a function file.
     auto err =
       make_error_failed_to_extract_method_definition_from_file(source_data, method.name_token, file_str);
     pipe_instance.add_error(err);
-    return false;
+    return nullptr;
   }
 
   auto method_node = extract_external_method(pipe_instance, source_data, file_str, method, res);
-  if (!method_node) {
-    return false;
-  }
-  //  Add the new method node to the ClassDefNode.
-  method.class_node->method_defs.push_back(std::move(method_node));
+
   //  Because we moved the FunctionDefNode from `res->root_block`, the root block of the AST is
   //  invalid. We need to erase its entry in the ast store.
   pipe_instance.remove_root(expect_method_file);
+
+  return method_node;
+}
+
+BoxedMethodNode abstract_undefined_external_method(ParsePipelineInstanceData& pipe_instance,
+                                                   const ParseSourceData& source_data,
+                                                   PendingExternalMethod& method,
+                                                   const FilePath& expect_method_file) {
+  auto def_node = std::make_unique<FunctionDefNode>(method.name_token,
+    method.method_declaration.pending_def_handle,
+    method.method_declaration.pending_ref_handle,
+    method.matlab_scope,
+    method.type_scope
+  );
+
+  auto method_node = std::make_unique<MethodNode>(std::move(def_node),
+    std::move(method.method_declaration.maybe_type), nullptr);
+
+  return method_node;
+}
+
+bool traverse_external_method(ParsePipelineInstanceData& pipe_instance,
+                              const ParseSourceData& source_data,
+                              const FilePath& class_directory_path,
+                              PendingExternalMethod& method) {
+
+  const auto method_id = method.method_name.full_name();
+  auto method_file_name = pipe_instance.string_registry.at(method_id) + ".m";
+  const auto expect_method_file = fs::join(class_directory_path, FilePath(method_file_name));
+  const auto& file_str = expect_method_file.str();
+
+  const bool exists = fs::file_exists(expect_method_file);
+  BoxedMethodNode method_node;
+
+  if (exists) {
+    method_node =
+      defined_external_method(pipe_instance, source_data, method, expect_method_file);
+    if (!method_node) {
+      return false;
+    }
+
+  } else if (method.method_attributes.is_abstract()) {
+    method_node =
+      abstract_undefined_external_method(pipe_instance, source_data, method, expect_method_file);
+    if (!method_node) {
+      return false;
+    }
+
+  } else {
+    //  Could not resolve method declaration, and method is not marked as abstract.
+    pipe_instance.add_error(make_error_unresolved_file(source_data, method.name_token, file_str));
+    return false;
+  }
+
+  assert(method_node);
+  //  Add the new method node to the ClassDefNode.
+  method.class_node->method_defs.push_back(std::move(method_node));
   return true;
 }
 
 bool traverse_external_methods(ParsePipelineInstanceData& pipe_instance,
                                const ParseSourceData& source_data,
                                const FilePath& class_directory_path,
-                               const PendingExternalMethods& external_methods) {
+                               PendingExternalMethods& external_methods) {
   bool success = true;
 
-  for (const auto& method : external_methods) {
+  for (auto& method : external_methods) {
     bool tmp_success =
       traverse_external_method(pipe_instance, source_data, class_directory_path, method);
     if (!tmp_success) {
@@ -464,7 +514,7 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance,
 
     //  Traverse external methods.
     const auto class_dir_path = fs::directory_name(file_path);
-    const auto& external_methods = parse_instance.pending_external_methods;
+    auto& external_methods = parse_instance.pending_external_methods;
 
     bool external_method_success =
       traverse_external_methods(pipe_instance, source_data, class_dir_path, external_methods);

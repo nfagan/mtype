@@ -15,5 +15,6 @@ TODO
 . union types
 . function declarations
 . recursive types
+. store classes by name, rather than pointer
 
 %}
