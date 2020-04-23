@@ -262,15 +262,17 @@ public:
   Optional<BoxedTypeAnnot> type_annotation_macro(const Token& source_token);
   Optional<BoxedTypeAnnot> type_annotation(const Token& source_token, bool expect_enclosing_assert_node = true);
   Optional<BoxedTypeAnnot> type_begin(const Token& source_token);
-  Optional<BoxedTypeAnnot> type_given(const Token& source_token);
+  Optional<BoxedTypeAnnot> type_scheme_declaration(const Token& source_token);
   Optional<BoxedTypeAnnot> type_let(const Token& source_token);
   Optional<BoxedTypeAnnot> type_fun(const Token& source_token);
-  Optional<BoxedTypeAnnot> type_assertion(const Token& source_token, bool expect_enclosing_node);
+  Optional<BoxedTypeAnnot> type_assertion(const Token& source_token,
+                                          bool expect_enclosing_node,
+                                          bool allow_scheme = false);
   Optional<BoxedTypeAnnot> inline_type_annotation(const Token& source_token);
   Optional<BoxedTypeAnnot> type_import(const Token& source_token);
-  Optional<BoxedTypeAnnot> type_record(const Token& source_token);
   Optional<BoxedTypeAnnot> type_namespace(const Token& source_token);
   Optional<BoxedTypeAnnot> constructor_type(const Token& source_token);
+  Optional<BoxedTypeAnnot> record_type_annot(const Token& source_token);
 
   Optional<BoxedPropertyNode> typed_property(const Token& source_token);
 
@@ -286,13 +288,15 @@ public:
   Optional<BoxedTypeAnnot> type_fun_enclosing_function(const Token& source_token);
   Optional<BoxedTypeAnnot> type_fun_enclosing_anonymous_function(const Token& source_token);
 
-  Optional<BoxedType> type(const Token& source_token);
+  Optional<BoxedType> type(const Token& source_token, bool allow_scheme = false);
   Optional<BoxedType> function_type(const Token& source_token);
   Optional<BoxedType> infer_type(const Token& source_token);
   Optional<BoxedType> one_type(const Token& source_token);
   Optional<BoxedType> scalar_type(const Token& source_token);
   Optional<BoxedType> tuple_type(const Token& source_token);
   Optional<BoxedType> list_type(const Token& source_token);
+  Optional<BoxedType> type_record(const Token& source_token);
+  Optional<BoxedType> type_scheme(const Token& source_token);
 
   Optional<std::vector<BoxedType>> type_sequence(TokenType terminator);
   Optional<std::vector<std::string_view>> type_variable_identifiers(const Token& source_token);

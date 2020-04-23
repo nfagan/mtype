@@ -215,6 +215,9 @@ struct Scheme : public Type {
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  Type* scheme_source() override;
+  const Type* scheme_source() const override;
+
   Type* type;
   TypePtrs parameters;
   std::vector<TypeEquation> constraints;
@@ -487,6 +490,7 @@ struct Abstraction : public mt::Type {
   void assign_kind(UnaryOperator op);
   void assign_kind(BinaryOperator op);
   void assign_kind(const MatlabIdentifier& name);
+  void assign_kind(const MatlabIdentifier& name, const FunctionReferenceHandle& ref_handle);
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 

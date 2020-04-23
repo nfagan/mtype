@@ -202,16 +202,16 @@ void InlineType::accept(TypePreservingVisitor& vis) {
  * TypeGiven
  */
 
-std::string TypeGiven::accept(const StringVisitor& vis) const {
-  return vis.type_given(*this);
+std::string SchemeTypeNode::accept(const StringVisitor& vis) const {
+  return vis.scheme_type_node(*this);
 }
 
-void TypeGiven::accept_const(TypePreservingVisitor& vis) const {
-  vis.type_given(*this);
+void SchemeTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.scheme_type_node(*this);
 }
 
-void TypeGiven::accept(TypePreservingVisitor& vis) {
-  vis.type_given(*this);
+void SchemeTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.scheme_type_node(*this);
 }
 
 /*

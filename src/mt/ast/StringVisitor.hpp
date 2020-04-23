@@ -70,7 +70,7 @@ public:
   std::string scalar_type_node(const ScalarTypeNode& type) const;
   std::string function_type_node(const FunctionTypeNode& type) const;
   std::string type_begin(const TypeBegin& begin) const;
-  std::string type_given(const TypeGiven& given) const;
+  std::string scheme_type_node(const SchemeTypeNode& given) const;
   std::string type_let(const TypeLet& let) const;
   std::string inline_type(const InlineType& type) const;
   std::string type_annot_macro(const TypeAnnotMacro& type) const;

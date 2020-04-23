@@ -153,6 +153,7 @@ void Library::emplace_local_class_type(const ClassDefHandle& handle, types::Clas
 }
 
 void Library::emplace_local_variable_type(const VariableDefHandle& handle, Type* type) {
+//  assert(local_variables_types.count(handle) == 0);
   local_variables_types[handle] = type;
 }
 

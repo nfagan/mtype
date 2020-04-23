@@ -107,6 +107,20 @@ namespace {
     auto msg = "Type arguments provided to non-scheme type.";
     return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
+
+  ParseError make_error_wrong_num_params_in_func_type(const TypeIdentifierResolverInstance& instance,
+                                                      const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
+    auto msg = "Number of parameters in function type does not match its definition.";
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
+  }
+
+  ParseError make_error_expected_function_type(const TypeIdentifierResolverInstance& instance,
+                                               const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
+    auto msg = "Expected a function type.";
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
+  }
 }
 
 /*
@@ -202,11 +216,11 @@ void TypeIdentifierResolverInstance::add_unresolved_identifier(const TypeIdentif
   unresolved_identifiers.emplace_back(ident, in_scope);
 }
 
-void TypeIdentifierResolverInstance::push_scheme() {
+void TypeIdentifierResolverInstance::push_scheme_variables() {
   scheme_variables.emplace_back();
 }
 
-void TypeIdentifierResolverInstance::pop_scheme() {
+void TypeIdentifierResolverInstance::pop_scheme_variables() {
   assert(!scheme_variables.empty());
   scheme_variables.pop_back();
 }
@@ -216,12 +230,25 @@ TypeIdentifierResolverInstance::SchemeVariables& TypeIdentifierResolverInstance:
   return scheme_variables.back();
 }
 
-bool TypeIdentifierResolverInstance::has_scheme() const {
+bool TypeIdentifierResolverInstance::has_scheme_variables() const {
   return !scheme_variables.empty();
 }
 
 void TypeIdentifierResolverInstance::push_pending_scheme(PendingScheme&& pending_scheme) {
   pending_schemes.push_back(std::move(pending_scheme));
+}
+
+void TypeIdentifierResolverInstance::push_presumed_type(Type* type) {
+  presumed_types.push_back(type);
+}
+
+void TypeIdentifierResolverInstance::pop_presumed_type() {
+  assert(!presumed_types.empty());
+  presumed_types.pop_back();
+}
+
+Type* TypeIdentifierResolverInstance::presumed_type() const {
+  return presumed_types.empty() ? nullptr : presumed_types.back();
 }
 
 /*
@@ -292,6 +319,11 @@ void TypeIdentifierResolver::type_assertion(TypeAssertion& node) {
     node.resolved_type = maybe_resolved_type.value();
   }
 
+  instance->push_presumed_type(node.resolved_type);
+  MT_SCOPE_EXIT {
+    instance->pop_presumed_type();
+  };
+
   node.node->accept(*this);
 }
 
@@ -299,10 +331,10 @@ void TypeIdentifierResolver::type_let(TypeLet& node) {
   node.equal_to_type->accept(*this);
 }
 
-void TypeIdentifierResolver::type_given(TypeGiven& node) {
-  instance->push_scheme();
+void TypeIdentifierResolver::scheme_type_node(SchemeTypeNode& node) {
+  instance->push_scheme_variables();
   MT_SCOPE_EXIT {
-    instance->pop_scheme();
+    instance->pop_scheme_variables();
   };
 
   auto& scheme_variables = instance->current_scheme_variables();
@@ -323,7 +355,15 @@ void TypeIdentifierResolver::type_given(TypeGiven& node) {
     scheme_variables.variables[type_ident] = tvar;
   }
 
-  (void) collect_one_type(*this, *instance, node.declaration.get());
+  auto maybe_source_type = collect_one_type(*this, *instance, node.declaration.get());
+  if (!maybe_source_type) {
+    return;
+  }
+
+  assert(!node.scheme->type);
+  node.scheme->type = maybe_source_type.value();
+
+  instance->collectors.current().push(node.scheme);
 }
 
 void TypeIdentifierResolver::function_type_node(FunctionTypeNode& node) {
@@ -368,7 +408,7 @@ void TypeIdentifierResolver::list_type_node(ListTypeNode& node) {
 
 Type* TypeIdentifierResolver::resolve_identifier_reference(ScalarTypeNode& node) const {
   //  First check if this is a scheme variable.
-  if (instance->has_scheme()) {
+  if (instance->has_scheme_variables()) {
     const auto& scheme = instance->current_scheme_variables();
     if (scheme.variables.count(node.identifier) > 0) {
       return scheme.variables.at(node.identifier);
@@ -576,6 +616,87 @@ namespace {
       all_types.push_back(tvar);
     }
   }
+
+  void emplace_function_parameters(const TypeIdentifierResolverInstance& instance,
+                                   const FunctionParameters& params,
+                                   const TypePtrs& args) {
+    const auto& matlab_scope = *instance.matlab_scopes.current();
+    const int64_t num_types = params.size();
+    assert(params.size() == args.size());
+
+    for (int64_t i = 0; i < num_types; i++) {
+      const auto& param = params[i];
+      if (!param.is_ignored() && !param.is_part_of_decl()) {
+        const auto var_handle = matlab_scope.local_variables.at(param.name);
+        instance.library.emplace_local_variable_type(var_handle, args[i]);
+      }
+    }
+  }
+
+  Type* function_header_presumed_type(TypeIdentifierResolverInstance& instance,
+                                      const FunctionHeader& header,
+                                      Type* presumed_type,
+                                      const FunctionReferenceHandle& ref_handle,
+                                      const Token& source_token) {
+    auto maybe_source_type = presumed_type->scheme_source();
+
+    if (!maybe_source_type->is_abstraction()) {
+      instance.add_error(make_error_expected_function_type(instance, source_token));
+      instance.collectors.current().mark_error();
+      return nullptr;
+    }
+
+    auto& abstr = MT_ABSTR_MUT_REF(*maybe_source_type);
+    assert(abstr.inputs && abstr.inputs->is_destructured_tuple() &&
+           abstr.outputs && abstr.outputs->is_destructured_tuple());
+
+    const auto& inputs = MT_DT_REF(*abstr.inputs);
+    const auto& outputs = MT_DT_REF(*abstr.outputs);
+
+    if (inputs.size() != header.num_inputs() ||
+        outputs.size() != header.num_outputs()) {
+      instance.collectors.current().mark_error();
+      instance.add_error(make_error_wrong_num_params_in_func_type(instance, source_token));
+      return nullptr;
+    }
+
+    emplace_function_parameters(instance, header.inputs, inputs.members);
+    emplace_function_parameters(instance, header.outputs, outputs.members);
+
+    abstr.assign_kind(header.name, ref_handle);
+
+    return presumed_type;
+  }
+
+  Type* function_header_new_type(TypeIdentifierResolverInstance& instance,
+                                 const FunctionDefHandle& def_handle,
+                                 const FunctionReferenceHandle& ref_handle) {
+    TypePtrs inputs;
+    TypePtrs outputs;
+    TypePtrs all_parameters;
+
+    MatlabIdentifier function_name;
+
+    instance.def_store.use<Store::ReadConst>([&](const auto& reader) {
+      const auto& def = reader.at(def_handle);
+      function_name = def.header.name;
+
+      gather_function_parameters(instance, def.header.inputs, inputs, all_parameters);
+      gather_function_parameters(instance, def.header.outputs, outputs, all_parameters);
+    });
+
+    auto& store = instance.type_store;
+    const auto input = store.make_input_destructured_tuple(std::move(inputs));
+    const auto output = store.make_output_destructured_tuple(std::move(outputs));
+    auto abstr = store.make_abstraction(function_name, ref_handle, input, output);
+
+    Type* result_type = abstr;
+    if (instance.polymorphic_function_state.value()) {
+      result_type = store.make_scheme(abstr, std::move(all_parameters));
+    }
+
+    return result_type;
+  }
 }
 
 void TypeIdentifierResolver::function_def_node(FunctionDefNode& node) {
@@ -587,45 +708,35 @@ void TypeIdentifierResolver::function_def_node(FunctionDefNode& node) {
     instance->scopes.pop();
   };
 
-  MatlabIdentifier function_name;
-  Block* body = nullptr;
-  FunctionAttributes attributes;
+  Type* emplaced_type = nullptr;
 
-  TypePtrs inputs;
-  TypePtrs outputs;
-  TypePtrs all_parameters;
+  if (instance->presumed_type()) {
+    instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
+      const auto& def = reader.at(node.def_handle);
+      emplaced_type = function_header_presumed_type(*instance, def.header,
+        instance->presumed_type(), node.ref_handle, node.source_token);
+    });
+  } else {
+    emplaced_type = function_header_new_type(*instance, node.def_handle, node.ref_handle);
+  }
 
-  instance->def_store.use<Store::ReadConst>([&](const auto& reader) {
-    const auto& def = reader.at(node.def_handle);
-    function_name = def.header.name;
-
-    gather_function_parameters(*instance, def.header.inputs, inputs, all_parameters);
-    gather_function_parameters(*instance, def.header.outputs, outputs, all_parameters);
-
-    body = def.body.get();
-    attributes = def.attributes;
-  });
-
-  auto& store = instance->type_store;
-  const auto input = store.make_input_destructured_tuple(std::move(inputs));
-  const auto output = store.make_output_destructured_tuple(std::move(outputs));
-  auto abstr = store.make_abstraction(function_name, node.ref_handle, input, output);
-
-  Type* emplaced_type = abstr;
-  if (instance->polymorphic_function_state.value()) {
-    emplaced_type = store.make_scheme(abstr, std::move(all_parameters));
+  if (!emplaced_type) {
+    return;
   }
 
   instance->library.emplace_local_function_type(node.def_handle, emplaced_type);
+  Block* body = instance->def_store.get_block(node.def_handle);
 
   if (body) {
     instance->collectors.push();
     //  Push monomorphic functions.
     instance->polymorphic_function_state.push(false);
+    instance->push_presumed_type(nullptr);
 
     MT_SCOPE_EXIT {
       instance->collectors.pop();
       instance->polymorphic_function_state.pop();
+      instance->pop_presumed_type();
     };
 
     body->accept(*this);
@@ -665,6 +776,10 @@ void TypeIdentifierResolver::method_node(MethodNode& node) {
     node.resolved_type = maybe_method_type.value();
   }
 
+  instance->push_presumed_type(node.resolved_type);
+  MT_SCOPE_EXIT {
+    instance->pop_presumed_type();
+  };
   node.def->accept(*this);
 
   if (node.external_block) {

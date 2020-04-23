@@ -226,29 +226,6 @@ struct TypeLet : public TypeAnnot {
   BoxedType equal_to_type;
 };
 
-struct TypeGiven : public TypeAnnot {
-  TypeGiven(const Token& source_token,
-            std::vector<int64_t>&& identifiers,
-            BoxedTypeAnnot declaration,
-            types::Scheme* scheme) :
-            source_token(source_token),
-            identifiers(std::move(identifiers)),
-            declaration(std::move(declaration)),
-            scheme(scheme) {
-    //
-  }
-  ~TypeGiven() override = default;
-
-  std::string accept(const StringVisitor& vis) const override;
-  void accept_const(TypePreservingVisitor& vis) const override;
-  void accept(TypePreservingVisitor& vis) override;
-
-  Token source_token;
-  std::vector<int64_t> identifiers;
-  BoxedTypeAnnot declaration;
-  types::Scheme* scheme;
-};
-
 struct TypeBegin : public TypeAnnot {
   TypeBegin(const Token& source_token, bool is_exported, std::vector<BoxedTypeAnnot>&& contents) :
   source_token(source_token), is_exported(is_exported), contents(std::move(contents)) {
@@ -263,6 +240,29 @@ struct TypeBegin : public TypeAnnot {
   Token source_token;
   bool is_exported;
   std::vector<BoxedTypeAnnot> contents;
+};
+
+struct SchemeTypeNode : public TypeNode {
+  SchemeTypeNode(const Token& source_token,
+                 std::vector<int64_t>&& identifiers,
+                 BoxedType declaration,
+                 types::Scheme* scheme) :
+    source_token(source_token),
+    identifiers(std::move(identifiers)),
+    declaration(std::move(declaration)),
+    scheme(scheme) {
+    //
+  }
+  ~SchemeTypeNode() override = default;
+
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  std::vector<int64_t> identifiers;
+  BoxedType declaration;
+  types::Scheme* scheme;
 };
 
 struct RecordTypeNode : public TypeNode {

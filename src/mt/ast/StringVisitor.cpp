@@ -664,7 +664,7 @@ std::string StringVisitor::inline_type(const InlineType& type) const {
   return type.type->accept(*this);
 }
 
-std::string StringVisitor::type_given(const TypeGiven& given) const {
+std::string StringVisitor::scheme_type_node(const SchemeTypeNode& given) const {
   auto identifier_strs = string_registry->collect(given.identifiers);
   std::string given_str("given ");
   maybe_colorize(given_str, given.source_token.type);

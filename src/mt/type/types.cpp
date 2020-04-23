@@ -232,6 +232,12 @@ void types::Abstraction::assign_kind(const MatlabIdentifier& ident) {
   name = ident;
 }
 
+void types::Abstraction::assign_kind(const MatlabIdentifier& name,
+                                     const FunctionReferenceHandle& handle) {
+  assign_kind(name);
+  ref_handle = handle;
+}
+
 void types::Abstraction::conditional_assign_operator(const Abstraction& other) {
   if (other.kind == Kind::binary_operator) {
     binary_operator = other.binary_operator;
@@ -430,6 +436,14 @@ void types::Scheme::accept(const TypeToString& to_str, std::stringstream& into) 
 
 std::size_t types::Scheme::bytes() const {
   return sizeof(Scheme);
+}
+
+Type* types::Scheme::scheme_source() {
+  return type;
+}
+
+const Type* types::Scheme::scheme_source() const {
+  return type;
 }
 
 /*

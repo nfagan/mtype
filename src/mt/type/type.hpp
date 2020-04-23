@@ -51,6 +51,14 @@ struct Type {
     return this;
   }
 
+  virtual const Type* scheme_source() const {
+    return this;
+  }
+
+  virtual Type* scheme_source() {
+    return this;
+  }
+
   MT_NODISCARD bool is_scalar() const {
     return tag == Tag::scalar;
   }

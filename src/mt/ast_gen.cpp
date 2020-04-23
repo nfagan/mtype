@@ -245,11 +245,6 @@ namespace {
     const auto msg = "`varargin` must be the last input parameter.";
     return ParseError(instance->source_text(), token, msg, instance->file_descriptor());
   }
-
-//  ParseError make_error_invalid_typed_method(const ParseInstance* instance, const Token& at_token) {
-//    const auto msg = "Invalid typed method.";
-//    return ParseError(instance->source_text(), at_token, msg, instance->file_descriptor());
-//  }
 }
 
 /*
@@ -1273,7 +1268,7 @@ namespace {
       return false;
     }
 
-    auto type_res = ast_gen->type(ast_gen->iterator.peek());
+    auto type_res = ast_gen->type(ast_gen->iterator.peek(), /*allow_scheme=*/ true);
     if (!type_res) {
       return false;
     }
@@ -1450,7 +1445,9 @@ bool AstGenerator::method_def(const Token& source_token,
 
 Optional<BoxedPropertyNode> AstGenerator::typed_property(const Token& source_token) {
   iterator.advance();
-  auto type_assert_res = type_assertion(iterator.peek(), /*expect_enclosing_node=*/ true);
+  auto type_assert_res = type_assertion(iterator.peek(),
+                                        /*expect_enclosing_node=*/ true,
+                                        /*allow_scheme=*/ false);
   if (!type_assert_res) {
     return NullOpt{};
   }
@@ -2855,20 +2852,8 @@ Optional<BoxedStmt> AstGenerator::stmt() {
 
 Optional<BoxedTypeAnnot> AstGenerator::type_annotation_macro(const Token& source_token) {
   iterator.advance();
-  const auto& dispatch_token = iterator.peek();
-  Optional<BoxedTypeAnnot> annot_res;
 
-  switch (dispatch_token.type) {
-#if 0
-    case TokenType::left_bracket:
-    case TokenType::identifier:
-      annot_res = inline_type_annotation(dispatch_token);
-      break;
-#endif
-    default:
-      annot_res = type_annotation(dispatch_token);
-  }
-
+  auto annot_res = type_annotation(iterator.peek());
   if (!annot_res) {
     return NullOpt{};
   }
@@ -2899,7 +2884,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token
       return type_begin(source_token);
 
     case TokenType::keyword_given:
-      return type_given(source_token);
+      return type_scheme_declaration(source_token);
 
     case TokenType::keyword_let:
       return type_let(source_token);
@@ -2908,13 +2893,13 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token
       return type_fun(source_token);
 
     case TokenType::double_colon:
-      return type_assertion(source_token, expect_enclosing_assert_node);
+      return type_assertion(source_token, expect_enclosing_assert_node, /*allow_scheme=*/ true);
 
     case TokenType::keyword_import:
       return type_import(source_token);
 
     case TokenType::keyword_record:
-      return type_record(source_token);
+      return record_type_annot(source_token);
 
     case TokenType::keyword_declare:
       return declare_type(source_token);
@@ -2932,10 +2917,12 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token
   }
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token, bool expect_enclosing_node) {
+Optional<BoxedTypeAnnot> AstGenerator::type_assertion(const Token& source_token,
+                                                      bool expect_enclosing_node,
+                                                      bool allow_scheme) {
   iterator.advance();
 
-  auto type_res = type(iterator.peek());
+  auto type_res = type(iterator.peek(), allow_scheme);
   if (!type_res) {
     return NullOpt{};
   }
@@ -3061,7 +3048,26 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
   return Optional<BoxedTypeAnnot>(std::move(let_node));
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token) {
+namespace {
+  BoxedType make_scheme_type_node(AstGenerator* ast_gen,
+                                  types::Scheme* scheme,
+                                  BoxedType source_type,
+                                  const Token& source_token,
+                                  const std::vector<std::string_view>& str_identifiers) {
+    auto identifiers = ast_gen->string_registry->register_strings(str_identifiers);
+
+    auto& type_store = ast_gen->parse_instance->type_store;
+    for (const auto& ident : identifiers) {
+      (void) ident;
+      scheme->parameters.push_back(type_store->make_fresh_type_variable_reference());
+    }
+
+    return std::make_unique<SchemeTypeNode>(source_token, std::move(identifiers),
+                                            std::move(source_type), scheme);
+  }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::type_scheme_declaration(const Token& source_token) {
   iterator.advance();
 
   const auto& ident_token = iterator.peek();
@@ -3082,11 +3088,11 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
   };
 
   const auto& decl_token = iterator.peek();
-  Optional<BoxedTypeAnnot> decl_res;
+  Optional<BoxedType> source_type_res;
 
   switch (decl_token.type) {
     case TokenType::keyword_record:
-      decl_res = type_record(decl_token);
+      source_type_res = type_record(decl_token);
       break;
 
     default: {
@@ -3096,25 +3102,19 @@ Optional<BoxedTypeAnnot> AstGenerator::type_given(const mt::Token& source_token)
     }
   }
 
-  if (!decl_res) {
+  if (!source_type_res) {
     return NullOpt{};
   }
 
-  auto identifiers = string_registry->register_strings(identifier_res.value());
+  auto scheme_node = make_scheme_type_node(this, new_enclosing_scheme,
+    std::move(source_type_res.rvalue()), source_token, identifier_res.value());
 
-  auto& type_store = parse_instance->type_store;
-  for (const auto& ident : identifiers) {
-    (void) ident;
-    new_enclosing_scheme->parameters.push_back(type_store->make_fresh_type_variable_reference());
-  }
-
-  auto node = std::make_unique<TypeGiven>(source_token, std::move(identifiers),
-                                          decl_res.rvalue(), new_enclosing_scheme);
-  return Optional<BoxedTypeAnnot>(std::move(node));
+  return Optional<BoxedTypeAnnot>(std::move(scheme_node));
 }
 
 Optional<std::vector<std::string_view>> AstGenerator::type_variable_identifiers(const mt::Token& source_token) {
   std::vector<std::string_view> type_variable_identifiers;
+  std::unordered_set<std::string_view> unique_identifiers;
 
   if (source_token.type == TokenType::less) {
     iterator.advance();
@@ -3123,6 +3123,15 @@ Optional<std::vector<std::string_view>> AstGenerator::type_variable_identifiers(
       return NullOpt{};
     }
     type_variable_identifiers = type_variable_res.rvalue();
+
+    for (const auto& ident : type_variable_identifiers) {
+      auto curr_size = unique_identifiers.size();
+      unique_identifiers.insert(ident);
+      if (unique_identifiers.size() != curr_size + 1) {
+        add_error(make_error_duplicate_type_identifier(parse_instance, source_token));
+        return NullOpt{};
+      }
+    }
 
   } else if (source_token.type == TokenType::identifier) {
     iterator.advance();
@@ -3405,6 +3414,15 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
   }
 }
 
+Optional<BoxedTypeAnnot> AstGenerator::record_type_annot(const Token& source_token) {
+  auto res = type_record(source_token);
+  if (!res) {
+    return NullOpt{};
+  }
+
+  return Optional<BoxedTypeAnnot>(upcast<TypeNode, TypeAnnot>(res.rvalue()));
+}
+
 Optional<BoxedTypeAnnot> AstGenerator::constructor_type(const Token& source_token) {
   iterator.advance();
 
@@ -3477,7 +3495,30 @@ bool maybe_record_field(AstGenerator* instance, RecordTypeNode::Fields& fields,
 
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
+Optional<BoxedType> AstGenerator::type_scheme(const Token& source_token) {
+  iterator.advance();
+
+  auto scheme_idents = type_variable_identifiers(iterator.peek());
+  if (!scheme_idents) {
+    return NullOpt{};
+  } else if (scheme_idents.value().empty()) {
+    add_error(make_error_expected_non_empty_type_variable_identifiers(parse_instance, source_token));
+    return NullOpt{};
+  }
+
+  auto source_type_res = type(iterator.peek());
+  if (!source_type_res) {
+    return NullOpt{};
+  }
+
+  auto scheme = parse_instance->type_store->make_scheme();
+  auto scheme_type_node = make_scheme_type_node(this, scheme, std::move(source_type_res.rvalue()),
+    source_token, scheme_idents.value());
+
+  return Optional<BoxedType>(std::move(scheme_type_node));
+}
+
+Optional<BoxedType> AstGenerator::type_record(const Token& source_token) {
   iterator.advance();
   const auto name_token = iterator.peek();
 
@@ -3529,7 +3570,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
 
   if (maybe_enclosing_scheme) {
     assert(!maybe_enclosing_scheme->type);
-    maybe_enclosing_scheme->type = record_type;
+//    maybe_enclosing_scheme->type = record_type;
     emplaced_type = maybe_enclosing_scheme;
   }
 
@@ -3537,7 +3578,7 @@ Optional<BoxedTypeAnnot> AstGenerator::type_record(const Token& source_token) {
   const auto type_ref = type_store->make_type_reference(&record_node->name_token, emplaced_type, scope);
   scope->emplace_type(identifier, type_ref, is_export);
 
-  return Optional<BoxedTypeAnnot>(std::move(record_node));
+  return Optional<BoxedType>(std::move(record_node));
 }
 
 TypeIdentifier AstGenerator::maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident) const {
@@ -3573,7 +3614,11 @@ Optional<RecordTypeNode::Field> AstGenerator::record_field() {
   return Optional<RecordTypeNode::Field>(RecordTypeNode::Field(name_token, name, std::move(type_res.rvalue())));
 }
 
-Optional<BoxedType> AstGenerator::type(const mt::Token& source_token) {
+Optional<BoxedType> AstGenerator::type(const mt::Token& source_token, bool allow_scheme) {
+  if (allow_scheme && source_token.type == TokenType::keyword_given) {
+    return type_scheme(source_token);
+  }
+
   auto first_type_res = one_type(source_token);
   if (!first_type_res) {
     return NullOpt{};

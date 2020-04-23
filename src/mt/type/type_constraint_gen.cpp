@@ -159,7 +159,7 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     function_attrs = def.attributes;
   });
 
-  if (are_functions_polymorphic()) {
+  if (are_functions_polymorphic() || scheme) {
     push_constraint_repository();
   }
 
@@ -175,7 +175,7 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   const auto func_var = require_bound_type_variable(node.def_handle);
   auto rhs_term_type = abstr_handle;
 
-  if (are_functions_polymorphic()) {
+  if (are_functions_polymorphic() || scheme) {
     assert(scheme);
     auto current_constraints = std::move(current_constraint_repository());
     pop_constraint_repository();

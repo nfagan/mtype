@@ -51,7 +51,7 @@ struct ScalarTypeNode;
 struct FunctionTypeNode;
 struct FunTypeNode;
 struct TypeBegin;
-struct TypeGiven;
+struct SchemeTypeNode;
 struct TypeLet;
 struct InlineType;
 struct TypeAnnotMacro;
@@ -113,7 +113,7 @@ public:
   MT_VISITOR_METHOD(scalar_type_node, ScalarTypeNode)
   MT_VISITOR_METHOD(function_type_node, FunctionTypeNode)
   MT_VISITOR_METHOD(fun_type_node, FunTypeNode)
-  MT_VISITOR_METHOD(type_given, TypeGiven)
+  MT_VISITOR_METHOD(scheme_type_node, SchemeTypeNode)
   MT_VISITOR_METHOD(type_begin, TypeBegin)
   MT_VISITOR_METHOD(type_let, TypeLet)
   MT_VISITOR_METHOD(inline_type, InlineType)

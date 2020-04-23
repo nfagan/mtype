@@ -31,6 +31,22 @@ void FunctionAttributes::mark_boolean_attribute_from_name(std::string_view name)
   }
 }
 
+/*
+ * FunctionHeader
+ */
+
+int64_t FunctionHeader::num_inputs() const {
+  return inputs.size();
+}
+
+int64_t FunctionHeader::num_outputs() const {
+  return outputs.size();
+}
+
+/*
+ * MatlabScope
+ */
+
 void MatlabScope::register_import(Import&& import) {
   if (import.type == ImportType::wildcard) {
     wildcard_imports.emplace_back(import);

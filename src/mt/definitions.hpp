@@ -237,6 +237,9 @@ struct FunctionHeader {
   FunctionHeader& operator=(FunctionHeader&& other) noexcept = default;
   ~FunctionHeader() = default;
 
+  int64_t num_inputs() const;
+  int64_t num_outputs() const;
+
   Token name_token;
   MatlabIdentifier name;
   FunctionParameters outputs;

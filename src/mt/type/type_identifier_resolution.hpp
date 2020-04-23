@@ -73,10 +73,14 @@ public:
   void add_error(const ParseError& err);
   void add_unresolved_identifier(const TypeIdentifier& ident, TypeScope* in_scope);
   void mark_parent_collector_error();
-  void push_scheme();
-  void pop_scheme();
-  bool has_scheme() const;
+  void push_scheme_variables();
+  void pop_scheme_variables();
+  bool has_scheme_variables() const;
   SchemeVariables& current_scheme_variables();
+
+  void push_presumed_type(Type* type);
+  void pop_presumed_type();
+  Type* presumed_type() const;
 
   void push_pending_scheme(PendingScheme&& pending_scheme);
 
@@ -98,6 +102,8 @@ public:
   TypeCollectorState collectors;
   BooleanState polymorphic_function_state;
   std::vector<SchemeVariables> scheme_variables;
+  std::vector<types::Scheme*> enclosing_schemes;
+  std::vector<Type*> presumed_types;
 };
 
 class TypeIdentifierResolver : public TypePreservingVisitor {
@@ -111,7 +117,6 @@ public:
   void inline_type(InlineType& node) override;
   void type_begin(TypeBegin& begin) override;
   void type_assertion(TypeAssertion& node) override;
-  void type_given(TypeGiven& node) override;
 
   void fun_type_node(FunTypeNode& node) override;
   void function_type_node(FunctionTypeNode& node) override;
@@ -119,6 +124,7 @@ public:
   void tuple_type_node(TupleTypeNode& node) override;
   void list_type_node(ListTypeNode& node) override;
   void record_type_node(RecordTypeNode& node) override;
+  void scheme_type_node(SchemeTypeNode& node) override;
   void declare_type_node(DeclareTypeNode& node) override;
   void declare_function_type_node(DeclareFunctionTypeNode& node) override;
   void namespace_type_node(NamespaceTypeNode& node) override;

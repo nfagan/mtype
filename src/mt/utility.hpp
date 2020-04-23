@@ -2,6 +2,7 @@
 
 #include "config.hpp"
 #include <utility>
+#include <memory>
 
 #define MT_DELETE_COPY_CTOR_AND_ASSIGNMENT(class_name) \
   class_name(const class_name& other) = delete; \
@@ -68,5 +69,19 @@ namespace detail {
 
 #define MT_SCOPE_EXIT \
   auto MT_ANONYMOUS_VARIABLE(SCOPE_EXIT_STATE) = detail::ScopeGuardOnExit() + [&]()
+
+template <typename T, typename U>
+std::unique_ptr<U> downcast(std::unique_ptr<T> source) {
+  static_assert(std::is_base_of_v<T, U>, "Cannot downcast from unrelated types.");
+  auto derived = static_cast<U*>(source.release());
+  return std::unique_ptr<U>(derived);
+}
+
+template <typename T, typename U>
+std::unique_ptr<U> upcast(std::unique_ptr<T> source) {
+  static_assert(std::is_base_of_v<U, T>, "Cannot upcast from unrelated types.");
+  auto base = static_cast<U*>(source.release());
+  return std::unique_ptr<U>(base);
+}
 
 }
