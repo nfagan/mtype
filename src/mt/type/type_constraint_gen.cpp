@@ -103,18 +103,31 @@ void TypeConstraintGenerator::gather_function_inputs(const MatlabScope& scope,
 }
 
 void TypeConstraintGenerator::push_function_parameters(const MatlabScope& scope, const TypePtrs& args,
-                                                       const FunctionParameters& params) {
+                                                       const FunctionParameters& params,
+                                                       const Token& header_source_token) {
   assert(args.size() == params.size());
   const int64_t num_args = args.size();
 
   for (int64_t i = 0; i < num_args; i++) {
-    const auto& arg = params[i];
-    if (!arg.is_ignored() && !arg.is_part_of_decl()) {
-      //  Inside the function, vararg arguments are wrapped in a cell / tuple {}.
-      auto assigned_type = arg.is_vararg() ?
-        type_store.make_tuple(args[i]) : args[i];
+    const auto& param = params[i];
+    if (param.is_ignored() || param.is_part_of_decl()) {
+      continue;
+    }
+    //  Inside the function, vararg arguments are wrapped in a cell / tuple {}.
+    auto assigned_type = param.is_vararg() ?
+      type_store.make_tuple(args[i]) : args[i];
 
-      const auto& var_handle = scope.local_variables.at(arg.name);
+    const auto& var_handle = scope.local_variables.at(param.name);
+    const auto maybe_bound_type_variable = lookup_bound_type_variable(var_handle);
+
+    if (maybe_bound_type_variable) {
+      //  Duplicate parameter name; possibly because an output parameter has the same
+      //  name as an input one.
+      auto lhs_term = make_term(&header_source_token, maybe_bound_type_variable.value());
+      auto rhs_term = make_term(&header_source_token, assigned_type);
+      push_type_equation(make_eq(lhs_term, rhs_term));
+
+    } else {
       bind_type_variable_to_variable_def(var_handle, assigned_type);
     }
   }
@@ -151,9 +164,10 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   store.use<Store::ReadConst>([&](const auto& reader) {
     const auto& def = reader.at(node.def_handle);
     function_name = def.header.name;
+    const auto& source_tok = node.source_token;
 
-    push_function_parameters(scope, function_inputs, def.header.inputs);
-    push_function_parameters(scope, function_outputs, def.header.outputs);
+    push_function_parameters(scope, function_inputs, def.header.inputs, source_tok);
+    push_function_parameters(scope, function_outputs, def.header.outputs, source_tok);
 
     function_body = def.body.get();
     function_attrs = def.attributes;
@@ -878,6 +892,15 @@ Type* TypeConstraintGenerator::require_bound_type_variable(const VariableDefHand
 
 void TypeConstraintGenerator::bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, Type* type_handle) {
   variable_types[def_handle] = type_handle;
+}
+
+Optional<Type*> TypeConstraintGenerator::lookup_bound_type_variable(const VariableDefHandle& handle) {
+  auto it = variable_types.find(handle);
+  if (it != variable_types.end()) {
+    return Optional<Type*>(it->second);
+  } else {
+    return NullOpt{};
+  }
 }
 
 void TypeConstraintGenerator::bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle) {

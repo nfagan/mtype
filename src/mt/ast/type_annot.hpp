@@ -81,7 +81,7 @@ struct ConstructorTypeNode : public TypeAnnot {
 struct DeclareFunctionTypeNode : public TypeAnnot {
   DeclareFunctionTypeNode(const Token& source_token,
                           const TypeIdentifier& identifier,
-                          BoxedFunctionTypeNode type) :
+                          BoxedType type) :
     source_token(source_token), identifier(identifier), type(std::move(type)) {
     //
   }
@@ -93,7 +93,7 @@ struct DeclareFunctionTypeNode : public TypeAnnot {
 
   Token source_token;
   TypeIdentifier identifier;
-  BoxedFunctionTypeNode type;
+  BoxedType type;
 };
 
 struct DeclareTypeNode : public TypeAnnot {
@@ -258,6 +258,10 @@ struct SchemeTypeNode : public TypeNode {
   std::string accept(const StringVisitor& vis) const override;
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
+
+  bool is_scheme_type() const override {
+    return true;
+  }
 
   Token source_token;
   std::vector<int64_t> identifiers;

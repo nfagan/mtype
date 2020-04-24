@@ -168,6 +168,9 @@ struct TypeAnnot : public AstNode {
   virtual bool is_function_type() const {
     return false;
   }
+  virtual bool is_scheme_type() const {
+    return false;
+  }
 };
 
 struct TypeNode : public TypeAnnot {

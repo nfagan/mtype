@@ -313,6 +313,8 @@ public:
   bool is_within_class() const;
   bool root_is_external_method() const;
 
+  bool has_enclosing_type_scheme() const;
+
   void push_scope();
   void pop_scope();
   void push_scope(MatlabScope* current_scope, TypeScope* current_type_scope);

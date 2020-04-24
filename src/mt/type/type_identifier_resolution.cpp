@@ -574,15 +574,13 @@ void TypeIdentifierResolver::declare_function_type_node(DeclareFunctionTypeNode&
   }
 
   auto type = maybe_type.value();
-  assert(type->is_abstraction());
-  auto& abstr = MT_ABSTR_MUT_REF(*type);
+  assert(type->scheme_source()->is_abstraction());
+  auto& abstr = MT_ABSTR_MUT_REF(*type->scheme_source());
   abstr.assign_kind(to_matlab_identifier(node.identifier));
 
   bool success = instance->library.emplace_declared_function_type(abstr, type);
   assert(success);
-  if (!success) {
-    //
-  }
+  (void) success;
 }
 
 void TypeIdentifierResolver::namespace_type_node(NamespaceTypeNode& node) {
@@ -730,7 +728,7 @@ void TypeIdentifierResolver::function_def_node(FunctionDefNode& node) {
   if (body) {
     instance->collectors.push();
     //  Push monomorphic functions.
-    instance->polymorphic_function_state.push(false);
+    instance->polymorphic_function_state.push(emplaced_type->is_scheme());
     instance->push_presumed_type(nullptr);
 
     MT_SCOPE_EXIT {

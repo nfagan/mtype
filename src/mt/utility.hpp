@@ -71,14 +71,14 @@ namespace detail {
   auto MT_ANONYMOUS_VARIABLE(SCOPE_EXIT_STATE) = detail::ScopeGuardOnExit() + [&]()
 
 template <typename T, typename U>
-std::unique_ptr<U> downcast(std::unique_ptr<T> source) {
+inline std::unique_ptr<U> downcast(std::unique_ptr<T> source) {
   static_assert(std::is_base_of_v<T, U>, "Cannot downcast from unrelated types.");
   auto derived = static_cast<U*>(source.release());
   return std::unique_ptr<U>(derived);
 }
 
 template <typename T, typename U>
-std::unique_ptr<U> upcast(std::unique_ptr<T> source) {
+inline std::unique_ptr<U> upcast(std::unique_ptr<T> source) {
   static_assert(std::is_base_of_v<U, T>, "Cannot upcast from unrelated types.");
   auto base = static_cast<U*>(source.release());
   return std::unique_ptr<U>(base);

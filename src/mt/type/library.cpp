@@ -8,13 +8,19 @@
 
 namespace mt {
 
+namespace {
+  inline bool class_eq(const types::Class* lhs, const types::Class* rhs) {
+    return lhs->name == rhs->name;
+  }
+}
+
 bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   auto maybe_lhs_cls = class_for_type(lhs);
   auto maybe_rhs_cls = class_for_type(rhs);
 
   if (!maybe_lhs_cls || !maybe_rhs_cls) {
     return false;
-  } else if (maybe_lhs_cls.value() == maybe_rhs_cls.value()) {
+  } else if (class_eq(maybe_lhs_cls.value(), maybe_rhs_cls.value())) {
     return true;
   }
 
@@ -22,7 +28,7 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   const auto* rhs_cls = maybe_rhs_cls.value();
 
   for (const auto& supertype : lhs_cls->supertypes) {
-    if (supertype == rhs_cls || subtype_related(supertype, rhs_cls)) {
+    if (subtype_related(supertype, rhs_cls)) {
       return true;
     }
   }

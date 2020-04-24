@@ -245,6 +245,11 @@ namespace {
     const auto msg = "`varargin` must be the last input parameter.";
     return ParseError(instance->source_text(), token, msg, instance->file_descriptor());
   }
+
+  ParseError make_error_attempted_nested_scheme(const ParseInstance* instance, const Token& token) {
+    const auto msg = "Type schemes cannot be nested; an outer scheme is already present.";
+    return ParseError(instance->source_text(), token, msg, instance->file_descriptor());
+  }
 }
 
 /*
@@ -3296,6 +3301,17 @@ namespace {
   }
 }
 
+namespace {
+  bool is_scheme_with_underlying_function_type(const BoxedType& type) {
+    if (!type->is_scheme_type()) {
+      return false;
+    }
+
+    const auto* scheme = static_cast<const SchemeTypeNode*>(type.get());
+    return scheme->declaration->is_function_type();
+  }
+}
+
 Optional<BoxedTypeAnnot> AstGenerator::function_type_declaration(const Token& source_token) {
   iterator.advance();
 
@@ -3310,13 +3326,11 @@ Optional<BoxedTypeAnnot> AstGenerator::function_type_declaration(const Token& so
   }
 
   auto underlying = std::move(type_assert_res.rvalue());
-  if (!underlying->is_function_type()) {
+  if (!underlying->is_function_type() &&
+      !is_scheme_with_underlying_function_type(underlying)) {
     add_error(make_error_expected_function_type(parse_instance, source_token));
     return NullOpt{};
   }
-
-  auto func_type_ptr = static_cast<FunctionTypeNode*>(underlying.release());
-  std::unique_ptr<FunctionTypeNode> func_type_node(func_type_ptr);
 
   TypeIdentifier ident(string_registry->register_string(ident_res.value()));
   ident = maybe_namespace_enclose_type_identifier(ident);
@@ -3329,7 +3343,7 @@ Optional<BoxedTypeAnnot> AstGenerator::function_type_declaration(const Token& so
   }
 
   auto declare_node =
-    std::make_unique<DeclareFunctionTypeNode>(source_token, ident, std::move(func_type_node));
+    std::make_unique<DeclareFunctionTypeNode>(source_token, ident, std::move(underlying));
 
   return Optional<BoxedTypeAnnot>(std::move(declare_node));
 }
@@ -3498,6 +3512,11 @@ bool maybe_record_field(AstGenerator* instance, RecordTypeNode::Fields& fields,
 Optional<BoxedType> AstGenerator::type_scheme(const Token& source_token) {
   iterator.advance();
 
+  if (has_enclosing_type_scheme()) {
+    add_error(make_error_attempted_nested_scheme(parse_instance, source_token));
+    return NullOpt{};
+  }
+
   auto scheme_idents = type_variable_identifiers(iterator.peek());
   if (!scheme_idents) {
     return NullOpt{};
@@ -3506,12 +3525,17 @@ Optional<BoxedType> AstGenerator::type_scheme(const Token& source_token) {
     return NullOpt{};
   }
 
+  auto scheme = parse_instance->type_store->make_scheme();
+  enclosing_schemes.push_back(scheme);
+  MT_SCOPE_EXIT{
+    enclosing_schemes.pop_back();
+  };
+
   auto source_type_res = type(iterator.peek());
   if (!source_type_res) {
     return NullOpt{};
   }
 
-  auto scheme = parse_instance->type_store->make_scheme();
   auto scheme_type_node = make_scheme_type_node(this, scheme, std::move(source_type_res.rvalue()),
     source_token, scheme_idents.value());
 
@@ -3849,6 +3873,10 @@ bool AstGenerator::is_within_class() const {
 
 bool AstGenerator::root_is_external_method() const {
   return parse_instance->treat_root_as_external_method;
+}
+
+bool AstGenerator::has_enclosing_type_scheme() const {
+  return !enclosing_schemes.empty() && enclosing_schemes.back();
 }
 
 bool AstGenerator::is_within_loop() const {

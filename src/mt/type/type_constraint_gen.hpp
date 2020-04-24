@@ -83,7 +83,8 @@ private:
   std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);
 
   void gather_function_inputs(const MatlabScope& scope, const FunctionParameters& inputs, TypePtrs& into);
-  void push_function_parameters(const MatlabScope& scope, const TypePtrs& args, const FunctionParameters& params);
+  void push_function_parameters(const MatlabScope& scope, const TypePtrs& args,
+                                const FunctionParameters& params, const Token& source_token);
 
   void handle_class_method(const TypePtrs& function_inputs,
                            const TypePtrs& function_outputs,
@@ -99,6 +100,7 @@ private:
   void bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, Type* type_handle);
   void bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle);
   Type* require_bound_type_variable(const FunctionDefHandle& function_def_handle);
+  Optional<Type*> lookup_bound_type_variable(const VariableDefHandle& handle);
 
   void push_type_equation(const TypeEquation& eq);
 
