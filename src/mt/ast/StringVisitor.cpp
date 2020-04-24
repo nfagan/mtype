@@ -660,10 +660,6 @@ std::string StringVisitor::infer_type_node(const InferTypeNode&) const {
   return "?";
 }
 
-std::string StringVisitor::inline_type(const InlineType& type) const {
-  return type.type->accept(*this);
-}
-
 std::string StringVisitor::scheme_type_node(const SchemeTypeNode& given) const {
   auto identifier_strs = string_registry->collect(given.identifiers);
   std::string given_str("given ");

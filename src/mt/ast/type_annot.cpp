@@ -183,22 +183,6 @@ Optional<TypeAssertion*> TypeAssertion::extract_type_assertion() {
 }
 
 /*
- * InlineType
- */
-
-std::string InlineType::accept(const StringVisitor& vis) const {
-  return vis.inline_type(*this);
-}
-
-void InlineType::accept_const(TypePreservingVisitor& vis) const {
-  vis.inline_type(*this);
-}
-
-void InlineType::accept(TypePreservingVisitor& vis) {
-  vis.inline_type(*this);
-}
-
-/*
  * TypeGiven
  */
 

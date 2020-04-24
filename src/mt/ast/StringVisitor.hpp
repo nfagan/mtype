@@ -72,7 +72,6 @@ public:
   std::string type_begin(const TypeBegin& begin) const;
   std::string scheme_type_node(const SchemeTypeNode& given) const;
   std::string type_let(const TypeLet& let) const;
-  std::string inline_type(const InlineType& type) const;
   std::string type_annot_macro(const TypeAnnotMacro& type) const;
   std::string fun_type_node(const FunTypeNode& node) const;
   std::string type_assertion(const TypeAssertion& assertion) const;

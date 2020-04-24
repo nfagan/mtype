@@ -53,7 +53,6 @@ struct FunTypeNode;
 struct TypeBegin;
 struct SchemeTypeNode;
 struct TypeLet;
-struct InlineType;
 struct TypeAnnotMacro;
 struct TypeAssertion;
 struct DeclareTypeNode;
@@ -116,7 +115,6 @@ public:
   MT_VISITOR_METHOD(scheme_type_node, SchemeTypeNode)
   MT_VISITOR_METHOD(type_begin, TypeBegin)
   MT_VISITOR_METHOD(type_let, TypeLet)
-  MT_VISITOR_METHOD(inline_type, InlineType)
   MT_VISITOR_METHOD(type_annot_macro, TypeAnnotMacro)
   MT_VISITOR_METHOD(type_assertion, TypeAssertion)
 };

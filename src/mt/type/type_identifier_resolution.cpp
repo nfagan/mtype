@@ -296,10 +296,6 @@ void TypeIdentifierResolver::type_annot_macro(TypeAnnotMacro& macro) {
   macro.annotation->accept(*this);
 }
 
-void TypeIdentifierResolver::inline_type(InlineType& node) {
-  node.type->accept(*this);
-}
-
 void TypeIdentifierResolver::type_begin(TypeBegin& begin) {
   instance->export_state.dispatched_push(begin.is_exported);
   MT_SCOPE_EXIT {

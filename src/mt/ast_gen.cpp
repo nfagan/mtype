@@ -2867,22 +2867,6 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation_macro(const Token& source
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
-Optional<BoxedTypeAnnot> AstGenerator::inline_type_annotation(const mt::Token& source_token) {
-  auto type_res = type(source_token);
-  if (!type_res) {
-    return NullOpt{};
-  }
-
-  auto err = consume(TokenType::keyword_end_type);
-  if (err) {
-    add_error(err.rvalue());
-    return NullOpt{};
-  }
-
-  auto node = std::make_unique<InlineType>(type_res.rvalue());
-  return Optional<BoxedTypeAnnot>(std::move(node));
-}
-
 Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token, bool expect_enclosing_assert_node) {
   switch (source_token.type) {
     case TokenType::keyword_begin:

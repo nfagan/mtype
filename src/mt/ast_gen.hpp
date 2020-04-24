@@ -268,7 +268,6 @@ public:
   Optional<BoxedTypeAnnot> type_assertion(const Token& source_token,
                                           bool expect_enclosing_node,
                                           bool allow_scheme = false);
-  Optional<BoxedTypeAnnot> inline_type_annotation(const Token& source_token);
   Optional<BoxedTypeAnnot> type_import(const Token& source_token);
   Optional<BoxedTypeAnnot> type_namespace(const Token& source_token);
   Optional<BoxedTypeAnnot> constructor_type(const Token& source_token);

@@ -193,19 +193,6 @@ struct TypeAssertion : public TypeAnnot {
   Type* resolved_type;
 };
 
-struct InlineType : public TypeAnnot {
-  explicit InlineType(BoxedType type) : type(std::move(type)) {
-    //
-  }
-  ~InlineType() override = default;
-
-  std::string accept(const StringVisitor& vis) const override;
-  void accept_const(TypePreservingVisitor& vis) const override;
-  void accept(TypePreservingVisitor& vis) override;
-
-  BoxedType type;
-};
-
 struct TypeLet : public TypeAnnot {
   TypeLet(const Token& source_token,
           const TypeIdentifier& identifier,

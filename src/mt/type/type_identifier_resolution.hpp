@@ -114,7 +114,6 @@ public:
   void block(Block& block) override;
 
   void type_annot_macro(TypeAnnotMacro& macro) override;
-  void inline_type(InlineType& node) override;
   void type_begin(TypeBegin& begin) override;
   void type_assertion(TypeAssertion& node) override;
 
