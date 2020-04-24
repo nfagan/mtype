@@ -26,6 +26,7 @@ private:
   Type* clone(const types::Abstraction& abstr, InstanceVars& replacing);
   Type* clone(const types::DestructuredTuple& tup, InstanceVars& replacing);
   Type* clone(const types::Tuple& tup, InstanceVars& replacing);
+  Type* clone(const types::Union& union_type, InstanceVars& replacing);
   Type* clone(const types::List& list, InstanceVars& replacing);
   Type* clone(const types::Subscript& sub, InstanceVars& replacing);
   Type* clone(const types::Scheme& scheme, InstanceVars& replacing);

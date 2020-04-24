@@ -392,6 +392,16 @@ void TypeIdentifierResolver::tuple_type_node(TupleTypeNode& node) {
   instance->collectors.current().push(tuple_type);
 }
 
+void TypeIdentifierResolver::union_type_node(UnionTypeNode& node) {
+  auto maybe_members = collect_types(*this, *instance, node.members);
+  if (!maybe_members) {
+    return;
+  }
+
+  auto union_type = instance->type_store.make_union(std::move(maybe_members.rvalue()));
+  instance->collectors.current().push(union_type);
+}
+
 void TypeIdentifierResolver::list_type_node(ListTypeNode& node) {
   auto maybe_pattern = collect_types(*this, *instance, node.pattern);
   if (!maybe_pattern) {

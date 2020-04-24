@@ -14,6 +14,7 @@ private:
   bool is_concrete_argument(const types::Abstraction& abstr) const;
   bool is_concrete_argument(const types::DestructuredTuple& tup) const;
   bool is_concrete_argument(const types::List& list) const;
+  bool is_concrete_argument(const types::Union& union_type) const;
   bool is_concrete_argument(const types::Class& class_type) const;
   bool is_concrete_argument(const types::Alias& alias) const;
 };

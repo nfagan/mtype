@@ -4,6 +4,37 @@
 
 namespace mt {
 
+#define MT_COMPARE_CHECK_TAG_EARLY_RETURN(b) \
+  if (tag != (b)->tag) { \
+    return tag < b->tag ? -1 : 1; \
+  }
+
+#define MT_COMPARE_EARLY_RETURN(a, b) \
+  if ((a) != (b)) { \
+    return (a) < (b) ? -1 : 1; \
+  }
+
+#define MT_COMPARE_TEST0_EARLY_RETURN(a) \
+  if ((a) != 0) { \
+    return (a); \
+  }
+
+namespace {
+  inline int compare_impl(const TypePtrs& a, const TypePtrs& b) noexcept {
+    const int64_t num_a = a.size();
+    const int64_t num_b = b.size();
+
+    MT_COMPARE_EARLY_RETURN(num_a, num_b)
+
+    for (int64_t i = 0; i < num_a; i++) {
+      const auto res = a[i]->compare(b[i]);
+      MT_COMPARE_TEST0_EARLY_RETURN(res)
+    }
+
+    return 0;
+  }
+}
+
 /*
  * Alias
  */
@@ -34,6 +65,11 @@ const Type* types::Alias::alias_source() const {
 
 Type* types::Alias::alias_source() {
   return root_alias_source_impl<types::Alias, Type>(source);
+}
+
+int types::Alias::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  return source->compare(MT_ALIAS_REF(*b).source);
 }
 
 /*
@@ -82,6 +118,22 @@ bool types::Record::has_field(const types::ConstantValue& val) const {
   return find_field(val) != nullptr;
 }
 
+int types::Record::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& rec_b = MT_RECORD_REF(*b);
+  MT_COMPARE_EARLY_RETURN(num_fields(), rec_b.num_fields())
+
+  for (int64_t i = 0; i < num_fields(); i++) {
+    const auto name_comp = fields[i].name->compare(rec_b.fields[i].name);
+    MT_COMPARE_TEST0_EARLY_RETURN(name_comp)
+
+    const auto type_comp = fields[i].type->compare(rec_b.fields[i].type);
+    MT_COMPARE_TEST0_EARLY_RETURN(type_comp)
+  }
+
+  return 0;
+}
+
 /*
  * Class
  */
@@ -92,6 +144,26 @@ void types::Class::accept(const TypeToString& to_str, std::stringstream& into) c
 
 std::size_t types::Class::bytes() const {
   return sizeof(Class);
+}
+
+int types::Class::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& cls_b = MT_CLASS_REF(*b);
+  MT_COMPARE_EARLY_RETURN(name, cls_b.name)
+
+  const auto source_res = source->compare(cls_b.source);
+  MT_COMPARE_TEST0_EARLY_RETURN(source_res)
+
+  const int64_t num_supertypes = supertypes.size();
+  const int64_t b_num_supertypes = cls_b.supertypes.size();
+  MT_COMPARE_EARLY_RETURN(num_supertypes, b_num_supertypes)
+
+  for (int64_t i = 0; i < num_supertypes; i++) {
+    const auto st_res = supertypes[i]->compare(cls_b.supertypes[i]);
+    MT_COMPARE_TEST0_EARLY_RETURN(st_res)
+  }
+
+  return 0;
 }
 
 /*
@@ -106,6 +178,13 @@ std::size_t types::Variable::bytes() const {
   return sizeof(Variable);
 }
 
+int types::Variable::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& vb = MT_VAR_REF(*b);
+  MT_COMPARE_EARLY_RETURN(identifier, vb.identifier)
+  return 0;
+}
+
 /*
  * Scalar
  */
@@ -116,6 +195,13 @@ void types::Scalar::accept(const TypeToString& to_str, std::stringstream& into) 
 
 std::size_t types::Scalar::bytes() const {
   return sizeof(Scalar);
+}
+
+int types::Scalar::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& scl_b = MT_SCALAR_REF(*b);
+  MT_COMPARE_EARLY_RETURN(identifier, scl_b.identifier)
+  return 0;
 }
 
 /*
@@ -217,6 +303,23 @@ void types::Abstraction::accept(const TypeToString& to_str, std::stringstream& i
   to_str.apply(*this, into);
 }
 
+int types::Abstraction::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& abstr_b = MT_ABSTR_REF(*b);
+
+  HeaderCompare header_comparator{};
+  const auto header_res = header_comparator(*this, abstr_b);
+  MT_COMPARE_TEST0_EARLY_RETURN(header_res)
+
+  auto input_res = inputs->compare(abstr_b.inputs);
+  MT_COMPARE_TEST0_EARLY_RETURN(input_res)
+
+  auto output_res = outputs->compare(abstr_b.outputs);
+  MT_COMPARE_TEST0_EARLY_RETURN(output_res)
+
+  return 0;
+}
+
 void types::Abstraction::assign_kind(UnaryOperator op) {
   kind = Kind::unary_operator;
   unary_operator = op;
@@ -275,6 +378,15 @@ std::size_t types::Union::bytes() const {
   return sizeof(Union);
 }
 
+int64_t types::Union::size() const {
+  return members.size();
+}
+
+int types::Union::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  return compare_impl(members, MT_UNION_REF(*b).members);
+}
+
 /*
  * Tuple
  */
@@ -285,6 +397,12 @@ void types::Tuple::accept(const TypeToString& to_str, std::stringstream& into) c
 
 std::size_t types::Tuple::bytes() const {
   return sizeof(Tuple);
+}
+
+int types::Tuple::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& tup = MT_TUPLE_REF(*b);
+  return compare_impl(members, tup.members);
 }
 
 /*
@@ -370,6 +488,13 @@ std::size_t types::DestructuredTuple::bytes() const {
   return sizeof(DestructuredTuple);
 }
 
+int types::DestructuredTuple::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& dt_b = MT_DT_REF(*b);
+  MT_COMPARE_EARLY_RETURN(usage, dt_b.usage)
+  return compare_impl(members, dt_b.members);
+}
+
 /*
  * List
  */
@@ -384,6 +509,11 @@ std::size_t types::List::bytes() const {
 
 int64_t types::List::size() const {
   return pattern.size();
+}
+
+int types::List::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  return compare_impl(pattern, MT_LIST_REF(*b).pattern);
 }
 
 /*
@@ -410,6 +540,32 @@ std::size_t types::Subscript::bytes() const {
   return sizeof(Subscript);
 }
 
+int types::Subscript::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& sub_b = MT_SUBS_REF(*b);
+
+  const auto arg0_res = principal_argument->compare(sub_b.principal_argument);
+  MT_COMPARE_TEST0_EARLY_RETURN(arg0_res)
+
+  const auto out_res = outputs->compare(sub_b.outputs);
+  MT_COMPARE_TEST0_EARLY_RETURN(out_res)
+
+  const int64_t num_subs = subscripts.size();
+  const int64_t num_subs_b = sub_b.subscripts.size();
+  MT_COMPARE_EARLY_RETURN(num_subs, num_subs_b)
+
+  for (int64_t i = 0; i < num_subs; i++) {
+    const auto& subs_a = subscripts[i];
+    const auto& subs_b = sub_b.subscripts[i];
+    MT_COMPARE_EARLY_RETURN(subs_a.method, subs_b.method)
+
+    auto res = compare_impl(subs_a.arguments, subs_b.arguments);
+    MT_COMPARE_TEST0_EARLY_RETURN(res)
+  }
+
+  return 0;
+}
+
 /*
  * ConstantValue
  */
@@ -424,6 +580,26 @@ std::size_t types::ConstantValue::bytes() const {
 
 bool types::ConstantValue::is_char_value() const {
   return kind == Kind::char_value;
+}
+
+int types::ConstantValue::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& cv_b = MT_CONST_VAL_REF(*b);
+  MT_COMPARE_EARLY_RETURN(kind, cv_b.kind)
+
+  switch (kind) {
+    case Kind::int_value:
+      MT_COMPARE_EARLY_RETURN(int_value, cv_b.int_value)
+      break;
+    case Kind::double_value:
+      MT_COMPARE_EARLY_RETURN(double_value, cv_b.double_value)
+      break;
+    case Kind::char_value:
+      MT_COMPARE_EARLY_RETURN(char_value, cv_b.char_value)
+      break;
+  }
+
+  return 0;
 }
 
 /*
@@ -446,6 +622,25 @@ const Type* types::Scheme::scheme_source() const {
   return type;
 }
 
+int types::Scheme::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& scheme_b = MT_SCHEME_REF(*b);
+
+  const auto type_res = type->compare(scheme_b.type);
+  MT_COMPARE_TEST0_EARLY_RETURN(type_res)
+
+  const int64_t num_params = parameters.size();
+  const int64_t num_params_b = scheme_b.parameters.size();
+  MT_COMPARE_EARLY_RETURN(num_params, num_params_b)
+
+  for (int64_t i = 0; i < num_params; i++) {
+    const auto param_res = parameters[i]->compare(scheme_b.parameters[i]);
+    MT_COMPARE_TEST0_EARLY_RETURN(param_res)
+  }
+
+  return 0;
+}
+
 /*
  * Assignment
  */
@@ -458,6 +653,18 @@ std::size_t types::Assignment::bytes() const {
   return sizeof(Assignment);
 }
 
+int types::Assignment::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& assign_b = MT_ASSIGN_REF(*b);
+
+  const auto lhs_res = lhs->compare(assign_b.lhs);
+  MT_COMPARE_TEST0_EARLY_RETURN(lhs_res)
+
+  const auto rhs_res = rhs->compare(assign_b.rhs);
+  MT_COMPARE_TEST0_EARLY_RETURN(rhs_res)
+  return 0;
+}
+
 /*
  * Parameters
  */
@@ -468,6 +675,13 @@ void types::Parameters::accept(const TypeToString& to_str, std::stringstream& in
 
 std::size_t types::Parameters::bytes() const {
   return sizeof(Parameters);
+}
+
+int types::Parameters::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& params_b = MT_PARAMS_REF(*b);
+  MT_COMPARE_EARLY_RETURN(identifier, params_b.identifier)
+  return 0;
 }
 
 /*

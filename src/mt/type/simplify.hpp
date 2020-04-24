@@ -31,15 +31,20 @@ private:
   bool simplify(const types::Scalar& t0, const types::Scalar& t1, bool rev);
   bool simplify(const types::Scheme& t0, const types::Scheme& t1, bool rev);
   bool simplify(const types::Tuple& t0, const types::Tuple& t1, bool rev);
+  bool simplify(const types::Union& t0, const types::Union& t1, bool rev);
   bool simplify(const types::Subscript& t0, const types::Subscript& t1, bool rev);
   bool simplify(const types::List& t0, const types::List& t1, bool rev);
   bool simplify(const types::Class& t0, const types::Class& t1, bool rev);
   bool simplify(const types::Record& t0, const types::Record& t1, bool rev);
   bool simplify(const types::ConstantValue& t0, const types::ConstantValue& t1, bool rev);
+
   bool simplify(const TypePtrs& t0, const TypePtrs& t1, bool rev);
+  bool simplify(const TypePtrs& t0s, int64_t num0,
+                const TypePtrs& t1s, int64_t num1, bool rev);
 
   bool simplify_different_types(const types::Scheme& scheme, Type* source, Type* rhs, bool rev);
   bool simplify_different_types(const types::List& list, Type* rhs, bool rev);
+  bool simplify_different_types(const types::Union& union_type, Type* rhs, bool rev);
   bool simplify_different_types(const types::DestructuredTuple& tup, Type* source, Type* rhs, bool rev);
   bool simplify_different_types(Type* lhs, Type* rhs, const types::Parameters& a,
                                 const types::DestructuredTuple& b, int64_t offset_b, bool rev);

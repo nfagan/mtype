@@ -121,6 +121,7 @@ public:
   void function_type_node(FunctionTypeNode& node) override;
   void scalar_type_node(ScalarTypeNode& node) override;
   void tuple_type_node(TupleTypeNode& node) override;
+  void union_type_node(UnionTypeNode& node) override;
   void list_type_node(ListTypeNode& node) override;
   void record_type_node(RecordTypeNode& node) override;
   void scheme_type_node(SchemeTypeNode& node) override;

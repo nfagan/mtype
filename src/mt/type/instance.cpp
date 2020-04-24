@@ -30,6 +30,8 @@ Type* Instantiation::clone(Type* source, InstanceVars& replacing) {
       return clone(MT_DT_REF(*source), replacing);
     case Type::Tag::tuple:
       return clone(MT_TUPLE_REF(*source), replacing);
+    case Type::Tag::union_type:
+      return clone(MT_UNION_REF(*source), replacing);
     case Type::Tag::list:
       return clone(MT_LIST_REF(*source), replacing);
     case Type::Tag::variable:
@@ -72,6 +74,10 @@ Type* Instantiation::clone(const types::Abstraction& abstr, InstanceVars& replac
 
 Type* Instantiation::clone(const types::Tuple& tup, InstanceVars& replacing) {
   return store.make_tuple(clone(tup.members, replacing));
+}
+
+Type* Instantiation::clone(const types::Union& union_type, InstanceVars& replacing) {
+  return store.make_union(clone(union_type.members, replacing));
 }
 
 TypePtrs Instantiation::clone(const TypePtrs& a, InstanceVars& replacing) {

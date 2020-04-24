@@ -79,6 +79,7 @@ private:
   MT_NODISCARD Type* apply_to(types::Variable& var, TermRef term);
   MT_NODISCARD Type* apply_to(types::Parameters& params, TermRef term);
   MT_NODISCARD Type* apply_to(types::Tuple& tup, TermRef term);
+  MT_NODISCARD Type* apply_to(types::Union& union_type, TermRef term);
   MT_NODISCARD Type* apply_to(types::DestructuredTuple& tup, TermRef term);
   MT_NODISCARD Type* apply_to(types::Subscript& sub, TermRef term);
   MT_NODISCARD Type* apply_to(types::List& list, TermRef term);
@@ -98,6 +99,7 @@ private:
   MT_NODISCARD Type* substitute_one(types::Parameters& params, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Abstraction& func, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Tuple& tup, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD Type* substitute_one(types::Union& union_type, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::DestructuredTuple& tup, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Subscript& sub, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::List& list, TermRef term, TermRef lhs, TermRef rhs);
@@ -112,6 +114,7 @@ private:
   bool occurs(const TypePtrs& ts, TermRef term, const Type* lhs) const;
   bool occurs(const types::Abstraction& abstr, TermRef term, const Type* lhs) const;
   bool occurs(const types::Tuple& tup, TermRef term, const Type* lhs) const;
+  bool occurs(const types::Union& union_type, TermRef term, const Type* lhs) const;
   bool occurs(const types::DestructuredTuple& tup, TermRef term, const Type* lhs) const;
   bool occurs(const types::Subscript& sub, TermRef term, const Type* lhs) const;
   bool occurs(const types::List& list, TermRef term, const Type* lhs) const;

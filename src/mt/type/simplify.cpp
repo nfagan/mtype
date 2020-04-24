@@ -55,6 +55,8 @@ bool Simplifier::simplify_same_types(Type* lhs, Type* rhs, bool rev) {
       return simplify(MT_SCALAR_REF(*lhs), MT_SCALAR_REF(*rhs), rev);
     case Tag::tuple:
       return simplify(MT_TUPLE_REF(*lhs), MT_TUPLE_REF(*rhs), rev);
+    case Tag::union_type:
+      return simplify(MT_UNION_REF(*lhs), MT_UNION_REF(*rhs), rev);
     case Tag::destructured_tuple:
       return simplify(lhs, rhs, MT_DT_REF(*lhs), MT_DT_REF(*rhs), rev);
     case Tag::list:
@@ -96,6 +98,12 @@ bool Simplifier::simplify_different_types(Type* lhs, Type* rhs, bool rev) {
   } else if (rhs->is_alias()) {
     return simplify(lhs, MT_ALIAS_REF(*rhs).source, rev);
 
+  } else if (lhs->is_union()) {
+    return simplify_different_types(MT_UNION_REF(*lhs), rhs, rev);
+
+  } else if (rhs->is_union()) {
+    return simplify_different_types(MT_UNION_REF(*rhs), lhs, !rev);
+
   } else if (lhs->is_destructured_tuple()) {
     return simplify_different_types(MT_DT_REF(*lhs), lhs, rhs, rev);
 
@@ -129,8 +137,14 @@ bool Simplifier::simplify_different_types(const types::Scheme& scheme, Type*, Ty
 #endif
 }
 
+namespace {
+  inline bool represents_one_type(Type* t) {
+    return t->is_scalar() || t->is_tuple() || t->is_abstraction() || t->is_class();
+  }
+}
+
 bool Simplifier::simplify_different_types(const types::List& list, Type* rhs, bool rev) {
-  if (rhs->is_scalar() || rhs->is_tuple() || rhs->is_abstraction() || rhs->is_class()) {
+  if (represents_one_type(rhs)) {
     for (const auto& el : list.pattern) {
       push_make_type_equation(el, rhs, rev);
     }
@@ -139,6 +153,28 @@ bool Simplifier::simplify_different_types(const types::List& list, Type* rhs, bo
   }
 
   check_emplace_simplification_failure(false, &list, rhs);
+  return false;
+}
+
+bool Simplifier::simplify_different_types(const types::Union& union_type, Type* rhs, bool rev) {
+  if (!rev || (!represents_one_type(rhs) && !rhs->is_list())) {
+    //  If `!rev`, then we're trying to check union_type <: rhs, which can only be true
+    //  if the union has a single member which is a subtype of rhs. However, it's not
+    //  currently possible to make size 1 unions.
+    check_emplace_simplification_failure(false, &union_type, rhs);
+    return false;
+  }
+
+  TypeRelation relation{unifier.subtype_relationship, unifier.store};
+
+  for (const auto& mem : union_type.members) {
+    bool related = relation.related_entry(mem, rhs, rev);
+    if (related) {
+      return true;
+    }
+  }
+
+  check_emplace_simplification_failure(false, &union_type, rhs);
   return false;
 }
 
@@ -297,13 +333,37 @@ bool Simplifier::simplify(const types::Tuple& t0, const types::Tuple& t1, bool r
   return success;
 }
 
+bool Simplifier::simplify(const types::Union& t0, const types::Union& t1, bool rev) {
+  auto mems_a = t0.members;
+  auto mems_b = t1.members;
+
+  //  Order of union members shouldn't matter.
+  std::sort(mems_a.begin(), mems_a.end(), Type::Less{});
+  std::sort(mems_b.begin(), mems_b.end(), Type::Less{});
+
+  auto end_a = std::unique(mems_a.begin(), mems_a.end(), Type::Equal{});
+  auto end_b = std::unique(mems_b.begin(), mems_b.end(), Type::Equal{});
+
+  const int64_t num0 = end_a - mems_a.begin();
+  const int64_t num1 = end_b - mems_b.begin();
+
+  bool success = simplify(mems_a, num0, mems_b, num1, rev);
+  check_emplace_simplification_failure(success, &t0, &t1);
+  return success;
+}
+
 bool Simplifier::simplify(const TypePtrs& t0, const TypePtrs& t1, bool rev) {
-  const auto sz0 = t0.size();
-  if (sz0 != t1.size()) {
+  return simplify(t0, t0.size(), t1, t1.size(), rev);
+}
+
+bool Simplifier::simplify(const TypePtrs& t0s, int64_t num0,
+                          const TypePtrs& t1s, int64_t num1, bool rev) {
+  if (num0 != num1) {
     return false;
+  } else {
+    push_make_type_equations(t0s, t1s, num0, rev);
+    return true;
   }
-  push_make_type_equations(t0, t1, sz0, rev);
-  return true;
 }
 
 void Simplifier::push_make_type_equations(const TypePtrs& t0, const TypePtrs& t1, int64_t num, bool rev) {

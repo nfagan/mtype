@@ -83,11 +83,23 @@ struct TypeIdentifier {
     return name;
   }
 
-  friend bool operator==(const TypeIdentifier& a, const TypeIdentifier& b) {
+  friend inline bool operator==(const TypeIdentifier& a, const TypeIdentifier& b) {
     return a.name == b.name;
   }
-  friend bool operator!=(const TypeIdentifier& a, const TypeIdentifier& b) {
+  friend inline bool operator!=(const TypeIdentifier& a, const TypeIdentifier& b) {
     return a.name != b.name;
+  }
+  friend inline bool operator<(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name < b.name;
+  }
+  friend inline bool operator<=(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name <= b.name;
+  }
+  friend inline bool operator>(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name > b.name;
+  }
+  friend inline bool operator>=(const TypeIdentifier& a, const TypeIdentifier& b) {
+    return a.name >= b.name;
   }
 
   int64_t name;

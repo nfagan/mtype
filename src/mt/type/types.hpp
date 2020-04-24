@@ -41,6 +41,8 @@ struct Alias : public Type {
   const Type* alias_source() const override;
   Type* alias_source() override;
 
+  int compare(const Type* b) const noexcept override;
+
   Type* source;
 };
 
@@ -80,6 +82,8 @@ struct Record : public Type {
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  int compare(const Type* b) const noexcept override;
+
   Fields fields;
 };
 
@@ -116,6 +120,8 @@ struct Class : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  int compare(const Type* b) const noexcept override;
 
   TypeIdentifier name;
   Type* source;
@@ -162,6 +168,8 @@ struct ConstantValue : public Type {
 
   bool is_char_value() const;
 
+  int compare(const Type* b) const noexcept override;
+
   Kind kind;
 
   union {
@@ -189,6 +197,8 @@ struct Variable : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  int compare(const Type* b) const noexcept override;
 
   TypeIdentifier identifier;
 };
@@ -218,6 +228,8 @@ struct Scheme : public Type {
   Type* scheme_source() override;
   const Type* scheme_source() const override;
 
+  int compare(const Type* b) const noexcept override;
+
   Type* type;
   TypePtrs parameters;
   std::vector<TypeEquation> constraints;
@@ -243,6 +255,8 @@ struct Scalar : public Type {
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  int compare(const Type* b) const noexcept override;
+
   TypeIdentifier identifier;
 };
 
@@ -255,13 +269,21 @@ struct Union : public Type {
     //
   }
 
+  explicit Union(TypePtrs&& members) :
+  Type(Type::Tag::union_type), members(std::move(members)) {
+    //
+  }
+
   MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Union)
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Union)
 
   ~Union() override = default;
 
   std::size_t bytes() const override;
+  int64_t size() const;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  int compare(const Type* b) const noexcept override;
 
   TypePtrs members;
 };
@@ -291,6 +313,8 @@ struct List : public Type {
   std::size_t bytes() const override;
   int64_t size() const;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  int compare(const Type* b) const noexcept override;
 
   TypePtrs pattern;
 };
@@ -330,6 +354,8 @@ struct Subscript : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  int compare(const Type* b) const noexcept override;
 
   Type* principal_argument;
   std::vector<Sub> subscripts;
@@ -382,6 +408,8 @@ struct DestructuredTuple : public Type {
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
   Optional<Type*> first_non_destructured_tuple_member() const;
 
+  int compare(const Type* b) const noexcept override;
+
   static bool is_value_usage(Usage use);
   static bool mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b);
   static Optional<Type*> type_or_first_non_destructured_tuple_member(Type* in);
@@ -416,6 +444,8 @@ struct Tuple : public Type {
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  int compare(const Type* b) const noexcept override;
+
   TypePtrs members;
 };
 
@@ -438,6 +468,8 @@ struct Assignment : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  int compare(const Type* b) const noexcept override;
 
   Type* lhs;
   Type* rhs;
@@ -494,6 +526,8 @@ struct Abstraction : public mt::Type {
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  int compare(const Type* b) const noexcept override;
+
   static Abstraction clone(const Abstraction& a, Type* inputs, Type* outputs);
 
 private:
@@ -536,6 +570,8 @@ struct Parameters : public Type {
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
+  int compare(const Type* b) const noexcept override;
+
   TypeIdentifier identifier;
 };
 
@@ -551,6 +587,7 @@ namespace mt {
 #define MT_SCHEME_REF(a) static_cast<const mt::types::Scheme&>((a))
 #define MT_SCALAR_REF(a) static_cast<const mt::types::Scalar&>((a))
 #define MT_TUPLE_REF(a) static_cast<const mt::types::Tuple&>((a))
+#define MT_UNION_REF(a) static_cast<const mt::types::Union&>((a))
 #define MT_PARAMS_REF(a) static_cast<const mt::types::Parameters&>((a))
 #define MT_SUBS_REF(a) static_cast<const mt::types::Subscript&>((a))
 #define MT_LIST_REF(a) static_cast<const mt::types::List&>((a))
@@ -563,7 +600,7 @@ namespace mt {
 #define MT_CLASS_PTR(a) static_cast<const mt::types::Class*>((a))
 #define MT_SCHEME_PTR(a) static_cast<const mt::types::Scheme*>((a))
 #define MT_DT_PTR(a) static_cast<const mt::types::DestructuredTuple*>((a))
-#define MT_TYPE_PTR(a) static_cast<const Type*>((a))
+#define MT_ALIAS_PTR(a) static_cast<const mt::types::Alias*>((a))
 
 #define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
 #define MT_ABSTR_MUT_REF(a) static_cast<mt::types::Abstraction&>((a))
@@ -571,6 +608,7 @@ namespace mt {
 #define MT_SCHEME_MUT_REF(a) static_cast<mt::types::Scheme&>((a))
 #define MT_SCALAR_MUT_REF(a) static_cast<mt::types::Scalar&>((a))
 #define MT_TUPLE_MUT_REF(a) static_cast<mt::types::Tuple&>((a))
+#define MT_UNION_MUT_REF(a) static_cast<mt::types::Union&>((a))
 #define MT_PARAMS_MUT_REF(a) static_cast<mt::types::Parameters&>((a))
 #define MT_SUBS_MUT_REF(a) static_cast<mt::types::Subscript&>((a))
 #define MT_LIST_MUT_REF(a) static_cast<mt::types::List&>((a))

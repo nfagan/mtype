@@ -6,6 +6,22 @@
 
 namespace mt {
 
+bool Type::Less::operator()(const Type* a, const Type* b) const noexcept {
+  return a->compare(b) == -1;
+}
+
+bool Type::Equal::operator()(const Type* a, const Type* b) const noexcept {
+  return a->compare(b) == 0;
+}
+
+int Type::Compare::operator()(const Type* a, const Type* b) const noexcept {
+  return a->compare(b);
+}
+
+/*
+ * Util
+ */
+
 const char* to_string(Type::Tag tag) {
   using Tag = Type::Tag;
 

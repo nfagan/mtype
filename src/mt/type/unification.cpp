@@ -151,6 +151,8 @@ bool Unifier::occurs(const Type* type, TermRef term, const Type* lhs) const {
       return occurs(MT_ABSTR_REF(*type), term, lhs);
     case Type::Tag::tuple:
       return occurs(MT_TUPLE_REF(*type), term, lhs);
+    case Type::Tag::union_type:
+      return occurs(MT_UNION_REF(*type), term, lhs);
     case Type::Tag::destructured_tuple:
       return occurs(MT_DT_REF(*type), term, lhs);
     case Type::Tag::subscript:
@@ -196,6 +198,10 @@ bool Unifier::occurs(const types::Abstraction& abstr, TermRef term, const Type* 
 
 bool Unifier::occurs(const types::Tuple& tup, TermRef term, const Type* lhs) const {
   return occurs(tup.members, term, lhs);
+}
+
+bool Unifier::occurs(const types::Union& union_type, TermRef term, const Type* lhs) const {
+  return occurs(union_type.members, term, lhs);
 }
 
 bool Unifier::occurs(const types::DestructuredTuple& tup, TermRef term, const Type* lhs) const {
@@ -268,6 +274,11 @@ Type* Unifier::apply_to(types::Parameters& params, TermRef) {
 Type* Unifier::apply_to(types::Tuple& tup, TermRef term) {
   apply_to(tup.members, term);
   return &tup;
+}
+
+Type* Unifier::apply_to(types::Union& union_type, TermRef term) {
+  apply_to(union_type.members, term);
+  return &union_type;
 }
 
 Type* Unifier::apply_to(types::DestructuredTuple& tup, TermRef term) {
@@ -345,6 +356,8 @@ Type* Unifier::apply_to(Type* source, TermRef term) {
       return apply_to(MT_ABSTR_MUT_REF(*source), term);
     case Type::Tag::tuple:
       return apply_to(MT_TUPLE_MUT_REF(*source), term);
+    case Type::Tag::union_type:
+      return apply_to(MT_UNION_MUT_REF(*source), term);
     case Type::Tag::destructured_tuple:
       return apply_to(MT_DT_MUT_REF(*source), term);
     case Type::Tag::subscript:
@@ -390,6 +403,8 @@ Type* Unifier::substitute_one(Type* source, TermRef term, TermRef lhs, TermRef r
       return substitute_one(MT_ABSTR_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::tuple:
       return substitute_one(MT_TUPLE_MUT_REF(*source), term, lhs, rhs);
+    case Type::Tag::union_type:
+      return substitute_one(MT_UNION_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::destructured_tuple:
       return substitute_one(MT_DT_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::subscript:
@@ -470,6 +485,11 @@ Type* Unifier::substitute_one(types::Abstraction& func, TermRef term, TermRef lh
 Type* Unifier::substitute_one(types::Tuple& tup, TermRef term, TermRef lhs, TermRef rhs) {
   substitute_one(tup.members, term, lhs, rhs);
   return &tup;
+}
+
+Type* Unifier::substitute_one(types::Union& union_type, TermRef term, TermRef lhs, TermRef rhs) {
+  substitute_one(union_type.members, term, lhs, rhs);
+  return &union_type;
 }
 
 Type* Unifier::substitute_one(types::DestructuredTuple& tup, TermRef term, TermRef lhs, TermRef rhs) {

@@ -13,6 +13,16 @@ struct Token;
 class TypeToString;
 
 struct Type {
+  struct Less {
+    bool operator()(const Type* a, const Type* b) const noexcept;
+  };
+  struct Compare {
+    int operator()(const Type* a, const Type* b) const noexcept;
+  };
+  struct Equal {
+    bool operator()(const Type* a, const Type* b) const noexcept;
+  };
+
   enum class Tag : uint8_t {
     null = 0,
     variable,
@@ -58,6 +68,8 @@ struct Type {
   virtual Type* scheme_source() {
     return this;
   }
+
+  virtual int compare(const Type* other) const noexcept = 0;
 
   MT_NODISCARD bool is_scalar() const {
     return tag == Tag::scalar;
@@ -105,6 +117,10 @@ struct Type {
 
   MT_NODISCARD bool is_alias() const {
     return tag == Tag::alias;
+  }
+
+  MT_NODISCARD bool is_union() const {
+    return tag == Tag::union_type;
   }
 
   Tag tag;

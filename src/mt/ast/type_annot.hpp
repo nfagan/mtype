@@ -307,7 +307,7 @@ struct InferTypeNode : public TypeNode {
 };
 
 struct UnionTypeNode : public TypeNode {
-  explicit UnionTypeNode(std::vector<BoxedType>&& members) : members(std::move(members)) {
+  explicit UnionTypeNode(BoxedTypes&& members) : members(std::move(members)) {
     //
   }
   ~UnionTypeNode() override = default;
@@ -316,7 +316,7 @@ struct UnionTypeNode : public TypeNode {
   void accept_const(TypePreservingVisitor& vis) const override;
   void accept(TypePreservingVisitor& vis) override;
 
-  std::vector<BoxedType> members;
+  BoxedTypes members;
 };
 
 struct TupleTypeNode : public TypeNode {
