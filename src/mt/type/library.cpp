@@ -281,25 +281,9 @@ void Library::make_base_type_scope() {
 }
 
 void Library::make_free_functions() {
-  make_sum();
   make_feval();
   make_deal();
   make_logicals();
-}
-
-void Library::make_sum() {
-  auto maybe_number = get_number_type();
-  if (!maybe_number) {
-    return;
-  }
-
-  const auto ident = MatlabIdentifier(string_registry.register_string("sum"));
-  const auto args_type = store.make_input_destructured_tuple(maybe_number.value());
-  const auto result_type = store.make_output_destructured_tuple(maybe_number.value());
-  const auto func_type = store.make_abstraction(ident, args_type, result_type);
-
-  const auto func_copy = MT_ABSTR_REF(*func_type);
-  function_types[func_copy] = func_type;
 }
 
 void Library::make_subscript_references() {

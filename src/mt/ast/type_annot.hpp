@@ -19,6 +19,7 @@ using BoxedFunctionTypeNode = std::unique_ptr<FunctionTypeNode>;
 namespace types {
   struct Record;
   struct Scheme;
+  struct Alias;
 }
 
 struct TypeAnnotMacro : public TypeAnnot {
@@ -196,10 +197,12 @@ struct TypeAssertion : public TypeAnnot {
 struct TypeLet : public TypeAnnot {
   TypeLet(const Token& source_token,
           const TypeIdentifier& identifier,
-          BoxedType equal_to_type) :
+          BoxedType equal_to_type,
+          types::Alias* type_alias) :
           source_token(source_token),
           identifier(identifier),
-          equal_to_type(std::move(equal_to_type)) {
+          equal_to_type(std::move(equal_to_type)),
+          type_alias(type_alias) {
     //
   }
   ~TypeLet() override = default;
@@ -211,6 +214,7 @@ struct TypeLet : public TypeAnnot {
   Token source_token;
   TypeIdentifier identifier;
   BoxedType equal_to_type;
+  types::Alias* type_alias;
 };
 
 struct TypeBegin : public TypeAnnot {

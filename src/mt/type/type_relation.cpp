@@ -25,12 +25,16 @@ DebugTypePrinter TypeRelation::type_printer() const {
   return DebugTypePrinter();
 }
 
-bool TypeRelation::element_wise_related(const TypePtrs& a, const TypePtrs& b, bool rev) const {
-  const int64_t size_a = a.size();
-  if (size_a != int64_t(b.size())) {
+bool TypeRelation::related_element_wise(const TypePtrs& a, const TypePtrs& b, bool rev) const {
+  return related_element_wise(a, a.size(), b, b.size(), rev);
+}
+
+bool TypeRelation::related_element_wise(const TypePtrs& a, const int64_t num_a,
+                                        const TypePtrs& b, const int64_t num_b, bool rev) const {
+  if (num_a != num_b) {
     return false;
   }
-  for (int64_t i = 0; i < size_a; i++) {
+  for (int64_t i = 0; i < num_a; i++) {
     if (!related(a[i], b[i], rev)) {
       return false;
     }
@@ -60,6 +64,8 @@ bool TypeRelation::related_same_types(const Type* a, const Type* b, bool rev) co
       return related(MT_LIST_REF(*a), MT_LIST_REF(*b), rev);
     case Type::Tag::tuple:
       return related(MT_TUPLE_REF(*a), MT_TUPLE_REF(*b), rev);
+    case Type::Tag::union_type:
+      return related(MT_UNION_REF(*a), MT_UNION_REF(*b), rev);
     case Type::Tag::abstraction:
       return related(MT_ABSTR_REF(*a), MT_ABSTR_REF(*b), rev);
     case Type::Tag::variable:
@@ -86,6 +92,12 @@ bool TypeRelation::related_different_types(const Type* a, const Type* b, bool re
 
   } else if (b->is_destructured_tuple()) {
     return related_different_types(MT_DT_REF(*b), a, !rev);
+
+  } else if (a->is_union()) {
+    return related_different_types(MT_UNION_REF(*a), b, rev);
+
+  } else if (b->is_union()) {
+    return related_different_types(MT_UNION_REF(*b), a, !rev);
 
   } else if (a->is_list()) {
     return related_different_types(MT_LIST_REF(*a), b, rev);
@@ -170,7 +182,24 @@ bool TypeRelation::related(const types::List& a, const types::List& b, bool rev)
 }
 
 bool TypeRelation::related(const types::Tuple& a, const types::Tuple& b, bool rev) const {
-  return element_wise_related(a.members, b.members, rev);
+  return related_element_wise(a.members, b.members, rev);
+}
+
+bool TypeRelation::related(const types::Union& a, const types::Union& b, bool rev) const {
+  auto mems_a = a.members;
+  auto mems_b = b.members;
+
+  //  Order of union members shouldn't matter.
+  std::sort(mems_a.begin(), mems_a.end(), Type::Less{});
+  std::sort(mems_b.begin(), mems_b.end(), Type::Less{});
+
+  auto end_a = std::unique(mems_a.begin(), mems_a.end(), Type::Equal{});
+  auto end_b = std::unique(mems_b.begin(), mems_b.end(), Type::Equal{});
+
+  const int64_t num_a = end_a - mems_a.begin();
+  const int64_t num_b = end_b - mems_b.begin();
+
+  return related_element_wise(mems_a, num_a, mems_b, num_b, rev);
 }
 
 bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool rev) const {
@@ -213,7 +242,7 @@ bool TypeRelation::related(const Type* lhs, const Type* rhs, const DT& a, const 
     return false;
 
   } else if (a.is_definition_usage() && a.usage == b.usage) {
-    return element_wise_related(a.members, b.members, rev);
+    return related_element_wise(a.members, b.members, rev);
 
   } else {
     DestructuredVisitor relater(*this);
@@ -239,6 +268,15 @@ bool TypeRelation::related_different_types(const types::DestructuredTuple& a, co
 
 bool TypeRelation::related_different_types(const types::List& a, const Type* b, bool rev) const {
   return a.size() == 1 && related(a.pattern[0], b, rev);
+}
+
+bool TypeRelation::related_different_types(const types::Union& a, const Type* b, bool rev) const {
+  for (const auto& mem : a.members) {
+    if (related(mem, b, rev)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool TypeRelation::ArgumentLess::operator()(const types::Abstraction& a, const types::Abstraction& b) const {

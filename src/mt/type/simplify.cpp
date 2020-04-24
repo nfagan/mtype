@@ -166,16 +166,10 @@ bool Simplifier::simplify_different_types(const types::Union& union_type, Type* 
   }
 
   TypeRelation relation{unifier.subtype_relationship, unifier.store};
+  const bool success = relation.related_entry(&union_type, rhs, rev);
+  check_emplace_simplification_failure(success, &union_type, rhs);
 
-  for (const auto& mem : union_type.members) {
-    bool related = relation.related_entry(mem, rhs, rev);
-    if (related) {
-      return true;
-    }
-  }
-
-  check_emplace_simplification_failure(false, &union_type, rhs);
-  return false;
+  return success;
 }
 
 bool Simplifier::simplify_different_types(const DT&, Type* source, Type* rhs, bool rev) {

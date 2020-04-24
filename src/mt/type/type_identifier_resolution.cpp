@@ -121,6 +121,13 @@ namespace {
     auto msg = "Expected a function type.";
     return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
+
+  ParseError make_error_duplicate_function(const TypeIdentifierResolverInstance& instance,
+                                           const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
+    auto msg = "Duplicate function.";
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
+  }
 }
 
 /*
@@ -324,7 +331,13 @@ void TypeIdentifierResolver::type_assertion(TypeAssertion& node) {
 }
 
 void TypeIdentifierResolver::type_let(TypeLet& node) {
-  node.equal_to_type->accept(*this);
+  auto maybe_type = collect_one_type(*this, *instance, node.equal_to_type.get());
+  if (!maybe_type) {
+    return;
+  }
+
+  assert(!node.type_alias->source);
+  node.type_alias->source = maybe_type.value();
 }
 
 void TypeIdentifierResolver::scheme_type_node(SchemeTypeNode& node) {
@@ -585,8 +598,10 @@ void TypeIdentifierResolver::declare_function_type_node(DeclareFunctionTypeNode&
   abstr.assign_kind(to_matlab_identifier(node.identifier));
 
   bool success = instance->library.emplace_declared_function_type(abstr, type);
-  assert(success);
-  (void) success;
+  if (!success) {
+    instance->add_error(make_error_duplicate_function(*instance, node.source_token));
+    instance->collectors.current().mark_error();
+  }
 }
 
 void TypeIdentifierResolver::namespace_type_node(NamespaceTypeNode& node) {

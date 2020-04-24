@@ -50,7 +50,10 @@ private:
 
   bool related(const Type* a, const Type* b, bool rev) const;
 
-  bool element_wise_related(const TypePtrs& a, const TypePtrs& b, bool rev) const;
+  bool related_element_wise(const TypePtrs& a, const TypePtrs& b, bool rev) const;
+  bool related_element_wise(const TypePtrs& a, const int64_t num_a,
+                            const TypePtrs& b, const int64_t num_b, bool rev) const;
+
   bool related_different_types(const Type* a, const Type* b, bool rev) const;
   bool related_same_types(const Type* a, const Type* b, bool rev) const;
 
@@ -58,6 +61,7 @@ private:
   bool related(const Type* lhs, const Type* rhs, const DT& a, const DT& b, bool rev) const;
   bool related(const types::List& a, const types::List& b, bool rev) const;
   bool related(const types::Tuple& a, const types::Tuple& b, bool rev) const;
+  bool related(const types::Union& a, const types::Union& b, bool rev) const;
   bool related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const;
   bool related(const types::Scheme& a, const types::Scheme& b, bool rev) const;
   bool related(const types::Class& a, const types::Class& b, bool rev) const;
@@ -65,10 +69,12 @@ private:
   bool related_different_types(const types::Scheme& a, const Type* b, bool rev) const;
   bool related_different_types(const types::DestructuredTuple& a, const Type* b, bool rev) const;
   bool related_different_types(const types::List& a, const Type* b, bool rev) const;
+  bool related_different_types(const types::Union& a, const Type* b, bool rev) const;
 
   bool related_list(const TypePtrs& a, const TypePtrs& b, int64_t* ia, int64_t* ib,
                     int64_t num_a, int64_t num_b, bool rev) const;
-  bool related_list_sub_tuple(const DT& tup_a, const TypePtrs& b, int64_t* ib, int64_t num_b, bool rev) const;
+  bool related_list_sub_tuple(const DT& tup_a, const TypePtrs& b,
+                              int64_t* ib, int64_t num_b, bool rev) const;
 
   DebugTypePrinter type_printer() const;
 

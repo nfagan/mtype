@@ -3029,9 +3029,11 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
     return NullOpt{};
   }
 
-  auto let_node = std::make_unique<TypeLet>(source_token, identifier, equal_to_type_res.rvalue());
+  auto type_alias = parse_instance->type_store->make_alias();
+  auto let_node = std::make_unique<TypeLet>(source_token, identifier,
+                                            equal_to_type_res.rvalue(), type_alias);
   //  @Note: Source token must be a pointer to a source token stored in the AST.
-  auto let_type = parse_instance->type_store->make_type_reference(&let_node->source_token, nullptr, scope);
+  auto let_type = parse_instance->type_store->make_type_reference(&let_node->source_token, type_alias, scope);
   scope->emplace_type(identifier, let_type, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(let_node));

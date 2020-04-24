@@ -144,9 +144,9 @@ void TypeToString::apply(const types::Tuple& tup, std::stringstream& stream) con
 }
 
 void TypeToString::apply(const types::Union& union_type, std::stringstream& into) const {
-  into << "[";
+  into << "(";
   apply(union_type.members, into, " | ");
-  into << "]";
+  into << ")";
 }
 
 void TypeToString::apply(const types::ConstantValue& val, std::stringstream& into) const {

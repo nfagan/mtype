@@ -163,7 +163,6 @@ private:
   void make_builtin_parens_subscript_references();
   void make_builtin_brace_subscript_reference();
   void make_free_functions();
-  void make_sum();
   void make_feval();
   void make_deal();
   void make_logicals();
