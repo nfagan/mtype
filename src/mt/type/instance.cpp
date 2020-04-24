@@ -50,6 +50,8 @@ Type* Instantiation::clone(Type* source, InstanceVars& replacing) {
       return clone(MT_RECORD_REF(*source), replacing);
     case Type::Tag::alias:
       return clone(MT_ALIAS_REF(*source), replacing);
+    case Type::Tag::constant_value:
+      return clone(MT_CONST_VAL_REF(*source), source, replacing);
     default:
       std::cout << to_string(source->tag) << std::endl;
       assert(false && "Unhandled.");
@@ -129,6 +131,10 @@ Type* Instantiation::clone(const types::Record& record, InstanceVars& replacing)
 
 Type* Instantiation::clone(const types::Alias& alias, InstanceVars& replacing) {
   return store.make_alias(clone(alias.source, replacing));
+}
+
+Type* Instantiation::clone(const types::ConstantValue&, Type* source, InstanceVars&) {
+  return source;
 }
 
 Type* Instantiation::clone(const types::Scalar&, Type* source, InstanceVars&) {

@@ -36,6 +36,7 @@ private:
   Type* clone(const types::Variable& var, Type* source, InstanceVars& replacing);
   Type* clone(const types::Scalar& scl, Type* source, InstanceVars& replacing);
   Type* clone(const types::Parameters& params, Type* source, InstanceVars& replacing);
+  Type* clone(const types::ConstantValue& cv, Type* source, InstanceVars& replacing);
 
   TypePtrs clone(const TypePtrs& members, InstanceVars& replacing);
 

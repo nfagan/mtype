@@ -774,11 +774,13 @@ void TypeIdentifierResolver::method_node(MethodNode& node) {
     node.resolved_type = maybe_method_type.value();
   }
 
-  instance->push_presumed_type(node.resolved_type);
-  MT_SCOPE_EXIT {
-    instance->pop_presumed_type();
-  };
-  node.def->accept(*this);
+  {
+    instance->push_presumed_type(node.resolved_type);
+    MT_SCOPE_EXIT {
+      instance->pop_presumed_type();
+    };
+    node.def->accept(*this);
+  }
 
   if (node.external_block) {
     instance->collectors.push();

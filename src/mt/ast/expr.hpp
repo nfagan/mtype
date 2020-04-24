@@ -334,6 +334,10 @@ struct GroupingExpr : public Expr {
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 
+  bool is_brace() const;
+  bool is_bracket() const;
+  bool is_parens() const;
+
   Token source_token;
   GroupingMethod method;
   GroupingExprComponents components;

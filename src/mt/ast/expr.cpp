@@ -307,6 +307,18 @@ void GroupingExpr::accept_const(TypePreservingVisitor& visitor) const {
   visitor.grouping_expr(*this);
 }
 
+bool GroupingExpr::is_brace() const {
+  return method == GroupingMethod::brace;
+}
+
+bool GroupingExpr::is_bracket() const {
+  return method == GroupingMethod::bracket;
+}
+
+bool GroupingExpr::is_parens() const {
+  return method == GroupingMethod::parens;
+}
+
 bool GroupingExpr::is_valid_assignment_target() const {
   if (method != GroupingMethod::bracket || components.empty()) {
     return false;

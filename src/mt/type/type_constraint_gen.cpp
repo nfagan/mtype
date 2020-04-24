@@ -9,6 +9,13 @@
 
 namespace mt {
 
+namespace {
+  bool is_brace_grouping_expr(const BoxedExpr& expr) {
+    return expr->is_grouping_expr() &&
+      static_cast<const GroupingExpr*>(expr.get())->is_brace();
+  }
+}
+
 TypeConstraintGenerator::TypeConstraintGenerator(Substitution& substitution,
                                                  Store& store,
                                                  TypeStore& type_store,
@@ -435,10 +442,9 @@ void TypeConstraintGenerator::struct_as_constructor(const FunctionCallExpr& expr
     } else if (!expect_char && field_name && !record_type->has_field(*field_name)) {
       Type* field_type = nullptr;
 
-      if (arg->is_grouping_expr() &&
-          static_cast<const GroupingExpr&>(*arg).method == GroupingMethod::brace) {
+      if (is_brace_grouping_expr(arg)) {
         //  x = struct( 'a', {1, 2, 3} ) creates a 1x3 struct where x(1).a is 1, x(2).a is 2, ...
-        const auto& group_expr = static_cast<GroupingExpr&>(*arg);
+        const auto& group_expr = static_cast<const GroupingExpr&>(*arg);
         auto components = grouping_expr_components(group_expr);
         if (components.empty()) {
           //  struct( 'a', {} );
@@ -814,12 +820,24 @@ void TypeConstraintGenerator::if_branch(const IfBranch& branch) {
 }
 
 void TypeConstraintGenerator::switch_stmt(const SwitchStmt& stmt) {
-  //  @TODO: Handle case expressions with multiple brace-wrapped options: case {1, 2, 3}
   auto condition_term = visit_expr(stmt.condition_expr, stmt.source_token);
 
   for (const auto& switch_case : stmt.cases) {
-    auto case_term = visit_expr(switch_case.expr, switch_case.source_token);
-    push_type_equation(make_eq(condition_term, case_term));
+    if (is_brace_grouping_expr(switch_case.expr)) {
+      //  case {'a', 'b', 'c'} -- each component in the grouping expression must be
+      //  the same type.
+      const auto& components =
+        static_cast<const GroupingExpr*>(switch_case.expr.get())->components;
+
+      for (const auto& component : components) {
+        auto case_term = visit_expr(component.expr, switch_case.source_token);
+        push_type_equation(make_eq(condition_term, case_term));
+      }
+
+    } else {
+      auto case_term = visit_expr(switch_case.expr, switch_case.source_token);
+      push_type_equation(make_eq(condition_term, case_term));
+    }
 
     switch_case.block->accept_const(*this);
   }

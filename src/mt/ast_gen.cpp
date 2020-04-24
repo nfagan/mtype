@@ -3372,16 +3372,23 @@ Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& sour
     return NullOpt{};
   }
 
-  auto underlying_ptr = static_cast<FunctionTypeNode*>(underlying.release());
-  auto func_type = std::unique_ptr<FunctionTypeNode>(underlying_ptr);
-
+  auto func_type = downcast<TypeNode, FunctionTypeNode>(std::move(underlying));
   DeclareTypeNode::Method method;
 
   if (represents_binary_operator(func_token.type)) {
-    method = DeclareTypeNode::Method(binary_operator_from_token_type(func_token.type), std::move(func_type));
+    if (represents_unary_operator(func_token.type) && func_type->inputs.size() == 1) {
+      //  Token is both a binary and unary operator, but treat as unary.
+      const auto op = unary_operator_from_token_type(func_token.type);
+      method = DeclareTypeNode::Method(op, std::move(func_type));
+
+    } else {
+      const auto op = binary_operator_from_token_type(func_token.type);
+      method = DeclareTypeNode::Method(op, std::move(func_type));
+    }
 
   } else if (represents_unary_operator(func_token.type)) {
-    method = DeclareTypeNode::Method(unary_operator_from_token_type(func_token.type), std::move(func_type));
+    const auto op = unary_operator_from_token_type(func_token.type);
+    method = DeclareTypeNode::Method(op, std::move(func_type));
 
   } else if (func_token.type == TokenType::identifier) {
     TypeIdentifier name(string_registry->register_string(func_token.lexeme));

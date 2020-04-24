@@ -11,14 +11,8 @@ TODO
 . For method definition, use provided type as canonical type
 . * Distinguish application and abstraction
 . Distinguish concatenation types - horz vs. vert
-. * generic functions @T :: given <T> [T] = (T)
 . union types
-. function declarations
 . recursive types
-. store classes by name, rather than pointer
 . * error variable in catch expression
-. In a type assertion with a function type, handle the case of duplicate
-  parameters given different types: e.g. [x] = (x)
-. Properly handle nested generic functions.
 
 %}
