@@ -5,10 +5,10 @@
 import mt.scalar
 import mt.string
 
-declare function nan :: [double] = (list<double>)
-declare function zeros :: [double] = (list<double>)
-declare function ones :: [double] = (list<double>)
-declare function inf :: [double] = (list<double>)
+declare function nan :: [double] = (list<numeric>)
+declare function zeros :: [double] = (list<numeric>)
+declare function ones :: [double] = (list<numeric>)
+declare function inf :: [double] = (list<numeric>)
 
 declare function nargin :: [double] = ()
 declare function nargout :: [double] = ()
@@ -25,7 +25,7 @@ declare function error :: [] = (list<char>)
 declare function tic :: [uint64] = ()
 declare function toc :: [double] = (list<uint64>)
 
-declare function repmat :: given T [T] = (T, list<double>)
+declare function repmat :: given T [T] = (T, list<numeric>)
 
 declare function sum :: [double] = (numeric)
 
