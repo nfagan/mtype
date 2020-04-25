@@ -34,6 +34,8 @@ const char* to_string(Type::Tag tag) {
       return "scalar";
     case Tag::abstraction:
       return "abstraction";
+    case Tag::application:
+      return "application";
     case Tag::union_type:
       return "union_type";
     case Tag::tuple:

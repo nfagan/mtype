@@ -558,6 +558,35 @@ public:
 };
 
 /*
+ * Application
+ */
+
+struct Application : public Type {
+  Application() : Application(nullptr, nullptr, nullptr) {
+    //
+  }
+  Application(Type* abstraction, Type* inputs, Type* outputs) :
+  Type(Type::Tag::application), abstraction(abstraction),
+  inputs(inputs), outputs(outputs) {
+    //
+  }
+
+  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Application)
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Application)
+
+  ~Application() override = default;
+
+  std::size_t bytes() const override;
+  void accept(const TypeToString& to_str, std::stringstream& into) const override;
+
+  int compare(const Type* b) const noexcept override;
+
+  Type* abstraction;
+  Type* inputs;
+  Type* outputs;
+};
+
+/*
  * Parameters
  */
 
@@ -591,6 +620,7 @@ namespace mt {
 
 #define MT_DT_REF(a) static_cast<const mt::types::DestructuredTuple&>((a))
 #define MT_ABSTR_REF(a) static_cast<const mt::types::Abstraction&>((a))
+#define MT_APP_REF(a) static_cast<const mt::types::Application&>((a))
 #define MT_VAR_REF(a) static_cast<const mt::types::Variable&>((a))
 #define MT_SCHEME_REF(a) static_cast<const mt::types::Scheme&>((a))
 #define MT_SCALAR_REF(a) static_cast<const mt::types::Scalar&>((a))
@@ -612,6 +642,7 @@ namespace mt {
 
 #define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
 #define MT_ABSTR_MUT_REF(a) static_cast<mt::types::Abstraction&>((a))
+#define MT_APP_MUT_REF(a) static_cast<mt::types::Application&>((a))
 #define MT_VAR_MUT_REF(a) static_cast<mt::types::Variable&>((a))
 #define MT_SCHEME_MUT_REF(a) static_cast<mt::types::Scheme&>((a))
 #define MT_SCALAR_MUT_REF(a) static_cast<mt::types::Scalar&>((a))

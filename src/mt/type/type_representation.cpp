@@ -97,6 +97,17 @@ void TypeToString::apply(const types::Abstraction& abstr, std::stringstream& str
   }
 }
 
+void TypeToString::apply(const types::Application& app, std::stringstream& into) const {
+  apply(app.abstraction, into);
+  into << "@ [";
+  apply(app.outputs, into);
+
+  into << (rich_text ? "] × (" : "] * (");
+
+  apply(app.inputs, into);
+  into << ")";
+}
+
 void TypeToString::apply_name(const types::Abstraction& abstr, std::stringstream& stream) const {
   stream << color(style::yellow);
 

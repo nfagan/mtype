@@ -39,7 +39,8 @@ struct Type {
     parameters,
     class_type,
     record,
-    alias
+    alias,
+    application
   };
 
   Type() = delete;
@@ -93,6 +94,10 @@ struct Type {
 
   MT_NODISCARD bool is_abstraction() const {
     return tag == Tag::abstraction;
+  }
+
+  MT_NODISCARD bool is_application() const {
+    return tag == Tag::application;
   }
 
   MT_NODISCARD bool is_scheme() const {

@@ -27,6 +27,7 @@ public:
   void apply(const types::Tuple& tup, std::stringstream& into) const;
   void apply(const types::Variable& var, std::stringstream& into) const;
   void apply(const types::Abstraction& abstr, std::stringstream& into) const;
+  void apply(const types::Application& app, std::stringstream& into) const;
   void apply(const types::DestructuredTuple& tup, std::stringstream& into) const;
   void apply(const types::List& list, std::stringstream& into) const;
   void apply(const types::Subscript& subscript, std::stringstream& into) const;

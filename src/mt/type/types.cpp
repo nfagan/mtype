@@ -205,6 +205,33 @@ int types::Scalar::compare(const Type* b) const noexcept {
 }
 
 /*
+ * Application
+ */
+
+std::size_t types::Application::bytes() const {
+  return sizeof(Application);
+}
+void types::Application::accept(const TypeToString& to_str, std::stringstream& into) const {
+  to_str.apply(*this, into);
+}
+
+int types::Application::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& app_b = MT_APP_REF(*b);
+
+  const auto app_res = abstraction->compare(app_b.abstraction);
+  MT_COMPARE_TEST0_EARLY_RETURN(app_res)
+
+  const auto input_res = inputs->compare(app_b.inputs);
+  MT_COMPARE_TEST0_EARLY_RETURN(input_res)
+
+  const auto output_res = outputs->compare(app_b.outputs);
+  MT_COMPARE_TEST0_EARLY_RETURN(output_res)
+
+  return 0;
+}
+
+/*
  * Abstraction
  */
 
