@@ -283,8 +283,12 @@ int64_t IdentifierReferenceExpr::num_primary_subscript_arguments() const {
   return subscripts.empty() ? 0 : subscripts[0].arguments.size();
 }
 
-Optional<const IdentifierReferenceExpr*> IdentifierReferenceExpr::expect_identifier_reference_expr() const {
+Optional<const IdentifierReferenceExpr*> IdentifierReferenceExpr::extract_identifier_reference_expr() const {
   return Optional<const IdentifierReferenceExpr*>(this);
+}
+
+Optional<IdentifierReferenceExpr*> IdentifierReferenceExpr::extract_mut_identifier_reference_expr() {
+  return Optional<IdentifierReferenceExpr*>(this);
 }
 
 std::string IdentifierReferenceExpr::accept(const StringVisitor& vis) const {

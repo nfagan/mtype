@@ -117,7 +117,11 @@ struct Expr : public AstNode {
     return false;
   }
 
-  virtual Optional<const IdentifierReferenceExpr*> expect_identifier_reference_expr() const {
+  virtual Optional<const IdentifierReferenceExpr*> extract_identifier_reference_expr() const {
+    return NullOpt{};
+  }
+
+  virtual Optional<IdentifierReferenceExpr*> extract_mut_identifier_reference_expr() {
     return NullOpt{};
   }
 };

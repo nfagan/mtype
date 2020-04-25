@@ -297,7 +297,8 @@ struct IdentifierReferenceExpr : public Expr {
 
   std::vector<int64_t> make_compound_identifier(int64_t* end) const;
 
-  Optional<const IdentifierReferenceExpr*> expect_identifier_reference_expr() const override;
+  Optional<const IdentifierReferenceExpr*> extract_identifier_reference_expr() const override;
+  Optional<IdentifierReferenceExpr*> extract_mut_identifier_reference_expr() override;
 
   Token source_token;
   MatlabIdentifier primary_identifier;

@@ -755,6 +755,20 @@ SwitchStmt* IdentifierClassifier::switch_stmt(SwitchStmt& stmt) {
   return &stmt;
 }
 
+Expr* IdentifierClassifier::catch_expr(IdentifierReferenceExpr& expr) {
+  if (expr.subscripts.empty()) {
+    auto result = register_variable_assignment(expr.source_token, expr.primary_identifier);
+    if (result.success) {
+      return new VariableReferenceExpr(expr.source_token, result.variable_def_handle,
+        expr.primary_identifier, std::move(expr.subscripts), result.was_initialization);
+    } else {
+      return &expr;
+    }
+  } else {
+    return expr.accept(*this);
+  }
+}
+
 TryStmt* IdentifierClassifier::try_stmt(TryStmt& stmt) {
   current_scope()->push_variable_assignment_context();
   block_new_context(stmt.try_block);
@@ -763,7 +777,16 @@ TryStmt* IdentifierClassifier::try_stmt(TryStmt& stmt) {
     auto& catch_block = stmt.catch_block.value();
 
     if (catch_block.expr) {
-      conditional_reset(catch_block.expr, catch_block.expr->accept(*this));
+      auto maybe_identifier_reference_expr =
+        catch_block.expr->extract_mut_identifier_reference_expr();
+
+      if (maybe_identifier_reference_expr) {
+        conditional_reset(catch_block.expr,
+          catch_expr(*maybe_identifier_reference_expr.value()));
+
+      } else {
+        conditional_reset(catch_block.expr, catch_block.expr->accept(*this));
+      }
     }
 
     block_new_context(catch_block.block);

@@ -1469,12 +1469,12 @@ Optional<BoxedPropertyNode> AstGenerator::typed_property(const Token& source_tok
 
   if (stmt_node.is_assignment_stmt()) {
     auto& assign_node = static_cast<AssignmentStmt&>(stmt_node);
-    property_lhs = assign_node.to_expr->expect_identifier_reference_expr();
+    property_lhs = assign_node.to_expr->extract_identifier_reference_expr();
     maybe_initializer = std::move(assign_node.of_expr);
 
   } else if (stmt_node.is_expr_stmt()) {
     auto& expr_node = static_cast<ExprStmt&>(stmt_node);
-    property_lhs = expr_node.expr->expect_identifier_reference_expr();
+    property_lhs = expr_node.expr->extract_identifier_reference_expr();
   }
 
   if (!property_lhs || !property_lhs.value()->is_non_subscripted_scalar_reference()) {

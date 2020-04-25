@@ -295,6 +295,8 @@ private:
                                             int64_t subscript_end,
                                             FunctionReferenceHandle function_reference);
 
+  Expr* catch_expr(IdentifierReferenceExpr& expr);
+
   void block_preserve_context(BoxedBlock& block);
   void block_new_context(BoxedBlock& block);
 
