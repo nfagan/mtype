@@ -12,6 +12,7 @@ declare scalar uint16
 declare scalar uint32
 declare scalar uint64
 
+let integral = numeric | char | string
 let numeric = double | single | int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64
 
 end

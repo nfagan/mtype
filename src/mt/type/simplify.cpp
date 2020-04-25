@@ -161,8 +161,6 @@ bool Simplifier::simplify_different_types(const types::List& list, Type* rhs, bo
 
 bool Simplifier::simplify_different_types(const types::Union& union_type, Type* rhs, bool rev) {
   if (!rev || (!represents_one_type(rhs) && !rhs->is_list())) {
-    MT_SHOW2("Fail: ", union_type, rhs);
-    assert(false);
     //  If `!rev`, then we're trying to check union_type <: rhs, which can only be true
     //  if the union has a single member which is a subtype of rhs. However, it's not
     //  currently possible to make size 1 unions.

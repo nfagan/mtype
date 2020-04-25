@@ -4,16 +4,18 @@
 
 import mt.scalar
 import mt.string
+import mt.float
 
 declare function nan :: [double] = (list<numeric>)
 declare function zeros :: [double] = (list<numeric>)
 declare function ones :: [double] = (list<numeric>)
 declare function inf :: [double] = (list<numeric>)
+
 declare function true :: [logical] = (list<numeric>)
 declare function false :: [logical] = (list<numeric>)
 
 declare function isnan :: [logical] = (numeric)
-declare function isinf :: [logical] = (double | single)
+declare function isinf :: [logical] = (mt.float)
 
 declare function nargin :: [double] = ()
 declare function nargout :: [double] = ()
@@ -31,6 +33,7 @@ declare function isempty :: given T [logical] = (T)
 declare function isequal :: given T [logical] = (T, T)
 
 declare function error :: [] = (list<char>)
+declare function assert :: [] = (logical, list<integral>)
 
 declare function tic :: [uint64] = ()
 declare function toc :: [double] = (list<uint64>)

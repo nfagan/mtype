@@ -334,11 +334,6 @@ Type* Unifier::apply_to(types::DestructuredTuple& tup, TermRef term) {
 Type* Unifier::apply_to(types::Abstraction& func, TermRef term) {
   func.inputs = apply_to(func.inputs, term);
   func.outputs = apply_to(func.outputs, term);
-
-#if !MT_USE_APPLICATION
-  check_push_function(&func, term, func);
-#endif
-
   return &func;
 }
 
@@ -346,6 +341,8 @@ Type* Unifier::apply_to(types::Application& app, TermRef term) {
   app.abstraction = apply_to(app.abstraction, term);
   app.inputs = apply_to(app.inputs, term);
   app.outputs = apply_to(app.outputs, term);
+
+  check_application(&app, term, app);
 
   return &app;
 }
@@ -535,11 +532,6 @@ Type* Unifier::substitute_one(types::Alias& alias, TermRef term, TermRef lhs, Te
 Type* Unifier::substitute_one(types::Abstraction& func, TermRef term, TermRef lhs, TermRef rhs) {
   func.inputs = substitute_one(func.inputs, term, lhs, rhs);
   func.outputs = substitute_one(func.outputs, term, lhs, rhs);
-
-#if !MT_USE_APPLICATION
-  check_push_function(&func, term, func);
-#endif
-
   return &func;
 }
 
@@ -548,9 +540,7 @@ Type* Unifier::substitute_one(types::Application& app, TermRef term, TermRef lhs
   app.inputs = substitute_one(app.inputs, term, lhs, rhs);
   app.outputs = substitute_one(app.outputs, term, lhs, rhs);
 
-#if MT_USE_APPLICATION
   check_application(&app, term, app);
-#endif
 
   return &app;
 }
