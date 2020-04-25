@@ -9,6 +9,8 @@ declare function nan :: [double] = (list<numeric>)
 declare function zeros :: [double] = (list<numeric>)
 declare function ones :: [double] = (list<numeric>)
 declare function inf :: [double] = (list<numeric>)
+declare function true :: [logical] = (list<numeric>)
+declare function false :: [logical] = (list<numeric>)
 
 declare function isnan :: [logical] = (numeric)
 declare function isinf :: [logical] = (double | single)

@@ -14,6 +14,22 @@ namespace {
   }
 }
 
+Library::Library(TypeStore& store, Store& def_store, const SearchPath&
+                 search_path, StringRegistry& string_registry) :
+  subtype_relation(*this),
+  type_eq(equiv_relation, store),
+  store(store),
+  def_store(def_store),
+  string_registry(string_registry),
+  name_comparator(type_eq),
+  function_types(name_comparator),
+  search_path(search_path),
+  scalar_store(store, string_registry),
+  special_identifiers(string_registry),
+  base_scope(nullptr) {
+  //
+}
+
 bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   auto maybe_lhs_cls = class_for_type(lhs);
   auto maybe_rhs_cls = class_for_type(rhs);
@@ -172,16 +188,6 @@ Type* Library::require_local_variable_type(const VariableDefHandle& handle) {
   }
 }
 
-bool Library::is_known_subscript_type(const Type* handle) const {
-  for (const auto& t : types_with_known_subscripts) {
-    if (type_eq.related_entry(t, handle)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 bool Library::is_builtin_class(const MatlabIdentifier& ident) const {
   return ident == MatlabIdentifier(special_identifiers.handle);
 }
@@ -265,7 +271,6 @@ void Library::make_builtin_types() {
 void Library::make_known_types() {
   make_base_type_scope();
   make_builtin_types();
-  make_subscript_references();
   make_free_functions();
   make_concatenations();
   make_subtype_debug();
@@ -281,60 +286,6 @@ void Library::make_base_type_scope() {
 void Library::make_free_functions() {
   make_feval();
   make_deal();
-  make_logicals();
-}
-
-void Library::make_subscript_references() {
-  make_builtin_parens_subscript_references();
-  make_builtin_brace_subscript_reference();
-}
-
-void Library::make_builtin_parens_subscript_references() {
-  auto maybe_number = get_number_type();
-  auto maybe_char = get_char_type();
-  auto maybe_str = get_string_type();
-
-  if (!maybe_number || !maybe_char || !maybe_str) {
-    return;
-  }
-
-  const auto ref_var = store.make_fresh_type_variable_reference();
-
-  const auto list_subs_type = store.make_list(maybe_number.value());
-  const auto args_type = store.make_input_destructured_tuple(ref_var, list_subs_type);
-  const auto result_type = store.make_output_destructured_tuple(ref_var);
-  const auto func_type = store.make_abstraction(SubscriptMethod::parens, args_type, result_type);
-  const auto ref_copy = MT_ABSTR_REF(*func_type);
-
-  const auto scheme = store.make_scheme(func_type, TypePtrs{ref_var});
-  function_types[ref_copy] = scheme;
-
-  TypePtrs default_array_types{maybe_number.value(), maybe_char.value(),
-                               maybe_str.value()};
-
-  for (const auto& referent_type_handle : default_array_types) {
-    add_type_with_known_subscript(referent_type_handle);
-  }
-}
-
-void Library::make_builtin_brace_subscript_reference() {
-  auto maybe_number = get_number_type();
-  if (!maybe_number) {
-    return;
-  }
-
-  const auto ref_var = store.make_fresh_type_variable_reference();
-  const auto tup_type = store.make_tuple(ref_var);
-
-  const auto list_subs_type = store.make_list(maybe_number.value());
-  const auto args_type = store.make_input_destructured_tuple(tup_type, list_subs_type);
-  const auto result_type = store.make_output_destructured_tuple(ref_var);
-  const auto func_type = store.make_abstraction(SubscriptMethod::brace, args_type, result_type);
-  const auto ref_copy = MT_ABSTR_REF(*func_type);
-
-  const auto scheme = store.make_scheme(func_type, TypePtrs{ref_var});
-  function_types[ref_copy] = scheme;
-  add_type_with_known_subscript(tup_type);
 }
 
 void Library::make_concatenations() {
@@ -374,22 +325,6 @@ void Library::make_deal() {
 
   const auto abstr_copy = MT_ABSTR_REF(*func);
   function_types[abstr_copy] = func_scheme;
-}
-
-void Library::make_logicals() {
-  auto maybe_logical = get_logical_type();
-  if (!maybe_logical) {
-    return;
-  }
-
-  auto tru = make_simple_function("true", {}, {maybe_logical.value()});
-  auto fls = make_simple_function("false", {}, {maybe_logical.value()});
-
-  const auto tru_copy = MT_ABSTR_REF(*tru);
-  const auto fls_copy = MT_ABSTR_REF(*fls);
-
-  function_types[tru_copy] = tru;
-  function_types[fls_copy] = fls;
 }
 
 void Library::make_subtype_debug() {
@@ -447,10 +382,6 @@ void Library::process_scalar_type(types::Scalar* type) {
 void Library::add_type_to_base_scope(const TypeIdentifier& ident, Type* type) {
   auto ref = store.make_type_reference(nullptr, type, base_scope);
   base_scope->emplace_type(ident, ref, true);
-}
-
-void Library::add_type_with_known_subscript(const Type* t) {
-  types_with_known_subscripts.push_back(t);
 }
 
 Optional<Type*> Library::get_number_type() const {

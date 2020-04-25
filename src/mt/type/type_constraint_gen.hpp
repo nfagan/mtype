@@ -38,6 +38,7 @@ public:
   void number_literal_expr(const NumberLiteralExpr& expr) override;
   void char_literal_expr(const CharLiteralExpr& expr) override;
   void string_literal_expr(const StringLiteralExpr& expr) override;
+  void colon_subscript_expr(const ColonSubscriptExpr& expr) override;
 
   void dynamic_field_reference_expr(const DynamicFieldReferenceExpr& expr) override;
   void literal_field_reference_expr(const LiteralFieldReferenceExpr& expr) override;

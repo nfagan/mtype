@@ -417,6 +417,12 @@ void TypeConstraintGenerator::literal_field_reference_expr(const LiteralFieldRef
   push_type_equation_term(make_term(&expr.source_token, const_type));
 }
 
+void TypeConstraintGenerator::colon_subscript_expr(const ColonSubscriptExpr& expr) {
+  auto maybe_double = library.get_number_type();
+  assert(maybe_double);
+  push_type_equation_term(make_term(&expr.source_token, maybe_double.value()));
+}
+
 void TypeConstraintGenerator::struct_as_constructor(const FunctionCallExpr& expr) {
   /*
    * @T constructor
