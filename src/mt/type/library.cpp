@@ -36,17 +36,15 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   return false;
 }
 
-Library::FunctionSearchResult Library::search_function(const types::Abstraction& func) const {
+Library::FunctionSearchResult Library::search_function(const types::Abstraction& func,
+                                                       const TypePtrs& args) const {
   const auto def_handle = maybe_extract_function_def(func);
 
   if (def_handle.is_valid()) {
     return lookup_local_function(def_handle);
   }
 
-  //  `search_function` assumes `func`'s arguments are concrete. See unification.cpp.
-  assert(func.inputs->is_destructured_tuple());
-
-  auto maybe_method = method_dispatch(func, MT_DT_REF(*func.inputs).members);
+  auto maybe_method = method_dispatch(func, args);
   if (maybe_method) {
     return maybe_method;
   }

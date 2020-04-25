@@ -126,7 +126,8 @@ public:
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
   MT_NODISCARD Optional<Type*> lookup_local_function(const FunctionDefHandle& def_handle) const;
   MT_NODISCARD Optional<Type*> lookup_method(const Type* type, const types::Abstraction& func) const;
-  MT_NODISCARD FunctionSearchResult search_function(const types::Abstraction& func) const;
+  MT_NODISCARD FunctionSearchResult search_function(const types::Abstraction& func,
+                                                    const TypePtrs& args) const;
 
   MT_NODISCARD Optional<types::Class*> lookup_class(const TypeIdentifier& name) const;
   MT_NODISCARD Optional<types::Class*> lookup_local_class(const ClassDefHandle& def_handle) const;

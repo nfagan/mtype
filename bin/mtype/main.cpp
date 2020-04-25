@@ -19,6 +19,7 @@ void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::A
   type_to_string.max_num_type_variables = 3;
   type_to_string.show_class_source_type = args.show_class_source_type;
   type_to_string.rich_text = args.rich_text;
+  type_to_string.show_application_outputs = args.show_application_outputs;
 }
 
 void show_parse_errors(const mt::ParseErrors& errors,

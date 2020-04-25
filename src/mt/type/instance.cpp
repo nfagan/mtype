@@ -26,6 +26,8 @@ Type* Instantiation::clone(Type* source, InstanceVars& replacing) {
   switch (source->tag) {
     case Type::Tag::abstraction:
       return clone(MT_ABSTR_REF(*source), replacing);
+    case Type::Tag::application:
+      return clone(MT_APP_REF(*source), replacing);
     case Type::Tag::destructured_tuple:
       return clone(MT_DT_REF(*source), replacing);
     case Type::Tag::tuple:
@@ -70,6 +72,13 @@ Type* Instantiation::clone(const types::Abstraction& abstr, InstanceVars& replac
   new_abstr.inputs = clone(new_abstr.inputs, replacing);
   new_abstr.outputs = clone(new_abstr.outputs, replacing);
   return store.make_abstraction(std::move(new_abstr));
+}
+
+Type* Instantiation::clone(const types::Application& app, InstanceVars& replacing) {
+  auto abstraction = clone(app.abstraction, replacing);
+  auto inputs = clone(app.inputs, replacing);
+  auto outputs = clone(app.outputs, replacing);
+  return store.make_application(abstraction, inputs, outputs);
 }
 
 Type* Instantiation::clone(const types::Tuple& tup, InstanceVars& replacing) {

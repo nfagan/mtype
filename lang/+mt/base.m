@@ -7,6 +7,7 @@ import mt.single
 import mt.double
 import mt.int64
 import mt.logical
+import mt.string
 import mt.builtins
 
 end

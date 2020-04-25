@@ -84,6 +84,11 @@ public:
   }
 
   template <typename... Args>
+  types::Application* make_application(Args&&... args) {
+    return make_type<types::Application>(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   types::Scheme* make_scheme(Args&&... args) {
     return make_type<types::Scheme>(std::forward<Args>(args)...);
   }

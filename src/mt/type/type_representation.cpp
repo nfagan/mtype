@@ -34,6 +34,7 @@ TypeToString::TypeToString(const Library *library, const StringRegistry *string_
   explicit_aliases(true),
   arrow_function_notation(false),
   show_class_source_type(true),
+  show_application_outputs(true),
   max_num_type_variables(-1) {
   //
 }
@@ -99,13 +100,18 @@ void TypeToString::apply(const types::Abstraction& abstr, std::stringstream& str
 
 void TypeToString::apply(const types::Application& app, std::stringstream& into) const {
   apply(app.abstraction, into);
-  into << "@ [";
-  apply(app.outputs, into);
 
-  into << (rich_text ? "] × (" : "] * (");
-
-  apply(app.inputs, into);
-  into << ")";
+  if (show_application_outputs) {
+    into << " @ [";
+    apply(app.outputs, into);
+    into << (rich_text ? "] × (" : "] * (");
+    apply(app.inputs, into);
+    into << ")";
+  } else {
+    into << " @ (";
+    apply(app.inputs, into);
+    into << ")";
+  }
 }
 
 void TypeToString::apply_name(const types::Abstraction& abstr, std::stringstream& stream) const {

@@ -24,6 +24,7 @@ private:
   void make_instance_variables(const types::Scheme& from_scheme, InstanceVars& into);
 
   Type* clone(const types::Abstraction& abstr, InstanceVars& replacing);
+  Type* clone(const types::Application& app, InstanceVars& replacing);
   Type* clone(const types::DestructuredTuple& tup, InstanceVars& replacing);
   Type* clone(const types::Tuple& tup, InstanceVars& replacing);
   Type* clone(const types::Union& union_type, InstanceVars& replacing);

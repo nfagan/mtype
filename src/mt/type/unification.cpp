@@ -21,6 +21,20 @@
 
 namespace mt {
 
+Unifier::Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
+  substitution(nullptr),
+  pending_external_functions(nullptr),
+  subtype_relationship(library),
+  store(store),
+  library(library),
+  string_registry(string_registry),
+  simplifier(*this, store),
+  instantiation(store),
+  subscript_handler(*this),
+  any_failures(false) {
+  //
+}
+
 bool Unifier::is_concrete_argument(const Type* handle) const {
   TypeProperties props;
   return props.is_concrete_argument(handle);
@@ -31,57 +45,94 @@ bool Unifier::are_concrete_arguments(const mt::TypePtrs& handles) const {
   return props.are_concrete_arguments(handles);
 }
 
-bool Unifier::is_known_subscript_type(const Type* handle) const {
-  return is_concrete_argument(handle) && library.is_known_subscript_type(handle);
-}
-
-void Unifier::check_push_function(Type* source, TermRef term, const types::Abstraction& func) {
-  if (registered_funcs.count(source) > 0 || func.is_anonymous() || !is_concrete_argument(func.inputs)) {
+void Unifier::check_application(Type* source, TermRef term, const types::Application& app) {
+  if (is_visited_type(source) ||
+      !is_concrete_argument(app.abstraction) ||
+      !is_concrete_argument(app.inputs)) {
     return;
   }
 
-  assert(func.inputs->is_destructured_tuple());
-  const auto search_result = library.search_function(func);
+  register_visited_type(source);
 
-  if (search_result.resolved_type) {
-    //  This function has a known type.
-    const auto func_ref = search_result.resolved_type.value();
+  assert(app.inputs->is_destructured_tuple());
+  auto scheme_source = app.abstraction->scheme_source();
+  assert(scheme_source->is_abstraction());
+  auto& abstr = MT_ABSTR_MUT_REF(*scheme_source);
 
-    if (func_ref->is_abstraction()) {
-      const auto lhs_term = make_term(term.source_token, source);
-      const auto rhs_term = make_term(term.source_token, func_ref);
-      substitution->push_type_equation(make_eq(lhs_term, rhs_term));
+  Type* resolved_func = nullptr;
 
-    } else {
-      assert(func_ref->is_scheme());
-      const auto& func_scheme = MT_SCHEME_REF(*func_ref);
-      const auto new_abstr_handle = instantiate(func_scheme);
-      assert(new_abstr_handle->is_abstraction());
-
-      const auto lhs_term = make_term(term.source_token, source);
-      const auto rhs_term = make_term(term.source_token, new_abstr_handle);
-      substitution->push_type_equation(make_eq(lhs_term, rhs_term));
-
-      registered_funcs[new_abstr_handle] = true;
-    }
-
-  } else if (search_result.external_function_candidate) {
-    //  This function was located in at least one file.
-    const auto* candidate = search_result.external_function_candidate.value();
-    const auto type = pending_external_functions->require_candidate_type(candidate, store);
-
-    const auto lhs_term = make_term(term.source_token, source);
-    const auto rhs_term = make_term(term.source_token, type);
-    substitution->push_type_equation(make_eq(lhs_term, rhs_term));
-    //  @TODO: We need to distinguish application and abstraction. For now, pushing equations in
-    //  both directions results in an invariance relationship.
-    substitution->push_type_equation(make_eq(rhs_term, lhs_term));
+  if (abstr.is_anonymous()) {
+    resolved_func = app.abstraction;
 
   } else {
-    add_error(make_unresolved_function_error(term.source_token, source));
+    const auto& args = MT_DT_REF(*app.inputs).members;
+    const auto search_result = library.search_function(abstr, args);
+
+    if (search_result.resolved_type) {
+      //  This function has a known type.
+      resolved_func = search_result.resolved_type.value();
+
+    } else if (search_result.external_function_candidate) {
+      //  This function was located in at least one file.
+      const auto* candidate = search_result.external_function_candidate.value();
+      resolved_func = pending_external_functions->require_candidate_type(candidate, store);
+
+    } else {
+      //  Since this function doesn't appear to exist, we might as well assume
+      //  its arguments are the ones given by the application.
+      abstr.inputs = app.inputs;
+      add_error(make_unresolved_function_error(term.source_token, app.abstraction));
+      return;
+    }
   }
 
-  registered_funcs[source] = true;
+  types::Abstraction* result_func = nullptr;
+
+  if (resolved_func->is_scheme()) {
+    auto instance = instantiate(MT_SCHEME_REF(*resolved_func));
+    assert(instance->is_abstraction());
+    result_func = MT_ABSTR_MUT_PTR(instance);
+
+    auto new_app = store.make_application(app);
+    new_app->abstraction = instance;
+    auto new_app_var = store.make_fresh_type_variable_reference();
+    const auto var_term = make_term(term.source_token, new_app_var);
+    const auto app_term = make_term(term.source_token, new_app);
+    substitution->push_type_equation(make_eq(var_term, app_term));
+
+    register_visited_type(new_app);
+
+  } else {
+    if (!resolved_func->is_abstraction()) {
+      auto input_var = store.make_fresh_type_variable_reference();
+      auto output_var = store.make_fresh_type_variable_reference();
+      auto ext_abstr = store.make_abstraction(input_var, output_var);
+
+      auto var_term = make_term(term.source_token, resolved_func);
+      auto res_term = make_term(term.source_token, ext_abstr);
+      substitution->push_type_equation(make_eq(var_term, res_term));
+
+      resolved_func = ext_abstr;
+    }
+
+    assert(resolved_func->is_abstraction());
+    result_func = MT_ABSTR_MUT_PTR(resolved_func);
+
+    //  Require resolved_func <: app.abstraction
+    const auto lhs_func_term = make_term(term.source_token, result_func);
+    const auto rhs_func_term = make_term(term.source_token, app.abstraction);
+    substitution->push_type_equation(make_eq(lhs_func_term, rhs_func_term));
+  }
+
+  //  Require args <: func_ref.inputs
+  const auto lhs_args_term = make_term(term.source_token, app.inputs);
+  const auto rhs_args_term = make_term(term.source_token, result_func->inputs);
+  substitution->push_type_equation(make_eq(lhs_args_term, rhs_args_term));
+
+  //  Require func_ref.outputs <: outputs
+  const auto lhs_out_term = make_term(term.source_token, result_func->outputs);
+  const auto rhs_out_term = make_term(term.source_token, app.outputs);
+  substitution->push_type_equation(make_eq(lhs_out_term, rhs_out_term));
 }
 
 void Unifier::check_assignment(Type* source, TermRef term, const types::Assignment& assignment) {
@@ -97,20 +148,6 @@ void Unifier::check_assignment(Type* source, TermRef term, const types::Assignme
 
     registered_assignments[source] = true;
   }
-}
-
-Unifier::Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry) :
-  substitution(nullptr),
-  pending_external_functions(nullptr),
-  subtype_relationship(library),
-  store(store),
-  library(library),
-  string_registry(string_registry),
-  simplifier(*this, store),
-  instantiation(store),
-  subscript_handler(*this),
-  any_failures(false) {
-    //
 }
 
 void Unifier::reset(Substitution* subst, PendingExternalFunctions* external_functions) {
@@ -149,6 +186,8 @@ bool Unifier::occurs(const Type* type, TermRef term, const Type* lhs) const {
   switch (type->tag) {
     case Type::Tag::abstraction:
       return occurs(MT_ABSTR_REF(*type), term, lhs);
+    case Type::Tag::application:
+      return occurs(MT_APP_REF(*type), term, lhs);
     case Type::Tag::tuple:
       return occurs(MT_TUPLE_REF(*type), term, lhs);
     case Type::Tag::union_type:
@@ -194,6 +233,12 @@ bool Unifier::occurs(const TypePtrs& ts, TermRef term, const Type* lhs) const {
 
 bool Unifier::occurs(const types::Abstraction& abstr, TermRef term, const Type* lhs) const {
   return occurs(abstr.inputs, term, lhs) || occurs(abstr.outputs, term, lhs);
+}
+
+bool Unifier::occurs(const types::Application& app, TermRef term, const Type* lhs) const {
+  return occurs(app.abstraction, term, lhs) ||
+         occurs(app.inputs, term, lhs) ||
+         occurs(app.outputs, term, lhs);
 }
 
 bool Unifier::occurs(const types::Tuple& tup, TermRef term, const Type* lhs) const {
@@ -290,9 +335,19 @@ Type* Unifier::apply_to(types::Abstraction& func, TermRef term) {
   func.inputs = apply_to(func.inputs, term);
   func.outputs = apply_to(func.outputs, term);
 
+#if !MT_USE_APPLICATION
   check_push_function(&func, term, func);
+#endif
 
   return &func;
+}
+
+Type* Unifier::apply_to(types::Application& app, TermRef term) {
+  app.abstraction = apply_to(app.abstraction, term);
+  app.inputs = apply_to(app.inputs, term);
+  app.outputs = apply_to(app.outputs, term);
+
+  return &app;
 }
 
 Type* Unifier::apply_to(types::Subscript& sub, TermRef term) {
@@ -354,6 +409,8 @@ Type* Unifier::apply_to(Type* source, TermRef term) {
       return source;
     case Type::Tag::abstraction:
       return apply_to(MT_ABSTR_MUT_REF(*source), term);
+    case Type::Tag::application:
+      return apply_to(MT_APP_MUT_REF(*source), term);
     case Type::Tag::tuple:
       return apply_to(MT_TUPLE_MUT_REF(*source), term);
     case Type::Tag::union_type:
@@ -401,6 +458,8 @@ Type* Unifier::substitute_one(Type* source, TermRef term, TermRef lhs, TermRef r
       return source;
     case Type::Tag::abstraction:
       return substitute_one(MT_ABSTR_MUT_REF(*source), term, lhs, rhs);
+    case Type::Tag::application:
+      return substitute_one(MT_APP_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::tuple:
       return substitute_one(MT_TUPLE_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::union_type:
@@ -477,9 +536,23 @@ Type* Unifier::substitute_one(types::Abstraction& func, TermRef term, TermRef lh
   func.inputs = substitute_one(func.inputs, term, lhs, rhs);
   func.outputs = substitute_one(func.outputs, term, lhs, rhs);
 
+#if !MT_USE_APPLICATION
   check_push_function(&func, term, func);
+#endif
 
   return &func;
+}
+
+Type* Unifier::substitute_one(types::Application& app, TermRef term, TermRef lhs, TermRef rhs) {
+  app.abstraction = substitute_one(app.abstraction, term, lhs, rhs);
+  app.inputs = substitute_one(app.inputs, term, lhs, rhs);
+  app.outputs = substitute_one(app.outputs, term, lhs, rhs);
+
+#if MT_USE_APPLICATION
+  check_application(&app, term, app);
+#endif
+
+  return &app;
 }
 
 Type* Unifier::substitute_one(types::Tuple& tup, TermRef term, TermRef lhs, TermRef rhs) {
@@ -667,7 +740,8 @@ BoxedTypeError Unifier::make_occurs_check_violation(const Token* lhs_token, cons
   return std::make_unique<OccursCheckFailure>(lhs_token, rhs_token, lhs_type, rhs_type);
 }
 
-BoxedTypeError Unifier::make_unresolved_function_error(const Token* at_token, const Type* function_type) const {
+BoxedTypeError Unifier::make_unresolved_function_error(const Token* at_token,
+                                                       const Type* function_type) const {
   return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
 }
 

@@ -1,3 +1,4 @@
+% @T import mt.base
 function [c, e] = scheme_func_ref1()
 
 % If MT_SCHEME_FUNC_REF is (0) and MT_SCHEME_FUNC_CALL is (1) 

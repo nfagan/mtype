@@ -63,6 +63,7 @@ public:
   bool explicit_aliases;
   bool arrow_function_notation;
   bool show_class_source_type;
+  bool show_application_outputs;
   int max_num_type_variables;
 };
 

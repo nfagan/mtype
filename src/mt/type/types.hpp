@@ -8,6 +8,8 @@
 #include "../definitions.hpp"
 #include <string_view>
 
+#define MT_USE_APPLICATION (1)
+
 namespace mt {
 
 template <typename T>
@@ -639,6 +641,8 @@ namespace mt {
 #define MT_SCHEME_PTR(a) static_cast<const mt::types::Scheme*>((a))
 #define MT_DT_PTR(a) static_cast<const mt::types::DestructuredTuple*>((a))
 #define MT_ALIAS_PTR(a) static_cast<const mt::types::Alias*>((a))
+#define MT_ABSTR_PTR(a) static_cast<const mt::types::Abstraction*>((a))
+#define MT_APP_PTR(a) static_cast<const mt::types::Application*>((a))
 
 #define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
 #define MT_ABSTR_MUT_REF(a) static_cast<mt::types::Abstraction&>((a))
@@ -662,4 +666,5 @@ namespace mt {
 #define MT_SCHEME_MUT_PTR(a) static_cast<mt::types::Scheme*>((a))
 #define MT_CONST_VAL_MUT_PTR(a) static_cast<mt::types::ConstantValue*>((a))
 #define MT_DT_MUT_PTR(a) static_cast<mt::types::DestructuredTuple*>((a))
+#define MT_ABSTR_MUT_PTR(a) static_cast<mt::types::Abstraction*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

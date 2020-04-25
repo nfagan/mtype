@@ -1,6 +1,6 @@
 % @T import st.sub1
-% @T :: [st.sub1] = ()
-function us1 = use1
+% @T :: [st.sub1, ?] = ()
+function [us1, us2] = use1
 
 [tmp, o] = st.sub2_to_sub1( st.sub2 );
 

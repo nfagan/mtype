@@ -76,6 +76,7 @@ private:
   void unify_one(TypeEquation eq);
 
   MT_NODISCARD Type* apply_to(types::Abstraction& func, TermRef term);
+  MT_NODISCARD Type* apply_to(types::Application& app, TermRef term);
   MT_NODISCARD Type* apply_to(types::Variable& var, TermRef term);
   MT_NODISCARD Type* apply_to(types::Parameters& params, TermRef term);
   MT_NODISCARD Type* apply_to(types::Tuple& tup, TermRef term);
@@ -98,6 +99,7 @@ private:
   MT_NODISCARD Type* substitute_one(types::Variable& var, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Parameters& params, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Abstraction& func, TermRef term, TermRef lhs, TermRef rhs);
+  MT_NODISCARD Type* substitute_one(types::Application& app, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Tuple& tup, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::Union& union_type, TermRef term, TermRef lhs, TermRef rhs);
   MT_NODISCARD Type* substitute_one(types::DestructuredTuple& tup, TermRef term, TermRef lhs, TermRef rhs);
@@ -113,6 +115,7 @@ private:
   bool occurs(const Type* t, TermRef term, const Type* lhs) const;
   bool occurs(const TypePtrs& ts, TermRef term, const Type* lhs) const;
   bool occurs(const types::Abstraction& abstr, TermRef term, const Type* lhs) const;
+  bool occurs(const types::Application& app, TermRef term, const Type* lhs) const;
   bool occurs(const types::Tuple& tup, TermRef term, const Type* lhs) const;
   bool occurs(const types::Union& union_type, TermRef term, const Type* lhs) const;
   bool occurs(const types::DestructuredTuple& tup, TermRef term, const Type* lhs) const;
@@ -126,9 +129,8 @@ private:
   bool occurs(const types::Alias& alias, TermRef term, const Type* lhs) const;
 
   void check_assignment(Type* source, TermRef term, const types::Assignment& assignment);
-  void check_push_function(Type* source, TermRef term, const types::Abstraction& func);
+  void check_application(Type* source, TermRef term, const types::Application& app);
 
-  bool is_known_subscript_type(const Type* handle) const;
   bool is_concrete_argument(const Type* handle) const;
   bool are_concrete_arguments(const TypePtrs& handles) const;
 
@@ -151,7 +153,8 @@ private:
                                              const Type* lhs_type, const Type* rhs_type) const;
   BoxedTypeError make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
                                              const Type* lhs_type, const Type* rhs_type) const;
-  BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type* function_type) const;
+  BoxedTypeError make_unresolved_function_error(const Token* at_token,
+                                                const Type* function_type) const;
   BoxedTypeError make_invalid_function_invocation_error(const Token* at_token, const Type* function_type) const;
   BoxedTypeError make_non_constant_field_reference_expr_error(const Token* at_token, const Type* arg_type) const;
   BoxedTypeError make_reference_to_non_existent_field_error(const Token* at_token, const Type* arg, const Type* field) const;

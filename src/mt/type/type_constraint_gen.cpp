@@ -4,9 +4,6 @@
 #include "type_representation.hpp"
 #include "../string.hpp"
 
-#define MT_SCHEME_FUNC_REF (1)
-#define MT_SCHEME_FUNC_CALL (1)
-
 namespace mt {
 
 namespace {
@@ -188,9 +185,7 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     //  Push a null handle to indicate that we're no longer directly inside a class.
     ClassDefState::Helper enclosing_class(class_state, ClassDefHandle{},
                                           nullptr, MatlabIdentifier());
-    push_monomorphic_functions();
     function_body->accept_const(*this);
-    pop_generic_function_state();
   }
 
   const auto func_var = require_bound_type_variable(node.def_handle);
@@ -507,24 +502,23 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
 
   const auto args_type = type_store.make_rvalue_destructured_tuple(std::move(members));
   auto result_type = make_fresh_type_variable_reference();
-  const auto func_type = type_store.make_abstraction(ref.name, expr.reference_handle, args_type, result_type);
 
-  const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
-
-#if MT_SCHEME_FUNC_CALL
-  const auto scheme_type = type_store.make_scheme(func_type, TypePtrs{});
-  const auto func_rhs_term = make_term(&expr.source_token, scheme_type);
-#else
-  const auto func_rhs_term = make_term(&expr.source_token, func_type);
-#endif
-
-  push_type_equation(make_eq(func_lhs_term, func_rhs_term));
-
+  Type* func_type = nullptr;
   if (ref.def_handle.is_valid()) {
-    const auto local_func_var = require_bound_type_variable(ref.def_handle);
-    const auto local_func_term = make_term(&expr.source_token, local_func_var);
-    push_type_equation(make_eq(local_func_term, func_rhs_term));
+    func_type = require_bound_type_variable(ref.def_handle);
+
+  } else {
+    auto input_type = make_fresh_type_variable_reference();
+    auto output_type = make_fresh_type_variable_reference();
+    func_type =
+      type_store.make_abstraction(ref.name, expr.reference_handle, input_type, output_type);
   }
+
+  auto app_type = type_store.make_application(func_type, args_type, result_type);
+  const auto app_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
+  const auto app_rhs_term = make_term(&expr.source_token, app_type);
+
+  push_type_equation(make_eq(app_lhs_term, app_rhs_term));
 
   push_type_equation_term(make_term(&expr.source_token, result_type));
 }
@@ -539,13 +533,14 @@ void TypeConstraintGenerator::function_reference_expr(const FunctionReferenceExp
   if (ref.def_handle.is_valid()) {
     const auto current_type = require_bound_type_variable(ref.def_handle);
     const auto lhs_term = make_term(&expr.source_token, current_type);
+    TypeEquationTerm rhs_term;
 
-#if MT_SCHEME_FUNC_REF
-    const auto scheme = type_store.make_scheme(func, TypePtrs{});
-    const auto rhs_term = make_term(&expr.source_token, scheme);
-#else
-    const auto rhs_term = make_term(&expr.source_token, func);
-#endif
+    if (are_functions_polymorphic()) {
+      const auto scheme = type_store.make_scheme(func, TypePtrs{});
+      rhs_term = make_term(&expr.source_token, scheme);
+    } else {
+      rhs_term = make_term(&expr.source_token, func);
+    }
 
     push_type_equation(make_eq(lhs_term, rhs_term));
   }
@@ -588,7 +583,8 @@ void TypeConstraintGenerator::variable_reference_expr(const VariableReferenceExp
     value_category_state.pop_side();
 
     const auto outputs_type = make_fresh_type_variable_reference();
-    const auto sub_type = type_store.make_subscript(variable_type_handle, std::move(subscripts), outputs_type);
+    const auto sub_type =
+      type_store.make_subscript(variable_type_handle, std::move(subscripts), outputs_type);
 
     const auto sub_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
     const auto sub_rhs_term = make_term(&expr.source_token, sub_type);
@@ -650,29 +646,39 @@ void TypeConstraintGenerator::binary_operator_expr(const BinaryOperatorExpr& exp
   const auto lhs_result = visit_expr(expr.left, expr.source_token);
   const auto rhs_result = visit_expr(expr.right, expr.source_token);
 
-  const auto output_handle = make_fresh_type_variable_reference();
-  const auto inputs_handle = type_store.make_rvalue_destructured_tuple(lhs_result.term, rhs_result.term);
-  const auto func_handle = type_store.make_abstraction(expr.op, inputs_handle, output_handle);
+  const auto args =
+    type_store.make_rvalue_destructured_tuple(lhs_result.term, rhs_result.term);
 
-  const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
-  const auto func_rhs_term = make_term(&expr.source_token, func_handle);
-  push_type_equation(make_eq(func_lhs_term, func_rhs_term));
+  const auto result = make_fresh_type_variable_reference();
+  const auto inputs = make_fresh_type_variable_reference();
+  const auto outputs = make_fresh_type_variable_reference();
+  const auto func = type_store.make_abstraction(expr.op, inputs, outputs);
 
-  push_type_equation_term(make_term(&expr.source_token, output_handle));
+  const auto app = type_store.make_application(func, args, result);
+  const auto app_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
+  const auto app_rhs_term = make_term(&expr.source_token, app);
+  push_type_equation(make_eq(app_lhs_term, app_rhs_term));
+
+  push_type_equation_term(make_term(&expr.source_token, result));
 }
 
 void TypeConstraintGenerator::unary_operator_expr(const UnaryOperatorExpr& expr) {
   const auto lhs_result = visit_expr(expr.expr, expr.source_token);
 
-  const auto output_handle = make_fresh_type_variable_reference();
-  const auto inputs_handle = type_store.make_rvalue_destructured_tuple(lhs_result.term);
-  const auto func_handle = type_store.make_abstraction(expr.op, inputs_handle, output_handle);
+  const auto args =
+    type_store.make_rvalue_destructured_tuple(lhs_result.term);
 
-  const auto func_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
-  const auto func_rhs_term = make_term(&expr.source_token, func_handle);
-  push_type_equation(make_eq(func_lhs_term, func_rhs_term));
+  const auto result = make_fresh_type_variable_reference();
+  const auto inputs = make_fresh_type_variable_reference();
+  const auto outputs = make_fresh_type_variable_reference();
+  const auto func = type_store.make_abstraction(expr.op, inputs, outputs);
 
-  push_type_equation_term(make_term(&expr.source_token, output_handle));
+  const auto app = type_store.make_application(func, args, result);
+  const auto app_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
+  const auto app_rhs_term = make_term(&expr.source_token, app);
+  push_type_equation(make_eq(app_lhs_term, app_rhs_term));
+
+  push_type_equation_term(make_term(&expr.source_token, result));
 }
 
 void TypeConstraintGenerator::grouping_expr(const GroupingExpr& expr) {
@@ -745,15 +751,19 @@ void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr
   }
 
   auto args = std::move(arg_handles.back());
-  auto result_handle = result_handles.back();
+  auto result = result_handles.back();
   auto tup = type_store.make_rvalue_destructured_tuple(std::move(args));
-  auto abstr = type_store.make_abstraction(last_dir, tup, result_handle);
 
+  const auto inputs = make_fresh_type_variable_reference();
+  const auto outputs = make_fresh_type_variable_reference();
+  const auto func = type_store.make_abstraction(last_dir, inputs, outputs);
+
+  const auto app = type_store.make_application(func, tup, result);
   const auto lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
-  const auto rhs_term = make_term(&expr.source_token, abstr);
+  const auto rhs_term = make_term(&expr.source_token, app);
   push_type_equation(make_eq(lhs_term, rhs_term));
 
-  push_type_equation_term(make_term(&expr.source_token, result_handle));
+  push_type_equation_term(make_term(&expr.source_token, result));
 }
 
 void TypeConstraintGenerator::brace_grouping_expr_rhs(const GroupingExpr& expr) {
