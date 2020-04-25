@@ -6,7 +6,7 @@ namespace mt {
 
 #define MT_COMPARE_CHECK_TAG_EARLY_RETURN(b) \
   if (tag != (b)->tag) { \
-    return tag < b->tag ? -1 : 1; \
+    return tag < (b)->tag ? -1 : 1; \
   }
 
 #define MT_COMPARE_EARLY_RETURN(a, b) \
