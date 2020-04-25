@@ -1,7 +1,7 @@
 %{
 @T begin
 
-import base
+import mt.base
 import st.sub2
 import st.sub1
 import st.base

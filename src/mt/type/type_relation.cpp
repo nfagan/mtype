@@ -116,11 +116,13 @@ bool TypeRelation::related_different_types(const Type* a, const Type* b, bool re
   }
 }
 
-bool TypeRelation::related(const Type* lhs, const Type* rhs, const types::Scalar&, const types::Scalar&, bool rev) const {
+bool TypeRelation::related(const Type* lhs, const Type* rhs,
+                           const types::Scalar&, const types::Scalar&, bool rev) const {
   return relationship.related(lhs, rhs, rev);
 }
 
-bool TypeRelation::related_list(const TypePtrs& a, const TypePtrs& b, int64_t* ia, int64_t* ib,
+bool TypeRelation::related_list(const TypePtrs& a, const TypePtrs& b,
+                                int64_t* ia, int64_t* ib,
                                 int64_t num_a, int64_t num_b, bool rev) const {
 
   if (*ia == num_a) {
@@ -169,7 +171,8 @@ bool TypeRelation::related_list(const TypePtrs& a, const TypePtrs& b, int64_t* i
   }
 }
 
-bool TypeRelation::related_list_sub_tuple(const DT& tup_a, const TypePtrs& b, int64_t* ib, int64_t num_b, bool rev) const {
+bool TypeRelation::related_list_sub_tuple(const DT& tup_a, const TypePtrs& b, int64_t* ib,
+                                          int64_t num_b, bool rev) const {
   const int64_t use_num_a = tup_a.is_outputs() ? std::min(int64_t(1), tup_a.size()) : tup_a.size();
   int64_t new_ia = 0;
   return related_list(tup_a.members, b, &new_ia, ib, use_num_a, num_b, rev);
@@ -186,20 +189,13 @@ bool TypeRelation::related(const types::Tuple& a, const types::Tuple& b, bool re
 }
 
 bool TypeRelation::related(const types::Union& a, const types::Union& b, bool rev) const {
-  auto mems_a = a.members;
-  auto mems_b = b.members;
+  const auto unique_a = types::Union::unique_members(a);
+  const auto unique_b = types::Union::unique_members(b);
 
-  //  Order of union members shouldn't matter.
-  std::sort(mems_a.begin(), mems_a.end(), Type::Less{});
-  std::sort(mems_b.begin(), mems_b.end(), Type::Less{});
+  const auto num_a = unique_a.count();
+  const auto num_b = unique_b.count();
 
-  auto end_a = std::unique(mems_a.begin(), mems_a.end(), Type::Equal{});
-  auto end_b = std::unique(mems_b.begin(), mems_b.end(), Type::Equal{});
-
-  const int64_t num_a = end_a - mems_a.begin();
-  const int64_t num_b = end_b - mems_b.begin();
-
-  return related_element_wise(mems_a, num_a, mems_b, num_b, rev);
+  return related_element_wise(unique_a.members, num_a, unique_b.members, num_b, rev);
 }
 
 bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool rev) const {
@@ -209,7 +205,6 @@ bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool 
 
 bool TypeRelation::related(const types::Class& a, const types::Class& b, bool rev) const {
   return relationship.related(&a, &b, rev);
-//  return related(a.source, b.source, rev);
 }
 
 bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {

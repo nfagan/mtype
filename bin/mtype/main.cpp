@@ -288,8 +288,8 @@ int main(int argc, char** argv) {
   }
 
   if (arguments.show_visited_external_files) {
-    for (const auto& it : external_functions.candidates) {
-      std::cout << "Visited: " << it.first->defining_file << std::endl;
+    for (const auto& it : ast_store.asts) {
+      std::cout << "Visited: " << it.first << std::endl;
     }
   }
 

@@ -265,6 +265,13 @@ struct Scalar : public Type {
  */
 
 struct Union : public Type {
+  struct UniqueMembers {
+    int64_t count() const;
+
+    TypePtrs members;
+    TypePtrs::iterator end;
+  };
+
   Union() : Type(Type::Tag::union_type) {
     //
   }
@@ -284,6 +291,7 @@ struct Union : public Type {
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
 
   int compare(const Type* b) const noexcept override;
+  static UniqueMembers unique_members(const types::Union& a);
 
   TypePtrs members;
 };

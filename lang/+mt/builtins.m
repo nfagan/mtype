@@ -12,6 +12,9 @@ declare function inf :: [double] = (list<numeric>)
 
 declare function nargin :: [double] = ()
 declare function nargout :: [double] = ()
+declare function narginchk :: [] = (double, double)
+declare function nargoutchk :: [] = (double, double)
+
 declare function mfilename :: [char] = ()
 
 declare function isa :: given T [logical] = (T, char)

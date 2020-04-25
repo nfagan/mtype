@@ -387,6 +387,17 @@ int types::Union::compare(const Type* b) const noexcept {
   return compare_impl(members, MT_UNION_REF(*b).members);
 }
 
+int64_t types::Union::UniqueMembers::count() const {
+  return end - members.begin();
+}
+
+types::Union::UniqueMembers types::Union::unique_members(const types::Union& a) {
+  auto members = a.members;
+  std::sort(members.begin(), members.end(), Type::Less{});
+  auto end = std::unique(members.begin(), members.end(), Type::Equal{});
+  return {std::move(members), end};
+}
+
 /*
  * Tuple
  */

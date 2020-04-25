@@ -255,6 +255,7 @@ bool Simplifier::simplify(const types::Class& t0, const types::Class& t1, bool r
 }
 
 bool Simplifier::simplify(const types::Record& t0, const types::Record& t1, bool rev) {
+  //  @TODO: Order-independent comparison.
   if (t0.num_fields() != t1.num_fields()) {
     return false;
   }
@@ -265,9 +266,8 @@ bool Simplifier::simplify(const types::Record& t0, const types::Record& t1, bool
     const auto& field0 = t0.fields[i];
     const auto& field1 = t1.fields[i];
 
-    if (!simplify(field0.name, field1.name, rev)) {
-      return false;
-    } else if (!simplify(field0.type, field1.type, rev)) {
+    if (!simplify(field0.name, field1.name, rev) ||
+        !simplify(field0.type, field1.type, rev)) {
       return false;
     }
   }
@@ -328,20 +328,13 @@ bool Simplifier::simplify(const types::Tuple& t0, const types::Tuple& t1, bool r
 }
 
 bool Simplifier::simplify(const types::Union& t0, const types::Union& t1, bool rev) {
-  auto mems_a = t0.members;
-  auto mems_b = t1.members;
+  const auto t0_unique = types::Union::unique_members(t0);
+  const auto t1_unique = types::Union::unique_members(t1);
 
-  //  Order of union members shouldn't matter.
-  std::sort(mems_a.begin(), mems_a.end(), Type::Less{});
-  std::sort(mems_b.begin(), mems_b.end(), Type::Less{});
+  const int64_t num0 = t0_unique.count();
+  const int64_t num1 = t1_unique.count();
 
-  auto end_a = std::unique(mems_a.begin(), mems_a.end(), Type::Equal{});
-  auto end_b = std::unique(mems_b.begin(), mems_b.end(), Type::Equal{});
-
-  const int64_t num0 = end_a - mems_a.begin();
-  const int64_t num1 = end_b - mems_b.begin();
-
-  bool success = simplify(mems_a, num0, mems_b, num1, rev);
+  bool success = simplify(t0_unique.members, num0, t1_unique.members, num1, rev);
   check_emplace_simplification_failure(success, &t0, &t1);
   return success;
 }
