@@ -232,7 +232,7 @@ void SubscriptHandler::scheme_function_call_subscript(Type* source, TermRef term
 
 void SubscriptHandler::function_call_subscript(Type* source, TermRef term,
                                                const types::Subscript& sub) {
-  if (unifier.registered_funcs.count(source) > 0) {
+  if (unifier.is_visited_type(source)) {
     return;
 
   } else if (sub.subscripts.size() != 1 || !sub.subscripts[0].is_parens()) {

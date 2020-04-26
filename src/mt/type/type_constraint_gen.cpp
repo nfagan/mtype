@@ -165,6 +165,10 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
 
   const auto& scope = *scopes.current();
 
+  if (are_functions_polymorphic() || scheme) {
+    push_constraint_repository();
+  }
+
   store.use<Store::ReadConst>([&](const auto& reader) {
     const auto& def = reader.at(node.def_handle);
     function_name = def.header.name;
@@ -177,19 +181,16 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
     function_attrs = def.attributes;
   });
 
-  if (are_functions_polymorphic() || scheme) {
-    push_constraint_repository();
-  }
-
   if (function_body) {
     //  Push a null handle to indicate that we're no longer directly inside a class.
     ClassDefState::Helper enclosing_class(class_state, ClassDefHandle{},
                                           nullptr, MatlabIdentifier());
+    push_monomorphic_functions();
     function_body->accept_const(*this);
+    pop_generic_function_state();
   }
 
   const auto func_var = require_bound_type_variable(node.def_handle);
-  auto rhs_term_type = abstr_handle;
 
   if (are_functions_polymorphic() || scheme) {
     assert(scheme);
@@ -200,12 +201,10 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
       current_constraints.constraints.begin(), current_constraints.constraints.end());
     scheme->parameters.insert(scheme->parameters.end(),
       current_constraints.variables.begin(), current_constraints.variables.end());
-
-    rhs_term_type = scheme;
   }
 
   const auto lhs_term = make_term(&node.source_token, func_var);
-  const auto rhs_term = make_term(&node.source_token, rhs_term_type);
+  const auto rhs_term = make_term(&node.source_token, source_type);
   push_type_equation(make_eq(lhs_term, rhs_term));
 
   // Maybe add this function as a method.
@@ -358,6 +357,10 @@ void TypeConstraintGenerator::type_annot_macro(const TypeAnnotMacro& macro) {
 void TypeConstraintGenerator::type_assertion(const TypeAssertion& assertion) {
   assert(assertion.resolved_type);
   auto expected_term = make_term(&assertion.source_token, assertion.resolved_type);
+
+  //  Push polymorphic functions if resolved type is scheme.
+  BooleanState::Helper polymorphic_state_helper(polymorphic_function_state,
+    assertion.resolved_type->is_scheme());
 
   assertion.node->accept_const(*this);
   auto actual_type = pop_type_equation_term();
@@ -947,10 +950,10 @@ Type* TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHand
     return function_types.at(function_def_handle);
   }
 
-  const auto function_type_handle = make_fresh_type_variable_reference();
-  bind_type_variable_to_function_def(function_def_handle, function_type_handle);
-
-  return function_type_handle;
+  auto maybe_local_type = library.lookup_local_function(function_def_handle);
+  assert(maybe_local_type);
+  bind_type_variable_to_function_def(function_def_handle, maybe_local_type.value());
+  return maybe_local_type.value();
 }
 
 void TypeConstraintGenerator::push_type_equation(const TypeEquation& eq) {

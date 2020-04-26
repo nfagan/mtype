@@ -31,6 +31,8 @@ end
 
 % @T fun
 function [o, u] = deal_poly()
-o = @poly1;
-u = @poly2;
+% o = @poly1;
+% u = @poly2;
+o = @(x) poly1(x);
+u = @(x) poly2(x);
 end
