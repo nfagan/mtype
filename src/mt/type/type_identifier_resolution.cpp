@@ -800,21 +800,24 @@ void TypeIdentifierResolver::method_node(MethodNode& node) {
     MT_SCOPE_EXIT {
       instance->pop_presumed_type();
     };
-    node.def->accept(*this);
+
+    auto maybe_emplaced_type = collect_one_type(*this, *instance, node.def.get());
+    if (!maybe_emplaced_type) {
+      return;
+    } else if (!node.resolved_type) {
+      node.resolved_type = maybe_emplaced_type.value();
+    }
   }
 
   if (node.external_block) {
-    instance->collectors.push();
-    MT_SCOPE_EXIT {
-      instance->collectors.pop();
-    };
-    node.external_block->accept(*this);
-    auto& collector = instance->collectors.current();
-    if (collector.had_error) {
-      instance->mark_parent_collector_error();
+    auto maybe_types = collect_types(*this, *instance, node.external_block.get());
+    if (!maybe_types) {
       return;
     }
   }
+
+  assert(node.resolved_type);
+  instance->collectors.current().push(node.resolved_type);
 }
 
 void TypeIdentifierResolver::class_def_node(ClassDefNode& node) {

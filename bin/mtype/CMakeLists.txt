@@ -13,6 +13,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         main.cpp
         command_line.hpp
         command_line.cpp
+        external_resolution.hpp
+        external_resolution.cpp
         parse_pipeline.hpp
         parse_pipeline.cpp
         )

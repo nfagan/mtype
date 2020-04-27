@@ -7,7 +7,9 @@
 #include "error.hpp"
 #include "substitution.hpp"
 #include "type_relationships.hpp"
+#include "pending_external_functions.hpp"
 #include <map>
+#include <unordered_set>
 
 namespace mt {
 
@@ -16,21 +18,6 @@ class Library;
 class StringRegistry;
 class TypeStore;
 struct SearchCandidate;
-
-/*
- * PendingExternalFunctions
- */
-
-struct PendingExternalFunctions {
-  using PendingCandidates = std::unordered_map<const SearchCandidate*, Type*>;
-  PendingExternalFunctions() = default;
-
-  bool has_candidate(const SearchCandidate* candidate) const;
-  void add_candidate(const SearchCandidate* candidate, Type* with_type);
-  Type* require_candidate_type(const SearchCandidate* candidate, TypeStore& store);
-  //
-  PendingCandidates candidates;
-};
 
 /*
  * UnifyResult
@@ -44,10 +31,6 @@ struct UnifyResult {
 
   UnifyResult() : had_error(false) {
     //
-  }
-
-  bool is_success() const {
-    return !had_error;
   }
 
   bool is_error() const {
@@ -70,6 +53,10 @@ public:
 public:
   Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry);
   MT_NODISCARD UnifyResult unify(Substitution* subst, PendingExternalFunctions* external_functions);
+
+  void resolve_application(types::Application* app,
+                           Type* with_abstraction,
+                           const Token* source_token);
 
 private:
   void reset(Substitution* subst, PendingExternalFunctions* external_functions);
@@ -153,8 +140,6 @@ private:
                                              const Type* lhs_type, const Type* rhs_type) const;
   BoxedTypeError make_occurs_check_violation(const Token* lhs_token, const Token* rhs_token,
                                              const Type* lhs_type, const Type* rhs_type) const;
-  BoxedTypeError make_unresolved_function_error(const Token* at_token,
-                                                const Type* function_type) const;
   BoxedTypeError make_invalid_function_invocation_error(const Token* at_token, const Type* function_type) const;
   BoxedTypeError make_non_constant_field_reference_expr_error(const Token* at_token, const Type* arg_type) const;
   BoxedTypeError make_reference_to_non_existent_field_error(const Token* at_token, const Type* arg, const Type* field) const;
@@ -175,6 +160,7 @@ private:
   std::unordered_map<Type*, bool> registered_funcs;
   std::unordered_map<Type*, bool> registered_assignments;
   std::unordered_map<Type*, Type*> expanded_parameters;
+  std::unordered_set<Type*> applications_awaiting_resolution;
 
   TypeErrors errors;
   bool any_failures;

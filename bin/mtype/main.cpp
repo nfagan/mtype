@@ -2,6 +2,7 @@
 #include "command_line.hpp"
 #include "ast_store.hpp"
 #include "parse_pipeline.hpp"
+#include "external_resolution.hpp"
 #include <chrono>
 
 namespace {
@@ -38,20 +39,31 @@ void show_type_errors(const mt::TypeErrors& errors,
   show.show(errors, source_data);
 }
 
-bool locate_root_identifiers(const std::vector<std::string>& idents,
+void add_root_identifier(const std::string& name,
+                         const mt::SearchCandidate* source_candidate,
+                         mt::PendingExternalFunctions& external_functions,
+                         mt::StringRegistry& string_registry,
+                         mt::TypeStore& type_store) {
+
+  mt::MatlabIdentifier ident(string_registry.register_string(name));
+  mt::FunctionSearchCandidate search_candidate(source_candidate, ident);
+  external_functions.add_visited_candidate(search_candidate);
+}
+
+bool locate_root_identifiers(const std::vector<std::string>& names,
                              const mt::SearchPath& search_path,
                              mt::PendingExternalFunctions& external_functions,
+                             mt::StringRegistry& string_registry,
                              mt::TypeStore& type_store) {
-  for (const auto& ident : idents) {
-    const auto maybe_source_candidate = search_path.search_for(ident);
+  for (const auto& name : names) {
+    const auto maybe_source_candidate = search_path.search_for(name);
     if (!maybe_source_candidate) {
-      std::cout << "No file on the search path matched: " << ident << std::endl;
+      std::cout << "No file on the search path matched: " << name << std::endl;
       return false;
     }
 
-    const auto source_candidate = maybe_source_candidate.value();
-    external_functions.add_candidate(source_candidate,
-      external_functions.require_candidate_type(source_candidate, type_store));
+    add_root_identifier(name, maybe_source_candidate.value(),
+      external_functions, string_registry, type_store);
   }
 
   return true;
@@ -129,7 +141,8 @@ int main(int argc, char** argv) {
   TypeConstraintGenerator constraint_generator(substitution, store, type_store, library, str_registry);
 
   PendingExternalFunctions external_functions;
-  bool lookup_res = locate_root_identifiers(arguments.root_identifiers, search_path, external_functions, type_store);
+  bool lookup_res = locate_root_identifiers(arguments.root_identifiers, search_path,
+                                            external_functions, str_registry, type_store);
   if (!lookup_res) {
     return -1;
   }
@@ -141,17 +154,18 @@ int main(int argc, char** argv) {
   ParseErrors parse_warnings;
   TypeErrors type_errors;
 
+  VisitedResolutionPairs visited_pairs;
+
   TokenSourceMap source_data_by_token;
   double constraint_time = 0;
   double unify_time = 0;
 
-  auto external_it = external_functions.candidates.begin();
-  while (external_it != external_functions.candidates.end()) {
+  auto external_it = external_functions.visited_candidates.begin();
+  while (external_it != external_functions.visited_candidates.end()) {
     using clock = std::chrono::high_resolution_clock;
 
-    const auto candidate_it = external_it++;
-    const auto& candidate = candidate_it->first;
-    const auto& file_path = candidate->defining_file;
+    const auto candidate = external_it++;
+    const auto& file_path = candidate->resolved_file->defining_file;
 
     ParsePipelineInstanceData pipeline_instance(search_path, store, type_store, library, str_registry,
                                                 ast_store, scan_result_store, source_data_by_token,
@@ -184,7 +198,6 @@ int main(int argc, char** argv) {
         continue;
       }
 
-      const auto source_data = scan_result_store.at(root_file)->to_parse_source_data();
       TypeIdentifierResolverInstance instance(type_store, library, store, str_registry, source_data_by_token);
       TypeIdentifierResolver type_identifier_resolver(&instance);
 
@@ -222,47 +235,25 @@ int main(int argc, char** argv) {
 
     run_unify(unifier, substitution, external_functions, type_errors, unify_time);
 
-    for (const auto& ast_it : ast_store.asts) {
-      const auto* root_entry = &ast_it.second;
-      const auto& root_ptr = root_entry->root_block;
+    ResolutionInstance resolution_instance;
+    auto resolution_pairs =
+      resolve_external_functions(resolution_instance, pipeline_instance,
+                                 external_functions, visited_pairs);
 
-      Optional<Type*> maybe_local_func;
-      FunctionReference local_func_ref;
+    for (const auto& res_pair : resolution_pairs) {
+      const auto& source_token = res_pair.source_token;
+      auto boxed_tok = std::make_unique<Token>(source_token);
+      auto tok_ptr = boxed_tok.get();
+      temporary_source_tokens.push_back(std::move(boxed_tok));
 
-      if (root_entry->file_entry_function_ref.is_valid()) {
-        local_func_ref = store.get(root_entry->file_entry_function_ref);
-        maybe_local_func = library.lookup_local_function(local_func_ref.def_handle);
-      }
-
-      if (!maybe_local_func) {
-        //  @TODO: This can happen if a class doesn't provide an explicit constructor. We should
-        //  insert one in that case.
-        continue;
-      }
-
-      const auto func_name = str_registry.at(local_func_ref.name.full_name());
-      const auto func_dir = fs::directory_name(local_func_ref.scope->file_descriptor->file_path);
-      auto search_res = search_path.search_for(func_name, func_dir);
-      Token source_token;
-
-      store.use<Store::ReadConst>([&](const auto& reader) {
-        source_token = reader.at(local_func_ref.def_handle).header.name_token;
-      });
-
-      temporary_source_tokens.push_back(std::make_unique<Token>(source_token));
-
-      if (search_res && external_functions.has_candidate(search_res.value())) {
-        const auto* use_token = temporary_source_tokens.back().get();
-        const auto curr_type = external_functions.candidates.at(search_res.value());
-
-        const auto lhs_term = make_term(use_token, maybe_local_func.value());
-        const auto rhs_term = make_term(use_token, curr_type);
-        substitution.push_type_equation(make_eq(lhs_term, rhs_term));
-      }
+      unifier.resolve_application(res_pair.as_referenced, res_pair.as_defined, tok_ptr);
     }
 
+    std::move(resolution_instance.errors.begin(), resolution_instance.errors.end(),
+              std::back_inserter(type_errors));
+
     run_unify(unifier, substitution, external_functions, type_errors, unify_time);
-    external_it = external_functions.candidates.begin();
+    external_it = external_functions.visited_candidates.begin();
 
     if (arguments.show_ast) {
       StringVisitor str_visitor(&str_registry, &store);
@@ -304,7 +295,7 @@ int main(int argc, char** argv) {
     std::cout << "Num type eqs: " << substitution.num_type_equations() << std::endl;
     std::cout << "Subs size: " << substitution.num_bound_terms() << std::endl;
     std::cout << "Num types: " << type_store.size() << std::endl;
-    std::cout << "Num external functions: " << external_functions.candidates.size() << std::endl;
+    std::cout << "Num external functions: " << external_functions.resolved_candidates.size() << std::endl;
     std::cout << "Parse / check time: " << check_elapsed_ms << " (ms)" << std::endl;
     std::cout << "Build path time: " << build_search_path_elapsed_ms << " (ms)" << std::endl;
     std::cout << "Unify time: " << unify_time << " (ms)" << std::endl;

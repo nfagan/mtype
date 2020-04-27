@@ -52,9 +52,23 @@ std::string utf8_reverse(const std::string& str);
 std::string ptr_to_hex_string(const void* ptr);
 
 template <typename T>
-std::string join(const std::vector<T>& strs, const std::string& by) {
+std::string join(const std::vector<T>& strs, const std::string& by, int64_t n);
+
+template <typename T>
+std::string join(const std::vector<T>& strs, const std::string& by);
+
+std::vector<int64_t> find_characters(const char* str, int64_t len, const Character& delim);
+int64_t find_character(const char* str, int64_t len, const Character& search);
+
+}
+
+/*
+ * Impl
+ */
+
+template <typename T>
+std::string mt::join(const std::vector<T>& strs, const std::string& by, int64_t n) {
   std::string result;
-  const int64_t n = strs.size();
 
   for (int64_t i = 0; i < n; i++) {
     result += strs[i];
@@ -67,7 +81,7 @@ std::string join(const std::vector<T>& strs, const std::string& by) {
   return result;
 }
 
-std::vector<int64_t> find_characters(const char* str, int64_t len, const Character& delim);
-int64_t find_character(const char* str, int64_t len, const Character& search);
-
+template <typename T>
+std::string mt::join(const std::vector<T>& strs, const std::string& by) {
+  return join(strs, by, strs.size());
 }

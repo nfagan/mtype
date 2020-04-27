@@ -16,7 +16,8 @@
 
 namespace mt {
 
-SubscriptHandler::SubscriptHandler(mt::Unifier& unifier) : unifier(unifier), library(unifier.library) {
+SubscriptHandler::SubscriptHandler(mt::Unifier& unifier) :
+unifier(unifier), library(unifier.library) {
   //
 }
 
@@ -62,7 +63,7 @@ void SubscriptHandler::maybe_unify_non_function_subscript(Type* source, TermRef 
     return;
 
   } else if (!are_valid_subscript_arguments(arg0, sub0)) {
-    unifier.add_error(unifier.make_unresolved_function_error(term.source_token, source));
+    unifier.add_error(make_unresolved_function_error(term.source_token, source));
     return;
   }
 
@@ -110,7 +111,7 @@ Type* SubscriptHandler::tuple_brace_subscript(const Type* source,
                                               const types::Tuple& arg0) {
   const auto& members = arg0.members;
   if (members.empty()) {
-    unifier.add_error(unifier.make_unresolved_function_error(source_token, source));
+    unifier.add_error(make_unresolved_function_error(source_token, source));
     return nullptr;
   }
 

@@ -3,7 +3,7 @@
 #include "StringVisitor.hpp"
 #include "visitor.hpp"
 #include "../store.hpp"
-#include "../identifier_classification.hpp"
+#include "../parse/identifier_classification.hpp"
 
 namespace mt {
 

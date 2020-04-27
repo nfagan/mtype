@@ -1,7 +1,7 @@
 #pragma once
 
-#include "error.hpp"
-#include "Optional.hpp"
+#include "../error.hpp"
+#include "../Optional.hpp"
 
 namespace mt {
 Optional<ParseError> insert_implicit_expr_delimiters(std::vector<Token>& tokens, std::string_view text);

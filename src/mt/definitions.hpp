@@ -185,6 +185,9 @@ public:
       mark_has_varargout();
     }
   }
+  bool is_public() const {
+    return access_type == AccessType::public_access;
+  }
 
   bool is_abstract() const {
     return boolean_attributes & AttributeFlags::is_abstract_method;

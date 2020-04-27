@@ -3,6 +3,7 @@
 #include "type.hpp"
 #include "type_relation.hpp"
 #include "type_relationships.hpp"
+#include "pending_external_functions.hpp"
 #include "../Optional.hpp"
 #include "../handles.hpp"
 #include "../store.hpp"
@@ -89,21 +90,6 @@ private:
 class Library {
   friend class Unifier;
 public:
-  struct FunctionSearchResult {
-    FunctionSearchResult(Optional<Type*> type) : resolved_type(std::move(type)) {
-      //
-    }
-
-    FunctionSearchResult(Optional<const SearchCandidate*> candidate) :
-      external_function_candidate(std::move(candidate)) {
-      //
-    }
-
-    Optional<Type*> resolved_type;
-    Optional<const SearchCandidate*> external_function_candidate;
-  };
-
-public:
   Library(TypeStore& store, Store& def_store, const SearchPath& search_path,
           StringRegistry& string_registry);
 
@@ -154,8 +140,15 @@ private:
 
   Optional<types::Class*> class_wrapper(const Type* type) const;
 
-  MT_NODISCARD Optional<Type*> lookup_pre_defined_external_function(const types::Abstraction& func) const;
-  MT_NODISCARD Optional<Type*> method_dispatch(const types::Abstraction& func, const TypePtrs& args) const;
+  MT_NODISCARD Optional<FunctionSearchResult>
+  search_function(const FunctionReferenceHandle& ref_handle) const;
+
+  MT_NODISCARD Optional<Type*>
+  lookup_pre_defined_external_function(const types::Abstraction& func) const;
+
+  MT_NODISCARD Optional<Type*>
+  method_dispatch(const types::Abstraction& func, const TypePtrs& args) const;
+
   MT_NODISCARD FunctionDefHandle maybe_extract_function_def(const types::Abstraction& func) const;
 
   types::Abstraction* make_simple_function(const char* name, TypePtrs&& args, TypePtrs&& outs);

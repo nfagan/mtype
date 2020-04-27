@@ -17,7 +17,8 @@ public:
   int64_t num_bound_terms() const;
 
   void push_type_equation(const TypeEquation& eq);
-  Optional<Type*> bound_type(const TypeEquationTerm& for_type) const;
+  Optional<Type*> bound_type(const TypeEquationTerm& for_term) const;
+  Optional<Type*> bound_type(Type* for_type) const;
 
 private:
   std::vector<TypeEquation> type_equations;

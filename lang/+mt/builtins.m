@@ -7,9 +7,11 @@ import mt.string
 import mt.float
 
 declare function nan :: [double] = (list<numeric>)
+declare function NaN :: [double] = (list<numeric>)
 declare function zeros :: [double] = (list<numeric>)
 declare function ones :: [double] = (list<numeric>)
 declare function inf :: [double] = (list<numeric>)
+declare function Inf :: [double] = (list<numeric>)
 
 declare function true :: [logical] = (list<numeric>)
 declare function false :: [logical] = (list<numeric>)

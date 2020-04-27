@@ -1,7 +1,7 @@
 #include "expr.hpp"
 #include "def.hpp"
 #include "StringVisitor.hpp"
-#include "../identifier_classification.hpp"
+#include "../parse/identifier_classification.hpp"
 #include "visitor.hpp"
 #include <cassert>
 

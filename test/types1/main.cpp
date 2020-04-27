@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
   std::cout << "Num type eqs: " << substitution.num_type_equations() << std::endl;
   std::cout << "Subs size: " << substitution.num_bound_terms() << std::endl;
   std::cout << "Num types: " << type_store.size() << std::endl;
-  std::cout << "Num external functions: " << external_functions.candidates.size() << std::endl;
+  std::cout << "Num external functions: " << external_functions.resolved_candidates.size() << std::endl;
 
   mt::run_all();
 

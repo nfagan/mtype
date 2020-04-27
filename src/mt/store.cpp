@@ -108,6 +108,16 @@ MatlabIdentifier Store::get_name(const FunctionDefHandle& handle) const {
   return reader.at(handle).header.name;
 }
 
+Token Store::get_name_token(const FunctionDefHandle& handle) const {
+  Store::ReadConst reader(*this);
+  return reader.at(handle).header.name_token;
+}
+
+FunctionAttributes Store::get_attributes(const FunctionDefHandle& def_handle) const {
+  Store::ReadConst reader(*this);
+  return reader.at(def_handle).attributes;
+}
+
 FunctionDefHandle Store::emplace_definition(FunctionDef&& def) {
   function_definitions.emplace_back(std::move(def));
   return FunctionDefHandle(function_definitions.size() - 1);

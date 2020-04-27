@@ -667,4 +667,5 @@ namespace mt {
 #define MT_CONST_VAL_MUT_PTR(a) static_cast<mt::types::ConstantValue*>((a))
 #define MT_DT_MUT_PTR(a) static_cast<mt::types::DestructuredTuple*>((a))
 #define MT_ABSTR_MUT_PTR(a) static_cast<mt::types::Abstraction*>((a))
+#define MT_APP_MUT_PTR(a) static_cast<mt::types::Application*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

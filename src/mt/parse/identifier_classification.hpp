@@ -1,12 +1,12 @@
 #pragma once
 
-#include "error.hpp"
-#include "ast.hpp"
-#include "lang_components.hpp"
-#include "store.hpp"
-#include "Optional.hpp"
-#include "traversal.hpp"
-#include "source_data.hpp"
+#include "../error.hpp"
+#include "../ast.hpp"
+#include "../lang_components.hpp"
+#include "../store.hpp"
+#include "../Optional.hpp"
+#include "../traversal.hpp"
+#include "../source_data.hpp"
 #include <unordered_map>
 #include <set>
 #include <vector>

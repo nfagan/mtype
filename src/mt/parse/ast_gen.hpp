@@ -1,14 +1,14 @@
 #pragma once
 
-#include "ast.hpp"
-#include "token.hpp"
-#include "Result.hpp"
-#include "Optional.hpp"
-#include "error.hpp"
-#include "store.hpp"
-#include "traversal.hpp"
-#include "source_data.hpp"
-#include "fs/code_file.hpp"
+#include "../ast.hpp"
+#include "../token.hpp"
+#include "../Result.hpp"
+#include "../Optional.hpp"
+#include "../error.hpp"
+#include "../store.hpp"
+#include "../traversal.hpp"
+#include "../source_data.hpp"
+#include "../fs/code_file.hpp"
 #include <vector>
 #include <set>
 #include <unordered_map>

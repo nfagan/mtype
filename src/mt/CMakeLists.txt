@@ -4,8 +4,6 @@ function(configure_common)
 
 set(sources
         ast.hpp
-        ast_gen.hpp
-        ast_gen.cpp
         character.hpp
         character.cpp
         character_traits.hpp
@@ -22,16 +20,14 @@ set(sources
         identifier.cpp
         store.hpp
         store.cpp
-        identifier_classification.hpp
-        identifier_classification.cpp
         lang_components.hpp
         lang_components.cpp
         keyword.hpp
         keyword.cpp
         Optional.hpp
         Result.hpp
+        parse.hpp
         scan.hpp
-        scan.cpp
         search_path.hpp
         search_path.cpp
         string.hpp
@@ -40,8 +36,7 @@ set(sources
         text.cpp
         token.hpp
         token.cpp
-        token_manipulation.hpp
-        token_manipulation.cpp
+        type.hpp
         source_data.hpp
         source_data.cpp
         token_type.hpp
@@ -63,4 +58,6 @@ configure_common()
 
 add_subdirectory(ast)
 add_subdirectory(fs)
+add_subdirectory(parse)
+add_subdirectory(scan)
 add_subdirectory(type)

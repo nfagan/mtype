@@ -68,7 +68,7 @@ private:
 
 struct TypeIdentifier {
   struct Hash {
-    std::size_t operator()(const TypeIdentifier& id) const;
+    std::size_t operator()(const TypeIdentifier& id) const noexcept;
   };
 
   TypeIdentifier() : TypeIdentifier(-1) {

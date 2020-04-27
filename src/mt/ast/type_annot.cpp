@@ -1,7 +1,7 @@
 #include "type_annot.hpp"
 #include "StringVisitor.hpp"
 #include "visitor.hpp"
-#include "../identifier_classification.hpp"
+#include "../parse/identifier_classification.hpp"
 #include <cassert>
 
 namespace mt {

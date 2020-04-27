@@ -8,6 +8,10 @@
 
 namespace mt {
 
+BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type* function_type) {
+  return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
+}
+
 /*
  * SimplificationFailure
  */

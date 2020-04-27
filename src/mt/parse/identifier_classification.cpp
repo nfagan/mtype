@@ -1,5 +1,5 @@
 #include "identifier_classification.hpp"
-#include "string.hpp"
+#include "../string.hpp"
 #include <cassert>
 
 namespace mt {

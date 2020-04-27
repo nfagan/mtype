@@ -209,8 +209,4 @@ bool DestructuredMemberVisitor<T>::match_list(const types::List& a, const DT& b,
   return success && (a.size() == 0 || (ia == 0 && *ib == b.size()));
 }
 
-
-
-
-
 }

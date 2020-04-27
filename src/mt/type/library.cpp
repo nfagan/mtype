@@ -2,8 +2,9 @@
 #include "type_store.hpp"
 #include "../search_path.hpp"
 #include "../string.hpp"
+#include "../character.hpp"
 #include "../fs/code_file.hpp"
-#include "../fs/path.hpp"
+#include <functional>
 #include <cassert>
 
 namespace mt {
@@ -52,8 +53,43 @@ bool Library::subtype_related(const Type* lhs, const Type* rhs) const {
   return false;
 }
 
-Library::FunctionSearchResult Library::search_function(const types::Abstraction& func,
-                                                       const TypePtrs& args) const {
+Optional<FunctionSearchResult>
+Library::search_function(const FunctionReferenceHandle& ref_handle) const {
+  auto ref = def_store.get(ref_handle);
+  const auto& identifier = ref.name;
+  auto str_name = string_registry.at(identifier.full_name());
+  const auto& file_descriptor = *ref.scope->file_descriptor;
+
+  auto maybe_candidate = search_path.search_for(str_name, file_descriptor);
+  if (maybe_candidate) {
+    FunctionSearchCandidate candidate(maybe_candidate.value(), identifier);
+    return Optional<FunctionSearchResult>(std::move(candidate));
+
+  } else if (identifier.size() < 2) {
+    //  Not a valid static method name.
+    return NullOpt{};
+  }
+
+  auto components = mt::split(str_name, Character('.'));
+  assert(components.size() > 1);
+
+  auto presumed_class_name = join(components, ".", components.size()-1);
+  auto maybe_class = search_path.search_for(presumed_class_name, file_descriptor);
+
+  if (maybe_class) {
+    std::string presumed_method_name{components[components.size()-1]};
+    const auto name_ident =
+      MatlabIdentifier(string_registry.register_string(presumed_method_name));
+
+    FunctionSearchCandidate candidate(maybe_class.value(), name_ident);
+    return Optional<FunctionSearchResult>(std::move(candidate));
+  }
+
+  return NullOpt{};
+}
+
+FunctionSearchResult Library::search_function(const types::Abstraction& func,
+                                              const TypePtrs& args) const {
   const auto def_handle = maybe_extract_function_def(func);
 
   if (def_handle.is_valid()) {
@@ -66,21 +102,9 @@ Library::FunctionSearchResult Library::search_function(const types::Abstraction&
   }
 
   if (func.is_function() && func.ref_handle.is_valid()) {
-    auto ref = def_store.get(func.ref_handle);
-    auto str_name = string_registry.at(ref.name.full_name());
-    const auto& file_descriptor = *ref.scope->file_descriptor;
-
-    Optional<const SearchCandidate*> maybe_func_file;
-
-    if (file_descriptor.represents_known_file()) {
-      const auto containing_dir = fs::directory_name(file_descriptor.file_path);
-      maybe_func_file = search_path.search_for(str_name, containing_dir);
-    } else {
-      maybe_func_file = search_path.search_for(str_name);
-    }
-
+    auto maybe_func_file = search_function(func.ref_handle);
     if (maybe_func_file) {
-      return FunctionSearchResult(maybe_func_file);
+      return maybe_func_file.value();
     }
   }
 
@@ -102,7 +126,7 @@ Optional<Type*> Library::method_dispatch(const types::Abstraction& func, const T
       return NullOpt{};
     }
 
-    const auto maybe_method = lookup_method(maybe_arg_lookup.value(), func);
+    auto maybe_method = lookup_method(maybe_arg_lookup.value(), func);
     if (maybe_method) {
       return maybe_method;
     }

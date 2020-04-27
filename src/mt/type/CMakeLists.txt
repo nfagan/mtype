@@ -11,6 +11,8 @@ function(configure_type)
             library.hpp
             library.cpp
             member_visitor.hpp
+            pending_external_functions.hpp
+            pending_external_functions.cpp
             simplify.hpp
             simplify.cpp
             subscripts.hpp

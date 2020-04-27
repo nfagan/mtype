@@ -1,10 +1,8 @@
 #include "ast_gen.hpp"
-#include "string.hpp"
-#include "keyword.hpp"
-#include "type/type_store.hpp"
-#include "fs/code_file.hpp"
-#include "type/library.hpp"
-#include "type/types.hpp"
+#include "../string.hpp"
+#include "../keyword.hpp"
+#include "../type/type_store.hpp"
+#include "../type/library.hpp"
 #include <array>
 #include <cassert>
 #include <functional>

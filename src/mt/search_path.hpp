@@ -9,6 +9,8 @@
 
 namespace mt {
 
+class CodeFileDescriptor;
+
 struct SearchCandidate {
   SearchCandidate() : precedence(0) {
     //
@@ -33,7 +35,10 @@ public:
   MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SearchPath)
 
   Optional<const SearchCandidate*> search_for(const std::string& name) const;
-  Optional<const SearchCandidate*> search_for(const std::string& name, const FilePath& from_directory) const;
+  Optional<const SearchCandidate*> search_for(const std::string& name,
+                                              const FilePath& from_directory) const;
+  Optional<const SearchCandidate*> search_for(const std::string& name,
+                                              const CodeFileDescriptor& file_descriptor) const;
 
   int64_t size() const;
 

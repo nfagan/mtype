@@ -207,6 +207,10 @@ void TypeConstraintGenerator::function_def_node(const FunctionDefNode& node) {
   const auto rhs_term = make_term(&node.source_token, source_type);
   push_type_equation(make_eq(lhs_term, rhs_term));
 
+  const auto new_var = make_fresh_type_variable_reference();
+  const auto new_term = make_term(&node.source_token, new_var);
+  push_type_equation(make_eq(new_term, rhs_term));
+
   // Maybe add this function as a method.
   if (class_state.is_within_class()) {
     handle_class_method(function_inputs, function_outputs, function_attrs, function_name,
@@ -321,19 +325,13 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
 }
 
 void TypeConstraintGenerator::method_node(const MethodNode& node) {
-  Type* maybe_type = nullptr;
-  if (node.resolved_type) {
-    maybe_type = node.resolved_type;
-  }
-
+  assert(node.resolved_type);
   node.def->accept_const(*this);
 
-  if (maybe_type) {
-    auto lhs_type = pop_type_equation_term().term;
-    auto lhs_term = make_term(&node.def->source_token, lhs_type);
-    auto rhs_term = make_term(&node.def->source_token, maybe_type);
-    push_type_equation(make_eq(lhs_term, rhs_term));
-  }
+  auto lhs_type = pop_type_equation_term().term;
+  auto lhs_term = make_term(&node.def->source_token, lhs_type);
+  auto rhs_term = make_term(&node.def->source_token, node.resolved_type);
+  push_type_equation(make_eq(lhs_term, rhs_term));
 
   if (node.external_block) {
     node.external_block->accept_const(*this);
@@ -512,16 +510,10 @@ void TypeConstraintGenerator::function_call_expr(const FunctionCallExpr& expr) {
   const auto args_type = type_store.make_rvalue_destructured_tuple(std::move(members));
   auto result_type = make_fresh_type_variable_reference();
 
-  Type* func_type = nullptr;
-  if (ref.def_handle.is_valid()) {
-    func_type = require_bound_type_variable(ref.def_handle);
-
-  } else {
-    auto input_type = make_fresh_type_variable_reference();
-    auto output_type = make_fresh_type_variable_reference();
-    func_type =
-      type_store.make_abstraction(ref.name, expr.reference_handle, input_type, output_type);
-  }
+  auto input_type = make_fresh_type_variable_reference();
+  auto output_type = make_fresh_type_variable_reference();
+  auto func_type =
+    type_store.make_abstraction(ref.name, expr.reference_handle, input_type, output_type);
 
   auto app_type = type_store.make_application(func_type, args_type, result_type);
   const auto app_lhs_term = make_term(&expr.source_token, make_fresh_type_variable_reference());
@@ -538,21 +530,6 @@ void TypeConstraintGenerator::function_reference_expr(const FunctionReferenceExp
   auto inputs = make_fresh_type_variable_reference();
   auto outputs = make_fresh_type_variable_reference();
   auto func = type_store.make_abstraction(ref.name, expr.handle, inputs, outputs);
-
-  if (ref.def_handle.is_valid()) {
-    const auto current_type = require_bound_type_variable(ref.def_handle);
-    const auto lhs_term = make_term(&expr.source_token, current_type);
-    TypeEquationTerm rhs_term;
-
-    if (are_functions_polymorphic()) {
-      const auto scheme = type_store.make_scheme(func, TypePtrs{});
-      rhs_term = make_term(&expr.source_token, scheme);
-    } else {
-      rhs_term = make_term(&expr.source_token, func);
-    }
-
-    push_type_equation(make_eq(lhs_term, rhs_term));
-  }
 
   push_type_equation_term(make_term(&expr.source_token, func));
 }
@@ -940,7 +917,8 @@ Optional<Type*> TypeConstraintGenerator::lookup_bound_type_variable(const Variab
   }
 }
 
-void TypeConstraintGenerator::bind_type_variable_to_function_def(const FunctionDefHandle& def_handle, Type* type_handle) {
+void TypeConstraintGenerator::bind_type_variable_to_function_def(const FunctionDefHandle& def_handle,
+                                                                 Type* type_handle) {
   assert(function_types.count(def_handle) == 0);
   function_types[def_handle] = type_handle;
 }
@@ -950,10 +928,16 @@ Type* TypeConstraintGenerator::require_bound_type_variable(const FunctionDefHand
     return function_types.at(function_def_handle);
   }
 
+#if 1
   auto maybe_local_type = library.lookup_local_function(function_def_handle);
   assert(maybe_local_type);
   bind_type_variable_to_function_def(function_def_handle, maybe_local_type.value());
   return maybe_local_type.value();
+#else
+  auto tvar = make_fresh_type_variable_reference();
+  bind_type_variable_to_function_def(function_def_handle, tvar);
+  return tvar;
+#endif
 }
 
 void TypeConstraintGenerator::push_type_equation(const TypeEquation& eq) {

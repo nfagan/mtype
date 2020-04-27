@@ -135,6 +135,12 @@ struct DuplicateTypeIdentifierError : public TypeError {
 using BoxedTypeError = std::unique_ptr<TypeError>;
 using TypeErrors = std::vector<BoxedTypeError>;
 
+BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type* function_type);
+
+/*
+ * ShowTypeErrors
+ */
+
 class ShowTypeErrors {
 public:
   ShowTypeErrors(const TypeToString& type_to_string) :

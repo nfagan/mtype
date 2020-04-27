@@ -8,15 +8,14 @@ namespace mt {
  */
 
 std::size_t MatlabIdentifier::Hash::operator()(const MatlabIdentifier& k) const noexcept {
-  using std::hash;
-  return hash<int64_t>()(k.name);
+  return std::hash<int64_t>()(k.name);
 }
 
 /*
  * TypeIdentifier
  */
 
-std::size_t TypeIdentifier::Hash::operator()(const TypeIdentifier& id) const {
+std::size_t TypeIdentifier::Hash::operator()(const TypeIdentifier& id) const noexcept {
   return std::hash<int64_t>{}(id.name);
 }
 

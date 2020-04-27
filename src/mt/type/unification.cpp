@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #define MT_REVERSE_UNIFY (0)
+#define MT_DEFERRED_APPLICATIONS (1)
 
 #define MT_SHOW1(msg, a) \
   std::cout << (msg); \
@@ -45,6 +46,38 @@ bool Unifier::are_concrete_arguments(const mt::TypePtrs& handles) const {
   return props.are_concrete_arguments(handles);
 }
 
+void Unifier::resolve_application(types::Application* app,
+                                  Type* with_abstraction,
+                                  const Token* source_token) {
+  types::Abstraction* result_func = nullptr;
+
+  if (with_abstraction->is_scheme()) {
+    auto instance = instantiate(MT_SCHEME_REF(*with_abstraction));
+    assert(instance->is_abstraction());
+    result_func = MT_ABSTR_MUT_PTR(instance);
+
+  } else {
+    assert(with_abstraction->is_abstraction());
+    result_func = MT_ABSTR_MUT_PTR(with_abstraction);
+  }
+
+  //  Require resolved_func == app.abstraction
+  const auto lhs_func_term = make_term(source_token, result_func);
+  const auto rhs_func_term = make_term(source_token, app->abstraction);
+  substitution->push_type_equation(make_eq(lhs_func_term, rhs_func_term));
+  substitution->push_type_equation(make_eq(rhs_func_term, lhs_func_term));
+
+  //  Require args <: func_ref.inputs
+  const auto lhs_args_term = make_term(source_token, app->inputs);
+  const auto rhs_args_term = make_term(source_token, result_func->inputs);
+  substitution->push_type_equation(make_eq(lhs_args_term, rhs_args_term));
+
+  //  Require func_ref.outputs <: outputs
+  const auto lhs_out_term = make_term(source_token, result_func->outputs);
+  const auto rhs_out_term = make_term(source_token, app->outputs);
+  substitution->push_type_equation(make_eq(lhs_out_term, rhs_out_term));
+}
+
 void Unifier::check_application(Type* source, TermRef term, const types::Application& app) {
   if (is_visited_type(source) ||
       !is_concrete_argument(app.abstraction) ||
@@ -74,8 +107,16 @@ void Unifier::check_application(Type* source, TermRef term, const types::Applica
 
     } else if (search_result.external_function_candidate) {
       //  This function was located in at least one file.
-      const auto* candidate = search_result.external_function_candidate.value();
-      resolved_func = pending_external_functions->require_candidate_type(candidate, store);
+      const auto candidate = search_result.external_function_candidate.value();
+      pending_external_functions->add_visited_candidate(candidate);
+
+      if (pending_external_functions->has_resolved(candidate)) {
+        resolved_func = pending_external_functions->resolved_candidates.at(candidate);
+      } else {
+        PendingApplication pending_app{MT_APP_MUT_PTR(source), term.source_token};
+        pending_external_functions->add_application(candidate, pending_app);
+        return;
+      }
 
     } else {
       //  Since this function doesn't appear to exist, we might as well assume
@@ -86,53 +127,7 @@ void Unifier::check_application(Type* source, TermRef term, const types::Applica
     }
   }
 
-  types::Abstraction* result_func = nullptr;
-
-  if (resolved_func->is_scheme()) {
-    auto instance = instantiate(MT_SCHEME_REF(*resolved_func));
-    assert(instance->is_abstraction());
-    result_func = MT_ABSTR_MUT_PTR(instance);
-
-    auto new_app = store.make_application(app);
-    new_app->abstraction = instance;
-    auto new_app_var = store.make_fresh_type_variable_reference();
-    const auto var_term = make_term(term.source_token, new_app_var);
-    const auto app_term = make_term(term.source_token, new_app);
-    substitution->push_type_equation(make_eq(var_term, app_term));
-
-    register_visited_type(new_app);
-
-  } else {
-    if (!resolved_func->is_abstraction()) {
-      auto input_var = store.make_fresh_type_variable_reference();
-      auto output_var = store.make_fresh_type_variable_reference();
-      auto ext_abstr = store.make_abstraction(input_var, output_var);
-
-      auto var_term = make_term(term.source_token, resolved_func);
-      auto res_term = make_term(term.source_token, ext_abstr);
-      substitution->push_type_equation(make_eq(var_term, res_term));
-
-      resolved_func = ext_abstr;
-    }
-
-    assert(resolved_func->is_abstraction());
-    result_func = MT_ABSTR_MUT_PTR(resolved_func);
-
-    //  Require resolved_func <: app.abstraction
-    const auto lhs_func_term = make_term(term.source_token, result_func);
-    const auto rhs_func_term = make_term(term.source_token, app.abstraction);
-    substitution->push_type_equation(make_eq(lhs_func_term, rhs_func_term));
-  }
-
-  //  Require args <: func_ref.inputs
-  const auto lhs_args_term = make_term(term.source_token, app.inputs);
-  const auto rhs_args_term = make_term(term.source_token, result_func->inputs);
-  substitution->push_type_equation(make_eq(lhs_args_term, rhs_args_term));
-
-  //  Require func_ref.outputs <: outputs
-  const auto lhs_out_term = make_term(term.source_token, result_func->outputs);
-  const auto rhs_out_term = make_term(term.source_token, app.outputs);
-  substitution->push_type_equation(make_eq(lhs_out_term, rhs_out_term));
+  resolve_application(MT_APP_MUT_PTR(source), resolved_func, term.source_token);
 }
 
 void Unifier::check_assignment(Type* source, TermRef term, const types::Assignment& assignment) {
@@ -730,11 +725,6 @@ BoxedTypeError Unifier::make_occurs_check_violation(const Token* lhs_token, cons
   return std::make_unique<OccursCheckFailure>(lhs_token, rhs_token, lhs_type, rhs_type);
 }
 
-BoxedTypeError Unifier::make_unresolved_function_error(const Token* at_token,
-                                                       const Type* function_type) const {
-  return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
-}
-
 BoxedTypeError Unifier::make_invalid_function_invocation_error(const Token* at_token,
                                                                const Type* function_type) const {
   return std::make_unique<InvalidFunctionInvocationError>(at_token, function_type);
@@ -777,28 +767,6 @@ bool Unifier::had_error() const {
 
 void Unifier::mark_failure() {
   any_failures = true;
-}
-
-/*
- * PendingExternalFunctions
- */
-
-void PendingExternalFunctions::add_candidate(const SearchCandidate* candidate, Type* type) {
-  candidates[candidate] = type;
-}
-
-bool PendingExternalFunctions::has_candidate(const mt::SearchCandidate* candidate) const {
-  return candidates.count(candidate) > 0;
-}
-
-Type* PendingExternalFunctions::require_candidate_type(const SearchCandidate* candidate, TypeStore& store) {
-  if (has_candidate(candidate)) {
-    return candidates.at(candidate);
-  } else {
-    auto t = store.make_fresh_type_variable_reference();
-    candidates[candidate] = t;
-    return t;
-  }
 }
 
 }

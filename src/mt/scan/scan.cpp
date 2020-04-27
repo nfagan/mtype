@@ -1,7 +1,7 @@
 #include "scan.hpp"
-#include "character_traits.hpp"
-#include "keyword.hpp"
-#include "string.hpp"
+#include "../character_traits.hpp"
+#include "../keyword.hpp"
+#include "../string.hpp"
 #include <cassert>
 
 namespace mt {

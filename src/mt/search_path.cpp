@@ -1,5 +1,6 @@
 #include "search_path.hpp"
 #include "fs/directory.hpp"
+#include "fs/code_file.hpp"
 #include "unicode.hpp"
 #include "character.hpp"
 #include "string.hpp"
@@ -223,6 +224,16 @@ Optional<const SearchCandidate*> SearchPath::search_for(const std::string& name,
   }
 
   return search_for(name);
+}
+
+Optional<const SearchCandidate*> SearchPath::search_for(const std::string& name,
+                                                        const CodeFileDescriptor& file_descriptor) const {
+  if (file_descriptor.represents_known_file()) {
+    const auto containing_dir = fs::directory_name(file_descriptor.file_path);
+    return search_for(name, containing_dir);
+  } else {
+    return search_for(name);
+  }
 }
 
 Optional<const SearchCandidate*> SearchPath::search_for(const SearchPath::CandidateMap& map, const std::string& key) {

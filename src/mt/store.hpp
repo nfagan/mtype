@@ -196,6 +196,8 @@ public:
   Block* get_block(const FunctionDefHandle& handle) const;
   MatlabIdentifier get_name(const ClassDefHandle& handle) const;
   MatlabIdentifier get_name(const FunctionDefHandle& handle) const;
+  Token get_name_token(const FunctionDefHandle& handle) const;
+  FunctionAttributes get_attributes(const FunctionDefHandle& def_handle) const;
 
   VariableDefHandle make_variable_def(VariableDef&& def);
 
