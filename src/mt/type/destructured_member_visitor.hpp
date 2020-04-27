@@ -129,7 +129,7 @@ bool DestructuredMemberVisitor<T>::recurse_tuple(T lhs, T rhs, const DT& a, cons
     return success;
 
   } else if (mem_a->is_list() && !mem_b->is_list()) {
-    if (b.is_definition_usage() && !mem_b->is_variable()) {
+    if (b.is_definition_usage() && !mem_b->is_variable() && !rev) {
       return false;
     }
 
@@ -138,7 +138,7 @@ bool DestructuredMemberVisitor<T>::recurse_tuple(T lhs, T rhs, const DT& a, cons
     return success;
 
   } else if (mem_b->is_list() && !mem_a->is_list()) {
-    if (a.is_definition_usage() && !mem_a->is_variable()) {
+    if (a.is_definition_usage() && !mem_a->is_variable() && rev) {
       return false;
     }
 

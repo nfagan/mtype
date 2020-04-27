@@ -10,11 +10,5 @@ TODO
 . Distinguish concatenation types - horz vs. vert
 . recursive types
 . check for cycles in oject graph
-. * An input list<T> -- that is, dt-i[list<T>] -- should match e.g.
-        dt-r[list<double>, double]
-    or  dt-r[list<double>, double, list<double>], etc.
-
-    e = {1, 2, 3};
-    u = [e{1}, 1];
 
 %}

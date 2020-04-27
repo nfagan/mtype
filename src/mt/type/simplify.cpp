@@ -1,8 +1,8 @@
 #include "simplify.hpp"
 #include "unification.hpp"
-#include "member_visitor.hpp"
+#include "destructured_member_visitor.hpp"
+#include "union_member_visitor.hpp"
 #include "debug.hpp"
-#include "../token.hpp"
 #include <cassert>
 
 #define MT_SHOW2(msg, a, b) \
@@ -11,6 +11,19 @@
   std::cout << std::endl
 
 namespace mt {
+
+class UnionSimplifier : public UnionMemberVisitor::Predicate {
+public:
+  explicit UnionSimplifier(Simplifier& simplifier) : simplifier(simplifier) {
+    //
+  }
+
+  bool operator()(Type* a, Type* b, bool rev) const override {
+    return simplifier.simplify(a, b, rev);
+  }
+
+  Simplifier& simplifier;
+};
 
 class DestructuredSimplifier : public DestructuredMemberVisitor<Type*>::Predicate {
 public:
@@ -331,13 +344,9 @@ bool Simplifier::simplify(const types::Tuple& t0, const types::Tuple& t1, bool r
 }
 
 bool Simplifier::simplify(const types::Union& t0, const types::Union& t1, bool rev) {
-  const auto t0_unique = types::Union::unique_members(t0);
-  const auto t1_unique = types::Union::unique_members(t1);
-
-  const int64_t num0 = t0_unique.count();
-  const int64_t num1 = t1_unique.count();
-
-  bool success = simplify(t0_unique.members, num0, t1_unique.members, num1, rev);
+  UnionSimplifier simplifier(*this);
+  UnionMemberVisitor visitor(&simplifier);
+  bool success = visitor(t0, t1, rev);
   check_emplace_simplification_failure(success, &t0, &t1);
   return success;
 }

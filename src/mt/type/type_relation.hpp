@@ -19,15 +19,6 @@ public:
 class TypeRelation {
   friend class DestructuredVisitor;
 public:
-  struct ArgumentLess {
-    explicit ArgumentLess(const TypeRelation& type_relation) : type_relation(type_relation) {
-      //
-    }
-
-    bool operator()(const types::Abstraction& a, const types::Abstraction& b) const;
-    const TypeRelation& type_relation;
-  };
-
   struct NameLess {
     explicit NameLess(const TypeRelation& type_relation) : type_relation(type_relation) {
       //

@@ -10,7 +10,7 @@ function(configure_type)
             instance.cpp
             library.hpp
             library.cpp
-            member_visitor.hpp
+            destructured_member_visitor.hpp
             pending_external_functions.hpp
             pending_external_functions.cpp
             simplify.hpp
@@ -43,6 +43,8 @@ function(configure_type)
             type_store.cpp
             unification.hpp
             unification.cpp
+            union_member_visitor.hpp
+            union_member_visitor.cpp
             )
 
     foreach(source ${sources})

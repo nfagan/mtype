@@ -1,9 +1,23 @@
 #include "type_relation.hpp"
 #include "debug.hpp"
-#include "member_visitor.hpp"
+#include "destructured_member_visitor.hpp"
+#include "union_member_visitor.hpp"
 #include <cassert>
 
 namespace mt {
+
+class UnionVisitor : public UnionMemberVisitor::Predicate {
+public:
+  explicit UnionVisitor(const TypeRelation& relation) : relation(relation) {
+    //
+  }
+
+  bool operator()(Type* lhs, Type* rhs, bool rev) const override {
+    return relation.related_entry(lhs, rhs, rev);
+  }
+
+  const TypeRelation& relation;
+};
 
 class DestructuredVisitor : public DestructuredMemberVisitor<const Type*>::Predicate {
 public:
@@ -197,13 +211,9 @@ bool TypeRelation::related(const types::Tuple& a, const types::Tuple& b, bool re
 }
 
 bool TypeRelation::related(const types::Union& a, const types::Union& b, bool rev) const {
-  const auto unique_a = types::Union::unique_members(a);
-  const auto unique_b = types::Union::unique_members(b);
-
-  const auto num_a = unique_a.count();
-  const auto num_b = unique_b.count();
-
-  return related_element_wise(unique_a.members, num_a, unique_b.members, num_b, rev);
+  UnionVisitor relater(*this);
+  UnionMemberVisitor visitor(&relater);
+  return visitor(a, b, rev);
 }
 
 bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool rev) const {
@@ -280,27 +290,6 @@ bool TypeRelation::related_different_types(const types::Union& a, const Type* b,
     }
   }
   return false;
-}
-
-bool TypeRelation::ArgumentLess::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
-  types::Abstraction::HeaderCompare compare{};
-  const auto header_result = compare(a, b);
-  if (header_result == -1) {
-    return true;
-  } else if (header_result == 1) {
-    return false;
-  }
-
-  if (a.inputs->tag != b.inputs->tag) {
-    return a.inputs->tag < b.inputs->tag;
-  }
-
-  assert(a.inputs->is_destructured_tuple() && b.inputs->is_destructured_tuple());
-
-  const auto& tup_a = MT_DT_REF(*a.inputs);
-  const auto& tup_b = MT_DT_REF(*b.inputs);
-
-  return !type_relation.related(a.inputs, b.inputs, tup_a, tup_b, false);
 }
 
 bool TypeRelation::NameLess::operator()(const types::Abstraction& a, const types::Abstraction& b) const {

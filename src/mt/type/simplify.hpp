@@ -10,6 +10,7 @@ struct Token;
 
 class Simplifier {
   friend class DestructuredSimplifier;
+  friend class UnionSimplifier;
 public:
   Simplifier(Unifier& unifier, TypeStore& store) : unifier(unifier), store(store) {
     //

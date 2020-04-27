@@ -725,13 +725,16 @@ void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr
     const auto res = visit_expr(component.expr, expr.source_token);
     const auto current_dir = concatenation_direction_from_token_type(component.delimiter);
 
+#if 0
+    //  @TODO: Discriminate different concatenation types.
     if (i == 0 || last_dir == current_dir) {
       arg_handles.back().push_back(res.term);
     } else {
-      //  @TODO: Discriminate different concatenation types.
       arg_handles.back().push_back(res.term);
-//      assert(false && "Unhandled.");
     }
+#else
+    arg_handles.back().push_back(res.term);
+#endif
 
     last_dir = current_dir;
   }

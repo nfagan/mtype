@@ -71,11 +71,11 @@ types::Abstraction* Unifier::resolve_abstraction(Type* abstr,
     result_func = MT_ABSTR_MUT_PTR(with_abstraction);
   }
 
-  //  Require resolved_func == app.abstraction
+  //  Require resolved_func <: app.abstraction
   const auto lhs_func_term = make_term(source_token, result_func);
   const auto rhs_func_term = make_term(source_token, abstr);
   substitution->push_type_equation(make_eq(lhs_func_term, rhs_func_term));
-  substitution->push_type_equation(make_eq(rhs_func_term, lhs_func_term));
+//  substitution->push_type_equation(make_eq(rhs_func_term, lhs_func_term));
 
   return result_func;
 }
@@ -88,12 +88,12 @@ void Unifier::resolve_application(types::Application* app,
 
   register_visited_type(result_func);
 
-  //  Require args <: func_ref.inputs
+  //  Require args <: result_func.inputs
   const auto lhs_args_term = make_term(source_token, app->inputs);
   const auto rhs_args_term = make_term(source_token, result_func->inputs);
   substitution->push_type_equation(make_eq(lhs_args_term, rhs_args_term));
 
-  //  Require func_ref.outputs <: outputs
+  //  Require result_func.outputs <: outputs
   const auto lhs_out_term = make_term(source_token, result_func->outputs);
   const auto rhs_out_term = make_term(source_token, app->outputs);
   substitution->push_type_equation(make_eq(lhs_out_term, rhs_out_term));
@@ -119,11 +119,13 @@ Optional<FunctionSearchResult> Unifier::search_function(Type* source,
       pending_external_functions->add_visited_candidate(candidate);
 
       if (pending_external_functions->has_resolved(candidate)) {
+        //  We've already gotten the type for this candidate, so reuse it.
         auto resolved_func =
           pending_external_functions->resolved_candidates.at(candidate);
         return Optional<FunctionSearchResult>(resolved_func);
 
       } else {
+        //  We need to acquire the type for this candidate.
         return Optional<FunctionSearchResult>(search_result);
       }
 
