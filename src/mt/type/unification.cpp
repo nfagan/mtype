@@ -8,7 +8,6 @@
 #include <algorithm>
 
 #define MT_REVERSE_UNIFY (0)
-#define MT_DEFERRED_APPLICATIONS (1)
 
 #define MT_SHOW1(msg, a) \
   std::cout << (msg); \
