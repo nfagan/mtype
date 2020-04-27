@@ -19,7 +19,7 @@ public:
   }
 
   bool operator()(Type* a, Type* b, bool rev) const override {
-    return simplifier.simplify(a, b, rev);
+    return simplifier.relate(a, b, rev);
   }
 
   Simplifier& simplifier;
@@ -56,6 +56,11 @@ bool Simplifier::simplify(Type* lhs, Type* rhs, bool rev) {
   } else {
     return simplify_different_types(lhs, rhs, rev);
   }
+}
+
+bool Simplifier::relate(Type* lhs, Type* rhs, bool rev) const {
+  TypeRelation relation{unifier.subtype_relationship, unifier.store};
+  return relation.related_entry(lhs, rhs, rev);
 }
 
 bool Simplifier::simplify_same_types(Type* lhs, Type* rhs, bool rev) {

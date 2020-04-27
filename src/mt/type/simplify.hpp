@@ -23,6 +23,7 @@ private:
   using DT = types::DestructuredTuple;
 
   bool simplify(Type* lhs, Type* rhs, bool rev);
+  bool relate(Type* lhs, Type* rhs, bool rev) const;
 
   bool simplify_same_types(Type* lhs, Type* rhs, bool rev);
   bool simplify_different_types(Type* lhs, Type* rhs, bool rev);

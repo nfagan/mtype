@@ -22,6 +22,8 @@ public:
 private:
   bool apply_element_wise(const TypePtrs& a, const TypePtrs& b,
                           int64_t sz, bool rev) const;
+  bool check_subsumption(const TypePtrs& a, const TypePtrs& b,
+                         int64_t num_a, int64_t num_b, bool rev) const;
 
 private:
   const Predicate* predicate;

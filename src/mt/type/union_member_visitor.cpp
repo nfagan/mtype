@@ -19,6 +19,27 @@ bool UnionMemberVisitor::apply_element_wise(const TypePtrs& a,
       return false;
     }
   }
+
+  return true;
+}
+
+bool UnionMemberVisitor::check_subsumption(const TypePtrs& a, const TypePtrs& b,
+                                           int64_t num_a, int64_t num_b, bool rev) const {
+  for (int64_t i = 0; i < num_a; i++) {
+    bool has_member = false;
+
+    for (int64_t j = 0; j < num_b; j++) {
+      if ((*predicate)(a[i], b[j], rev)) {
+        has_member = true;
+        break;
+      }
+    }
+
+    if (!has_member) {
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -47,8 +68,8 @@ bool UnionMemberVisitor::operator()(const types::Union& a, const types::Union& b
   if (expect_smaller_num > expect_larger_num) {
     return false;
   } else {
-    return apply_element_wise(*expect_smaller_set, *expect_larger_set,
-                              expect_smaller_num, rev);
+    return check_subsumption(*expect_smaller_set, *expect_larger_set,
+                             expect_smaller_num, expect_larger_num, rev);
   }
 }
 
