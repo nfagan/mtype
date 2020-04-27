@@ -6,7 +6,6 @@ TODO
 . * ternary colon operator (1:2:3)
 . * spmd and parfor statements
 . single-line if statements (if 1 true; else false)
-. * static method lookup; wildcard imports; proper method dispatch
 . * proper scheme simplification / relation
 . Distinguish concatenation types - horz vs. vert
 . recursive types
