@@ -31,9 +31,15 @@ public:
   bool expand_members(T lhs, T rhs, const DT& a, const DT& b, bool rev) const;
 
 private:
-  bool recurse_tuple(T lhs, T rhs, const DT& a, const DT& b, int64_t* ia, int64_t* ib, bool rev) const;
-  bool subrecurse_tuple(T lhs, T rhs, const DT& a, const DT& b, int64_t* ib, int64_t expect_match, bool rev) const;
-  bool subrecurse_list(const types::List& a, int64_t* ia, const DT& b, T mem_b, bool rev) const;
+  bool recurse_tuple(T lhs, T rhs, const DT& a, const DT& b,
+                     int64_t* ia, int64_t* ib, bool rev) const;
+
+  bool subrecurse_tuple(T lhs, T rhs, const DT& a, const DT& b,
+                        int64_t* ib, int64_t expect_match, bool rev) const;
+
+  bool subrecurse_list(const types::List& a, int64_t* ia,
+                       const DT& b, T mem_b, bool rev) const;
+
   bool match_list(const types::List& a, const DT& b, int64_t* ib, bool rev) const;
 
   int64_t expect_to_match(const DT& parent, const DT& child) const;
@@ -152,6 +158,26 @@ bool DestructuredMemberVisitor<T>::recurse_tuple(T lhs, T rhs, const DT& a, cons
     (*ib)++;
     return success;
 
+  } else if (mem_a->is_list() &&
+             mem_b->is_list() &&
+             (*ia == a.size()-1 ^ *ib == b.size()-1)) {
+    //  A: [t0, t1, list<t>]
+    //  B: [list<t>, t, list<t>]
+    //  or vice versa. That is, in the case that a list is the last element
+    //  in a destructured tuple A, it should match (or fail to match) all subsequent
+    //  members of B.
+    bool success;
+    int64_t* incr;
+    if (*ia == a.size()-1) {
+      success = match_list(MT_LIST_REF(*mem_a), b, ib, rev);
+      incr = ia;
+    } else {
+      success = match_list(MT_LIST_REF(*mem_b), a, ia, !rev);
+      incr = ib;
+    }
+    (*incr)++;
+    return success;
+
   } else {
     (*ia)++;
     (*ib)++;
@@ -198,7 +224,8 @@ bool DestructuredMemberVisitor<T>::subrecurse_list(const types::List& a, int64_t
 }
 
 template<typename T>
-bool DestructuredMemberVisitor<T>::match_list(const types::List& a, const DT& b, int64_t* ib, bool rev) const {
+bool DestructuredMemberVisitor<T>::match_list(const types::List& a, const DT& b,
+                                              int64_t* ib, bool rev) const {
   int64_t ia = 0;
   bool success = true;
 

@@ -35,17 +35,47 @@
 
 namespace mt {
 
-void test_match_empty_list() {
-  Store def_store;
-  StringRegistry str_registry;
-  TypeStore store(1e5);
-  SearchPath search_path;
-  Library library(store, def_store, search_path, str_registry);
-  EquivalenceRelation equiv;
-  library.make_known_types();
-  TypeRelation eq(equiv, store);
+struct TestData {
+  TestData() :
+    type_store(1e5),
+    library(type_store, def_store, search_path, string_registry),
+    subtype_relation(library) {
+    library.make_known_types();
+  }
 
-  const auto d_handle = library.get_number_type().value();
+  Store def_store;
+  TypeStore type_store;
+  StringRegistry string_registry;
+  SearchPath search_path;
+  Library library;
+  EquivalenceRelation equiv_relation;
+  SubtypeRelation subtype_relation;
+};
+
+void test_match_multi_list() {
+  TestData test_data;
+  auto& store = test_data.type_store;
+  TypeRelation eq(test_data.equiv_relation, test_data.type_store);
+  auto& library = test_data.library;
+  auto& str_registry = test_data.string_registry;
+
+  const auto d_handle = test_data.library.get_number_type().value();
+  auto d_list = store.make_list(d_handle);
+  auto rtup = store.make_rvalue_destructured_tuple(d_list, d_list);
+  auto itup = store.make_input_destructured_tuple(d_list);
+
+  MT_ERROR_IF_UNRELATED(eq, "", rtup, itup);
+  MT_ERROR_IF_UNRELATED(eq, "", itup, rtup);
+}
+
+void test_match_empty_list() {
+  TestData test_data;
+  auto& store = test_data.type_store;
+  TypeRelation eq(test_data.equiv_relation, test_data.type_store);
+  auto& library = test_data.library;
+  auto& str_registry = test_data.string_registry;
+
+  const auto d_handle = test_data.library.get_number_type().value();
 
   auto empty_rvalue_tup = store.make_rvalue_destructured_tuple(TypePtrs{});
   auto non_empty_list = store.make_list(d_handle);
@@ -336,6 +366,7 @@ void run_all() {
   test_equivalence_debug();
   test_subtyping();
   test_match_empty_list();
+  test_match_multi_list();
 }
 
 #undef MT_SHOW_ERROR

@@ -9,6 +9,7 @@ TODO
 . * proper scheme simplification / relation
 . Distinguish concatenation types - horz vs. vert
 . recursive types
+. check for cycles in oject graph
 . * An input list<T> -- that is, dt-i[list<T>] -- should match e.g.
         dt-r[list<double>, double]
     or  dt-r[list<double>, double, list<double>], etc.
