@@ -51,6 +51,10 @@ struct FunctionSearchCandidate {
 struct FunctionSearchResult {
   FunctionSearchResult() = default;
 
+  explicit FunctionSearchResult(Type* type) : resolved_type(type) {
+    //
+  }
+
   FunctionSearchResult(Optional<Type*> type) : resolved_type(std::move(type)) {
     //
   }
@@ -65,18 +69,18 @@ struct FunctionSearchResult {
 };
 
 /*
- * PendingApplication
+ * PendingFunction
  */
 
-struct PendingApplication {
+struct PendingFunction {
   struct Hash {
-    std::size_t operator()(const PendingApplication& app) const noexcept;
+    std::size_t operator()(const PendingFunction& app) const noexcept;
   };
-  friend inline bool operator==(const PendingApplication& a, const PendingApplication& b) {
-    return a.application == b.application;
+  friend inline bool operator==(const PendingFunction& a, const PendingFunction& b) {
+    return a.function == b.function;
   }
 
-  types::Application* application;
+  Type* function;
   const Token* source_token;
 };
 
@@ -94,14 +98,14 @@ struct PendingExternalFunctions {
 
   using PendingApplications =
     std::unordered_map<FunctionSearchCandidate,
-                       std::unordered_set<PendingApplication, PendingApplication::Hash>,
+                       std::unordered_set<PendingFunction, PendingFunction::Hash>,
                        CandidateHash>;
 
   bool has_resolved(const FunctionSearchCandidate& candidate) const;
   void add_resolved(const FunctionSearchCandidate& candidate, Type* with_type);
 
-  void add_application(const FunctionSearchCandidate& candidate,
-                       const PendingApplication& app);
+  void add_pending(const FunctionSearchCandidate& candidate,
+                   const PendingFunction& app);
   void add_visited_candidate(const FunctionSearchCandidate& candidate);
 
   VisitedCandidates visited_candidates;

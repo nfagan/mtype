@@ -88,7 +88,7 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
       //  Error: could not locate function handle for this search candidate.
       for (const auto& pending_app : pending_apps) {
         auto err =
-          make_unresolved_function_error(pending_app.source_token, pending_app.application);
+          make_unresolved_function_error(pending_app.source_token, pending_app.function);
         resolution_instance.errors.push_back(std::move(err));
       }
       pending_apps.clear();
@@ -107,7 +107,7 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
     const auto& source_token = look_for_type.value().source_token;
 
     for (const auto& pending_app : pending_apps) {
-      ResolutionPair resolution_pair{type, pending_app.application, source_token};
+      ResolutionPair resolution_pair{type, pending_app.function, source_token};
 
       if (visited_pairs.count(resolution_pair) == 0) {
         result.push_back(resolution_pair);

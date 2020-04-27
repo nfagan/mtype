@@ -28,8 +28,8 @@ FunctionSearchCandidate::FunctionSearchCandidate(const SearchCandidate* resolved
  * PendingApplication
  */
 
-std::size_t PendingApplication::Hash::operator()(const PendingApplication& app) const noexcept {
-  return std::hash<types::Application*>{}(app.application);
+std::size_t PendingFunction::Hash::operator()(const PendingFunction& app) const noexcept {
+  return std::hash<Type*>{}(app.function);
 }
 
 /*
@@ -44,8 +44,8 @@ bool PendingExternalFunctions::has_resolved(const FunctionSearchCandidate& candi
   return resolved_candidates.count(candidate) > 0;
 }
 
-void PendingExternalFunctions::add_application(const FunctionSearchCandidate& candidate,
-                                               const PendingApplication& app) {
+void PendingExternalFunctions::add_pending(const FunctionSearchCandidate& candidate,
+                                           const PendingFunction& app) {
   if (pending_applications.count(candidate) == 0) {
     pending_applications[candidate] = {};
   }

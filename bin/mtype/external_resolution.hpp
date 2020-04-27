@@ -18,7 +18,7 @@ namespace mt {
     }
 
     Type* as_defined;
-    types::Application* as_referenced;
+    Type* as_referenced;
     Token source_token;
   };
 

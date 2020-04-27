@@ -54,9 +54,7 @@ public:
   Unifier(TypeStore& store, const Library& library, StringRegistry& string_registry);
   MT_NODISCARD UnifyResult unify(Substitution* subst, PendingExternalFunctions* external_functions);
 
-  void resolve_application(types::Application* app,
-                           Type* with_abstraction,
-                           const Token* source_token);
+  void resolve_function(Type* as_referenced, Type* as_defined, const Token* source_token);
 
 private:
   void reset(Substitution* subst, PendingExternalFunctions* external_functions);
@@ -117,6 +115,18 @@ private:
 
   void check_assignment(Type* source, TermRef term, const types::Assignment& assignment);
   void check_application(Type* source, TermRef term, const types::Application& app);
+  void check_abstraction(Type* source, TermRef term, const types::Abstraction& abstr);
+  Optional<FunctionSearchResult> search_function(Type* source,
+                                                 const types::Abstraction& abstr,
+                                                 const TypePtrs& args,
+                                                 const Token* source_token);
+
+  types::Abstraction* resolve_abstraction(Type* abstr,
+                                          Type* with_abstraction,
+                                          const Token* source_token);
+  void resolve_application(types::Application* app,
+                           Type* with_abstraction,
+                           const Token* source_token);
 
   bool is_concrete_argument(const Type* handle) const;
   bool are_concrete_arguments(const TypePtrs& handles) const;

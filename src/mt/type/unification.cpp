@@ -45,9 +45,20 @@ bool Unifier::are_concrete_arguments(const mt::TypePtrs& handles) const {
   return props.are_concrete_arguments(handles);
 }
 
-void Unifier::resolve_application(types::Application* app,
-                                  Type* with_abstraction,
-                                  const Token* source_token) {
+void Unifier::resolve_function(Type* as_referenced, Type* as_defined,
+                               const Token* source_token) {
+  if (as_referenced->is_abstraction()) {
+    resolve_abstraction(as_referenced, as_defined, source_token);
+  } else {
+    assert(as_referenced->is_application());
+    auto app = MT_APP_MUT_PTR(as_referenced);
+    resolve_application(app, as_defined, source_token);
+  }
+}
+
+types::Abstraction* Unifier::resolve_abstraction(Type* abstr,
+                                                 Type* with_abstraction,
+                                                 const Token* source_token) {
   types::Abstraction* result_func = nullptr;
 
   if (with_abstraction->is_scheme()) {
@@ -62,9 +73,20 @@ void Unifier::resolve_application(types::Application* app,
 
   //  Require resolved_func == app.abstraction
   const auto lhs_func_term = make_term(source_token, result_func);
-  const auto rhs_func_term = make_term(source_token, app->abstraction);
+  const auto rhs_func_term = make_term(source_token, abstr);
   substitution->push_type_equation(make_eq(lhs_func_term, rhs_func_term));
   substitution->push_type_equation(make_eq(rhs_func_term, lhs_func_term));
+
+  return result_func;
+}
+
+void Unifier::resolve_application(types::Application* app,
+                                  Type* with_abstraction,
+                                  const Token* source_token) {
+  auto result_func =
+    resolve_abstraction(app->abstraction, with_abstraction, source_token);
+
+  register_visited_type(result_func);
 
   //  Require args <: func_ref.inputs
   const auto lhs_args_term = make_term(source_token, app->inputs);
@@ -77,6 +99,42 @@ void Unifier::resolve_application(types::Application* app,
   substitution->push_type_equation(make_eq(lhs_out_term, rhs_out_term));
 }
 
+Optional<FunctionSearchResult> Unifier::search_function(Type* source,
+                                                        const types::Abstraction& abstr,
+                                                        const TypePtrs& args,
+                                                        const Token* source_token) {
+  if (abstr.is_anonymous()) {
+    return Optional<FunctionSearchResult>(source);
+
+  } else {
+    auto search_result = library.search_function(abstr, args);
+
+    if (search_result.resolved_type) {
+      //  This function has a known type.
+      return Optional<FunctionSearchResult>(search_result);
+
+    } else if (search_result.external_function_candidate) {
+      //  This function was located in at least one file.
+      const auto candidate = search_result.external_function_candidate.value();
+      pending_external_functions->add_visited_candidate(candidate);
+
+      if (pending_external_functions->has_resolved(candidate)) {
+        auto resolved_func =
+          pending_external_functions->resolved_candidates.at(candidate);
+        return Optional<FunctionSearchResult>(resolved_func);
+
+      } else {
+        return Optional<FunctionSearchResult>(search_result);
+      }
+
+    } else {
+      //  Could not find function.
+      add_error(make_unresolved_function_error(source_token, source));
+      return NullOpt{};
+    }
+  }
+}
+
 void Unifier::check_application(Type* source, TermRef term, const types::Application& app) {
   if (is_visited_type(source) ||
       !is_concrete_argument(app.abstraction) ||
@@ -85,48 +143,62 @@ void Unifier::check_application(Type* source, TermRef term, const types::Applica
   }
 
   register_visited_type(source);
+  register_visited_type(app.abstraction);
 
-  assert(app.inputs->is_destructured_tuple());
+  assert(app.inputs->is_destructured_tuple() &&
+         app.abstraction->scheme_source()->is_abstraction());
+
   auto scheme_source = app.abstraction->scheme_source();
-  assert(scheme_source->is_abstraction());
-  auto& abstr = MT_ABSTR_MUT_REF(*scheme_source);
+  const auto& abstr = MT_ABSTR_REF(*scheme_source);
+  const auto& args = MT_DT_REF(*app.inputs).members;
 
-  Type* resolved_func = nullptr;
-
-  if (abstr.is_anonymous()) {
-    resolved_func = app.abstraction;
-
-  } else {
-    const auto& args = MT_DT_REF(*app.inputs).members;
-    const auto search_result = library.search_function(abstr, args);
-
-    if (search_result.resolved_type) {
-      //  This function has a known type.
-      resolved_func = search_result.resolved_type.value();
-
-    } else if (search_result.external_function_candidate) {
-      //  This function was located in at least one file.
-      const auto candidate = search_result.external_function_candidate.value();
-      pending_external_functions->add_visited_candidate(candidate);
-
-      if (pending_external_functions->has_resolved(candidate)) {
-        resolved_func = pending_external_functions->resolved_candidates.at(candidate);
-      } else {
-        PendingApplication pending_app{MT_APP_MUT_PTR(source), term.source_token};
-        pending_external_functions->add_application(candidate, pending_app);
-        return;
-      }
-
-    } else {
-      //  Since this function doesn't appear to exist, we might as well assume
-      //  its arguments are the ones given by the application.
-      abstr.inputs = app.inputs;
-      add_error(make_unresolved_function_error(term.source_token, app.abstraction));
-      return;
-    }
+  auto maybe_search_result = search_function(app.abstraction, abstr, args, term.source_token);
+  if (!maybe_search_result) {
+    return;
   }
 
-  resolve_application(MT_APP_MUT_PTR(source), resolved_func, term.source_token);
+  const auto& search_result = maybe_search_result.value();
+
+  if (search_result.resolved_type) {
+    const auto& type = search_result.resolved_type.value();
+    resolve_application(MT_APP_MUT_PTR(source), type, term.source_token);
+
+  } else {
+    assert(search_result.external_function_candidate);
+    const auto& candidate = search_result.external_function_candidate.value();
+    PendingFunction pending_app{source, term.source_token};
+    pending_external_functions->add_pending(candidate, pending_app);
+  }
+}
+
+void Unifier::check_abstraction(Type* source, TermRef term, const types::Abstraction& abstr) {
+  if (is_visited_type(source) ||
+      !is_concrete_argument(abstr.inputs) ||
+      abstr.is_anonymous()) {
+    return;
+  }
+
+  register_visited_type(source);
+  assert(abstr.inputs->is_destructured_tuple());
+  const auto& args = MT_DT_REF(*abstr.inputs).members;
+
+  auto maybe_search_result = search_function(source, abstr, args, term.source_token);
+  if (!maybe_search_result) {
+    return;
+  }
+
+  const auto& search_result = maybe_search_result.value();
+
+  if (search_result.resolved_type) {
+    const auto& type = search_result.resolved_type.value();
+    resolve_abstraction(source, type, term.source_token);
+
+  } else {
+    assert(search_result.external_function_candidate);
+    const auto& candidate = search_result.external_function_candidate.value();
+    PendingFunction pending_abstr{source, term.source_token};
+    pending_external_functions->add_pending(candidate, pending_abstr);
+  }
 }
 
 void Unifier::check_assignment(Type* source, TermRef term, const types::Assignment& assignment) {
@@ -328,6 +400,9 @@ Type* Unifier::apply_to(types::DestructuredTuple& tup, TermRef term) {
 Type* Unifier::apply_to(types::Abstraction& func, TermRef term) {
   func.inputs = apply_to(func.inputs, term);
   func.outputs = apply_to(func.outputs, term);
+
+  check_abstraction(&func, term, func);
+
   return &func;
 }
 
@@ -526,6 +601,9 @@ Type* Unifier::substitute_one(types::Alias& alias, TermRef term, TermRef lhs, Te
 Type* Unifier::substitute_one(types::Abstraction& func, TermRef term, TermRef lhs, TermRef rhs) {
   func.inputs = substitute_one(func.inputs, term, lhs, rhs);
   func.outputs = substitute_one(func.outputs, term, lhs, rhs);
+
+  check_abstraction(&func, term, func);
+
   return &func;
 }
 

@@ -246,7 +246,7 @@ int main(int argc, char** argv) {
       auto tok_ptr = boxed_tok.get();
       temporary_source_tokens.push_back(std::move(boxed_tok));
 
-      unifier.resolve_application(res_pair.as_referenced, res_pair.as_defined, tok_ptr);
+      unifier.resolve_function(res_pair.as_referenced, res_pair.as_defined, tok_ptr);
     }
 
     std::move(resolution_instance.errors.begin(), resolution_instance.errors.end(),
