@@ -105,6 +105,10 @@ void IsFullyConcrete::two_types(const Type* a, const Type* b, bool* success) con
 bool IsFullyConcrete::scheme(const types::Scheme& scheme) const {
   auto& scheme_vars = instance->enclosing_scheme_variables;
   scheme_vars.emplace_back(scheme.parameters.begin(), scheme.parameters.end());
+  MT_SCOPE_EXIT {
+    scheme_vars.pop_back();
+  };
+
   return scheme.type->accept(*this);
 }
 

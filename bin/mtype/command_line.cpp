@@ -237,7 +237,7 @@ void Arguments::parse(int argc, char** argv) {
         auto res = to_match.match_callback(i, argc, argv);
         incr = res.increment;
         any_matched = true;
-        had_parse_error = !res.success;
+        had_parse_error = had_parse_error || !res.success;
         parse_success = res.success;
         break;
       }

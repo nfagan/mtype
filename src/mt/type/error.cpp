@@ -30,7 +30,11 @@ std::string SimplificationFailure::get_text(const ShowTypeErrors& shower) const 
   const auto lhs_str = shower.type_to_string.apply(lhs_type);
   const auto rhs_str = shower.type_to_string.apply(rhs_type);
 
-  return lhs_str + " ≠ " + rhs_str + ".";
+  if (shower.type_to_string.rich_text) {
+    return lhs_str + " ≠ " + rhs_str + ".";
+  } else {
+    return lhs_str + " /= " + rhs_str + ".";
+  }
 }
 
 Token SimplificationFailure::get_source_token() const {
