@@ -30,7 +30,6 @@ public:
 
   void show_type_distribution() const;
   void show_variable_types(const TypeToString& printer) const;
-  void show_local_function_types(const TypeToString& printer) const;
 
   void root_block(const RootBlock& block) override;
   void block(const Block& block) override;

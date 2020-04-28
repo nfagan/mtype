@@ -4,6 +4,7 @@
 #include "parse_pipeline.hpp"
 #include "external_resolution.hpp"
 #include "type_analysis.hpp"
+#include "show.hpp"
 #include <chrono>
 
 namespace {
@@ -11,38 +12,6 @@ namespace {
 template <typename T>
 void move_from(std::vector<T>& source, std::vector<T>& dest) {
   std::move(source.begin(), source.end(), std::back_inserter(dest));
-}
-
-template <typename... Args>
-mt::TypeToString make_type_to_string(Args&&... args) {
-  mt::TypeToString type_to_string(std::forward<Args>(args)...);
-  return type_to_string;
-}
-
-void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::Arguments& args) {
-  type_to_string.explicit_destructured_tuples = args.show_explicit_destructured_tuples;
-  type_to_string.explicit_aliases = args.show_explicit_aliases;
-  type_to_string.arrow_function_notation = args.use_arrow_function_notation;
-  type_to_string.max_num_type_variables = args.max_num_type_variables;
-  type_to_string.show_class_source_type = args.show_class_source_type;
-  type_to_string.rich_text = args.rich_text;
-  type_to_string.show_application_outputs = args.show_application_outputs;
-}
-
-void show_parse_errors(const mt::ParseErrors& errors,
-                       const mt::TokenSourceMap& source_data,
-                       const mt::cmd::Arguments& arguments) {
-  mt::ShowParseErrors show_errs;
-  show_errs.is_rich_text = arguments.rich_text;
-  show_errs.show(errors, source_data);
-}
-
-void show_type_errors(const mt::TypeErrors& errors,
-                      const mt::TokenSourceMap& source_data,
-                      const mt::TypeToString& type_to_string,
-                      const mt::cmd::Arguments& arguments) {
-  mt::ShowTypeErrors show(type_to_string);
-  show.show(errors, source_data);
 }
 
 void add_root_identifier(const std::string& name,
@@ -155,6 +124,7 @@ int main(int argc, char** argv) {
 
   AstStore ast_store;
   ScanResultStore scan_result_store;
+  FunctionsByFile functions_by_file;
   std::vector<std::unique_ptr<Token>> temporary_source_tokens;
   ParseErrors parse_errors;
   ParseErrors parse_warnings;
@@ -174,8 +144,9 @@ int main(int argc, char** argv) {
     const auto& file_path = candidate->resolved_file->defining_file;
 
     ParsePipelineInstanceData pipeline_instance(search_path, store, type_store, library, str_registry,
-                                                ast_store, scan_result_store, source_data_by_token,
-                                                arguments, parse_errors, parse_warnings);
+                                                ast_store, scan_result_store, functions_by_file,
+                                                source_data_by_token, arguments,
+                                                parse_errors, parse_warnings);
 
     auto root_res = file_entry(pipeline_instance, file_path);
     if (!root_res || !root_res->root_block || root_res->generated_type_constraints) {
@@ -297,7 +268,7 @@ int main(int argc, char** argv) {
   }
 
   if (arguments.show_local_function_types) {
-    constraint_generator.show_local_function_types(type_to_string);
+    show_function_types(functions_by_file, type_to_string, store, str_registry, library);
   }
 
   if (arguments.show_visited_external_files) {

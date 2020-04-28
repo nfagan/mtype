@@ -85,6 +85,7 @@ struct ParseInstance {
                 TypeStore* type_store,
                 Library* library,
                 StringRegistry* string_registry,
+                FunctionsByFile* functions_by_file,
                 const ParseSourceData& source_data,
                 bool functions_are_end_terminated,
                 OnBeforeParse on_before_parse);
@@ -98,6 +99,8 @@ struct ParseInstance {
                                    FunctionDefNode* file_entry_node);
   void set_file_entry_class_def(const ClassDefHandle& def_handle);
 
+  void add_function(const FunctionDefHandle& def_handle) const;
+
   bool is_file_entry_function() const;
   bool is_function_file() const;
   bool is_class_file() const;
@@ -109,6 +112,7 @@ struct ParseInstance {
   TypeStore* type_store;
   Library* library;
   StringRegistry* string_registry;
+  FunctionsByFile* functions_by_file;
   ParseSourceData source_data;
   std::string parent_package;
   bool functions_are_end_terminated;

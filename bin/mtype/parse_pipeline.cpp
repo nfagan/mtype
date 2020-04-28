@@ -421,6 +421,7 @@ ParsePipelineInstanceData::ParsePipelineInstanceData(const SearchPath& search_pa
                                                      StringRegistry& str_registry,
                                                      AstStore& ast_store,
                                                      ScanResultStore& scan_results,
+                                                     FunctionsByFile& functions_by_file,
                                                      TokenSourceMap& source_data_by_token,
                                                      const cmd::Arguments& arguments,
                                                      ParseErrors& parse_errors,
@@ -432,6 +433,7 @@ ParsePipelineInstanceData::ParsePipelineInstanceData(const SearchPath& search_pa
   string_registry(str_registry),
   ast_store(ast_store),
   scan_results(scan_results),
+  functions_by_file(functions_by_file),
   source_data_by_token(source_data_by_token),
   arguments(arguments),
   parse_errors(parse_errors),
@@ -494,8 +496,8 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance,
   }
 
   ParseInstance parse_instance(&pipe_instance.store, &pipe_instance.type_store, &pipe_instance.library,
-    &pipe_instance.string_registry, source_data, scan_result->scan_info.functions_are_end_terminated,
-    std::move(on_before_parse));
+    &pipe_instance.string_registry, &pipe_instance.functions_by_file, source_data,
+    scan_result->scan_info.functions_are_end_terminated, std::move(on_before_parse));
 
   const auto root_res = run_parse_file(parse_instance, *scan_result, pipe_instance);
   if (!root_res) {

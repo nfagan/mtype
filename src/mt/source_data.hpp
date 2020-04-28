@@ -2,8 +2,10 @@
 
 #include "token.hpp"
 #include "utility.hpp"
+#include "handles.hpp"
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <string_view>
 
 namespace mt {
@@ -27,6 +29,16 @@ struct ParseSourceData {
   std::string_view source;
   const CodeFileDescriptor* file_descriptor;
   const TextRowColumnIndices* row_col_indices;
+};
+
+struct FunctionsByFile {
+  using Functions = std::unordered_set<FunctionDefHandle, FunctionDefHandle::Hash>;
+  using ByFile = std::unordered_map<const CodeFileDescriptor*, Functions>;
+
+  void require(const CodeFileDescriptor* file_descriptor);
+  void insert(const CodeFileDescriptor* file_descriptor, const FunctionDefHandle& def_handle);
+
+  ByFile store;
 };
 
 template <typename T>

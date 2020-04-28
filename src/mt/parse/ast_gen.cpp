@@ -283,6 +283,7 @@ ParseInstance::ParseInstance(Store* store,
                              TypeStore* type_store,
                              Library* library,
                              StringRegistry* string_registry,
+                             FunctionsByFile* functions_by_file,
                              const ParseSourceData& source_data,
                              bool functions_are_end_terminated,
                              OnBeforeParse on_before_parse) :
@@ -290,6 +291,7 @@ ParseInstance::ParseInstance(Store* store,
   type_store(type_store),
   library(library),
   string_registry(string_registry),
+  functions_by_file(functions_by_file),
   source_data(source_data),
   functions_are_end_terminated(functions_are_end_terminated),
   treat_root_as_external_method(false),
@@ -349,6 +351,10 @@ const CodeFileDescriptor* ParseInstance::file_descriptor() const {
 
 std::string_view ParseInstance::source_text() const {
   return source_data.source;
+}
+
+void ParseInstance::add_function(const FunctionDefHandle& def_handle) const {
+  functions_by_file->insert(file_descriptor(), def_handle);
 }
 
 struct BlockStmtScopeHelper {
@@ -843,6 +849,8 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   if (parse_instance->is_file_entry_function() || attrs.is_constructor()) {
     parse_instance->set_file_entry_function_ref(ref_handle, ast_node.get());
   }
+
+  parse_instance->add_function(def_handle);
 
   return Optional<std::unique_ptr<FunctionDefNode>>(std::move(ast_node));
 }
@@ -1414,6 +1422,8 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
       pending_def_handle = writer.make_function_declaration(std::move(header), attrs, curr_scope);
       pending_ref_handle = writer.make_local_reference(name, pending_def_handle, curr_scope);
     }
+
+    parse_instance->add_function(pending_def_handle);
 
     ClassDefNode::MethodDeclaration method_decl(pending_def_handle, pending_ref_handle, nullptr);
     method_decls.push_back(std::move(method_decl));

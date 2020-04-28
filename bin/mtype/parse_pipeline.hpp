@@ -58,6 +58,7 @@ struct ParsePipelineInstanceData {
                             StringRegistry& str_registry,
                             AstStore& ast_store,
                             ScanResultStore& scan_results,
+                            FunctionsByFile& functions_by_file,
                             TokenSourceMap& source_data_by_token,
                             const cmd::Arguments& arguments,
                             ParseErrors& parse_errors,
@@ -77,6 +78,7 @@ struct ParsePipelineInstanceData {
   StringRegistry& string_registry;
   AstStore& ast_store;
   ScanResultStore& scan_results;
+  FunctionsByFile& functions_by_file;
   TokenSourceMap& source_data_by_token;
   std::unordered_set<RootBlock*> roots;
   std::unordered_set<FilePath, FilePath::Hash> root_files;

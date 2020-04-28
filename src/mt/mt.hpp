@@ -11,5 +11,6 @@
 #include "ast/visitor.hpp"
 #include "search_path.hpp"
 #include "source_data.hpp"
+#include "display.hpp"
 
 #include "utility.hpp"

@@ -53,24 +53,6 @@ void TypeConstraintGenerator::block(const Block& block) {
   }
 }
 
-void TypeConstraintGenerator::show_local_function_types(const TypeToString& printer) const {
-  for (const auto& func_it : function_types) {
-    const auto& def_handle = func_it.first;
-    const auto maybe_type = library.lookup_local_function(def_handle);
-    const auto& type = maybe_type ? maybe_type.value() : func_it.second;
-
-    std::string name;
-
-    store.use<Store::ReadConst>([&](const auto& reader) {
-      const auto& def = reader.at(def_handle);
-      name = string_registry.at(def.header.name.full_name());
-    });
-
-    std::cout << printer.color(style::bold) << name << printer.dflt_color() <<
-      ":\n  " << printer.apply(type) << std::endl;
-  }
-}
-
 void TypeConstraintGenerator::show_variable_types(const TypeToString& printer) const {
   for (const auto& var_it : variable_types) {
     const auto& def_handle = var_it.first;
