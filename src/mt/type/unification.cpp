@@ -69,6 +69,8 @@ types::Abstraction* Unifier::resolve_abstraction(Type* abstr,
     result_func = MT_ABSTR_MUT_PTR(with_abstraction);
   }
 
+  register_visited_type(result_func);
+
   //  Require resolved_func <: app.abstraction
   const auto lhs_func_term = make_term(source_token, result_func);
   const auto rhs_func_term = make_term(source_token, abstr);

@@ -35,8 +35,7 @@ Optional<HandleSearchResult> find_search_handle(const AstStore::Entry* entry,
         //  @TODO: Needless linear search here.
         const auto& func_def = reader.at(method);
         const auto& attrs = func_def.attributes;
-        const bool is_accessible = attrs.is_public() &&
-          (attrs.is_constructor() || attrs.is_static());
+        const bool is_accessible = attrs.is_constructor() || attrs.is_static();
 
         if (is_accessible &&
             func_def.header.name == candidate.function_name) {

@@ -4,12 +4,14 @@
 
 import mt.scalar
 
-declare method logical & :: [logical] = (logical, logical)
-declare method logical | :: [logical] = (logical, logical)
+declare method logical &  :: [logical] = (logical, logical)
+declare method logical |  :: [logical] = (logical, logical)
 declare method logical && :: [logical] = (logical, logical)
 declare method logical || :: [logical] = (logical, logical)
 
-declare method logical ~ :: [logical] = (logical)
+declare method logical ~  :: [logical] = (logical)
+declare method logical ~= :: [logical] = (logical, logical)
+declare method logical == :: [logical] = (logical, logical)
 
 declare method logical and :: [logical] = (logical, logical)
 declare method logical or  :: [logical] = (logical, logical)

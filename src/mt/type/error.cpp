@@ -166,7 +166,7 @@ Token DuplicateTypeIdentifierError::get_source_token() const {
 
 std::string CouldNotInferTypeError::get_text(const ShowTypeErrors& shower) const {
   auto type_str = shower.type_to_string.apply(in_type);
-  auto msg = "Could not infer " + kind_str + " in: ";
+  auto msg = "Could not infer " + kind_str + " in:\n";
   msg = shower.stylize(style::red) + msg + shower.stylize(style::dflt);
   msg += type_str + ".";
   return msg;

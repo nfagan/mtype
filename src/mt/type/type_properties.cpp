@@ -76,6 +76,17 @@ bool IsConcreteArgument::is_concrete_argument(const types::Alias& alias) {
  * IsFullyConcrete
  */
 
+bool IsFullyConcreteInstance::maybe_push_scheme_variables(const Type* in_type) {
+  if (in_type->is_scheme()) {
+    const auto& scheme = MT_SCHEME_REF(*in_type);
+    const auto& scheme_vars = scheme.parameters;
+    enclosing_scheme_variables.emplace_back(scheme_vars.begin(), scheme_vars.end());
+    return true;
+  } else {
+    return false;
+  }
+}
+
 IsFullyConcrete::IsFullyConcrete(IsFullyConcreteInstance* instance) :
 instance(instance) {
   //

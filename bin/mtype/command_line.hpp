@@ -79,5 +79,6 @@ public:
 
   bool had_parse_error = false;
   int initial_store_capacity = 100000;
+  int max_num_type_variables = 3;
 };
 }

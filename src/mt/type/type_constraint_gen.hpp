@@ -54,8 +54,12 @@ public:
   void superclass_method_reference_expr(const SuperclassMethodReferenceExpr& expr) override;
 
   void grouping_expr(const GroupingExpr& expr) override;
+
   void bracket_grouping_expr_lhs(const GroupingExpr& expr);
   void bracket_grouping_expr_rhs(const GroupingExpr& expr);
+  void empty_bracket_expr(const GroupingExpr& expr);
+  void bracket_concatenation_expr(const GroupingExpr& expr);
+
   void brace_grouping_expr_rhs(const GroupingExpr& expr);
   void parens_grouping_expr_rhs(const GroupingExpr& expr);
 

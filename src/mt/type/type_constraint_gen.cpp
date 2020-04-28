@@ -712,7 +712,24 @@ void TypeConstraintGenerator::bracket_grouping_expr_lhs(const GroupingExpr& expr
   push_type_equation_term(make_term(&expr.source_token, tup_type));
 }
 
-void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
+void TypeConstraintGenerator::empty_bracket_expr(const GroupingExpr& expr) {
+  Type* result_type;
+
+  if (assignment_state.is_assignment_target_rvalue()) {
+    //  c = []
+    result_type = make_fresh_type_variable_reference();
+  } else {
+    //  c([]) = 1;
+    auto maybe_number_type = library.get_number_type();
+    assert(maybe_number_type);
+    result_type = maybe_number_type.value();
+  }
+
+  auto term = make_term(&expr.source_token, result_type);
+  push_type_equation_term(term);
+}
+
+void TypeConstraintGenerator::bracket_concatenation_expr(const GroupingExpr& expr) {
   auto last_dir = ConcatenationDirection::vertical;
   std::vector<TypePtrs> arg_handles;
   TypePtrs result_handles;
@@ -753,6 +770,14 @@ void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr
   push_type_equation(make_eq(lhs_term, rhs_term));
 
   push_type_equation_term(make_term(&expr.source_token, result));
+}
+
+void TypeConstraintGenerator::bracket_grouping_expr_rhs(const GroupingExpr& expr) {
+  if (expr.components.empty()) {
+    empty_bracket_expr(expr);
+  } else {
+    bracket_concatenation_expr(expr);
+  }
 }
 
 void TypeConstraintGenerator::brace_grouping_expr_rhs(const GroupingExpr& expr) {

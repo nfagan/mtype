@@ -7,6 +7,7 @@
 #include "ast/ast.hpp"
 #include "identifier.hpp"
 #include <unordered_map>
+#include <unordered_set>
 #include <cstdint>
 
 namespace mt {
@@ -70,6 +71,10 @@ struct Import {
 };
 
 struct FunctionParameter {
+  struct Hash {
+    std::size_t operator()(const FunctionParameter& p) const noexcept;
+  };
+
   struct AttributeFlags {
     using FlagType = uint8_t;
     static constexpr FlagType is_ignored = 1u;
@@ -104,6 +109,10 @@ struct FunctionParameter {
 
   bool is_part_of_decl() const {
     return flags & AttributeFlags::is_part_of_decl;
+  }
+
+  friend inline bool operator==(const FunctionParameter& a, const FunctionParameter& b) {
+    return a.name == b.name && a.flags == b.flags;
   }
 
   MatlabIdentifier name;
@@ -226,6 +235,9 @@ private:
 };
 
 struct FunctionHeader {
+  using UniqueParameters =
+    std::unordered_set<FunctionParameter, FunctionParameter::Hash>;
+
   FunctionHeader() = default;
   FunctionHeader(std::unique_ptr<Token> name_token,
                  const MatlabIdentifier& name,
@@ -242,6 +254,7 @@ struct FunctionHeader {
 
   int64_t num_inputs() const;
   int64_t num_outputs() const;
+  UniqueParameters unique_parameters() const;
 
   std::unique_ptr<Token> name_token;
   MatlabIdentifier name;

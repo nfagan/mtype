@@ -30,25 +30,26 @@ void SubscriptHandler::maybe_unify_subscript(Type* source, TermRef term, types::
 }
 
 void SubscriptHandler::principal_argument_dispatch(Type* source, TermRef term,
-                                                   types::Subscript& sub, const Type* arg0) {
+                                                   types::Subscript& sub,
+                                                   Type* arg0) {
   if (arg0->is_alias()) {
     principal_argument_dispatch(source, term, sub, MT_ALIAS_REF(*arg0).source);
 
   } else if (arg0->is_abstraction()) {
-    function_call_subscript(source, term, sub);
+    function_call_subscript(source, term, sub, arg0);
 
-  } else if (arg0->is_scheme() && MT_SCHEME_REF(*arg0).type->is_abstraction()) {
+  } else if (arg0->is_scheme() && arg0->scheme_source()->is_abstraction()) {
     scheme_function_call_subscript(source, term, MT_SCHEME_REF(*arg0), sub);
 
   } else {
-    maybe_unify_non_function_subscript(source, term, sub);
+    maybe_unify_non_function_subscript(source, term, sub, arg0);
   }
 }
 
 void SubscriptHandler::maybe_unify_non_function_subscript(Type* source, TermRef term,
-                                                          types::Subscript& sub) {
+                                                          types::Subscript& sub,
+                                                          Type* arg0) {
   assert(!sub.subscripts.empty());
-  const auto arg0 = sub.principal_argument->alias_source();
   const auto& sub0 = sub.subscripts[0];
 
   if (!unifier.are_concrete_arguments(sub0.arguments)) {
@@ -70,7 +71,13 @@ void SubscriptHandler::maybe_unify_non_function_subscript(Type* source, TermRef 
   Type* next_arg0 = nullptr;
 
   if (sub0.is_parens()) {
-    next_arg0 = arg0;
+    if (arg0->is_list()) {
+      //  E.g. If `a` == {list<double>}, then `a{1}(1)` is an error.
+      unifier.add_error(make_unresolved_function_error(term.source_token, source));
+      return;
+    } else {
+      next_arg0 = arg0;
+    }
 
   } else if (sub0.is_period() && arg0->is_class() && MT_CLASS_PTR(arg0)->source->is_record()) {
     const auto& class_type = MT_CLASS_REF(*arg0);
@@ -106,10 +113,8 @@ void SubscriptHandler::maybe_unify_non_function_subscript(Type* source, TermRef 
   }
 }
 
-Type* SubscriptHandler::tuple_brace_subscript(const Type* source,
-                                              const Token* source_token,
-                                              const types::Tuple& arg0) {
-  const auto& members = arg0.members;
+Type* SubscriptHandler::match_members(const Type* source, const Token* source_token,
+                                      const TypePtrs& members) {
   if (members.empty()) {
     unifier.add_error(make_unresolved_function_error(source_token, source));
     return nullptr;
@@ -124,6 +129,17 @@ Type* SubscriptHandler::tuple_brace_subscript(const Type* source,
   }
 
   return mem0;
+}
+
+Type* SubscriptHandler::tuple_brace_subscript(const Type* source,
+                                              const Token* source_token,
+                                              const types::Tuple& arg0) {
+  return match_members(source, source_token, arg0.members);
+}
+
+Type* SubscriptHandler::list_parens_subscript(const Type* source, const Token* source_token,
+                                              const types::List& arg0) {
+  return match_members(source, source_token, arg0.pattern);
 }
 
 Type* SubscriptHandler::record_period_subscript(Type* record_source, const Token* source_token,
@@ -198,9 +214,8 @@ void SubscriptHandler::scheme_function_call_subscript(Type* source, TermRef term
                                                       types::Subscript& sub) {
   if (unifier.is_visited_type(source)) {
     return;
-  }
 
-  if (sub.subscripts.size() != 1 || sub.subscripts[0].method != SubscriptMethod::parens) {
+  } else if (sub.subscripts.size() != 1 || !sub.subscripts[0].is_parens()) {
     unifier.register_visited_type(source);
     auto err =
       unifier.make_invalid_function_invocation_error(term.source_token, sub.principal_argument);
@@ -232,14 +247,15 @@ void SubscriptHandler::scheme_function_call_subscript(Type* source, TermRef term
 }
 
 void SubscriptHandler::function_call_subscript(Type* source, TermRef term,
-                                               const types::Subscript& sub) {
+                                               const types::Subscript& sub,
+                                               Type* arg0) {
   if (unifier.is_visited_type(source)) {
     return;
 
   } else if (sub.subscripts.size() != 1 || !sub.subscripts[0].is_parens()) {
     unifier.register_visited_type(source);
     auto err =
-      unifier.make_invalid_function_invocation_error(term.source_token, sub.principal_argument);
+      unifier.make_invalid_function_invocation_error(term.source_token, arg0);
     unifier.add_error(std::move(err));
     return;
   }
@@ -251,7 +267,7 @@ void SubscriptHandler::function_call_subscript(Type* source, TermRef term,
 
   auto args_copy = sub0.arguments;
   const auto args = store.make_rvalue_destructured_tuple(std::move(args_copy));
-  auto app = store.make_application(sub.principal_argument, args, sub.outputs);
+  auto app = store.make_application(arg0, args, sub.outputs);
 
   const auto app_lhs_term =
     make_term(term.source_token, store.make_fresh_type_variable_reference());

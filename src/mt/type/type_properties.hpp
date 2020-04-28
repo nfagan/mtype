@@ -31,6 +31,8 @@ private:
  */
 
 struct IsFullyConcreteInstance {
+  bool maybe_push_scheme_variables(const Type* in_type);
+
   std::unordered_set<const Type*> unbound_variables;
   std::vector<std::unordered_set<const Type*>> enclosing_scheme_variables;
 };

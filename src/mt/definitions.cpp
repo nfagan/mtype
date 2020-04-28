@@ -4,6 +4,10 @@
 
 namespace mt {
 
+std::size_t FunctionParameter::Hash::operator()(const FunctionParameter& p) const noexcept {
+  return MatlabIdentifier::Hash{}(p.name) ^ std::hash<AttributeFlags::FlagType>{}(p.flags);
+}
+
 FunctionAttributes FunctionAttributes::extract_methods_block_attributes(const FunctionAttributes& attribs) {
   auto res = attribs;
   res.boolean_attributes &= (~AttributeFlags::is_constructor);
@@ -41,6 +45,19 @@ int64_t FunctionHeader::num_inputs() const {
 
 int64_t FunctionHeader::num_outputs() const {
   return outputs.size();
+}
+
+FunctionHeader::UniqueParameters FunctionHeader::unique_parameters() const {
+  std::unordered_set<FunctionParameter, FunctionParameter::Hash> result;
+
+  for (const auto& input : inputs) {
+    result.insert(input);
+  }
+  for (const auto& output: outputs) {
+    result.insert(output);
+  }
+
+  return result;
 }
 
 /*

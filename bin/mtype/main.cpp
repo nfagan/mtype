@@ -23,7 +23,7 @@ void configure_type_to_string(mt::TypeToString& type_to_string, const mt::cmd::A
   type_to_string.explicit_destructured_tuples = args.show_explicit_destructured_tuples;
   type_to_string.explicit_aliases = args.show_explicit_aliases;
   type_to_string.arrow_function_notation = args.use_arrow_function_notation;
-  type_to_string.max_num_type_variables = 3;
+  type_to_string.max_num_type_variables = args.max_num_type_variables;
   type_to_string.show_class_source_type = args.show_class_source_type;
   type_to_string.rich_text = args.rich_text;
   type_to_string.show_application_outputs = args.show_application_outputs;
@@ -273,7 +273,11 @@ int main(int argc, char** argv) {
   ConcreteFunctionTypeInstance concrete_instance(library, store, str_registry);
 
   for (const auto& func_it : local_func_types) {
-    check_for_concrete_function_type(concrete_instance, func_it.first, func_it.second);
+    if (can_show_untyped_function_errors(store, ast_store, func_it.first)) {
+      //  Given that we successfully parsed the file and generated type constraints for it,
+      //  ensure its type has no free type variables.
+      check_for_concrete_function_type(concrete_instance, func_it.first, func_it.second);
+    }
   }
 
   move_from(concrete_instance.errors, type_errors);
@@ -281,7 +285,8 @@ int main(int argc, char** argv) {
   const auto full_t1 = std::chrono::high_resolution_clock::now();
   const auto full_elapsed_ms = std::chrono::duration<double>(full_t1 - full_t0).count() * 1e3;
   const auto check_elapsed_ms = std::chrono::duration<double>(full_t1 - check_t0).count() * 1e3;
-  const auto build_search_path_elapsed_ms = std::chrono::duration<double>(path_t1 - full_t0).count() * 1e3;
+  const auto build_search_path_elapsed_ms =
+    std::chrono::duration<double>(path_t1 - full_t0).count() * 1e3;
 
   if (arguments.show_type_distribution) {
     constraint_generator.show_type_distribution();
