@@ -36,13 +36,11 @@ Unifier::Unifier(TypeStore& store, const Library& library, StringRegistry& strin
 }
 
 bool Unifier::is_concrete_argument(const Type* handle) const {
-  TypeProperties props;
-  return props.is_concrete_argument(handle);
+  return IsConcreteArgument::is_concrete_argument(handle);
 }
 
 bool Unifier::are_concrete_arguments(const mt::TypePtrs& handles) const {
-  TypeProperties props;
-  return props.are_concrete_arguments(handles);
+  return IsConcreteArgument::are_concrete_arguments(handles);
 }
 
 void Unifier::resolve_function(Type* as_referenced, Type* as_defined,
@@ -151,11 +149,16 @@ void Unifier::check_application(Type* source, TermRef term, const types::Applica
          app.abstraction->scheme_source()->is_abstraction());
 
   auto scheme_source = app.abstraction->scheme_source();
-  const auto& abstr = MT_ABSTR_REF(*scheme_source);
+  auto& abstr = MT_ABSTR_MUT_REF(*scheme_source);
   const auto& args = MT_DT_REF(*app.inputs).members;
 
   auto maybe_search_result = search_function(app.abstraction, abstr, args, term.source_token);
   if (!maybe_search_result) {
+    //  In the error case, we might as well assume the function *would* have accepted
+    //  the argument types of the application, if it existed. This ensures unresolved
+    //  function error messages include the argument types of the application, in place of
+    //  bare type variables.
+    abstr.inputs = app.inputs;
     return;
   }
 

@@ -25,6 +25,8 @@ struct TypeAssertion;
 struct TypeAnnotMacro;
 
 struct IdentifierReferenceExpr;
+struct CharLiteralExpr;
+struct VariableReferenceExpr;
 
 struct AstNode {
   AstNode() = default;
@@ -93,6 +95,10 @@ struct Expr : public AstNode {
     return false;
   }
 
+  virtual bool is_function_call_expr() const {
+    return false;
+  }
+
   virtual bool is_char_literal_expr() const {
     return false;
   }
@@ -121,8 +127,20 @@ struct Expr : public AstNode {
     return NullOpt{};
   }
 
+  virtual Optional<const VariableReferenceExpr*> extract_variable_reference_expr() const {
+    return NullOpt{};
+  }
+
+  virtual Optional<const CharLiteralExpr*> extract_char_literal_expr() const {
+    return NullOpt{};
+  }
+
   virtual Optional<IdentifierReferenceExpr*> extract_mut_identifier_reference_expr() {
     return NullOpt{};
+  }
+
+  virtual Optional<const Expr*> extract_non_parens_grouping_sub_expr() const {
+    return Optional<const Expr*>(this);
   }
 };
 

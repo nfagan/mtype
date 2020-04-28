@@ -99,6 +99,10 @@ std::string CharLiteralExpr::accept(const StringVisitor& vis) const {
   return vis.char_literal_expr(*this);
 }
 
+Optional<const CharLiteralExpr*> CharLiteralExpr::extract_char_literal_expr() const {
+  return Optional<const CharLiteralExpr*>(this);
+}
+
 /*
  * StringLiteralExpr
  */
@@ -197,6 +201,11 @@ void VariableReferenceExpr::accept_const(TypePreservingVisitor& visitor) const {
 
 std::string VariableReferenceExpr::accept(const StringVisitor& vis) const {
   return vis.variable_reference_expr(*this);
+}
+
+Optional<const VariableReferenceExpr*>
+VariableReferenceExpr::extract_variable_reference_expr() const {
+  return Optional<const VariableReferenceExpr*>(this);
 }
 
 /*
@@ -333,6 +342,23 @@ bool GroupingExpr::is_valid_assignment_target() const {
       arg.expr->is_valid_assignment_target() &&
       !arg.expr->is_grouping_expr();
   });
+}
+
+Optional<const Expr*> GroupingExpr::extract_non_parens_grouping_sub_expr() const {
+  if (!is_parens()) {
+    return Optional<const Expr*>(this);
+
+  } else if (components.size() == 1 &&
+             components[0].expr->is_grouping_expr()) {
+    const auto sub_expr = static_cast<const GroupingExpr*>(components[0].expr.get());
+    return sub_expr->extract_non_parens_grouping_sub_expr();
+
+  } else if (!components.empty()) {
+    return Optional<const Expr*>(components[0].expr.get());
+
+  } else {
+    return NullOpt{};
+  }
 }
 
 std::string GroupingExpr::accept(const StringVisitor& vis) const {

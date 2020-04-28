@@ -1,5 +1,6 @@
 #include "types.hpp"
 #include "type_representation.hpp"
+#include "type_properties.hpp"
 #include <cassert>
 
 namespace mt {
@@ -47,6 +48,10 @@ void types::Alias::accept(const TypeToString& to_str, std::stringstream& into) c
   to_str.apply(*this, into);
 }
 
+bool types::Alias::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.alias(*this);
+}
+
 namespace {
   template <typename T, typename U>
   U* root_alias_source_impl(U* source) {
@@ -78,6 +83,10 @@ int types::Alias::compare(const Type* b) const noexcept {
 
 void types::Record::accept(const TypeToString& to_str, std::stringstream& into) const {
   return to_str.apply(*this, into);
+}
+
+bool types::Record::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.record(*this);
 }
 
 std::size_t types::Record::bytes() const {
@@ -142,6 +151,10 @@ void types::Class::accept(const TypeToString& to_str, std::stringstream& into) c
   to_str.apply(*this, into);
 }
 
+bool types::Class::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.class_type(*this);
+}
+
 std::size_t types::Class::bytes() const {
   return sizeof(Class);
 }
@@ -174,6 +187,10 @@ void types::Variable::accept(const TypeToString& to_str, std::stringstream& into
   to_str.apply(*this, into);
 }
 
+bool types::Variable::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.variable(*this);
+}
+
 std::size_t types::Variable::bytes() const {
   return sizeof(Variable);
 }
@@ -191,6 +208,10 @@ int types::Variable::compare(const Type* b) const noexcept {
 
 void types::Scalar::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+bool types::Scalar::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.scalar(*this);
 }
 
 std::size_t types::Scalar::bytes() const {
@@ -213,6 +234,10 @@ std::size_t types::Application::bytes() const {
 }
 void types::Application::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+bool types::Application::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.application(*this);
 }
 
 int types::Application::compare(const Type* b) const noexcept {
@@ -330,6 +355,10 @@ void types::Abstraction::accept(const TypeToString& to_str, std::stringstream& i
   to_str.apply(*this, into);
 }
 
+bool types::Abstraction::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.abstraction(*this);
+}
+
 int types::Abstraction::compare(const Type* b) const noexcept {
   MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
   const auto& abstr_b = MT_ABSTR_REF(*b);
@@ -401,6 +430,10 @@ void types::Union::accept(const TypeToString& to_str, std::stringstream& into) c
   to_str.apply(*this, into);
 }
 
+bool types::Union::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.union_type(*this);
+}
+
 std::size_t types::Union::bytes() const {
   return sizeof(Union);
 }
@@ -433,6 +466,10 @@ void types::Tuple::accept(const TypeToString& to_str, std::stringstream& into) c
   to_str.apply(*this, into);
 }
 
+bool types::Tuple::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.tuple(*this);
+}
+
 std::size_t types::Tuple::bytes() const {
   return sizeof(Tuple);
 }
@@ -449,6 +486,10 @@ int types::Tuple::compare(const Type* b) const noexcept {
 
 void types::DestructuredTuple::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+bool types::DestructuredTuple::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.destructured_tuple(*this);
 }
 
 Optional<Type*> types::DestructuredTuple::first_non_destructured_tuple_member() const {
@@ -541,6 +582,10 @@ void types::List::accept(const TypeToString& to_str, std::stringstream& into) co
   to_str.apply(*this, into);
 }
 
+bool types::List::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.list(*this);
+}
+
 std::size_t types::List::bytes() const {
   return sizeof(List);
 }
@@ -572,6 +617,10 @@ bool types::Subscript::Sub::is_period() const {
 
 void types::Subscript::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+bool types::Subscript::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.subscript(*this);
 }
 
 std::size_t types::Subscript::bytes() const {
@@ -612,6 +661,10 @@ void types::ConstantValue::accept(const TypeToString& to_str, std::stringstream&
   to_str.apply(*this, into);
 }
 
+bool types::ConstantValue::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.constant_value(*this);
+}
+
 std::size_t types::ConstantValue::bytes() const {
   return sizeof(ConstantValue);
 }
@@ -646,6 +699,10 @@ int types::ConstantValue::compare(const Type* b) const noexcept {
 
 void types::Scheme::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+bool types::Scheme::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.scheme(*this);
 }
 
 std::size_t types::Scheme::bytes() const {
@@ -687,6 +744,10 @@ void types::Assignment::accept(const TypeToString& to_str, std::stringstream& in
   to_str.apply(*this, into);
 }
 
+bool types::Assignment::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.assignment(*this);
+}
+
 std::size_t types::Assignment::bytes() const {
   return sizeof(Assignment);
 }
@@ -709,6 +770,10 @@ int types::Assignment::compare(const Type* b) const noexcept {
 
 void types::Parameters::accept(const TypeToString& to_str, std::stringstream& into) const {
   to_str.apply(*this, into);
+}
+
+bool types::Parameters::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.parameters(*this);
 }
 
 std::size_t types::Parameters::bytes() const {

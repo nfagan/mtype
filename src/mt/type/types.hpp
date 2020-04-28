@@ -39,6 +39,7 @@ struct Alias : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   const Type* alias_source() const override;
   Type* alias_source() override;
@@ -83,6 +84,7 @@ struct Record : public Type {
   bool has_field(const types::ConstantValue& val) const;
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -122,6 +124,7 @@ struct Class : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -167,6 +170,7 @@ struct ConstantValue : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   bool is_char_value() const;
 
@@ -199,6 +203,7 @@ struct Variable : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -226,6 +231,7 @@ struct Scheme : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   Type* scheme_source() override;
   const Type* scheme_source() const override;
@@ -256,6 +262,7 @@ struct Scalar : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -291,6 +298,7 @@ struct Union : public Type {
   std::size_t bytes() const override;
   int64_t size() const;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
   static UniqueMembers unique_members(const types::Union& a);
@@ -323,6 +331,7 @@ struct List : public Type {
   std::size_t bytes() const override;
   int64_t size() const;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -364,6 +373,7 @@ struct Subscript : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -416,6 +426,8 @@ struct DestructuredTuple : public Type {
   std::size_t bytes() const override;
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
+
   Optional<Type*> first_non_destructured_tuple_member() const;
 
   int compare(const Type* b) const noexcept override;
@@ -453,6 +465,7 @@ struct Tuple : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -478,6 +491,7 @@ struct Assignment : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -535,6 +549,7 @@ struct Abstraction : public mt::Type {
   void assign_kind(const MatlabIdentifier& name, const FunctionReferenceHandle& ref_handle);
 
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -580,6 +595,7 @@ struct Application : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 
@@ -608,6 +624,7 @@ struct Parameters : public Type {
 
   std::size_t bytes() const override;
   void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
 
   int compare(const Type* b) const noexcept override;
 

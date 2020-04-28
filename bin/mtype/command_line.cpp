@@ -177,9 +177,17 @@ void Arguments::build_parse_spec() {
     [this](int, int, char**) {
     return false_param(&show_local_function_types);
   });
-  arguments.emplace_back(ParameterName("--hide-diagnostics", "-hd"), "Don't print elapsed time and other diagnostics.",
+  arguments.emplace_back(ParameterName("--show-function-types", "-sf"), "Print local function types.",
+    [this](int, int, char**) {
+    return true_param(&show_local_function_types);
+  });
+  arguments.emplace_back(ParameterName("--hide-diagnostics", "-hdi"), "Don't print elapsed time and other diagnostics.",
     [this](int, int, char**) {
     return false_param(&show_diagnostics);
+  });
+  arguments.emplace_back(ParameterName("--show-diagnostics", "-sdi"), "Print elapsed time and other diagnostics.",
+    [this](int, int, char**) {
+    return true_param(&show_diagnostics);
   });
   arguments.emplace_back(ParameterName("--hide-errors", "-he"), "Don't print errors.",
     [this](int, int, char**) {

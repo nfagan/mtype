@@ -12,6 +12,16 @@ BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type*
   return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
 }
 
+BoxedTypeError make_unknown_isa_guarded_class_error(const Token* at_token) {
+  return std::make_unique<UnknownIsaGuardedClass>(at_token);
+}
+
+BoxedTypeError make_could_not_infer_type_error(const Token* at_token,
+                                               std::string kind_str,
+                                               const Type* in_type) {
+  return std::make_unique<CouldNotInferTypeError>(at_token, std::move(kind_str), in_type);
+}
+
 /*
  * SimplificationFailure
  */
@@ -56,6 +66,22 @@ std::string UnresolvedFunctionError::get_text(const ShowTypeErrors& shower) cons
 
 Token UnresolvedFunctionError::get_source_token() const {
   return *at_token;
+}
+
+/*
+ * UnknownIsaGuardedClass
+ */
+
+Token UnknownIsaGuardedClass::get_source_token() const {
+  return *at_token;
+}
+
+std::string UnknownIsaGuardedClass::get_text(const ShowTypeErrors& shower) const {
+  std::string lexeme(at_token->lexeme);
+  auto msg = "Class type for `" + lexeme + "` could not be located.";
+  msg += "\n\nNote: if this class exists, it must be explicitly imported\nbefore the isa guard.";
+  msg = shower.stylize(msg, style::red);
+  return msg;
 }
 
 /*
@@ -128,6 +154,22 @@ std::string DuplicateTypeIdentifierError::get_text(const ShowTypeErrors&) const 
 
 Token DuplicateTypeIdentifierError::get_source_token() const {
   return *new_def;
+}
+
+/*
+ * CouldNotInferTypeError
+ */
+
+std::string CouldNotInferTypeError::get_text(const ShowTypeErrors& shower) const {
+  auto type_str = shower.type_to_string.apply(in_type);
+  auto msg = "Could not infer " + kind_str + " in: ";
+  msg = shower.stylize(style::red) + msg + shower.stylize(style::dflt);
+  msg += type_str + ".";
+  return msg;
+}
+
+Token CouldNotInferTypeError::get_source_token() const {
+  return *source_token;
 }
 
 /*

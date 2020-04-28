@@ -80,6 +80,8 @@ public:
   void expr_stmt(const ExprStmt& stmt) override;
   void assignment_stmt(const AssignmentStmt& stmt) override;
 
+  std::vector<BoxedTypeError>& get_warnings();
+
 private:
   std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);
 
@@ -139,9 +141,12 @@ private:
 
   std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> variable_types;
   std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> function_types;
+  std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> isa_guarded_types;
 
   std::vector<TypeEquationTerm> type_eq_terms;
   std::vector<ConstraintRepository> constraint_repositories;
+
+  std::vector<BoxedTypeError> warnings;
 };
 
 }

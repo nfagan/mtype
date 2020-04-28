@@ -651,7 +651,11 @@ Optional<FunctionHeader> AstGenerator::function_header(bool* has_varargin, bool*
     name = MatlabIdentifier(single_name_component);
   }
 
-  FunctionHeader header(name_token, name, std::move(output_res.rvalue()), std::move(input_res.rvalue()));
+  auto boxed_token = std::make_unique<Token>(name_token);
+  FunctionHeader header(std::move(boxed_token), name,
+                        std::move(output_res.rvalue()),
+                        std::move(input_res.rvalue()));
+
   return Optional<FunctionHeader>(std::move(header));
 }
 
@@ -791,12 +795,12 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
 
       if (header.outputs.size() != 1) {
         //  Constructor of the form [] = (arg...) is invalid.
-        add_error(make_error_non_scalar_outputs_in_ctor(parse_instance, header.name_token));
+        add_error(make_error_non_scalar_outputs_in_ctor(parse_instance, *header.name_token));
         return NullOpt{};
       }
     } else if (!attrs.is_static() && header.inputs.empty()) {
       //  Non-static method must accept at least one argument (the class instance).
-      add_error(make_error_no_class_instance_parameter_in_method(parse_instance, header.name_token));
+      add_error(make_error_no_class_instance_parameter_in_method(parse_instance, *header.name_token));
       return NullOpt{};
     }
   }
@@ -804,7 +808,7 @@ Optional<std::unique_ptr<FunctionDefNode>> AstGenerator::function_def() {
   attrs.maybe_mark_has_varargin(has_varargin);
   attrs.maybe_mark_has_varargout(has_varargout);
 
-  FunctionDef function_def(header_result.rvalue(), attrs, body_res.rvalue());
+  FunctionDef function_def(header_result.rvalue(), attrs, body_res.rvalue(), child_scope);
 
   //  Function registry owns the local function definition.
   FunctionDefHandle def_handle;
@@ -904,7 +908,7 @@ namespace {
         const auto& def = reader.at(decl.pending_def_handle);
         name = def.header.name;
         method_attribs = def.attributes;
-        name_token = def.header.name_token;
+        name_token = *def.header.name_token;
       });
 
       PendingExternalMethod pending_method(std::move(decl), name, name_token, method_attribs,
@@ -1407,7 +1411,7 @@ bool AstGenerator::method_declaration(const mt::Token& source_token,
       Store::Write writer(*store);
       const auto name = header.name;
 
-      pending_def_handle = writer.make_function_declaration(std::move(header), attrs);
+      pending_def_handle = writer.make_function_declaration(std::move(header), attrs, curr_scope);
       pending_ref_handle = writer.make_local_reference(name, pending_def_handle, curr_scope);
     }
 

@@ -127,6 +127,8 @@ struct CharLiteralExpr : public Expr {
     return true;
   }
 
+  Optional<const CharLiteralExpr*> extract_char_literal_expr() const override;
+
   Token source_token;
 };
 
@@ -234,6 +236,10 @@ struct FunctionCallExpr : public Expr {
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
 
+  bool is_function_call_expr() const override {
+    return true;
+  }
+
   Token source_token;
   FunctionReferenceHandle reference_handle;
   std::vector<BoxedExpr> arguments;
@@ -258,6 +264,8 @@ struct VariableReferenceExpr : public Expr {
   std::string accept(const StringVisitor& vis) const override;
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
+
+  Optional<const VariableReferenceExpr*> extract_variable_reference_expr() const override;
 
   Token source_token;
   VariableDefHandle def_handle;
@@ -334,6 +342,8 @@ struct GroupingExpr : public Expr {
   Expr* accept(IdentifierClassifier& classifier) override;
   void accept(TypePreservingVisitor& visitor) override;
   void accept_const(TypePreservingVisitor& vis) const override;
+
+  Optional<const Expr*> extract_non_parens_grouping_sub_expr() const override;
 
   bool is_brace() const;
   bool is_bracket() const;

@@ -41,7 +41,7 @@ Optional<HandleSearchResult> find_search_handle(const AstStore::Entry* entry,
         if (is_accessible &&
             func_def.header.name == candidate.function_name) {
           maybe_def_handle = method;
-          maybe_source_token = func_def.header.name_token;
+          maybe_source_token = *func_def.header.name_token;
           return;
         }
       }

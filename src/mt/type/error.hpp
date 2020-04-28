@@ -66,6 +66,17 @@ struct UnresolvedFunctionError : public TypeError {
   const Type* function_type;
 };
 
+struct UnknownIsaGuardedClass : public TypeError {
+  UnknownIsaGuardedClass(const Token* at_token) : at_token(at_token) {
+    //
+  }
+  ~UnknownIsaGuardedClass() override = default;
+  std::string get_text(const ShowTypeErrors& shower) const override;
+  Token get_source_token() const override;
+
+  const Token* at_token;
+};
+
 struct InvalidFunctionInvocationError : public TypeError {
   InvalidFunctionInvocationError(const Token* at_token, const Type* function_type) :
   at_token(at_token), function_type(function_type) {
@@ -132,10 +143,33 @@ struct DuplicateTypeIdentifierError : public TypeError {
   const Token* new_def;
 };
 
+struct CouldNotInferTypeError : public TypeError {
+  CouldNotInferTypeError(const Token* source_token,
+                         std::string kind_str,
+                         const Type* in_type) :
+  source_token(source_token),
+  kind_str(std::move(kind_str)),
+  in_type(in_type) {
+    //
+  }
+  ~CouldNotInferTypeError() override = default;
+
+  std::string get_text(const ShowTypeErrors& shower) const override;
+  Token get_source_token() const override;
+
+  const Token* source_token;
+  std::string kind_str;
+  const Type* in_type;
+};
+
 using BoxedTypeError = std::unique_ptr<TypeError>;
 using TypeErrors = std::vector<BoxedTypeError>;
 
 BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type* function_type);
+BoxedTypeError make_unknown_isa_guarded_class_error(const Token* at_token);
+BoxedTypeError make_could_not_infer_type_error(const Token* at_token,
+                                               std::string kind_str,
+                                               const Type* in_type);
 
 /*
  * ShowTypeErrors

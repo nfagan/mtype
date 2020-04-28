@@ -206,7 +206,9 @@ private:
   TypeScope* make_type_scope(TypeScope* root, const TypeScope* parent);
 
   ClassDefHandle make_class_definition();
-  FunctionDefHandle make_function_declaration(FunctionHeader&& header, const FunctionAttributes& attrs);
+  FunctionDefHandle make_function_declaration(FunctionHeader&& header,
+                                              const FunctionAttributes& attrs,
+                                              const MatlabScope* scope);
 
   VariableDefHandle emplace_definition(VariableDef&& def);
   FunctionDefHandle emplace_definition(FunctionDef&& def);

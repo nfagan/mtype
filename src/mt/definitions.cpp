@@ -81,34 +81,28 @@ void MatlabScope::register_local_variable(const MatlabIdentifier& name, const Va
   local_variables[name] = handle;
 }
 
+#define MT_SCOPE_LOOKUP(member, null_result_type) \
+  const MatlabScope* scope = this; \
+  while (scope) { \
+    const auto it = scope->member.find(name); \
+    if (it == scope->member.end()) { \
+      scope = scope->parent; \
+    } else { \
+      return it->second; \
+    } \
+  } \
+  return null_result_type();
+
 FunctionReferenceHandle MatlabScope::lookup_local_function(const MatlabIdentifier& name) const {
-  const MatlabScope* scope = this;
-
-  while (scope) {
-    const auto it = scope->local_functions.find(name);
-    if (it == scope->local_functions.end()) {
-      scope = scope->parent;
-    } else {
-      return it->second;
-    }
-  }
-
-  return FunctionReferenceHandle();
+  MT_SCOPE_LOOKUP(local_functions, FunctionReferenceHandle)
 }
 
 FunctionReferenceHandle MatlabScope::lookup_imported_function(const MatlabIdentifier& name) const {
-  const MatlabScope* scope = this;
+  MT_SCOPE_LOOKUP(imported_functions, FunctionReferenceHandle)
+}
 
-  while (scope) {
-    const auto it = scope->imported_functions.find(name);
-    if (it == scope->imported_functions.end()) {
-      scope = scope->parent;
-    } else {
-      return it->second;
-    }
-  }
-
-  return FunctionReferenceHandle();
+VariableDefHandle MatlabScope::lookup_local_variable(const MatlabIdentifier& name) const {
+  MT_SCOPE_LOOKUP(local_variables, VariableDefHandle)
 }
 
 bool MatlabScope::has_imported_function(const MatlabIdentifier& name) const {

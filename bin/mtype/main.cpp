@@ -3,9 +3,15 @@
 #include "ast_store.hpp"
 #include "parse_pipeline.hpp"
 #include "external_resolution.hpp"
+#include "type_analysis.hpp"
 #include <chrono>
 
 namespace {
+
+template <typename T>
+void move_from(std::vector<T>& source, std::vector<T>& dest) {
+  std::move(source.begin(), source.end(), std::back_inserter(dest));
+}
 
 template <typename... Args>
 mt::TypeToString make_type_to_string(Args&&... args) {
@@ -81,7 +87,7 @@ void run_unify(mt::Unifier& unifier,
   unify_time += std::chrono::duration<double>(t1 - t0).count() * 1e3;
 
   if (unify_res.is_error()) {
-    std::move(unify_res.errors.begin(), unify_res.errors.end(), std::back_inserter(type_errors));
+    move_from(unify_res.errors, type_errors);
     if (unify_res.errors.empty()) {
       std::cout << "ERROR: An error occurred, but no explicit errors were generated." << std::endl;
     }
@@ -210,8 +216,7 @@ int main(int argc, char** argv) {
         any_resolution_errors = true;
       } else {
         //  Push schemes that need instantiation.
-        std::move(instance.pending_schemes.begin(), instance.pending_schemes.end(),
-          std::back_inserter(pending_schemes));
+        move_from(instance.pending_schemes, pending_schemes);
       }
     }
 
@@ -233,6 +238,9 @@ int main(int argc, char** argv) {
       entry->generated_type_constraints = true;
     }
 
+    auto& gen_warnings = constraint_generator.get_warnings();
+    move_from(gen_warnings, type_errors);
+
     run_unify(unifier, substitution, external_functions, type_errors, unify_time);
 
     ResolutionInstance resolution_instance;
@@ -249,8 +257,7 @@ int main(int argc, char** argv) {
       unifier.resolve_function(res_pair.as_referenced, res_pair.as_defined, tok_ptr);
     }
 
-    std::move(resolution_instance.errors.begin(), resolution_instance.errors.end(),
-              std::back_inserter(type_errors));
+    move_from(resolution_instance.errors, type_errors);
 
     run_unify(unifier, substitution, external_functions, type_errors, unify_time);
     external_it = external_functions.visited_candidates.begin();
@@ -261,6 +268,15 @@ int main(int argc, char** argv) {
       std::cout << root_res->root_block->accept(str_visitor) << std::endl;
     }
   }
+
+  const auto& local_func_types = library.get_local_function_types();
+  ConcreteFunctionTypeInstance concrete_instance(library, store, str_registry);
+
+  for (const auto& func_it : local_func_types) {
+    check_for_concrete_function_type(concrete_instance, func_it.first, func_it.second);
+  }
+
+  move_from(concrete_instance.errors, type_errors);
 
   const auto full_t1 = std::chrono::high_resolution_clock::now();
   const auto full_elapsed_ms = std::chrono::duration<double>(full_t1 - full_t0).count() * 1e3;

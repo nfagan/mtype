@@ -128,6 +128,13 @@ namespace {
     auto msg = "Duplicate function.";
     return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
+
+  ParseError make_error_duplicate_class(const TypeIdentifierResolverInstance& instance,
+                                        const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
+    auto msg = "Duplicate class.";
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
+  }
 }
 
 /*
@@ -828,7 +835,14 @@ void TypeIdentifierResolver::class_def_node(ClassDefNode& node) {
   assert(!class_type->source);
 
   //  Register type with library.
-  instance->library.emplace_local_class_type(node.handle, class_type);
+  bool register_success =
+    instance->library.emplace_local_class_type(node.handle, class_type);
+
+  if (!register_success) {
+    instance->add_error(make_error_duplicate_class(*instance, node.source_token));
+    instance->collectors.current().mark_error();
+    return;
+  }
 
   types::Record::Fields fields;
   for (const auto& prop : node.properties) {

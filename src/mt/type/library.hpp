@@ -34,6 +34,7 @@ struct SpecialIdentifierStore {
   int64_t handle;
   int64_t varargin;
   int64_t varargout;
+  int64_t isa;
 };
 
 /*
@@ -90,6 +91,13 @@ private:
 class Library {
   friend class Unifier;
 public:
+  using LocalFunctionTypes =
+    std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash>;
+  using LocalClassTypes =
+    std::unordered_map<ClassDefHandle, types::Class*, ClassDefHandle::Hash>;
+  using LocalVariableTypes =
+    std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash>;
+
   Library(TypeStore& store, Store& def_store, const SearchPath& search_path,
           StringRegistry& string_registry);
 
@@ -117,7 +125,7 @@ public:
   MT_NODISCARD Optional<std::string> type_name(const Type* type) const;
 
   void emplace_local_function_type(const FunctionDefHandle& handle, Type* type);
-  void emplace_local_class_type(const ClassDefHandle& handle, types::Class* type);
+  bool emplace_local_class_type(const ClassDefHandle& handle, types::Class* type);
   void emplace_local_variable_type(const VariableDefHandle& handle, Type* type);
   Type* require_local_variable_type(const VariableDefHandle& handle);
 
@@ -129,6 +137,8 @@ public:
   MT_NODISCARD Optional<Type*> get_char_type() const;
   MT_NODISCARD Optional<Type*> get_string_type() const;
   MT_NODISCARD Optional<Type*> get_logical_type() const;
+
+  const LocalFunctionTypes& get_local_function_types() const;
 
 private:
   void make_builtin_types();
@@ -170,9 +180,9 @@ private:
 
   std::map<types::Abstraction, Type*, TypeRelation::NameLess> function_types;
 
-  std::unordered_map<FunctionDefHandle, Type*, FunctionDefHandle::Hash> local_function_types;
-  std::unordered_map<ClassDefHandle, types::Class*, ClassDefHandle::Hash> local_class_types;
-  std::unordered_map<VariableDefHandle, Type*, VariableDefHandle::Hash> local_variables_types;
+  LocalFunctionTypes local_function_types;
+  LocalClassTypes local_class_types;
+  LocalVariableTypes local_variables_types;
 
   std::unordered_map<TypeIdentifier, types::Class*, TypeIdentifier::Hash> class_types;
   std::unordered_set<TypeIdentifier, TypeIdentifier::Hash> declared_function_types;

@@ -12,8 +12,10 @@ ClassDefHandle Store::make_class_definition() {
   return ClassDefHandle(class_definitions.size() - 1);
 }
 
-FunctionDefHandle Store::make_function_declaration(FunctionHeader&& header, const FunctionAttributes& attrs) {
-  function_definitions.emplace_back(std::move(header), attrs);
+FunctionDefHandle Store::make_function_declaration(FunctionHeader&& header,
+                                                   const FunctionAttributes& attrs,
+                                                   const MatlabScope* scope) {
+  function_definitions.emplace_back(std::move(header), attrs, scope);
   return FunctionDefHandle(function_definitions.size() - 1);
 }
 
@@ -110,7 +112,7 @@ MatlabIdentifier Store::get_name(const FunctionDefHandle& handle) const {
 
 Token Store::get_name_token(const FunctionDefHandle& handle) const {
   Store::ReadConst reader(*this);
-  return reader.at(handle).header.name_token;
+  return *reader.at(handle).header.name_token;
 }
 
 FunctionAttributes Store::get_attributes(const FunctionDefHandle& def_handle) const {

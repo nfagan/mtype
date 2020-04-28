@@ -38,6 +38,7 @@ struct MatlabScope {
 
   FunctionReferenceHandle lookup_local_function(const MatlabIdentifier& name) const;
   FunctionReferenceHandle lookup_imported_function(const MatlabIdentifier& name) const;
+  VariableDefHandle lookup_local_variable(const MatlabIdentifier& name) const;
 
   bool has_imported_function(const MatlabIdentifier& name) const;
   bool has_local_variable(const MatlabIdentifier& name) const;
@@ -226,49 +227,56 @@ private:
 
 struct FunctionHeader {
   FunctionHeader() = default;
-  FunctionHeader(const Token& name_token,
+  FunctionHeader(std::unique_ptr<Token> name_token,
                  const MatlabIdentifier& name,
                  FunctionParameters&& outputs,
                  FunctionParameters&& inputs) :
-    name_token(name_token),
+    name_token(std::move(name_token)),
     name(name),
     outputs(std::move(outputs)),
     inputs(std::move(inputs)) {
     //
   }
-  FunctionHeader(FunctionHeader&& other) noexcept = default;
-  FunctionHeader& operator=(FunctionHeader&& other) noexcept = default;
-  ~FunctionHeader() = default;
+
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(FunctionHeader)
 
   int64_t num_inputs() const;
   int64_t num_outputs() const;
 
-  Token name_token;
+  std::unique_ptr<Token> name_token;
   MatlabIdentifier name;
   FunctionParameters outputs;
   FunctionParameters inputs;
 };
 
 struct FunctionDef {
-  FunctionDef(FunctionHeader&& header, const FunctionAttributes& attrs) :
-  header(std::move(header)), attributes(attrs), body(nullptr) {
+  FunctionDef(FunctionHeader&& header,
+              const FunctionAttributes& attrs,
+              const MatlabScope* scope) :
+  header(std::move(header)),
+  attributes(attrs),
+  body(nullptr),
+  scope(scope) {
     //
   }
 
-  FunctionDef(FunctionHeader&& header, const FunctionAttributes& attrs, std::unique_ptr<Block> body) :
-    header(std::move(header)), attributes(attrs), body(std::move(body)) {
+  FunctionDef(FunctionHeader&& header,
+              const FunctionAttributes& attrs,
+              std::unique_ptr<Block> body,
+              const MatlabScope* scope) :
+    header(std::move(header)),
+    attributes(attrs),
+    body(std::move(body)),
+    scope(scope) {
     //
   }
-  FunctionDef(FunctionDef&& other) noexcept = default;
-  FunctionDef& operator=(FunctionDef&& other) noexcept = default;
 
-  bool is_declaration() const {
-    return body == nullptr;
-  }
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(FunctionDef)
 
   FunctionHeader header;
   FunctionAttributes attributes;
   std::unique_ptr<Block> body;
+  const MatlabScope* scope;
 };
 
 struct FunctionReference {

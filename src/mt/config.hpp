@@ -20,7 +20,9 @@
 #endif
 
 #ifndef NDEBUG
-#define MT_DEBUG
+#define MT_DEBUG (1)
+#else
+#define MT_DEBUG (0)
 #endif
 
 #if MT_IS_MSVC

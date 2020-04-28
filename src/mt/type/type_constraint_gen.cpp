@@ -808,6 +808,68 @@ void TypeConstraintGenerator::if_stmt(const IfStmt& stmt) {
   }
 }
 
+namespace {
+  struct IsaGuardExpr {
+    const VariableReferenceExpr* ref_expr;
+    TypeIdentifier class_name;
+    const Token* class_name_token;
+  };
+  struct IsaGuardedVariable {
+    VariableDefHandle variable;
+    Type* type;
+  };
+
+  Optional<IsaGuardExpr> extract_isa_guard_expr(const BoxedExpr& condition_expr,
+                                                const Store& store,
+                                                const Library& library,
+                                                StringRegistry& string_registry) {
+    auto maybe_guard = condition_expr->extract_non_parens_grouping_sub_expr();
+    if (!maybe_guard ||
+        !maybe_guard.value()->is_function_call_expr()) {
+      return NullOpt{};
+    }
+
+    const auto func_expr = static_cast<const FunctionCallExpr*>(maybe_guard.value());
+    const auto func_ref = store.get(func_expr->reference_handle);
+
+    if (func_expr->arguments.size() != 2 ||
+        func_ref.name.full_name() != library.special_identifiers.isa) {
+      return NullOpt{};
+    }
+
+    const auto maybe_var_expr =
+      func_expr->arguments[0]->extract_variable_reference_expr();
+    const auto maybe_char_literal_expr =
+      func_expr->arguments[1]->extract_char_literal_expr();
+
+    if (!maybe_var_expr || !maybe_char_literal_expr) {
+      return NullOpt{};
+    }
+
+    const auto* source_tok = &maybe_char_literal_expr.value()->source_token;
+    const auto lex = source_tok->lexeme;
+    const auto registered_lex = string_registry.register_string(lex);
+    TypeIdentifier class_name(registered_lex);
+    IsaGuardExpr result{maybe_var_expr.value(), class_name, source_tok};
+    return Optional<IsaGuardExpr>(result);
+  }
+
+  Optional<IsaGuardedVariable> lookup_isa_guarded_class(const IsaGuardExpr& expr,
+                                                        const Library& library) {
+    auto maybe_class = library.lookup_class(expr.class_name);
+    if (!maybe_class) {
+      return NullOpt{};
+    }
+
+    const auto class_type = maybe_class.value();
+    auto source_handle = expr.ref_expr->def_handle;
+    const auto assign_type = class_type->source->is_scalar() ?
+                             class_type->source : class_type;
+
+    return Optional<IsaGuardedVariable>(IsaGuardedVariable{source_handle, assign_type});
+  }
+}
+
 void TypeConstraintGenerator::if_branch(const IfBranch& branch) {
   auto maybe_logical = library.get_logical_type();
   assert(maybe_logical);
@@ -815,7 +877,35 @@ void TypeConstraintGenerator::if_branch(const IfBranch& branch) {
   auto lhs_term = make_term(&branch.source_token, maybe_logical.value());
   push_type_equation(make_eq(lhs_term, condition));
 
+  auto maybe_guard_expr =
+    extract_isa_guard_expr(branch.condition_expr, store, library, string_registry);
+
+  Optional<VariableDefHandle> to_erase;
+
+  if (maybe_guard_expr) {
+    //  The condition expr is of the form isa(X, 'some class') -- see if we can locate
+    //  the type of 'some class'.
+    const auto maybe_guarded_type =
+      lookup_isa_guarded_class(maybe_guard_expr.value(), library);
+
+    if (maybe_guarded_type) {
+      //  We can, so mark that the type of this identifier is temporarily the type
+      //  of the isa-guard.
+      const auto& guarded_type = maybe_guarded_type.value();
+      to_erase = guarded_type.variable;
+      isa_guarded_types[guarded_type.variable] = guarded_type.type;
+    } else {
+      auto warn =
+        make_unknown_isa_guarded_class_error(maybe_guard_expr.value().class_name_token);
+      warnings.push_back(std::move(warn));
+    }
+  }
+
   branch.block->accept_const(*this);
+
+  if (to_erase) {
+    isa_guarded_types.erase(to_erase.value());
+  }
 }
 
 void TypeConstraintGenerator::switch_stmt(const SwitchStmt& stmt) {
@@ -897,7 +987,11 @@ Type* TypeConstraintGenerator::make_fresh_type_variable_reference() {
 }
 
 Type* TypeConstraintGenerator::require_bound_type_variable(const VariableDefHandle& variable_def_handle) {
-  if (variable_types.count(variable_def_handle) > 0) {
+  if (isa_guarded_types.count(variable_def_handle) > 0) {
+    //  A type is known for this variable because of an isa(X, 'class-name') expression.
+    return isa_guarded_types.at(variable_def_handle);
+
+  } else if (variable_types.count(variable_def_handle) > 0) {
     return variable_types.at(variable_def_handle);
   }
 
@@ -907,7 +1001,8 @@ Type* TypeConstraintGenerator::require_bound_type_variable(const VariableDefHand
   return variable_type_handle;
 }
 
-void TypeConstraintGenerator::bind_type_variable_to_variable_def(const VariableDefHandle& def_handle, Type* type_handle) {
+void TypeConstraintGenerator::bind_type_variable_to_variable_def(const VariableDefHandle& def_handle,
+                                                                 Type* type_handle) {
   variable_types[def_handle] = type_handle;
 }
 
@@ -995,6 +1090,10 @@ TypeEquationTerm TypeConstraintGenerator::pop_type_equation_term() {
   const auto term = type_eq_terms.back();
   type_eq_terms.pop_back();
   return term;
+}
+
+std::vector<BoxedTypeError>& TypeConstraintGenerator::get_warnings() {
+  return warnings;
 }
 
 }

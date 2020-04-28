@@ -17,4 +17,6 @@ target_sources(${PROJECT_NAME} PRIVATE
         external_resolution.cpp
         parse_pipeline.hpp
         parse_pipeline.cpp
+        type_analysis.hpp
+        type_analysis.cpp
         )

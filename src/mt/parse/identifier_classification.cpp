@@ -824,8 +824,8 @@ FunctionDefNode* IdentifierClassifier::function_def_node(FunctionDefNode& def_no
     Store::Write read_write(*store);
     auto& def = read_write.at(def_node.def_handle);
 
-    register_function_parameters(read_write, def.header.name_token, def.header.inputs);
-    register_function_parameters(read_write, def.header.name_token, def.header.outputs);
+    register_function_parameters(read_write, *def.header.name_token, def.header.inputs);
+    register_function_parameters(read_write, *def.header.name_token, def.header.outputs);
 
     function_body = std::move(def.body);
   }

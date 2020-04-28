@@ -7,3 +7,4 @@
 #include "type/debug.hpp"
 #include "type/type_identifier_resolution.hpp"
 #include "type/type_import_resolution.hpp"
+#include "type/type_properties.hpp"

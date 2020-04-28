@@ -191,9 +191,16 @@ void Library::emplace_local_function_type(const FunctionDefHandle& handle, Type*
   local_function_types[handle] = type;
 }
 
-void Library::emplace_local_class_type(const ClassDefHandle& handle, types::Class* type) {
+bool Library::emplace_local_class_type(const ClassDefHandle& handle, types::Class* type) {
+  if (class_types.count(type->name) > 0) {
+    return false;
+  }
+
   assert(local_class_types.count(handle) == 0);
   local_class_types[handle] = type;
+  class_types[type->name] = type;
+
+  return true;
 }
 
 void Library::emplace_local_variable_type(const VariableDefHandle& handle, Type* type) {
@@ -428,6 +435,10 @@ Optional<Type*> Library::get_logical_type() const {
   return scalar_store.lookup(logical_id);
 }
 
+const Library::LocalFunctionTypes& Library::get_local_function_types() const {
+  return local_function_types;
+}
+
 /*
  * MethodStore
  */
@@ -508,7 +519,8 @@ SpecialIdentifierStore::SpecialIdentifierStore(StringRegistry& string_registry) 
   identifier_struct(string_registry.register_string("struct")),
   handle(string_registry.register_string("handle")),
   varargin(string_registry.register_string("varargin")),
-  varargout(string_registry.register_string("varargout")) {
+  varargout(string_registry.register_string("varargout")),
+  isa(string_registry.register_string("isa")) {
   //
 }
 
