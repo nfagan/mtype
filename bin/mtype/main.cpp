@@ -1,7 +1,5 @@
 #include "mt/mt.hpp"
 #include "app.hpp"
-#include "type_analysis.hpp"
-#include "show.hpp"
 #include <chrono>
 
 int main(int argc, char** argv) {
