@@ -64,6 +64,7 @@ int main(int argc, char** argv) {
   app.maybe_show_visited_external_files();
   app.maybe_show_errors();
   app.maybe_show_diagnostics();
+  app.maybe_show_asts();
 
   return 0;
 }

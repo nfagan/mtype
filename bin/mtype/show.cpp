@@ -1,7 +1,14 @@
 #include "show.hpp"
 #include "command_line.hpp"
+#include "ast_store.hpp"
 
 namespace mt {
+
+namespace {
+  inline const char* maybe_style(const char* code, bool rich_text) {
+    return rich_text ? code : "";
+  }
+}
 
 void configure_type_to_string(TypeToString& type_to_string, const cmd::Arguments& args) {
   type_to_string.explicit_destructured_tuples = args.show_explicit_destructured_tuples;
@@ -56,6 +63,28 @@ void show_function_types(const FunctionsByFile& functions_by_file,
     }
 
     std::cout << std::endl;
+  }
+}
+
+void show_asts(const AstStore& ast_store,
+               const Store& def_store,
+               const StringRegistry& string_registry,
+               const cmd::Arguments& arguments) {
+  const bool rich_text = arguments.rich_text;
+
+  for (const auto& entry : ast_store.asts) {
+    if (entry.second.root_block) {
+      std::cout << maybe_style(style::underline, rich_text)
+                << entry.first
+                << maybe_style(style::dflt, rich_text) << ": " << std::endl;
+
+      StringVisitor visitor(&string_registry, &def_store);
+      visitor.colorize = rich_text;
+      visitor.include_def_ptrs = false;
+      visitor.parenthesize_exprs = false;
+
+      std::cout << entry.second.root_block->accept(visitor) << std::endl << std::endl;
+    }
   }
 }
 

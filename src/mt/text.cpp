@@ -23,7 +23,7 @@ void TextRowColumnIndices::scan(const char* text, int64_t size) {
 Optional<TextRowColumnIndices::Info> TextRowColumnIndices::line_info(int64_t index) const {
   using Info = TextRowColumnIndices::Info;
 
-  if (index < 0 || new_lines.empty()) {
+  if (index < 0) {
     return NullOpt{};
   }
 
@@ -45,7 +45,7 @@ Optional<TextRowColumnIndices::Info> TextRowColumnIndices::line_info(int64_t ind
     }
   }
 
-  assert(start < int64_t(new_lines.size()));
+  assert(start <= int64_t(new_lines.size()));
   //  @TODO: Properly count utf8 characters between index and new line.
   return Optional<Info>(Info{start + 1, 0});
 }

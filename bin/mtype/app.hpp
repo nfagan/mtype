@@ -26,6 +26,7 @@ public:
   void maybe_show_errors() const;
   void maybe_show_diagnostics() const;
   void maybe_show_type_distribution() const;
+  void maybe_show_asts() const;
 
 private:
   bool add_base_scopes(const AstStoreEntries& entries) const;

@@ -4,6 +4,8 @@
 
 namespace mt {
 
+class AstStore;
+
 namespace cmd {
   struct Arguments;
 }
@@ -30,4 +32,9 @@ void show_function_types(const FunctionsByFile& functions_by_file,
                          const Store& store,
                          const StringRegistry& string_registry,
                          const Library& library);
+
+void show_asts(const AstStore& ast_store,
+               const Store& def_store,
+               const StringRegistry& string_registry,
+               const cmd::Arguments& arguments);
 }

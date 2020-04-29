@@ -278,4 +278,10 @@ void App::maybe_show_type_distribution() const {
   }
 }
 
+void App::maybe_show_asts() const {
+  if (arguments.show_ast) {
+    show_asts(ast_store, store, string_registry, arguments);
+  }
+}
+
 }
