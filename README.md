@@ -43,6 +43,18 @@ Run the type checker at the command line:
 * Polymorphic class types (soon).
 * Recursive types.
 * `events` and `enum` constructs in class definitions.
+* Windows support.
+* More tests.
+
+## build
+
+`mtype` builds on macOS and linux, and requires a compiler with support for c++17. The build system is cmake. Assuming a valid default compiler, clone this repository, `cd` into it, and run the following to make a release build:
+```sh
+mkdir build
+cd ./build
+cmake ..
+cmake --build . --target mtype --config Release
+```
 
 ## usage
 
