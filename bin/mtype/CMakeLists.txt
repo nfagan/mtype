@@ -19,6 +19,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         external_resolution.cpp
         parse_pipeline.hpp
         parse_pipeline.cpp
+        pre_imports.hpp
+        pre_imports.cpp
         show.hpp
         show.cpp
         type_analysis.hpp

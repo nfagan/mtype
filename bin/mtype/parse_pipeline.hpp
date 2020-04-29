@@ -2,6 +2,7 @@
 
 #include "mt/mt.hpp"
 #include "ast_store.hpp"
+#include "pre_imports.hpp"
 
 namespace mt {
 
@@ -60,6 +61,7 @@ struct ParsePipelineInstanceData {
                             AstStore& ast_store,
                             ScanResultStore& scan_results,
                             FunctionsByFile& functions_by_file,
+                            const PreImports& pre_imports,
                             TokenSourceMap& source_data_by_token,
                             const cmd::Arguments& arguments,
                             ParseErrors& parse_errors,
@@ -83,6 +85,7 @@ struct ParsePipelineInstanceData {
   AstStore& ast_store;
   ScanResultStore& scan_results;
   FunctionsByFile& functions_by_file;
+  const PreImports& pre_imports;
   TokenSourceMap& source_data_by_token;
   std::unordered_set<RootBlock*> roots;
   std::unordered_set<FilePath, FilePath::Hash> root_files;

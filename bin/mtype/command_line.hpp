@@ -51,6 +51,7 @@ public:
   FilePath search_path_file_path;
   std::vector<std::string> root_identifiers;
   std::vector<mt::FilePath> search_paths;
+  std::vector<std::string> pre_imports;
 
   bool show_ast = false;
   bool show_local_variable_types = false;

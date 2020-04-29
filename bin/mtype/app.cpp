@@ -36,6 +36,7 @@ App::App(const cmd::Arguments& args,
 
 void App::initialize() {
   configure_type_to_string(type_to_string, arguments);
+  make_pre_imports();
 }
 
 void App::add_root_identifier(const std::string& name,
@@ -43,6 +44,18 @@ void App::add_root_identifier(const std::string& name,
   MatlabIdentifier ident(string_registry.register_string(name));
   FunctionSearchCandidate search_candidate(source_candidate, ident);
   external_functions.add_visited_candidate(search_candidate);
+}
+
+void App::make_pre_imports() {
+  for (const auto& pre_import_str : arguments.pre_imports) {
+    pre_imports.emplace_back(pre_import_str);
+    const auto& pre_import = pre_imports.back();
+
+    const auto parse_source_data = pre_import.to_parse_source_data();
+    const auto source_token = pre_import.make_token();
+
+    source_data_by_token.insert(source_token, parse_source_data);
+  }
 }
 
 bool App::locate_root_identifiers() {
@@ -187,7 +200,7 @@ bool App::visit_file(const FilePath& file_path) {
   ParsePipelineInstanceData pipeline_instance(search_path, store, type_store, library,
                                               string_registry, ast_store,
                                               scan_result_store, functions_by_file,
-                                              source_data_by_token, arguments,
+                                              pre_imports, source_data_by_token, arguments,
                                               parse_errors, parse_warnings);
 
   auto root_res = file_entry(pipeline_instance, file_path);

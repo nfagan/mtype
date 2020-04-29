@@ -118,8 +118,9 @@ AstStore::Entry* run_parse_file(ParseInstance& parse_instance,
 
 ParseError make_error_unresolved_file(const ParseSourceData& source_data,
                                       const Token& token,
-                                      const std::string& ident) {
-  std::string msg = "Failed to locate: `" + ident + "`.";
+                                      const std::string& ident,
+                                      const char* kind) {
+  auto msg = std::string("Failed to locate ") + kind + ": `" + ident + "`.";
   return ParseError(source_data.source, token, msg, source_data.file_descriptor);
 }
 
@@ -153,7 +154,8 @@ bool traverse_imports(const PendingTypeImports& pending_type_imports,
     const auto ident_str = pipe_instance.string_registry.at(pending_import.identifier);
     const auto search_res = pipe_instance.search_path.search_for(ident_str, search_dir);
     if (!search_res) {
-      auto err = make_error_unresolved_file(source_data, pending_import.source_token, ident_str);
+      auto err =
+        make_error_unresolved_file(source_data, pending_import.source_token, ident_str, "import");
       pipe_instance.add_error(err);
       success = false;
       continue;
@@ -192,7 +194,7 @@ bool traverse_superclasses(const ClassDefHandle& class_def,
     const auto ident_str = pipe_instance.string_registry.at(superclass.name.full_name());
     const auto search_res = pipe_instance.search_path.search_for(ident_str, search_dir);
     if (!search_res) {
-      auto err = make_error_unresolved_file(source_data, source_token, ident_str);
+      auto err = make_error_unresolved_file(source_data, source_token, ident_str, "superclass");
       pipe_instance.add_error(err);
       success = false;
       continue;
@@ -368,7 +370,9 @@ bool traverse_external_method(ParsePipelineInstanceData& pipe_instance,
 
   } else {
     //  Could not resolve method declaration, and method is not marked as abstract.
-    pipe_instance.add_error(make_error_unresolved_file(source_data, method.name_token, file_str));
+    auto err =
+      make_error_unresolved_file(source_data, method.name_token, file_str, "method");
+    pipe_instance.add_error(err);
     return false;
   }
 
@@ -387,6 +391,29 @@ bool traverse_external_methods(ParsePipelineInstanceData& pipe_instance,
   for (auto& method : external_methods) {
     bool tmp_success =
       traverse_external_method(pipe_instance, source_data, class_directory_path, method);
+    if (!tmp_success) {
+      success = false;
+    }
+  }
+
+  return success;
+}
+
+bool traverse_pre_imports(ParsePipelineInstanceData& pipe_instance,
+                          TypeScope* scope) {
+  const auto& pre_imports = pipe_instance.pre_imports;
+  bool success = true;
+
+  //  @Note: Have to traverse pre-imports one at a time, because each one
+  //  is associated with a unique "source text".
+  for (const auto& pre_import : pre_imports) {
+    const auto dummy_source_data = pre_import.to_parse_source_data();
+    const auto pre_pending_import =
+      pre_import.to_pending_type_import(pipe_instance.string_registry, scope);
+
+    bool tmp_success =
+      traverse_imports({pre_pending_import}, pipe_instance, dummy_source_data);
+
     if (!tmp_success) {
       success = false;
     }
@@ -417,6 +444,7 @@ ParsePipelineInstanceData::ParsePipelineInstanceData(const SearchPath& search_pa
                                                      AstStore& ast_store,
                                                      ScanResultStore& scan_results,
                                                      FunctionsByFile& functions_by_file,
+                                                     const PreImports& pre_imports,
                                                      TokenSourceMap& source_data_by_token,
                                                      const cmd::Arguments& arguments,
                                                      ParseErrors& parse_errors,
@@ -429,6 +457,7 @@ ParsePipelineInstanceData::ParsePipelineInstanceData(const SearchPath& search_pa
   ast_store(ast_store),
   scan_results(scan_results),
   functions_by_file(functions_by_file),
+  pre_imports(pre_imports),
   source_data_by_token(source_data_by_token),
   arguments(arguments),
   parse_errors(parse_errors),
@@ -535,6 +564,13 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance,
     if (!external_method_success) {
       return nullptr;
     }
+  }
+
+  //  Add pre-imported files.
+  auto type_scope = root_res->root_block->type_scope;
+  bool pre_import_success = traverse_pre_imports(pipe_instance, type_scope);
+  if (!pre_import_success) {
+    return nullptr;
   }
 
   bool import_success =

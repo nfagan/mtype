@@ -5,6 +5,7 @@
 #include "parse_pipeline.hpp"
 #include "command_line.hpp"
 #include "external_resolution.hpp"
+#include "pre_imports.hpp"
 
 namespace mt {
 
@@ -39,6 +40,7 @@ private:
   void unify();
   void add_root_identifier(const std::string& name,
                            const SearchCandidate* source_candidate);
+  void make_pre_imports();
 
 public:
   cmd::Arguments arguments;
@@ -60,7 +62,8 @@ public:
   ScanResultStore scan_result_store;
   FunctionsByFile functions_by_file;
   VisitedResolutionPairs visited_resolution_pairs;
-  std::vector<std::unique_ptr<Token>> temporary_source_tokens;
+
+  PreImports pre_imports;
 
   ParseErrors parse_errors;
   ParseErrors parse_warnings;
