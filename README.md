@@ -9,7 +9,9 @@ Type annotations live in the comments of otherwise standard MATLAB code. Here's 
 %  @T import mt.base
 %  @T :: [double] = (double, double)
 function c = my_typed_add(a, b)
+
 c = a + b;
+
 end
 ```
 
