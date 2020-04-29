@@ -104,6 +104,6 @@ options:
       Use directories in the ':'-delimited `str` to build the search path.
   --path-file, -pf `file`: 
       Use the newline-delimited directories in `file` to build the search path.
-```
-
-
+  --pre-import, -pi `files`: 
+      Implicitly import each comma-delimited file in `files`.
+```  
