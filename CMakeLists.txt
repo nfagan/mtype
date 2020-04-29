@@ -15,14 +15,17 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC
   MT_PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
 )
 
-if(MSVC)
-  target_compile_options(${PROJECT_NAME} PRIVATE /W4)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-else()
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
-endif()
+function(configure_compiler_flags)
+  if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
+  else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
+  endif()
+endfunction(configure_compiler_flags)
+
+configure_compiler_flags()
 
 add_subdirectory(src/mt)
 add_subdirectory(test)

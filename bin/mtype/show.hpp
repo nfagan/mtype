@@ -24,8 +24,7 @@ void show_parse_errors(const ParseErrors& errors,
 
 void show_type_errors(const TypeErrors& errors,
                       const TokenSourceMap& source_data,
-                      const TypeToString& type_to_string,
-                      const cmd::Arguments& arguments);
+                      const TypeToString& type_to_string);
 
 void show_function_types(const FunctionsByFile& functions_by_file,
                          const TypeToString& type_to_string,

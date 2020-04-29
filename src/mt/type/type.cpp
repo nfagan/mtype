@@ -63,6 +63,9 @@ const char* to_string(Type::Tag tag) {
     default:
       assert(false && "Unhandled.");
   }
+
+  assert(false);
+  return "null";
 }
 
 std::ostream& operator<<(std::ostream& stream, Type::Tag tag) {

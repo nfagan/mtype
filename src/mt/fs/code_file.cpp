@@ -19,6 +19,9 @@ const char* to_string(CodeFileType file_type) {
     case CodeFileType::unknown:
       return "unknown";
   }
+
+  assert(false);
+  return "unknown";
 }
 
 CodeFileType code_file_type_from_root_block(const RootBlock& root) {

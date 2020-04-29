@@ -272,6 +272,9 @@ const char* to_symbol(TokenType type) {
     case TokenType::null:
       return "<null>";
   }
+
+  assert(false);
+  return "<null>";
 }
 
 const char* to_string(TokenType type) {
@@ -452,6 +455,9 @@ const char* to_string(TokenType type) {
     case TokenType::null:
       return "null";
   }
+
+  assert(false);
+  return "null";
 }
 
 bool unsafe_represents_keyword(TokenType type) {

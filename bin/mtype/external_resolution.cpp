@@ -67,7 +67,6 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
                            PendingExternalFunctions& external_functions,
                            VisitedResolutionPairs& visited_pairs) {
   const auto& ast_store = instance_data.ast_store;
-  const auto& store = instance_data.store;
   const auto& library = instance_data.library;
 
   ResolutionPairs result;

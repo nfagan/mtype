@@ -75,10 +75,7 @@ void App::check_for_concrete_function_types() {
 }
 
 void App::unify() {
-  auto t0 = std::chrono::high_resolution_clock::now();
   auto unify_res = unifier.unify(&substitution, &external_functions);
-  auto t1 = std::chrono::high_resolution_clock::now();
-//  unify_time += std::chrono::duration<double>(t1 - t0).count() * 1e3;
 
   if (unify_res.is_error()) {
     move_from(unify_res.errors, type_errors);
@@ -252,7 +249,7 @@ void App::maybe_show_visited_external_files() const {
 void App::maybe_show_errors() const {
   if (arguments.show_errors) {
     show_parse_errors(parse_errors, source_data_by_token, arguments);
-    show_type_errors(type_errors, source_data_by_token, type_to_string, arguments);
+    show_type_errors(type_errors, source_data_by_token, type_to_string);
   }
 }
 

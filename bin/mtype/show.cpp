@@ -30,8 +30,7 @@ void show_parse_errors(const ParseErrors& errors,
 
 void show_type_errors(const TypeErrors& errors,
                       const TokenSourceMap& source_data,
-                      const TypeToString& type_to_string,
-                      const cmd::Arguments& arguments) {
+                      const TypeToString& type_to_string) {
   ShowTypeErrors show(type_to_string);
   show.show(errors, source_data);
 }

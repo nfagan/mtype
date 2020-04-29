@@ -8,8 +8,8 @@ generated_type_constraints(false),
 resolved_type_identifiers(false),
 resolved_type_imports(false),
 added_base_type_scope(false),
-file_type(CodeFileType::unknown),
-file_entry_function_def_node(nullptr) {
+file_entry_function_def_node(nullptr),
+file_type(CodeFileType::unknown) {
   //
 }
 

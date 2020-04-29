@@ -24,3 +24,5 @@ target_sources(${PROJECT_NAME} PRIVATE
         type_analysis.hpp
         type_analysis.cpp
         )
+
+configure_compiler_flags()

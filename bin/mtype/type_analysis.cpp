@@ -22,7 +22,7 @@ namespace {
     int64_t i = 0;
     for (const auto& param : params) {
       base_str += "`" + string_registry.at(param.name.full_name()) + "`";
-      if (++i < params.size()) {
+      if (++i < int64_t(params.size())) {
         base_str += ", ";
       }
     }
@@ -70,7 +70,7 @@ namespace {
                         UntypedParameters& untyped_params) {
     if (param_types &&
         param_types->size() == params.size()) {
-      for (int64_t i = 0; i < param_types->size(); i++) {
+      for (int64_t i = 0; i < int64_t(param_types->size()); i++) {
         const auto& type = (*param_types)[i];
         const auto& param = params[i];
 
@@ -88,7 +88,6 @@ namespace {
 void check_for_concrete_function_type(ConcreteFunctionTypeInstance& instance,
                                       const FunctionDefHandle& def_handle,
                                       const Type* source_type) {
-  const auto& library = instance.library;
   const auto& store = instance.def_store;
   std::unordered_set<FunctionParameter, FunctionParameter::Hash> untyped_params;
   FunctionParameters inputs;
@@ -133,7 +132,6 @@ bool can_show_untyped_function_errors(const Store& store,
                                       const FunctionDefHandle& def_handle) {
   //  Only show untyped function errors for files for which constraints
   //  were sucessfully generated.
-  bool can_show = true;
   const CodeFileDescriptor* file_descriptor;
 
   store.use<Store::ReadConst>([&](const auto& reader) {

@@ -90,8 +90,6 @@ AstStore::Entry* run_parse_file(ParseInstance& parse_instance,
   const auto& scan_info = scan_result.scan_info;
   const auto& file_path = scan_result.file_descriptor.file_path;
   auto& ast_store = pipeline_instance.ast_store;
-  auto& sources_by_token = pipeline_instance.source_data_by_token;
-  const auto& args = pipeline_instance.arguments;
 
   parse_file(&parse_instance, scan_info.tokens);
 
@@ -327,10 +325,7 @@ BoxedMethodNode defined_external_method(ParsePipelineInstanceData& pipe_instance
   return method_node;
 }
 
-BoxedMethodNode abstract_undefined_external_method(ParsePipelineInstanceData& pipe_instance,
-                                                   const ParseSourceData& source_data,
-                                                   PendingExternalMethod& method,
-                                                   const FilePath& expect_method_file) {
+BoxedMethodNode abstract_undefined_external_method(PendingExternalMethod& method) {
   auto def_node = std::make_unique<FunctionDefNode>(method.name_token,
     method.method_declaration.pending_def_handle,
     method.method_declaration.pending_ref_handle,
@@ -366,7 +361,7 @@ bool traverse_external_method(ParsePipelineInstanceData& pipe_instance,
 
   } else if (method.method_attributes.is_abstract()) {
     method_node =
-      abstract_undefined_external_method(pipe_instance, source_data, method, expect_method_file);
+      abstract_undefined_external_method(method);
     if (!method_node) {
       return false;
     }

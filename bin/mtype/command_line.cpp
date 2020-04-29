@@ -15,6 +15,7 @@ namespace {
     return std::strlen(a) > 0 && a[0] == '-';
   }
 
+#if 0
   Optional<int> parse_int(const char* arg) {
     try {
       return Optional<int>(std::stoi(arg));
@@ -22,6 +23,7 @@ namespace {
       return NullOpt{};
     }
   }
+#endif
 
   std::vector<FilePath> get_split_paths(const std::string& arg) {
     auto split = mt::split(arg.c_str(), arg.size(), Character(':'));
@@ -41,10 +43,12 @@ namespace {
 ParameterName::ParameterName() : num_alternates(0) {
   //
 }
-ParameterName::ParameterName(const char* full, const char* alias) : alternates{full, alias}, num_alternates(2) {
+ParameterName::ParameterName(const char* full, const char* alias) :
+alternates{{full, alias}}, num_alternates(2) {
   //
 }
-ParameterName::ParameterName(const char* single) : alternates{single}, num_alternates(1) {
+ParameterName::ParameterName(const char* single) :
+alternates{{single}}, num_alternates(1) {
   //
 }
 
