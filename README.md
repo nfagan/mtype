@@ -2,7 +2,7 @@
 
 `mtype` presents a type language and type checker for MATLAB code.
 
-Type annotations live in the comments of otherwise standard MATLAB code. Here's a short example:
+Type annotations live in the comments of MATLAB code. Here's a short example:
 
 ```MATLAB
 %  my_typed_add.m
