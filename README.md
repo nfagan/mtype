@@ -26,7 +26,8 @@ end
 ```
 
 Run the type checker at the command line:
-`mtype use_typed_add -pf /path/to/path/file.txt`
+`mtype use_typed_add -pf /path/to/path-file.txt`
+In `path-file.txt`, specify a newline-delimited list of directories in which to look for functions, classes, and type imports.
 
 ## features
 
