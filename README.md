@@ -52,7 +52,7 @@ Run the type checker at the command line:
 ```sh
 mkdir build
 cd ./build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --target mtype --config Release
 ```
 
