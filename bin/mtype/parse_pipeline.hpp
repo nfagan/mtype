@@ -48,7 +48,8 @@ namespace cmd {
   struct Arguments;
 }
 
-using ScanResultStore = std::unordered_map<FilePath, std::unique_ptr<FileScanSuccess>, FilePath::Hash>;
+using ScanResultStore =
+  std::unordered_map<FilePath, std::unique_ptr<FileScanSuccess>, FilePath::Hash>;
 
 struct ParsePipelineInstanceData {
   ParsePipelineInstanceData(const SearchPath& search_path,
@@ -69,7 +70,10 @@ struct ParsePipelineInstanceData {
   void add_warnings(const ParseErrors& warnings);
 
   void add_root(const FilePath& file_path, RootBlock* root_block);
+  void require_root(const FilePath& file_path, RootBlock* root_block);
   void remove_root(const FilePath& file_path);
+
+  std::vector<AstStore::Entry*> gather_root_entries() const;
 
   const SearchPath& search_path;
   Store& store;

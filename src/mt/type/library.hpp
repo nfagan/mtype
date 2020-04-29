@@ -101,8 +101,6 @@ public:
   Library(TypeStore& store, Store& def_store, const SearchPath& search_path,
           StringRegistry& string_registry);
 
-  void make_known_types();
-  void make_base_type_scope();
   types::Scalar* make_named_scalar_type(const TypeIdentifier& name);
 
   MT_NODISCARD Optional<Type*> lookup_function(const types::Abstraction& func) const;
@@ -141,6 +139,9 @@ public:
   const LocalFunctionTypes& get_local_function_types() const;
 
 private:
+  void make_known_types();
+  void make_base_type_scope();
+
   void make_builtin_types();
   void make_concatenations();
   void make_free_functions();

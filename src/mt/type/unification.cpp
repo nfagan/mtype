@@ -452,6 +452,7 @@ Type* Unifier::apply_to(types::Scheme& scheme, TermRef term) {
 }
 
 Type* Unifier::apply_to(types::Class& class_type, TermRef term) {
+  assert(class_type.source);
   class_type.source = apply_to(class_type.source, term);
   return &class_type;
 }

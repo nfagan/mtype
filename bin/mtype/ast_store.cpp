@@ -3,12 +3,18 @@
 namespace mt {
 
 AstStore::Entry::Entry() :
-parsed_successfully(false), generated_type_constraints(false), resolved_type_identifiers(false),
-file_type(CodeFileType::unknown), file_entry_function_def_node(nullptr) {
+parsed_successfully(false),
+generated_type_constraints(false),
+resolved_type_identifiers(false),
+resolved_type_imports(false),
+added_base_type_scope(false),
+file_type(CodeFileType::unknown),
+file_entry_function_def_node(nullptr) {
   //
 }
 
-AstStore::Entry::Entry(BoxedRootBlock root_block, const ClassDefHandle& maybe_class_def,
+AstStore::Entry::Entry(BoxedRootBlock root_block,
+                       const ClassDefHandle& maybe_class_def,
                        const FunctionReferenceHandle& maybe_function_ref,
                        const FunctionDefNode* def_node,
                        CodeFileType file_type) :
@@ -16,6 +22,8 @@ AstStore::Entry::Entry(BoxedRootBlock root_block, const ClassDefHandle& maybe_cl
   parsed_successfully(true),
   generated_type_constraints(false),
   resolved_type_identifiers(false),
+  resolved_type_imports(false),
+  added_base_type_scope(false),
   file_entry_class_def(maybe_class_def),
   file_entry_function_ref(maybe_function_ref),
   file_entry_function_def_node(def_node),

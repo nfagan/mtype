@@ -29,6 +29,7 @@ Library::Library(TypeStore& store, Store& def_store, const SearchPath&
   special_identifiers(string_registry),
   base_scope(nullptr) {
   //
+  make_known_types();
 }
 
 bool Library::subtype_related(const Type* lhs, const Type* rhs) const {

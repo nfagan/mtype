@@ -265,6 +265,17 @@ void TypeConstraintGenerator::handle_class_method(const TypePtrs& function_input
   }
 }
 
+namespace {
+  types::Class* unwrap_local_class(const Library& library, const ClassDefHandle& handle) {
+    const auto maybe_class = library.lookup_local_class(handle);
+    assert(maybe_class);
+    auto* class_type = maybe_class.value();
+    assert(class_type && class_type->source &&
+           class_type->source->is_record());
+    return class_type;
+  }
+}
+
 void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
   MatlabIdentifier name;
   ClassDef::Superclasses superclasses;
@@ -274,10 +285,7 @@ void TypeConstraintGenerator::class_def_node(const ClassDefNode& node) {
     superclasses = def.superclasses;
   });
 
-  const auto maybe_class = library.lookup_local_class(node.handle);
-  assert(maybe_class);
-  auto* class_type = maybe_class.value();
-  assert(class_type->source->is_record());
+  auto class_type = unwrap_local_class(library, node.handle);
   const auto& record_type = MT_RECORD_REF(*class_type->source);
 
   for (const auto& superclass : superclasses) {

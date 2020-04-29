@@ -18,6 +18,8 @@ public:
     bool parsed_successfully;
     bool generated_type_constraints;
     bool resolved_type_identifiers;
+    bool resolved_type_imports;
+    bool added_base_type_scope;
     ClassDefHandle file_entry_class_def;
     FunctionReferenceHandle file_entry_function_ref;
     const FunctionDefNode* file_entry_function_def_node;
@@ -40,5 +42,8 @@ public:
 public:
   std::unordered_map<FilePath, Entry, FilePath::Hash> asts;
 };
+
+using AstStoreEntryPtr = AstStore::Entry*;
+using AstStoreEntries = std::vector<AstStoreEntryPtr>;
 
 }

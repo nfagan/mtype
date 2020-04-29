@@ -8,6 +8,8 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC
         MT_MATLAB_DATA_DIR="${MT_PROJECT_SOURCE_DIR}/matlab/data")
 
 target_sources(${PROJECT_NAME} PRIVATE
+        app.hpp
+        app.cpp
         ast_store.hpp
         ast_store.cpp
         main.cpp

@@ -446,6 +446,12 @@ void ParsePipelineInstanceData::add_root(const FilePath& file_path, RootBlock* r
   root_files.insert(file_path);
 }
 
+void ParsePipelineInstanceData::require_root(const FilePath& file_path, RootBlock* root_block) {
+  if (root_files.count(file_path) == 0) {
+    add_root(file_path, root_block);
+  }
+}
+
 void ParsePipelineInstanceData::remove_root(const FilePath& file_path) {
   auto maybe_entry = ast_store.lookup(file_path);
   assert(maybe_entry);
@@ -457,6 +463,14 @@ void ParsePipelineInstanceData::remove_root(const FilePath& file_path) {
   assert(was_removed);
   was_removed = roots.erase(root_block) > 0;
   assert(was_removed);
+}
+
+std::vector<AstStore::Entry*> ParsePipelineInstanceData::gather_root_entries() const {
+  std::vector<AstStore::Entry*> entries;
+  for (const auto& root_file : root_files) {
+    entries.emplace_back(ast_store.lookup(root_file));
+  }
+  return entries;
 }
 
 void ParsePipelineInstanceData::add_error(const ParseError& err) {
@@ -480,6 +494,7 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance,
                             OnBeforeParse on_before_parse) {
   const auto maybe_ast_entry = pipe_instance.ast_store.lookup(file_path);
   if (maybe_ast_entry) {
+    pipe_instance.require_root(file_path, maybe_ast_entry->root_block.get());
     return maybe_ast_entry;
   }
 
@@ -509,7 +524,9 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance,
   if (parse_instance.is_class_file()) {
     //  Traverse superclasses.
     assert(parse_instance.file_entry_class_def.is_valid());
-    bool super_success = traverse_superclasses(parse_instance.file_entry_class_def, pipe_instance, source_data);
+    bool super_success =
+      traverse_superclasses(parse_instance.file_entry_class_def, pipe_instance, source_data);
+
     if (!super_success) {
       return nullptr;
     }
@@ -525,7 +542,9 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance,
     }
   }
 
-  bool import_success = traverse_imports(parse_instance.pending_type_imports, pipe_instance, source_data);
+  bool import_success =
+    traverse_imports(parse_instance.pending_type_imports, pipe_instance, source_data);
+
   if (!import_success) {
     return nullptr;
   }
