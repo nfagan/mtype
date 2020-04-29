@@ -56,6 +56,8 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --target mtype --config Release
 ```
 
+The executable will be located in `./bin/mtype/`.
+
 ## usage
 
 ```
