@@ -160,7 +160,7 @@ bool DestructuredMemberVisitor<T>::recurse_tuple(T lhs, T rhs, const DT& a, cons
 
   } else if (mem_a->is_list() &&
              mem_b->is_list() &&
-             (*ia == a.size()-1 ^ *ib == b.size()-1)) {
+             MT_BOOL_XOR((*ia == a.size()-1), (*ib == b.size()-1))) {
     //  A: [t0, t1, list<t>]
     //  B: [list<t>, t, list<t>]
     //  or vice versa. That is, in the case that a list is the last element

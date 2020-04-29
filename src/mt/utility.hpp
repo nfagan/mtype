@@ -22,6 +22,8 @@
 
 #define MT_NODISCARD [[nodiscard]]
 
+#define MT_BOOL_XOR(a, b) (!a) != (!b)
+
 namespace mt {
 
 template <typename T, typename Stack>
