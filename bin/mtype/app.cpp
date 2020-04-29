@@ -5,10 +5,20 @@
 namespace mt {
 
 namespace {
-template <typename T>
-void move_from(std::vector<T>& source, std::vector<T>& dest) {
-  std::move(source.begin(), source.end(), std::back_inserter(dest));
-}
+  template <typename T>
+  void move_from(std::vector<T>& source, std::vector<T>& dest) {
+    std::move(source.begin(), source.end(), std::back_inserter(dest));
+  }
+
+  bool are_valid_root_entries(const AstStoreEntries& entries) {
+    for (const auto& entry : entries) {
+      assert(entry);
+      if (!entry->root_block || !entry->parsed_successfully) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 App::App(const cmd::Arguments& args,
@@ -30,7 +40,6 @@ void App::initialize() {
 
 void App::add_root_identifier(const std::string& name,
                               const SearchCandidate* source_candidate) {
-
   MatlabIdentifier ident(string_registry.register_string(name));
   FunctionSearchCandidate search_candidate(source_candidate, ident);
   external_functions.add_visited_candidate(search_candidate);
@@ -79,18 +88,6 @@ void App::unify() {
   }
 }
 
-namespace {
-  bool are_valid_root_entries(const AstStoreEntries& entries) {
-    for (const auto& entry : entries) {
-      assert(entry);
-      if (!entry->root_block || !entry->parsed_successfully) {
-        return false;
-      }
-    }
-    return true;
-  }
-}
-
 bool App::add_base_scopes(const AstStoreEntries& entries) const {
   for (const auto& entry : entries) {
     if (!entry->added_base_type_scope) {
@@ -98,10 +95,15 @@ bool App::add_base_scopes(const AstStoreEntries& entries) const {
       entry->added_base_type_scope = true;
     }
   }
+
   return true;
 }
 
 bool App::resolve_type_imports(AstStoreEntryPtr root_entry) {
+  if (root_entry->resolved_type_imports) {
+    return true;
+  }
+
   TypeImportResolutionInstance import_res(source_data_by_token);
   auto resolution_result =
     maybe_resolve_type_imports(root_entry->root_block->type_scope, import_res);
@@ -209,10 +211,8 @@ bool App::visit_file(const FilePath& file_path) {
     return false;
   }
 
-  if (!root_res->resolved_type_imports) {
-    if (!resolve_type_imports(root_res)) {
-      return false;
-    }
+  if (!resolve_type_imports(root_res)) {
+    return false;
   }
 
   if (!resolve_type_identifiers(root_entries)) {

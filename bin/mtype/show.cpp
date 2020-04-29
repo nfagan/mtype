@@ -51,10 +51,6 @@ void show_function_types(const FunctionsByFile& functions_by_file,
       const auto func_ident = store.get_name(def_handle);
       const auto func_name = string_registry.at(func_ident.full_name());
 
-//      std::cout << mt::spaces(2) << type_to_string.color(style::bold) << func_name
-//                << type_to_string.dflt_color() << ":\n" << mt::spaces(4)
-//                << type_to_string.apply(type) << std::endl;
-
       std::cout << mt::spaces(2) << (def_index++) << "."
                 << type_to_string.apply(type) << std::endl;
     }
