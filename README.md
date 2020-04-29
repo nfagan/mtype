@@ -4,6 +4,7 @@
 
 Type annotations live in the comments of otherwise standard MATLAB code. Here's a short example:
 
+my_typed_add.m:
 ```MATLAB
 %  @T import mt.base
 %  @T :: [double] = (double, double)
@@ -12,8 +13,9 @@ c = a + b;
 end
 ```
 
+use_typed_add.m:
 ```MATLAB
-function use_typed_add()
+function a = use_typed_add()
 
 a = my_typed_add( 1, 2 );
 b = my_typed_add( '', 2 ); % error. 
@@ -21,6 +23,6 @@ b = my_typed_add( '', 2 ); % error.
 end
 ```
 
-`$ mtype use_typed_add -pf /path/to/path/file.txt`
-
+Run the type checker at the command line:
+`mtype use_typed_add -pf /path/to/path/file.txt`
 
