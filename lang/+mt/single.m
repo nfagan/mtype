@@ -11,6 +11,21 @@ declare method single >= :: [logical] = (single, single)
 declare method single <  :: [logical] = (single, single)
 declare method single <= :: [logical] = (single, single)
 
+declare method single .' :: [single] = (single)
+declare method single'   :: [single] = (single)
+declare method single +  :: [single] = (single, single)
+declare method single -  :: [single] = (single, single)
+declare method single *  :: [single] = (single, single)
+declare method single /  :: [single] = (single, single)
+declare method single \  :: [single] = (single, single)
+declare method single .* :: [single] = (single, single)
+declare method single ./ :: [single] = (single, single)
+declare method single .\ :: [single] = (single, single)
+declare method single :  :: [single] = (single, single)
+
+declare method single +  :: [single] = (single)
+declare method single -  :: [single] = (single)
+
 declare method single subsindex :: [double] = (single)
 
 end

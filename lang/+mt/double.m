@@ -16,7 +16,7 @@ declare method double single :: [single] = (double)
 declare method double double :: [double] = (double)
 
 declare method double .' :: [double] = (double)
-declare method double' :: [double] = (double)
+declare method double'   :: [double] = (double)
 declare method double +  :: [double] = (double, double)
 declare method double -  :: [double] = (double, double)
 declare method double *  :: [double] = (double, double)
