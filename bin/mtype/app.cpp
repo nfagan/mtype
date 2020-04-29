@@ -110,7 +110,7 @@ bool App::resolve_type_imports(AstStoreEntryPtr root_entry) {
   root_entry->resolved_type_imports = true;
 
   if (!resolution_result.success) {
-    parse_errors.insert(parse_errors.end(), import_res.errors.cbegin(), import_res.errors.cend());
+    move_from(import_res.errors, parse_errors);
   }
 
   return resolution_result.success;
