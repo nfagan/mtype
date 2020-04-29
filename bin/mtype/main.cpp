@@ -2,9 +2,18 @@
 #include "app.hpp"
 #include <chrono>
 
+namespace {
+  mt::Optional<mt::SearchPath> get_search_path(const mt::cmd::Arguments& args) {
+    if (args.use_search_path_file) {
+      return mt::build_search_path_from_path_file(args.search_path_file_path);
+    } else {
+      return mt::build_search_path_from_paths(args.search_paths);
+    }
+  }
+}
+
 int main(int argc, char** argv) {
   using namespace mt;
-  const auto full_t0 = std::chrono::high_resolution_clock::now();
 
   cmd::Arguments arguments;
   arguments.parse(argc, argv);
@@ -21,13 +30,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  Optional<SearchPath> maybe_search_path;
-  if (arguments.use_search_path_file) {
-    maybe_search_path = build_search_path_from_path_file(arguments.search_path_file_path);
-  } else {
-    maybe_search_path = build_search_path_from_paths(arguments.search_paths);
-  }
-
+  auto maybe_search_path = get_search_path(arguments);
   if (!maybe_search_path) {
     std::cout << "Failed to build search path." << std::endl;
     return -1;
@@ -54,12 +57,6 @@ int main(int argc, char** argv) {
   }
 
   app.check_for_concrete_function_types();
-
-  const auto full_t1 = std::chrono::high_resolution_clock::now();
-  const auto full_elapsed_ms = std::chrono::duration<double>(full_t1 - full_t0).count() * 1e3;
-//  const auto check_elapsed_ms = std::chrono::duration<double>(full_t1 - check_t0).count() * 1e3;
-//  const auto build_search_path_elapsed_ms =
-//    std::chrono::duration<double>(path_t1 - full_t0).count() * 1e3;
 
   app.maybe_show_type_distribution();
   app.maybe_show_local_variable_types();
