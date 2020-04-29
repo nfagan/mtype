@@ -41,7 +41,7 @@ In `path-file.txt`, specify a newline-delimited list of directories in which to 
 * Enforces subtype relationships.
 
 ## issues / todo
-* Inference is performed naively; its very slow for non-trivial programs.
+* Inference is performed naively; it's very slow for non-trivial programs.
 * Polymorphic class types (soon).
 * Recursive types.
 * `events` and `enum` constructs in class definitions.
