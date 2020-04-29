@@ -103,10 +103,11 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
     //  Mark that we discovered the type.
     auto type = maybe_type.value();
     external_functions.add_resolved(candidate, type);
-    const auto& source_token = look_for_type.value().source_token;
+    const auto& as_defined_source_token = look_for_type.value().source_token;
 
     for (const auto& pending_app : pending_apps) {
-      ResolutionPair resolution_pair{type, pending_app.function, source_token};
+      ResolutionPair resolution_pair{type, pending_app.function,
+                                     as_defined_source_token, pending_app.source_token};
 
       if (visited_pairs.count(resolution_pair) == 0) {
         result.push_back(resolution_pair);

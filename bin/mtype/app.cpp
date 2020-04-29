@@ -160,12 +160,8 @@ bool App::resolve_external_functions(ParsePipelineInstanceData& pipeline_instanc
                                    external_functions, visited_resolution_pairs);
 
   for (const auto& res_pair : resolution_pairs) {
-    const auto& source_token = res_pair.source_token;
-    auto boxed_tok = std::make_unique<Token>(source_token);
-    auto tok_ptr = boxed_tok.get();
-    temporary_source_tokens.push_back(std::move(boxed_tok));
-
-    unifier.resolve_function(res_pair.as_referenced, res_pair.as_defined, tok_ptr);
+    const auto source_token = res_pair.as_referenced_source_token;
+    unifier.resolve_function(res_pair.as_referenced, res_pair.as_defined, source_token);
   }
 
   move_from(resolution_instance.errors, type_errors);

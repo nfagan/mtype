@@ -19,7 +19,8 @@ namespace mt {
 
     Type* as_defined;
     Type* as_referenced;
-    Token source_token;
+    Token as_defined_source_token;
+    const Token* as_referenced_source_token;
   };
 
   using ResolutionPairs = std::vector<ResolutionPair>;
