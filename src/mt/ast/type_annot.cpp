@@ -147,6 +147,22 @@ void DeclareFunctionTypeNode::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * DeclareClassTypeNode
+ */
+
+std::string DeclareClassTypeNode::accept(const StringVisitor& vis) const {
+  return vis.declare_class_type_node(*this);
+}
+
+void DeclareClassTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.declare_class_type_node(*this);
+}
+
+void DeclareClassTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.declare_class_type_node(*this);
+}
+
+/*
  * TypeImportNode
  */
 

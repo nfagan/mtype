@@ -283,10 +283,12 @@ public:
   Optional<BoxedTypeAnnot> scalar_type_declaration(const Token& source_token);
   Optional<BoxedTypeAnnot> method_type_declaration(const Token& source_token);
   Optional<BoxedTypeAnnot> function_type_declaration(const Token& source_token);
+  Optional<BoxedTypeAnnot> class_type_declaration(const Token& source_token);
 
   Optional<RecordTypeNode::Field> record_field();
+  bool maybe_record_field(RecordTypeNode::Fields& fields, RecordTypeNode::FieldNames& field_names);
+
   Optional<std::vector<BoxedTypeAnnot>> type_annotation_block();
-  TypeIdentifier maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident) const;
 
   Optional<BoxedTypeAnnot> type_fun_enclosing_function(const Token& source_token);
   Optional<BoxedTypeAnnot> type_fun_enclosing_anonymous_function(const Token& source_token);
@@ -333,6 +335,14 @@ public:
 
   void register_import(Import&& import);
   void add_error(ParseError&& err);
+
+  TypeIdentifier maybe_namespace_enclose_type_identifier(const TypeIdentifier& ident) const;
+  TypeIdentifier make_registered_type_identifier(const std::string_view& ident) const;
+  TypeIdentifier make_registered_type_identifier(const std::vector<std::string_view>& idents) const;
+  bool cannot_register_type_identifier(const TypeIdentifier& ident, const Token& source_token);
+  bool cannot_register_type_identifier(const TypeIdentifier& ident,
+                                       const Token& source_token,
+                                       bool is_export);
 
 //private:
   ParseInstance* parse_instance;

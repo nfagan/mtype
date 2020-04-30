@@ -635,6 +635,13 @@ void TypeIdentifierResolver::declare_function_type_node(DeclareFunctionTypeNode&
   }
 }
 
+void TypeIdentifierResolver::declare_class_type_node(DeclareClassTypeNode& node) {
+  auto maybe_source_type = collect_one_type(*this, *instance, node.source_type.get());
+  if (!maybe_source_type) {
+    return;
+  }
+}
+
 void TypeIdentifierResolver::namespace_type_node(NamespaceTypeNode& node) {
   instance->namespace_state.push(node.identifier);
   MT_SCOPE_EXIT {

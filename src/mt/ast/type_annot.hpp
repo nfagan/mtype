@@ -20,6 +20,7 @@ namespace types {
   struct Record;
   struct Scheme;
   struct Alias;
+  struct Class;
 }
 
 struct TypeAnnotMacro : public TypeAnnot {
@@ -95,6 +96,29 @@ struct DeclareFunctionTypeNode : public TypeAnnot {
   Token source_token;
   TypeIdentifier identifier;
   BoxedType type;
+};
+
+struct DeclareClassTypeNode : public TypeAnnot {
+  DeclareClassTypeNode(const Token& source_token,
+                       const TypeIdentifier& identifier,
+                       BoxedType source_type,
+                       types::Class* class_type) :
+    source_token(source_token),
+    identifier(identifier),
+    source_type(std::move(source_type)),
+    class_type(class_type) {
+    //
+  }
+
+  ~DeclareClassTypeNode() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+
+  Token source_token;
+  TypeIdentifier identifier;
+  BoxedType source_type;
+  types::Class* class_type;
 };
 
 struct DeclareTypeNode : public TypeAnnot {

@@ -131,6 +131,7 @@ public:
   void scheme_type_node(SchemeTypeNode& node) override;
   void declare_type_node(DeclareTypeNode& node) override;
   void declare_function_type_node(DeclareFunctionTypeNode& node) override;
+  void declare_class_type_node(DeclareClassTypeNode& node) override;
   void namespace_type_node(NamespaceTypeNode& node) override;
   void infer_type_node(InferTypeNode& node) override;
 

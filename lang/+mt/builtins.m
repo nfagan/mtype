@@ -6,6 +6,10 @@ import mt.scalar
 import mt.string
 import mt.float
 
+begin export
+  import mt.error
+end
+
 declare function nan :: [double] = (list<numeric>)
 declare function NaN :: [double] = (list<numeric>)
 declare function zeros :: [double] = (list<numeric>)
@@ -35,9 +39,6 @@ declare function size :: given T [list<double>] = (T)
 declare function length :: given T [double] = (T)
 declare function isempty :: given T [logical] = (T)
 declare function isequal :: given T [logical] = (T, T)
-
-declare function error :: [] = (list<char>)
-declare function assert :: [] = (logical, list<integral>)
 
 declare function tic :: [uint64] = ()
 declare function toc :: [double] = (list<uint64>)

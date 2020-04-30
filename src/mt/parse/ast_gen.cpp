@@ -1073,7 +1073,8 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
   //  Add file entry class definition handle.
   parse_instance->set_file_entry_class_def(class_handle);
 
-  const auto class_identifier = maybe_namespace_enclose_type_identifier(TypeIdentifier(qualified_name.full_name()));
+  const auto type_ident = TypeIdentifier(qualified_name.full_name());
+  const auto class_identifier = maybe_namespace_enclose_type_identifier(type_ident);
   //  @Note: Class definition are always exported.
   const bool is_type_export = true;
 
@@ -1084,7 +1085,8 @@ Optional<BoxedAstNode> AstGenerator::class_def() {
 
   auto& type_store = parse_instance->type_store;
   auto class_type = type_store->make_class(class_identifier, nullptr);
-  auto class_ref = type_store->make_type_reference(&class_node->source_token, class_type, parent_type_scope);
+  auto class_ref =
+    type_store->make_type_reference(&class_node->source_token, class_type, parent_type_scope);
   parent_type_scope->emplace_type(class_identifier, class_ref, is_type_export);
 
   //  Add pending method declarations.
@@ -3030,22 +3032,20 @@ Optional<BoxedTypeAnnot> AstGenerator::type_let(const mt::Token& source_token) {
     return NullOpt{};
   }
 
-  auto identifier = TypeIdentifier(string_registry->register_string(ident_res.value()));
-  identifier = maybe_namespace_enclose_type_identifier(identifier);
+  auto identifier = make_registered_type_identifier(ident_res.value());
+  if (cannot_register_type_identifier(identifier, name_token)) {
+    return NullOpt{};
+  }
 
   auto scope = current_type_scope();
   const bool is_export = type_identifier_export_state.is_export();
-
-  if (!scope->can_register_local_identifier(identifier, is_export)) {
-    add_error(make_error_duplicate_type_identifier(parse_instance, name_token));
-    return NullOpt{};
-  }
 
   auto type_alias = parse_instance->type_store->make_alias();
   auto let_node = std::make_unique<TypeLet>(source_token, identifier,
                                             equal_to_type_res.rvalue(), type_alias);
   //  @Note: Source token must be a pointer to a source token stored in the AST.
-  auto let_type = parse_instance->type_store->make_type_reference(&let_node->source_token, type_alias, scope);
+  auto let_type =
+    parse_instance->type_store->make_type_reference(&let_node->source_token, type_alias, scope);
   scope->emplace_type(identifier, let_type, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(let_node));
@@ -3259,20 +3259,18 @@ Optional<BoxedTypeAnnot> AstGenerator::scalar_type_declaration(const Token& sour
     return NullOpt{};
   }
 
-  auto ident = TypeIdentifier(string_registry->register_string(ident_res.value()));
-  ident = maybe_namespace_enclose_type_identifier(ident);
+  auto ident = make_registered_type_identifier(ident_res.value());
+  if (cannot_register_type_identifier(ident, ident_token)) {
+    return NullOpt{};
+  }
 
   auto scope = current_type_scope();
   const bool is_export = type_identifier_export_state.is_export();
 
-  if (!scope->can_register_local_identifier(ident, is_export)) {
-    add_error(make_error_duplicate_type_identifier(parse_instance, ident_token));
-    return NullOpt{};
-  }
-
   auto type = parse_instance->library->make_named_scalar_type(ident);
   auto node = std::make_unique<DeclareTypeNode>(source_token, DeclareTypeNode::Kind::scalar, ident);
-  auto declare_type = parse_instance->type_store->make_type_reference(&node->source_token, type, scope);
+  auto declare_type =
+    parse_instance->type_store->make_type_reference(&node->source_token, type, scope);
   scope->emplace_type(ident, declare_type, is_export);
 
   return Optional<BoxedTypeAnnot>(std::move(node));
@@ -3310,6 +3308,83 @@ namespace {
   }
 }
 
+namespace {
+  struct RecordFieldInfo {
+    RecordTypeNode::Fields fields;
+    RecordTypeNode::FieldNames field_names;
+  };
+
+  Optional<RecordFieldInfo> maybe_record_fields(AstGenerator* instance) {
+    RecordFieldInfo res;
+
+    while (instance->iterator.has_next() &&
+           instance->iterator.peek().type != TokenType::keyword_end_type) {
+      bool success = instance->maybe_record_field(res.fields, res.field_names);
+      if (!success) {
+        return NullOpt{};
+      }
+    }
+
+    auto err = instance->consume(TokenType::keyword_end_type);
+    if (err) {
+      instance->add_error(err.rvalue());
+      return NullOpt{};
+    }
+
+    return Optional<RecordFieldInfo>(std::move(res));
+  }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::class_type_declaration(const Token& source_token) {
+  iterator.advance();
+
+  const auto name_token = iterator.peek();
+  auto identifier_res = one_identifier();
+  if (!identifier_res) {
+    return NullOpt{};
+  }
+
+  auto record_field_res = maybe_record_fields(this);
+  if (!record_field_res) {
+    return NullOpt{};
+  }
+
+  auto identifier = make_registered_type_identifier(identifier_res.value());
+  if (cannot_register_type_identifier(identifier, name_token, /*is_export=*/true)) {
+    return NullOpt{};
+
+  } else if (parse_instance->library->has_class(identifier)) {
+    add_error(make_error_duplicate_class_def(parse_instance, name_token));
+    return NullOpt{};
+  }
+
+  auto& type_store = parse_instance->type_store;
+
+  auto& fields = record_field_res.value().fields;
+  auto record_type = parse_instance->type_store->make_record();
+  auto record_node = std::make_unique<RecordTypeNode>(source_token, name_token, identifier,
+                                                      record_type, std::move(fields));
+  //  Temporarily nullptr.
+  auto declare_node =
+    std::make_unique<DeclareClassTypeNode>(source_token, identifier, std::move(record_node), nullptr);
+
+  const bool is_export = true;  //  class types always exported.
+  auto class_type = type_store->make_class(identifier, record_type);
+  auto class_ref =
+    type_store->make_type_reference(&declare_node->source_token, class_type, current_type_scope());
+  current_type_scope()->emplace_type(identifier, class_ref, is_export);
+
+  //  Add the class type.
+  declare_node->class_type = class_type;
+
+  bool emplace_success =
+    parse_instance->library->emplace_declared_class_type(identifier, class_type);
+  //  Should be checked above.
+  assert(emplace_success);
+
+  return Optional<BoxedTypeAnnot>(std::move(declare_node));
+}
+
 Optional<BoxedTypeAnnot> AstGenerator::function_type_declaration(const Token& source_token) {
   iterator.advance();
 
@@ -3330,8 +3405,7 @@ Optional<BoxedTypeAnnot> AstGenerator::function_type_declaration(const Token& so
     return NullOpt{};
   }
 
-  TypeIdentifier ident(string_registry->register_string(ident_res.value()));
-  ident = maybe_namespace_enclose_type_identifier(ident);
+  auto ident = make_registered_type_identifier(ident_res.value());
 
   if (parse_instance->library->has_declared_function_type(ident)) {
     add_error(make_error_duplicate_local_function(parse_instance, source_token));
@@ -3352,9 +3426,7 @@ Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& sour
     return NullOpt{};
   }
 
-  auto registered = string_registry->register_strings(type_res.value());
-  auto type_ident = TypeIdentifier(string_registry->make_registered_compound_identifier(registered));
-  type_ident = maybe_namespace_enclose_type_identifier(type_ident);
+  auto type_ident = make_registered_type_identifier(type_res.value());
 
   auto func_token = iterator.peek();
   iterator.advance();
@@ -3407,6 +3479,9 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
   const auto kind_token = iterator.peek();
   if (kind_token.type == TokenType::keyword_function_type) {
     return function_type_declaration(kind_token);
+
+  } else if (kind_token.type == TokenType::keyword_classdef) {
+    return class_type_declaration(kind_token);
   }
 
   auto kind_res = one_identifier();
@@ -3485,24 +3560,22 @@ Optional<BoxedTypeAnnot> AstGenerator::constructor_type(const Token& source_toke
   return Optional<BoxedTypeAnnot>(std::move(node));
 }
 
-namespace {
-
-bool maybe_record_field(AstGenerator* instance, RecordTypeNode::Fields& fields,
-                        RecordTypeNode::FieldNames& field_names) {
-  auto tok = instance->iterator.peek();
+bool AstGenerator::maybe_record_field(RecordTypeNode::Fields& fields,
+                                      RecordTypeNode::FieldNames& field_names) {
+  auto tok = iterator.peek();
   if (tok.type == TokenType::new_line) {
-    instance->iterator.advance();
+    iterator.advance();
     return true;
   }
 
-  auto field_res = instance->record_field();
+  auto field_res = record_field();
   if (!field_res) {
     return false;
   }
 
   auto& field = field_res.value();
   if (field_names.count(field.name) > 0) {
-    instance->add_error(make_error_duplicate_record_field_name(instance->parse_instance, tok));
+    add_error(make_error_duplicate_record_field_name(parse_instance, tok));
     return false;
   }
 
@@ -3510,8 +3583,6 @@ bool maybe_record_field(AstGenerator* instance, RecordTypeNode::Fields& fields,
   fields.push_back(std::move(field));
 
   return true;
-}
-
 }
 
 Optional<BoxedType> AstGenerator::type_scheme(const Token& source_token) {
@@ -3564,34 +3635,18 @@ Optional<BoxedType> AstGenerator::type_record(const Token& source_token) {
     enclosing_schemes.pop_back();
   };
 
-  RecordTypeNode::Fields fields;
-  RecordTypeNode::FieldNames field_names;
-
-  while (iterator.has_next() && iterator.peek().type != TokenType::keyword_end_type) {
-    bool success = maybe_record_field(this, fields, field_names);
-    if (!success) {
-      return NullOpt{};
-    }
-  }
-
-  auto err = consume(TokenType::keyword_end_type);
-  if (err) {
-    add_error(err.rvalue());
+  auto field_res = maybe_record_fields(this);
+  if (!field_res) {
     return NullOpt{};
   }
 
-  auto identifier = TypeIdentifier(string_registry->register_string(ident_res.value()));
-  identifier = maybe_namespace_enclose_type_identifier(identifier);
-
-  auto scope = current_type_scope();
-  const bool is_export = type_identifier_export_state.is_export();
-
-  if (!scope->can_register_local_identifier(identifier, is_export)) {
-    add_error(make_error_duplicate_type_identifier(parse_instance, name_token));
+  auto identifier = make_registered_type_identifier(ident_res.value());
+  if (cannot_register_type_identifier(identifier, name_token)) {
     return NullOpt{};
   }
 
   auto& type_store = parse_instance->type_store;
+  auto& fields = field_res.value().fields;
   auto record_type = type_store->make_record();
   auto record_node = std::make_unique<RecordTypeNode>(source_token, name_token, identifier,
                                                       record_type, std::move(fields));
@@ -3599,12 +3654,14 @@ Optional<BoxedType> AstGenerator::type_record(const Token& source_token) {
 
   if (maybe_enclosing_scheme) {
     assert(!maybe_enclosing_scheme->type);
-//    maybe_enclosing_scheme->type = record_type;
     emplaced_type = maybe_enclosing_scheme;
   }
 
   //  @Note: Source token must be a pointer to a source token stored in the AST.
-  const auto type_ref = type_store->make_type_reference(&record_node->name_token, emplaced_type, scope);
+  auto scope = current_type_scope();
+  const bool is_export = type_identifier_export_state.is_export();
+  const auto type_ref =
+    type_store->make_type_reference(&record_node->name_token, emplaced_type, scope);
   scope->emplace_type(identifier, type_ref, is_export);
 
   return Optional<BoxedType>(std::move(record_node));
@@ -3619,6 +3676,36 @@ TypeIdentifier AstGenerator::maybe_namespace_enclose_type_identifier(const TypeI
   } else {
     return ident;
   }
+}
+
+TypeIdentifier AstGenerator::make_registered_type_identifier(const std::string_view& ident) const {
+  auto registered = TypeIdentifier(string_registry->register_string(ident));
+  return maybe_namespace_enclose_type_identifier(registered);
+}
+
+TypeIdentifier
+AstGenerator::make_registered_type_identifier(const std::vector<std::string_view>& idents) const {
+  auto registered = string_registry->register_strings(idents);
+  auto compound = string_registry->make_registered_compound_identifier(registered);
+  TypeIdentifier ident(compound);
+  return maybe_namespace_enclose_type_identifier(ident);
+}
+
+bool AstGenerator::cannot_register_type_identifier(const TypeIdentifier& ident,
+                                                   const Token& source_token) {
+  const bool is_export = type_identifier_export_state.is_export();
+  return cannot_register_type_identifier(ident, source_token, is_export);
+}
+
+bool AstGenerator::cannot_register_type_identifier(const TypeIdentifier& ident,
+                                                   const Token& source_token,
+                                                   bool is_export) {
+  if (!current_type_scope()->can_register_local_identifier(ident, is_export)) {
+    add_error(make_error_duplicate_type_identifier(parse_instance, source_token));
+    return true;
+  }
+
+  return false;
 }
 
 Optional<RecordTypeNode::Field> AstGenerator::record_field() {

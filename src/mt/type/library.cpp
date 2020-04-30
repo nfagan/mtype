@@ -243,6 +243,15 @@ bool Library::emplace_declared_function_type(const types::Abstraction& abstr, Ty
   }
 }
 
+bool Library::emplace_declared_class_type(const TypeIdentifier& name, types::Class* class_type) {
+  if (class_types.count(name) > 0) {
+    return false;
+  } else {
+    class_types[name] = class_type;
+    return true;
+  }
+}
+
 Optional<std::string> Library::type_name(const Type* type) const {
   if (!type->is_scalar()) {
     return NullOpt{};
@@ -250,6 +259,10 @@ Optional<std::string> Library::type_name(const Type* type) const {
 
   const auto& scl = MT_SCALAR_REF(*type);
   return string_registry.maybe_at(scl.identifier.full_name());
+}
+
+bool Library::has_class(const TypeIdentifier& name) const {
+  return class_types.count(name) > 0;
 }
 
 Optional<types::Class*> Library::lookup_class(const TypeIdentifier& name) const {

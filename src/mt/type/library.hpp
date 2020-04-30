@@ -109,7 +109,9 @@ public:
   MT_NODISCARD FunctionSearchResult search_function(const types::Abstraction& func,
                                                     const TypePtrs& args) const;
 
+  MT_NODISCARD bool has_class(const TypeIdentifier& name) const;
   MT_NODISCARD Optional<types::Class*> lookup_class(const TypeIdentifier& name) const;
+
   MT_NODISCARD Optional<types::Class*> lookup_local_class(const ClassDefHandle& def_handle) const;
   MT_NODISCARD Optional<Type*> lookup_local_variable(const VariableDefHandle& def_handle) const;
   MT_NODISCARD Optional<const types::Class*> class_for_type(const Type* type) const;
@@ -119,6 +121,7 @@ public:
   bool has_declared_function_type(const TypeIdentifier& ident) const;
   void register_declared_function(const TypeIdentifier& ident);
   bool emplace_declared_function_type(const types::Abstraction& abstr, Type* source);
+  bool emplace_declared_class_type(const TypeIdentifier& name, types::Class* class_type);
 
   MT_NODISCARD Optional<std::string> type_name(const Type* type) const;
 
