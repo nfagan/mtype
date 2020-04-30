@@ -55,6 +55,7 @@ declare method double ceil :: [double] = (double)
 declare method double floor :: [double] = (double)
 declare method double fix :: [double] = (double)
 declare method double round :: [double] = (double, list<double, char>)
+declare method double rem :: [double] = (double, double)
 
 end
 

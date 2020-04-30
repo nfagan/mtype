@@ -22,8 +22,6 @@ Library::Library(TypeStore& store, Store& def_store, const SearchPath&
   store(store),
   def_store(def_store),
   string_registry(string_registry),
-  name_comparator(type_eq),
-  function_types(name_comparator),
   search_path(search_path),
   scalar_store(store, string_registry),
   special_identifiers(string_registry),

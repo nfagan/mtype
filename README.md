@@ -34,7 +34,7 @@ In `path-file.txt`, specify a newline-delimited list of directories in which to 
 
 * Monomorphic + polymorphic function types.
 * Monomorphic class types (todo: polymorphic class types).
-* Monomorphic + polymorphic named `record` types.
+* Monomorphic + polymorphic named record types.
 * Imports and exports; namespaces; type aliases.
 * Tuples; unions; lists.
 * Obeys MATLAB function dispatch.

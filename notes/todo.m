@@ -10,5 +10,8 @@ TODO
 . Distinguish concatenation types - horz vs. vert
 . recursive types
 . check for cycles in oject graph
+. consider whether type_relation.cpp should compare abstractions
+  including their header information, rather than simply by their inputs /
+  outputs
 
 %}

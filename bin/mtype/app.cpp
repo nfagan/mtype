@@ -188,6 +188,7 @@ bool App::generate_type_constraints(const AstStoreEntries& root_entries) {
 
   auto& gen_warnings = constraint_generator.get_warnings();
   move_from(gen_warnings, type_errors);
+  gen_warnings.clear();
 
   return true;
 }

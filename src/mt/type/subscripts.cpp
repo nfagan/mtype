@@ -71,7 +71,7 @@ void SubscriptHandler::maybe_unify_non_function_subscript(Type* source, TermRef 
   Type* next_arg0 = nullptr;
 
   if (sub0.is_parens()) {
-    if (arg0->is_list()) {
+    if (arg0->is_list() || arg0->is_union()) {
       //  E.g. If `a` == {list<double>}, then `a{1}(1)` is an error.
       unifier.add_error(make_unresolved_function_error(term.source_token, source));
       return;

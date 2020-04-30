@@ -177,9 +177,7 @@ private:
   Store& def_store;
   StringRegistry& string_registry;
 
-  TypeRelation::NameLess name_comparator;
-
-  std::map<types::Abstraction, Type*, TypeRelation::NameLess> function_types;
+  std::map<types::Abstraction, Type*, types::Abstraction::HeaderLess> function_types;
 
   LocalFunctionTypes local_function_types;
   LocalClassTypes local_class_types;

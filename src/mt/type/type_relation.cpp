@@ -292,10 +292,4 @@ bool TypeRelation::related_different_types(const types::Union& a, const Type* b,
   return false;
 }
 
-bool TypeRelation::NameLess::operator()(const types::Abstraction& a, const types::Abstraction& b) const {
-  types::Abstraction::HeaderCompare compare{};
-  return compare(a, b) == -1;
-}
-
-
 }
