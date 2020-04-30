@@ -1,4 +1,2 @@
 add_subdirectory(relation)
 add_subdirectory(threading1)
-add_subdirectory(types1)
-add_subdirectory(path_search2)
