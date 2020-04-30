@@ -238,6 +238,16 @@ bool App::visit_file(const FilePath& file_path) {
   return true;
 }
 
+void App::maybe_show() const {
+  maybe_show_type_distribution();
+  maybe_show_local_variable_types();
+  maybe_show_local_function_types();
+  maybe_show_visited_external_files();
+  maybe_show_errors();
+  maybe_show_diagnostics();
+  maybe_show_asts();
+}
+
 void App::maybe_show_local_function_types() const {
   if (arguments.show_local_function_types) {
     show_function_types(functions_by_file, type_to_string,

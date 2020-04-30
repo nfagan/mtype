@@ -37,11 +37,12 @@ struct Argument {
 
 struct Arguments {
   Arguments();
-  void parse(int argc, char** argv);
+  bool parse(int argc, char** argv);
   void show_help() const;
   void show_usage() const;
 
 private:
+  bool evaluate() const;
   void build_parse_spec();
 
 private:

@@ -238,7 +238,7 @@ void Arguments::build_parse_spec() {
   });
 }
 
-void Arguments::parse(int argc, char** argv) {
+bool Arguments::parse(int argc, char** argv) {
   build_parse_spec();
 
   int i = 1;  //  skip executable.
@@ -276,6 +276,24 @@ void Arguments::parse(int argc, char** argv) {
 
     i += incr;
   }
+
+  return evaluate();
+}
+
+bool Arguments::evaluate() const {
+  if (had_parse_error) {
+    return false;
+
+  } else if (show_help_text) {
+    show_help();
+    return false;
+
+  } else if (root_identifiers.empty()) {
+    show_usage();
+    return false;
+  }
+
+  return true;
 }
 
 }

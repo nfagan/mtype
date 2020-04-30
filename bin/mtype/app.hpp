@@ -20,14 +20,7 @@ public:
   bool visit_file(const FilePath& file_path);
   bool locate_root_identifiers();
   void check_for_concrete_function_types();
-
-  void maybe_show_local_function_types() const;
-  void maybe_show_local_variable_types() const;
-  void maybe_show_visited_external_files() const;
-  void maybe_show_errors() const;
-  void maybe_show_diagnostics() const;
-  void maybe_show_type_distribution() const;
-  void maybe_show_asts() const;
+  void maybe_show() const;
 
 private:
   bool add_base_scopes(const AstStoreEntries& entries) const;
@@ -41,6 +34,14 @@ private:
   void add_root_identifier(const std::string& name,
                            const SearchCandidate* source_candidate);
   void make_pre_imports();
+
+  void maybe_show_local_function_types() const;
+  void maybe_show_local_variable_types() const;
+  void maybe_show_visited_external_files() const;
+  void maybe_show_errors() const;
+  void maybe_show_diagnostics() const;
+  void maybe_show_type_distribution() const;
+  void maybe_show_asts() const;
 
 public:
   cmd::Arguments arguments;
