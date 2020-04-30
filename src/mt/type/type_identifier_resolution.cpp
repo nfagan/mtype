@@ -234,7 +234,8 @@ bool TypeIdentifierResolverInstance::had_error() const {
   return !errors.empty();
 }
 
-void TypeIdentifierResolverInstance::add_unresolved_identifier(const TypeIdentifier& ident, TypeScope* in_scope) {
+void TypeIdentifierResolverInstance::add_unresolved_identifier(const TypeIdentifier& ident,
+                                                               TypeScope* in_scope) {
   unresolved_identifiers.emplace_back(ident, in_scope);
 }
 
@@ -505,10 +506,7 @@ void TypeIdentifierResolver::scalar_type_node(ScalarTypeNode& node) {
   auto type = resolve_identifier_reference(node);
 
   if (!type) {
-    const auto str_ident = instance->string_registry.at(node.identifier.full_name());
-    instance->add_error(make_error_unresolved_type_identifier(*instance, node.source_token, str_ident));
-    instance->add_unresolved_identifier(node.identifier, instance->scopes.current());
-    instance->collectors.current().mark_error();
+    add_unresolved_identifier(node.source_token, node.identifier);
     return;
   }
 
@@ -586,7 +584,7 @@ void TypeIdentifierResolver::method_type_declaration(DeclareTypeNode& node) {
 
   auto maybe_class = library.lookup_class(node.identifier);
   if (!maybe_class) {
-    instance->add_unresolved_identifier(node.identifier, instance->scopes.current());
+    add_unresolved_identifier(node.source_token, node.identifier);
     return;
   }
 
@@ -902,6 +900,16 @@ void TypeIdentifierResolver::class_def_node(ClassDefNode& node) {
 
     instance->library.method_store.add_method(class_type, MT_ABSTR_REF(*func_type), source_type);
   }
+}
+
+void TypeIdentifierResolver::add_unresolved_identifier(const Token &source_token,
+                                                       const TypeIdentifier &ident) {
+  const auto str_ident = instance->string_registry.at(ident.full_name());
+  auto err = make_error_unresolved_type_identifier(*instance, source_token, str_ident);
+
+  instance->add_error(err);
+  instance->add_unresolved_identifier(ident, instance->scopes.current());
+  instance->collectors.current().mark_error();
 }
 
 }

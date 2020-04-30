@@ -142,6 +142,8 @@ public:
   void method_node(MethodNode& node) override;
 
 private:
+  void add_unresolved_identifier(const Token& source_token, const TypeIdentifier& ident);
+
   void scalar_type_declaration(DeclareTypeNode& node);
   void method_type_declaration(DeclareTypeNode& node);
 
