@@ -1,6 +1,7 @@
 #include "types.hpp"
 #include "type_representation.hpp"
 #include "type_properties.hpp"
+#include "type_visitor.hpp"
 #include <cassert>
 
 namespace mt {
@@ -52,6 +53,13 @@ bool types::Alias::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.alias(*this);
 }
 
+void types::Alias::accept(TypeVisitor& vis) {
+  vis.alias(*this);
+}
+void types::Alias::accept_const(TypeVisitor& vis) const {
+  vis.alias(*this);
+}
+
 namespace {
   template <typename T, typename U>
   U* root_alias_source_impl(U* source) {
@@ -87,6 +95,14 @@ void types::Record::accept(const TypeToString& to_str, std::stringstream& into) 
 
 bool types::Record::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.record(*this);
+}
+
+void types::Record::accept(TypeVisitor& vis) {
+  vis.record(*this);
+}
+
+void types::Record::accept_const(TypeVisitor& vis) const {
+  vis.record(*this);
 }
 
 std::size_t types::Record::bytes() const {
@@ -155,6 +171,14 @@ bool types::Class::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.class_type(*this);
 }
 
+void types::Class::accept(TypeVisitor& vis) {
+  vis.class_type(*this);
+}
+
+void types::Class::accept_const(TypeVisitor& vis) const {
+  vis.class_type(*this);
+}
+
 std::size_t types::Class::bytes() const {
   return sizeof(Class);
 }
@@ -191,6 +215,14 @@ bool types::Variable::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.variable(*this);
 }
 
+void types::Variable::accept(TypeVisitor& vis) {
+  vis.variable(*this);
+}
+
+void types::Variable::accept_const(TypeVisitor& vis) const {
+  vis.variable(*this);
+}
+
 std::size_t types::Variable::bytes() const {
   return sizeof(Variable);
 }
@@ -212,6 +244,14 @@ void types::Scalar::accept(const TypeToString& to_str, std::stringstream& into) 
 
 bool types::Scalar::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.scalar(*this);
+}
+
+void types::Scalar::accept(TypeVisitor& vis) {
+  vis.scalar(*this);
+}
+
+void types::Scalar::accept_const(TypeVisitor& vis) const {
+  vis.scalar(*this);
 }
 
 std::size_t types::Scalar::bytes() const {
@@ -238,6 +278,14 @@ void types::Application::accept(const TypeToString& to_str, std::stringstream& i
 
 bool types::Application::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.application(*this);
+}
+
+void types::Application::accept(TypeVisitor& vis) {
+  vis.application(*this);
+}
+
+void types::Application::accept_const(TypeVisitor& vis) const {
+  vis.application(*this);
 }
 
 int types::Application::compare(const Type* b) const noexcept {
@@ -285,7 +333,8 @@ types::Abstraction::Abstraction(MatlabIdentifier name, Type* inputs, Type* outpu
   name(name), inputs(inputs), outputs(outputs) {
   //
 }
-types::Abstraction::Abstraction(MatlabIdentifier name, const FunctionReferenceHandle& ref_handle, Type* inputs, Type* outputs) :
+types::Abstraction::Abstraction(MatlabIdentifier name, const FunctionReferenceHandle& ref_handle,
+                                Type* inputs, Type* outputs) :
   Type(Type::Tag::abstraction), kind(Kind::function),
   name(name), inputs(inputs), outputs(outputs), ref_handle(ref_handle) {
   //
@@ -357,6 +406,14 @@ void types::Abstraction::accept(const TypeToString& to_str, std::stringstream& i
 
 bool types::Abstraction::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.abstraction(*this);
+}
+
+void types::Abstraction::accept(TypeVisitor& vis) {
+  vis.abstraction(*this);
+}
+
+void types::Abstraction::accept_const(TypeVisitor& vis) const {
+  vis.abstraction(*this);
 }
 
 int types::Abstraction::compare(const Type* b) const noexcept {
@@ -434,6 +491,14 @@ bool types::Union::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.union_type(*this);
 }
 
+void types::Union::accept(TypeVisitor& vis) {
+  vis.union_type(*this);
+}
+
+void types::Union::accept_const(TypeVisitor& vis) const {
+  vis.union_type(*this);
+}
+
 std::size_t types::Union::bytes() const {
   return sizeof(Union);
 }
@@ -470,6 +535,14 @@ bool types::Tuple::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.tuple(*this);
 }
 
+void types::Tuple::accept(TypeVisitor& vis) {
+  vis.tuple(*this);
+}
+
+void types::Tuple::accept_const(TypeVisitor& vis) const {
+  vis.tuple(*this);
+}
+
 std::size_t types::Tuple::bytes() const {
   return sizeof(Tuple);
 }
@@ -490,6 +563,14 @@ void types::DestructuredTuple::accept(const TypeToString& to_str, std::stringstr
 
 bool types::DestructuredTuple::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.destructured_tuple(*this);
+}
+
+void types::DestructuredTuple::accept(TypeVisitor& vis) {
+  vis.destructured_tuple(*this);
+}
+
+void types::DestructuredTuple::accept_const(TypeVisitor& vis) const {
+  vis.destructured_tuple(*this);
 }
 
 Optional<Type*> types::DestructuredTuple::first_non_destructured_tuple_member() const {
@@ -532,7 +613,8 @@ bool types::DestructuredTuple::is_value_usage(Usage use) {
   return use == Usage::rvalue || use == Usage::lvalue;
 }
 
-bool types::DestructuredTuple::mismatching_definition_usages(const DestructuredTuple& a, const DestructuredTuple& b) {
+bool types::DestructuredTuple::mismatching_definition_usages(const DestructuredTuple& a,
+                                                             const DestructuredTuple& b) {
   return (a.is_inputs() && b.is_outputs()) || (a.is_outputs() && b.is_inputs());
 }
 
@@ -586,6 +668,14 @@ bool types::List::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.list(*this);
 }
 
+void types::List::accept(TypeVisitor& vis) {
+  vis.list(*this);
+}
+
+void types::List::accept_const(TypeVisitor& vis) const {
+  vis.list(*this);
+}
+
 std::size_t types::List::bytes() const {
   return sizeof(List);
 }
@@ -621,6 +711,14 @@ void types::Subscript::accept(const TypeToString& to_str, std::stringstream& int
 
 bool types::Subscript::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.subscript(*this);
+}
+
+void types::Subscript::accept(TypeVisitor& vis) {
+  vis.subscript(*this);
+}
+
+void types::Subscript::accept_const(TypeVisitor& vis) const {
+  vis.subscript(*this);
 }
 
 std::size_t types::Subscript::bytes() const {
@@ -665,6 +763,14 @@ bool types::ConstantValue::accept(const IsFullyConcrete& is_fully_concrete) cons
   return is_fully_concrete.constant_value(*this);
 }
 
+void types::ConstantValue::accept(TypeVisitor& vis) {
+  vis.constant_value(*this);
+}
+
+void types::ConstantValue::accept_const(TypeVisitor& vis) const {
+  vis.constant_value(*this);
+}
+
 std::size_t types::ConstantValue::bytes() const {
   return sizeof(ConstantValue);
 }
@@ -703,6 +809,14 @@ void types::Scheme::accept(const TypeToString& to_str, std::stringstream& into) 
 
 bool types::Scheme::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.scheme(*this);
+}
+
+void types::Scheme::accept(TypeVisitor& vis) {
+  vis.scheme(*this);
+}
+
+void types::Scheme::accept_const(TypeVisitor& vis) const {
+  vis.scheme(*this);
 }
 
 std::size_t types::Scheme::bytes() const {
@@ -748,6 +862,14 @@ bool types::Assignment::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.assignment(*this);
 }
 
+void types::Assignment::accept(TypeVisitor& vis) {
+  vis.assignment(*this);
+}
+
+void types::Assignment::accept_const(TypeVisitor& vis) const {
+  vis.assignment(*this);
+}
+
 std::size_t types::Assignment::bytes() const {
   return sizeof(Assignment);
 }
@@ -774,6 +896,14 @@ void types::Parameters::accept(const TypeToString& to_str, std::stringstream& in
 
 bool types::Parameters::accept(const IsFullyConcrete& is_fully_concrete) const {
   return is_fully_concrete.parameters(*this);
+}
+
+void types::Parameters::accept(TypeVisitor& vis) {
+  vis.parameters(*this);
+}
+
+void types::Parameters::accept_const(TypeVisitor& vis) const {
+  vis.parameters(*this);
 }
 
 std::size_t types::Parameters::bytes() const {

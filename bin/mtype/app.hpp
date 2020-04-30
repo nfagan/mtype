@@ -27,6 +27,8 @@ private:
   bool resolve_type_imports(AstStoreEntryPtr root_entry);
   bool resolve_type_identifiers(const AstStoreEntries& entries);
   bool resolve_external_functions(ParsePipelineInstanceData& pipeline_instance);
+  bool check_for_recursive_types(const AstStoreEntries& entries,
+                                 const PendingSchemes& pending_schemes);
   bool generate_type_constraints(const AstStoreEntries& entries);
 
   void initialize();
@@ -34,6 +36,8 @@ private:
   void add_root_identifier(const std::string& name,
                            const SearchCandidate* source_candidate);
   void make_pre_imports();
+  void clear_function_types(const CodeFileDescriptor* file_descriptor);
+  void clear_function_types(const AstStoreEntries& root_entries);
 
   void maybe_show_local_function_types() const;
   void maybe_show_local_variable_types() const;

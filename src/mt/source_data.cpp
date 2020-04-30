@@ -32,4 +32,14 @@ void FunctionsByFile::insert(const CodeFileDescriptor* file_descriptor,
   store.at(file_descriptor).insert(def_handle);
 }
 
+Optional<const FunctionsByFile::Functions*>
+FunctionsByFile::lookup(const CodeFileDescriptor* file_descriptor) const {
+  auto it = store.find(file_descriptor);
+  if (it == store.end()) {
+    return NullOpt{};
+  } else {
+    return Optional<const Functions*>(&it->second);
+  }
+}
+
 }

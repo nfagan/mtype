@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include "type_visitor.hpp"
 #include <unordered_set>
 
 namespace mt {
@@ -64,6 +65,50 @@ private:
 
 private:
   IsFullyConcreteInstance* instance;
+};
+
+/*
+ * IsRecursive
+ */
+
+struct IsRecursiveInstance {
+  using RemappedAliasSources = std::unordered_map<const Type*, const Type*>;
+
+  IsRecursiveInstance();
+  IsRecursiveInstance(const RemappedAliasSources* remapped_alias_sources);
+
+  void mark(const Type* type);
+  bool visited(const Type* type) const;
+  Optional<const Type*> maybe_remapped_alias_source(const Type* alias) const;
+
+  bool is_recursive;
+  std::unordered_set<const Type*> visited_types;
+  const RemappedAliasSources* remapped_alias_sources;
+};
+
+class IsRecursive : public TypeVisitor {
+public:
+  IsRecursive(IsRecursiveInstance* instance);
+
+  void scheme(const types::Scheme& scheme) override;
+  void abstraction(const types::Abstraction& abstr) override;
+  void application(const types::Application& app) override;
+  void constant_value(const types::ConstantValue& cv) override;
+  void list(const types::List& list) override;
+  void tuple(const types::Tuple& tup) override;
+  void destructured_tuple(const types::DestructuredTuple& tup) override;
+  void union_type(const types::Union& union_type) override;
+  void alias(const types::Alias& alias) override;
+  void record(const types::Record& record) override;
+  void class_type(const types::Class& class_type) override;
+  void subscript(const types::Subscript& sub) override;
+  void assignment(const types::Assignment& assign) override;
+
+private:
+  void visit(const TypePtrs& type_ptrs);
+
+private:
+  IsRecursiveInstance* instance;
 };
 
 }

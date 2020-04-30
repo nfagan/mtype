@@ -162,9 +162,24 @@ struct CouldNotInferTypeError : public TypeError {
   const Type* in_type;
 };
 
+struct RecursiveTypeError : public TypeError {
+  explicit RecursiveTypeError(const Token* source_token) :
+  source_token(source_token) {
+    //
+  }
+
+  ~RecursiveTypeError() override = default;
+
+  std::string get_text(const ShowTypeErrors& shower) const override;
+  Token get_source_token() const override;
+
+  const Token* source_token;
+};
+
 using BoxedTypeError = std::unique_ptr<TypeError>;
 using TypeErrors = std::vector<BoxedTypeError>;
 
+BoxedTypeError make_recursive_type_error(const Token* at_token);
 BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type* function_type);
 BoxedTypeError make_unknown_isa_guarded_class_error(const Token* at_token);
 BoxedTypeError make_could_not_infer_type_error(const Token* at_token,

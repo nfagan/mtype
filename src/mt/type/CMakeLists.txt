@@ -41,6 +41,7 @@ function(configure_type)
             type_scope.cpp
             type_store.hpp
             type_store.cpp
+            type_visitor.hpp
             unification.hpp
             unification.cpp
             union_member_visitor.hpp

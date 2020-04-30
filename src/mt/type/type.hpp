@@ -12,6 +12,7 @@ namespace mt {
 struct Token;
 class TypeToString;
 class IsFullyConcrete;
+class TypeVisitor;
 
 struct Type {
   struct Less {
@@ -55,6 +56,8 @@ struct Type {
   virtual std::size_t bytes() const = 0;
   virtual void accept(const TypeToString& to_str, std::stringstream& into) const = 0;
   virtual bool accept(const IsFullyConcrete& is_fully_concrete) const = 0;
+  virtual void accept(TypeVisitor& vis) = 0;
+  virtual void accept_const(TypeVisitor& vis) const = 0;
 
   virtual Type* alias_source() {
     return this;

@@ -126,9 +126,59 @@ bool App::resolve_type_imports(AstStoreEntryPtr root_entry) {
   return resolution_result.success;
 }
 
+void App::clear_function_types(const CodeFileDescriptor* for_file) {
+  auto maybe_functions = functions_by_file.lookup(for_file);
+  if (!maybe_functions) {
+    return;
+  }
+
+  const auto& funcs = *maybe_functions.value();
+  for (const auto& func : funcs) {
+    auto replaced_type = type_store.make_fresh_type_variable_reference();
+    library.replace_local_function_type(func, replaced_type);
+  }
+}
+
+void App::clear_function_types(const AstStoreEntries& root_entries) {
+  for (const auto& entry : root_entries) {
+    const auto* file_descriptor = entry->root_block->scope->file_descriptor;
+    clear_function_types(file_descriptor);
+  }
+}
+
+bool App::check_for_recursive_types(const AstStoreEntries& root_entries,
+                                    const PendingSchemes& pending_schemes) {
+  bool success = true;
+
+  for (const auto& root_entry : root_entries) {
+    CheckRecursiveTypesInstance recursive_types_instance(&pending_schemes);
+    const auto& type_scope = root_entry->root_block->type_scope;
+    mt::check_for_recursive_types(recursive_types_instance, type_scope);
+
+    if (recursive_types_instance.had_error) {
+      success = false;
+      move_from(recursive_types_instance.errors, type_errors);
+    }
+  }
+
+  for (const auto& pending_scheme : pending_schemes) {
+    CheckRecursiveTypesInstance recursive_types_instance(&pending_schemes);
+    const auto scheme = pending_scheme.scheme;
+    const auto& source_token = pending_scheme.source_token;
+    check_for_recursive_type(recursive_types_instance, scheme, source_token);
+
+    if (recursive_types_instance.had_error) {
+      success = false;
+      move_from(recursive_types_instance.errors, type_errors);
+    }
+  }
+
+  return success;
+}
+
 bool App::resolve_type_identifiers(const AstStoreEntries& root_entries) {
   bool any_resolution_errors = false;
-  std::vector<TypeIdentifierResolverInstance::PendingScheme> pending_schemes;
+  PendingSchemes pending_schemes;
 
   for (const auto& root_entry : root_entries) {
     if (root_entry->resolved_type_identifiers) {
@@ -152,7 +202,9 @@ bool App::resolve_type_identifiers(const AstStoreEntries& root_entries) {
     }
   }
 
-  if (any_resolution_errors) {
+  if (any_resolution_errors ||
+      !check_for_recursive_types(root_entries, pending_schemes)) {
+    clear_function_types(root_entries);
     return false;
   }
 

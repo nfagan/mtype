@@ -123,6 +123,7 @@ public:
   MT_NODISCARD Optional<std::string> type_name(const Type* type) const;
 
   void emplace_local_function_type(const FunctionDefHandle& handle, Type* type);
+  void replace_local_function_type(const FunctionDefHandle& handle, Type* type);
   bool emplace_local_class_type(const ClassDefHandle& handle, types::Class* type);
   void emplace_local_variable_type(const VariableDefHandle& handle, Type* type);
   Type* require_local_variable_type(const VariableDefHandle& handle);

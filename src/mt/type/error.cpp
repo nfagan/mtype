@@ -8,6 +8,10 @@
 
 namespace mt {
 
+BoxedTypeError make_recursive_type_error(const Token* at_token) {
+  return std::make_unique<RecursiveTypeError>(at_token);
+}
+
 BoxedTypeError make_unresolved_function_error(const Token* at_token, const Type* function_type) {
   return std::make_unique<UnresolvedFunctionError>(at_token, function_type);
 }
@@ -173,6 +177,19 @@ std::string CouldNotInferTypeError::get_text(const ShowTypeErrors& shower) const
 }
 
 Token CouldNotInferTypeError::get_source_token() const {
+  return *source_token;
+}
+
+/*
+ * RecursiveTypeError
+ */
+
+std::string RecursiveTypeError::get_text(const ShowTypeErrors& shower) const {
+  std::string msg = "Type directly or indirectly refers to itself.";
+  return shower.stylize(msg, style::red);
+}
+
+Token RecursiveTypeError::get_source_token() const {
   return *source_token;
 }
 

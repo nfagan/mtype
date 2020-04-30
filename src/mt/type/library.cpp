@@ -190,6 +190,10 @@ void Library::emplace_local_function_type(const FunctionDefHandle& handle, Type*
   local_function_types[handle] = type;
 }
 
+void Library::replace_local_function_type(const FunctionDefHandle& handle, Type* type) {
+  local_function_types[handle] = type;
+}
+
 bool Library::emplace_local_class_type(const ClassDefHandle& handle, types::Class* type) {
   if (class_types.count(type->name) > 0) {
     return false;

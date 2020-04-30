@@ -52,11 +52,13 @@ public:
   };
 
   struct PendingScheme {
-    PendingScheme(const types::Scheme* scheme, std::vector<Type*> arguments, types::Alias* target);
+    PendingScheme(const Token* source_token, const types::Scheme* scheme,
+                  std::vector<Type*> arguments, types::Alias* target);
     void instantiate(TypeStore& store) const;
 
     MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(PendingScheme)
 
+    const Token* source_token;
     const types::Scheme* scheme;
     std::vector<Type*> arguments;
     types::Alias* target;
@@ -73,10 +75,12 @@ public:
   void add_error(const ParseError& err);
   void add_unresolved_identifier(const TypeIdentifier& ident, TypeScope* in_scope);
   void mark_parent_collector_error();
-  void push_scheme_variables();
-  void pop_scheme_variables();
   bool has_scheme_variables() const;
   SchemeVariables& current_scheme_variables();
+
+  void push_enclosing_scheme(types::Scheme* scheme);
+  void pop_enclosing_scheme();
+  types::Scheme* enclosing_scheme();
 
   void push_presumed_type(Type* type);
   void pop_presumed_type();
@@ -147,5 +151,8 @@ private:
 private:
   TypeIdentifierResolverInstance* instance;
 };
+
+using PendingSchemes =
+  std::vector<TypeIdentifierResolverInstance::PendingScheme>;
 
 }

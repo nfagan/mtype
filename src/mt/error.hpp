@@ -24,8 +24,13 @@ public:
     //
   }
 
-  ParseError(std::string_view text, const Token& at_token, std::string message, const CodeFileDescriptor* descriptor) :
-    text(text), at_token(at_token), message(std::move(message)), descriptor(descriptor) {
+  ParseError(std::string_view text,
+            const Token& at_token,
+            std::string message,
+            const CodeFileDescriptor* descriptor) :
+    text(text), at_token(at_token),
+    message(std::move(message)),
+    descriptor(descriptor) {
     //
   }
 

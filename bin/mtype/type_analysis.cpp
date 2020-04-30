@@ -144,4 +144,54 @@ bool can_show_untyped_function_errors(const Store& store,
   return maybe_entry && maybe_entry->generated_type_constraints;
 }
 
+CheckRecursiveTypesInstance::CheckRecursiveTypesInstance(const PendingSchemes* pending_schemes) :
+                                                         pending_schemes(pending_schemes) {
+  //
+}
+
+void check_for_recursive_type(CheckRecursiveTypesInstance& instance,
+                              const Type* type,
+                              const Token* source_token) {
+  IsRecursiveInstance::RemappedAliasSources remapped_alias_sources;
+
+  for (const auto& pending_scheme : *instance.pending_schemes) {
+    remapped_alias_sources[pending_scheme.target] =
+      pending_scheme.scheme->scheme_source();
+  }
+
+  IsRecursiveInstance recursive_instance(&remapped_alias_sources);
+  IsRecursive check_recursive(&recursive_instance);
+  type->accept_const(check_recursive);
+
+  if (recursive_instance.is_recursive) {
+    auto err = make_recursive_type_error(source_token);
+    instance.errors.push_back(std::move(err));
+    instance.had_error = true;
+  }
+}
+
+namespace {
+  void check_recursive(CheckRecursiveTypesInstance& instance,
+                       const TypeScope::TypeMap& type_map) {
+    for (const auto& type_it : type_map) {
+      const auto& type_ref = type_it.second;
+      check_for_recursive_type(instance, type_ref->type, type_ref->source_token);
+    }
+  }
+}
+
+void check_for_recursive_types(CheckRecursiveTypesInstance& instance,
+                               const TypeScope* root_scope) {
+  check_recursive(instance, root_scope->local_types);
+  check_recursive(instance, root_scope->exports);
+
+  for (const auto& import : root_scope->imports) {
+    check_recursive(instance, import.root->exports);
+  }
+
+  for (const auto& child : root_scope->children) {
+    check_for_recursive_types(instance, child);
+  }
+}
+
 }

@@ -10,6 +10,9 @@
 
 namespace mt {
 
+template <typename T>
+class Optional;
+
 class CodeFileDescriptor;
 class TextRowColumnIndices;
 
@@ -37,12 +40,10 @@ struct FunctionsByFile {
 
   void require(const CodeFileDescriptor* file_descriptor);
   void insert(const CodeFileDescriptor* file_descriptor, const FunctionDefHandle& def_handle);
+  Optional<const Functions*> lookup(const CodeFileDescriptor* file_descriptor) const;
 
   ByFile store;
 };
-
-template <typename T>
-class Optional;
 
 class TokenSourceMap {
 public:

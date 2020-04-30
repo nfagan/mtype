@@ -135,6 +135,13 @@ namespace {
     auto msg = "Duplicate class.";
     return ParseError(source_data.source, token, msg, source_data.file_descriptor);
   }
+
+  ParseError make_error_recursive_type(const TypeIdentifierResolverInstance& instance,
+                                       const Token& token) {
+    const auto source_data = lookup_source_data(instance.source_map, token);
+    auto msg = "Type directly or indirectly refers to itself.";
+    return ParseError(source_data.source, token, msg, source_data.file_descriptor);
+  }
 }
 
 /*
@@ -178,10 +185,11 @@ TypeIdentifierResolverInstance::UnresolvedIdentifier::UnresolvedIdentifier(const
   //
 }
 
-TypeIdentifierResolverInstance::PendingScheme::PendingScheme(const types::Scheme* scheme,
+TypeIdentifierResolverInstance::PendingScheme::PendingScheme(const Token* source_token,
+                                                             const types::Scheme* scheme,
                                                              TypePtrs args,
                                                              types::Alias* target) :
-scheme(scheme), arguments(std::move(args)), target(target) {
+source_token(source_token), scheme(scheme), arguments(std::move(args)), target(target) {
   //
 }
 
@@ -230,15 +238,6 @@ void TypeIdentifierResolverInstance::add_unresolved_identifier(const TypeIdentif
   unresolved_identifiers.emplace_back(ident, in_scope);
 }
 
-void TypeIdentifierResolverInstance::push_scheme_variables() {
-  scheme_variables.emplace_back();
-}
-
-void TypeIdentifierResolverInstance::pop_scheme_variables() {
-  assert(!scheme_variables.empty());
-  scheme_variables.pop_back();
-}
-
 TypeIdentifierResolverInstance::SchemeVariables& TypeIdentifierResolverInstance::current_scheme_variables() {
   assert(!scheme_variables.empty());
   return scheme_variables.back();
@@ -246,6 +245,21 @@ TypeIdentifierResolverInstance::SchemeVariables& TypeIdentifierResolverInstance:
 
 bool TypeIdentifierResolverInstance::has_scheme_variables() const {
   return !scheme_variables.empty();
+}
+
+void TypeIdentifierResolverInstance::push_enclosing_scheme(types::Scheme* scheme) {
+  enclosing_schemes.push_back(scheme);
+  scheme_variables.emplace_back();
+}
+
+void TypeIdentifierResolverInstance::pop_enclosing_scheme() {
+  assert(!enclosing_schemes.empty());
+  enclosing_schemes.pop_back();
+  scheme_variables.pop_back();
+}
+
+types::Scheme* TypeIdentifierResolverInstance::enclosing_scheme() {
+  return enclosing_schemes.empty() ? nullptr : enclosing_schemes.back();
 }
 
 void TypeIdentifierResolverInstance::push_pending_scheme(PendingScheme&& pending_scheme) {
@@ -348,9 +362,9 @@ void TypeIdentifierResolver::type_let(TypeLet& node) {
 }
 
 void TypeIdentifierResolver::scheme_type_node(SchemeTypeNode& node) {
-  instance->push_scheme_variables();
+  instance->push_enclosing_scheme(node.scheme);
   MT_SCOPE_EXIT {
-    instance->pop_scheme_variables();
+    instance->pop_enclosing_scheme();
   };
 
   auto& scheme_variables = instance->current_scheme_variables();
@@ -363,7 +377,9 @@ void TypeIdentifierResolver::scheme_type_node(SchemeTypeNode& node) {
 
     if (scheme_variables.variables.count(type_ident) > 0) {
       const auto ident_str = instance->string_registry.at(ident);
-      instance->add_error(make_error_duplicate_scheme_variable(*instance, node.source_token, ident_str));
+      auto err =
+        make_error_duplicate_scheme_variable(*instance, node.source_token, ident_str);
+      instance->add_error(err);
       return;
     }
 
@@ -443,8 +459,17 @@ Type* TypeIdentifierResolver::resolve_identifier_reference(ScalarTypeNode& node)
 
   auto* scope = instance->scopes.current();
   const auto maybe_ref = scope->lookup_type(node.identifier);
+  if (!maybe_ref) {
+    return nullptr;
+  }
 
-  return maybe_ref ? maybe_ref.value()->type : nullptr;
+  auto resolved_type = maybe_ref.value()->type;
+  if (resolved_type == instance->enclosing_scheme()) {
+    instance->add_error(make_error_recursive_type(*instance, *maybe_ref.value()->source_token));
+    return nullptr;
+  }
+
+  return resolved_type;
 }
 
 Type* TypeIdentifierResolver::handle_pending_scheme(const types::Scheme* scheme, ScalarTypeNode& node) {
@@ -468,8 +493,9 @@ Type* TypeIdentifierResolver::handle_pending_scheme(const types::Scheme* scheme,
 
   //  We can't directly instantiate a scheme here, because the scheme's source might be an imported
   //  type which has been declared, but not yet defined.
+  using PendingScheme = TypeIdentifierResolverInstance::PendingScheme;
   auto alias = instance->type_store.make_alias();
-  TypeIdentifierResolverInstance::PendingScheme pending_scheme(scheme, std::move(args), alias);
+  PendingScheme pending_scheme(&node.source_token, scheme, std::move(args), alias);
   instance->push_pending_scheme(std::move(pending_scheme));
 
   return alias;
