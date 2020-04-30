@@ -80,12 +80,22 @@ std::string ParameterName::to_string() const {
  * Argument
  */
 
-Argument::Argument(const ParameterName& param, std::string description, MatchCallback cb) :
-  param(param), description(std::move(description)), match_callback(std::move(cb)) {
+Argument::Argument(const ParameterName& param,
+                   std::string description,
+                   MatchCallback cb) :
+  param(param),
+  description(std::move(description)),
+  match_callback(std::move(cb)) {
   //
 }
-Argument::Argument(const ParameterName& param, const ParameterName& args, std::string description, MatchCallback cb) :
-  param(param), arguments(Optional<ParameterName>(args)), description(std::move(description)), match_callback(std::move(cb)) {
+Argument::Argument(const ParameterName& param,
+                   const ParameterName& args,
+                   std::string description,
+                   MatchCallback cb) :
+  param(param),
+  arguments(Optional<ParameterName>(args)),
+  description(std::move(description)),
+  match_callback(std::move(cb)) {
   //
 }
 

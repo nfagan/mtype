@@ -25,7 +25,8 @@ struct ParameterName {
 
 struct Argument {
   Argument(const ParameterName& param, std::string description, MatchCallback cb);
-  Argument(const ParameterName& param, const ParameterName& args, std::string description, MatchCallback cb);
+  Argument(const ParameterName& param, const ParameterName& args,
+           std::string description, MatchCallback cb);
 
   std::string to_string() const;
 

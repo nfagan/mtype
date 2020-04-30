@@ -3,9 +3,9 @@
 namespace mt {
 
 PreImport::PreImport(std::string identifier) :
-  import_identifier(std::make_unique<std::string>(std::move(identifier))),
-  anonymous_file_descriptor(std::make_unique<CodeFileDescriptor>(FilePath("<anonymous>"))),
-  row_col_indices(std::make_unique<TextRowColumnIndices>()) {
+  import_identifier(new std::string(std::move(identifier))),
+  anonymous_file_descriptor(new CodeFileDescriptor(FilePath("<anonymous>"))),
+  row_col_indices(new TextRowColumnIndices()) {
   //
   row_col_indices->scan(import_identifier->c_str(), import_identifier->size());
 }
