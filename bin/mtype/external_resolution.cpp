@@ -71,9 +71,9 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
 
   ResolutionPairs result;
 
-  for (auto& ext_candidate : external_functions.pending_applications) {
+  for (auto& ext_candidate : external_functions.pending_functions) {
     const auto& candidate = ext_candidate.first;
-    auto& pending_apps = ext_candidate.second;
+    auto& pending_funcs = ext_candidate.second;
 
     auto maybe_entry = ast_store.lookup(candidate.resolved_file->defining_file);
     if (!maybe_entry || !maybe_entry->root_block) {
@@ -84,12 +84,12 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
     const auto look_for_type = find_search_handle(maybe_entry, candidate, instance_data);
     if (!look_for_type) {
       //  Error: could not locate function handle for this search candidate.
-      for (const auto& pending_app : pending_apps) {
+      for (const auto& pending_func : pending_funcs) {
         auto err =
-          make_unresolved_function_error(pending_app.source_token, pending_app.function);
+          make_unresolved_function_error(pending_func.source_token, pending_func.function);
         resolution_instance.errors.push_back(std::move(err));
       }
-      pending_apps.clear();
+      pending_funcs.clear();
       continue;
     }
 
@@ -104,9 +104,9 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
     external_functions.add_resolved(candidate, type);
     const auto& as_defined_source_token = look_for_type.value().source_token;
 
-    for (const auto& pending_app : pending_apps) {
-      ResolutionPair resolution_pair{type, pending_app.function,
-                                     as_defined_source_token, pending_app.source_token};
+    for (const auto& pending_func : pending_funcs) {
+      ResolutionPair resolution_pair{type, pending_func.function,
+                                     as_defined_source_token, pending_func.source_token};
 
       if (visited_pairs.count(resolution_pair) == 0) {
         result.push_back(resolution_pair);
@@ -114,7 +114,7 @@ resolve_external_functions(ResolutionInstance& resolution_instance,
       }
     }
 
-    pending_apps.clear();
+    pending_funcs.clear();
   }
 
   return result;

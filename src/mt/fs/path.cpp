@@ -34,7 +34,6 @@ FilePath fs::directory_name(const FilePath& a) {
   auto rev = utf8_reverse(a_str);
 
   auto first_slash = find_character(rev.c_str(), rev.size(), separator_character);
-
   if (first_slash == -1) {
     return FilePath();
   }
@@ -45,6 +44,37 @@ FilePath fs::directory_name(const FilePath& a) {
   }
 
   auto substr = a_str.substr(0, a_str.size() - (first_slash + 1));
+  return FilePath(substr);
+}
+
+FilePath fs::sans_extension(const FilePath& a) {
+  const auto& a_str = a.str();
+  auto rev = utf8_reverse(a_str);
+
+  auto first_dot = find_character(rev.c_str(), rev.size(), Character('.'));
+  if (first_dot == -1) {
+    return a;
+  }
+
+  return FilePath(a_str.substr(0, a_str.size() - first_dot - 1));
+}
+
+FilePath fs::file_name(const FilePath& a) {
+  const auto& a_str = a.str();
+  auto rev = utf8_reverse(a_str);
+
+  auto first_slash = find_character(rev.c_str(), rev.size(), separator_character);
+  if (first_slash == -1) {
+    return a;
+  }
+
+  if (first_slash == 0) {
+    return FilePath();
+  }
+
+  auto offset = a_str.size() - first_slash;
+  auto substr = a_str.substr(offset, a_str.size() - offset);
+
   return FilePath(substr);
 }
 

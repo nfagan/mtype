@@ -28,13 +28,6 @@ void show_parse_errors(const ParseErrors& errors,
   show_errs.show(errors, source_data);
 }
 
-void show_type_errors(const TypeErrors& errors,
-                      const TokenSourceMap& source_data,
-                      const TypeToString& type_to_string) {
-  ShowTypeErrors show(type_to_string);
-  show.show(errors, source_data);
-}
-
 void show_function_types(const FunctionsByFile& functions_by_file,
                          const TypeToString& type_to_string,
                          const Store& store,

@@ -54,6 +54,8 @@ namespace fs {
 
   FilePath join(const FilePath& a, const FilePath& b);
   FilePath directory_name(const FilePath& a);
+  FilePath file_name(const FilePath& a);
+  FilePath sans_extension(const FilePath& a);
   std::string package_name(const FilePath& dir);
 }
 

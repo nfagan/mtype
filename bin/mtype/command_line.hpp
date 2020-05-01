@@ -55,6 +55,7 @@ public:
   std::vector<std::string> root_identifiers;
   std::vector<mt::FilePath> search_paths;
   std::vector<std::string> pre_imports;
+  std::vector<std::string> error_filter_identifiers;
 
   bool show_ast = false;
   bool show_local_variable_types = false;

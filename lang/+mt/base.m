@@ -11,6 +11,7 @@ import mt.logical
 import mt.string
 import mt.error
 import mt.builtins
+import mt.inputParser
 
 end
 

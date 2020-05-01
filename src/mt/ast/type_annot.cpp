@@ -70,17 +70,17 @@ DeclareTypeNode::Method::Method() : kind(Kind::function) {
   //
 }
 
-DeclareTypeNode::Method::Method(const TypeIdentifier& name, BoxedFunctionTypeNode type) :
+DeclareTypeNode::Method::Method(const TypeIdentifier& name, BoxedType type) :
 kind(Kind::function), name(name), type(std::move(type)) {
   //
 }
 
-DeclareTypeNode::Method::Method(UnaryOperator op, BoxedFunctionTypeNode type) :
+DeclareTypeNode::Method::Method(UnaryOperator op, BoxedType type) :
 kind(Kind::unary_operator), unary_operator(op), type(std::move(type)) {
   //
 }
 
-DeclareTypeNode::Method::Method(BinaryOperator op, BoxedFunctionTypeNode type) :
+DeclareTypeNode::Method::Method(BinaryOperator op, BoxedType type) :
 kind(Kind::binary_operator), binary_operator(op), type(std::move(type)) {
   //
 }

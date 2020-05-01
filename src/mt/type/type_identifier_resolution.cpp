@@ -594,8 +594,9 @@ void TypeIdentifierResolver::method_type_declaration(DeclareTypeNode& node) {
   }
 
   auto collected_type = maybe_collected_type.value();
-  assert(collected_type->is_abstraction());
-  auto& method = MT_ABSTR_MUT_REF(*collected_type);
+  auto abstr_source = collected_type->scheme_source();
+  assert(abstr_source->is_abstraction());
+  auto& method = MT_ABSTR_MUT_REF(*abstr_source);
 
   switch (node.maybe_method.kind) {
     case DeclareTypeNode::Method::Kind::unary_operator:
@@ -614,7 +615,7 @@ void TypeIdentifierResolver::method_type_declaration(DeclareTypeNode& node) {
     return;
   }
 
-  method_store.add_method(maybe_class.value(), method, &method);
+  method_store.add_method(maybe_class.value(), method, collected_type);
 }
 
 void TypeIdentifierResolver::declare_function_type_node(DeclareFunctionTypeNode& node) {

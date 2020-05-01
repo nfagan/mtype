@@ -3438,32 +3438,42 @@ Optional<BoxedTypeAnnot> AstGenerator::method_type_declaration(const Token& sour
   }
 
   auto underlying = std::move(type_assert_res.rvalue());
-  if (!underlying->is_function_type()) {
+  if (!underlying->is_function_type() &&
+      !is_scheme_with_underlying_function_type(underlying)) {
     add_error(make_error_expected_function_type(parse_instance, func_token));
     return NullOpt{};
   }
 
-  auto func_type = downcast<TypeNode, FunctionTypeNode>(std::move(underlying));
+  FunctionTypeNode* func_type;
+
+  if (underlying->is_function_type()) {
+    func_type = static_cast<FunctionTypeNode*>(underlying.get());
+  } else {
+    auto scheme_type_node = static_cast<SchemeTypeNode*>(underlying.get());
+    assert(scheme_type_node->declaration->is_function_type());
+    func_type = static_cast<FunctionTypeNode*>(scheme_type_node->declaration.get());
+  }
+
   DeclareTypeNode::Method method;
 
   if (represents_binary_operator(func_token.type)) {
     if (represents_unary_operator(func_token.type) && func_type->inputs.size() == 1) {
       //  Token is both a binary and unary operator, but treat as unary.
       const auto op = unary_operator_from_token_type(func_token.type);
-      method = DeclareTypeNode::Method(op, std::move(func_type));
+      method = DeclareTypeNode::Method(op, std::move(underlying));
 
     } else {
       const auto op = binary_operator_from_token_type(func_token.type);
-      method = DeclareTypeNode::Method(op, std::move(func_type));
+      method = DeclareTypeNode::Method(op, std::move(underlying));
     }
 
   } else if (represents_unary_operator(func_token.type)) {
     const auto op = unary_operator_from_token_type(func_token.type);
-    method = DeclareTypeNode::Method(op, std::move(func_type));
+    method = DeclareTypeNode::Method(op, std::move(underlying));
 
   } else if (func_token.type == TokenType::identifier) {
     TypeIdentifier name(string_registry->register_string(func_token.lexeme));
-    method = DeclareTypeNode::Method(name, std::move(func_type));
+    method = DeclareTypeNode::Method(name, std::move(underlying));
 
   } else {
     add_error(make_error_expected_function_type(parse_instance, func_token));

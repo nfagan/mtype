@@ -46,16 +46,20 @@ bool PendingExternalFunctions::has_resolved(const FunctionSearchCandidate& candi
 
 void PendingExternalFunctions::add_pending(const FunctionSearchCandidate& candidate,
                                            const PendingFunction& app) {
-  if (pending_applications.count(candidate) == 0) {
-    pending_applications[candidate] = {};
+  if (pending_functions.count(candidate) == 0) {
+    pending_functions[candidate] = {};
   }
 
-  auto& apps = pending_applications.at(candidate);
+  auto& apps = pending_functions.at(candidate);
   apps.insert(app);
 }
 
 void PendingExternalFunctions::add_visited_candidate(const FunctionSearchCandidate& candidate) {
   visited_candidates.insert(candidate);
+}
+
+int64_t PendingExternalFunctions::num_pending_candidate_files() const {
+  return pending_functions.size();
 }
 
 }

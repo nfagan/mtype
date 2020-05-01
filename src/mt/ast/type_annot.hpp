@@ -130,9 +130,9 @@ struct DeclareTypeNode : public TypeAnnot {
     };
 
     Method();
-    Method(const TypeIdentifier& name, BoxedFunctionTypeNode type);
-    Method(UnaryOperator op, BoxedFunctionTypeNode type);
-    Method(BinaryOperator op, BoxedFunctionTypeNode type);
+    Method(const TypeIdentifier& name, BoxedType type);
+    Method(UnaryOperator op, BoxedType type);
+    Method(BinaryOperator op, BoxedType type);
 
     std::string function_name(const StringRegistry& str_registry) const;
 
@@ -144,7 +144,7 @@ struct DeclareTypeNode : public TypeAnnot {
       BinaryOperator binary_operator;
     };
 
-    BoxedFunctionTypeNode type;
+    BoxedType type;
   };
 
   enum class Kind {

@@ -199,6 +199,7 @@ public:
 
   void show(const TypeError& err, int64_t index, const TokenSourceMap& source_data) const;
   void show(const TypeErrors& errs, const TokenSourceMap& source_data) const;
+  void show(const std::vector<const TypeError*> errs, const TokenSourceMap& source_data) const;
 
   const char* stylize(const char* code) const;
   std::string stylize(const std::string& str, const char* style) const;

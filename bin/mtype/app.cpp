@@ -37,6 +37,18 @@ App::App(const cmd::Arguments& args,
 void App::initialize() {
   configure_type_to_string(type_to_string, arguments);
   make_pre_imports();
+  maybe_make_error_filter();
+}
+
+void App::maybe_make_error_filter() {
+  bool require_error_filter = !arguments.error_filter_identifiers.empty();
+  if (require_error_filter) {
+    maybe_error_filter = ErrorFilter();
+  }
+
+  for (const auto& ident : arguments.error_filter_identifiers) {
+    maybe_error_filter.value().identifiers.insert(ident);
+  }
 }
 
 void App::add_root_identifier(const std::string& name,
@@ -272,6 +284,28 @@ bool App::generate_type_constraints(const AstStoreEntries& root_entries) {
   return true;
 }
 
+bool App::unify_while_able(ParsePipelineInstanceData& pipeline_instance) {
+  bool proceed = true;
+  while (proceed) {
+    //  By unifying, we may discover the types of dependent external functions.
+    //  By resolving these types, we may be able to locate additional dependent
+    //  external functions. Continue to unify until we find no new external function types.
+    const auto original_num_pending =
+      external_functions.num_pending_candidate_files();
+
+    if (!resolve_external_functions(pipeline_instance)) {
+      return false;
+    }
+
+    unify();
+
+    const auto new_num_pending = external_functions.num_pending_candidate_files();
+    proceed = new_num_pending != original_num_pending;
+  }
+
+  return true;
+}
+
 bool App::visit_file(const FilePath& file_path) {
   if (ast_store.lookup(file_path)) {
     return false;
@@ -309,11 +343,19 @@ bool App::visit_file(const FilePath& file_path) {
     return false;
   }
 
-  unify();
-  if (!resolve_external_functions(pipeline_instance)) {
+  if (!unify_while_able(pipeline_instance)) {
     return false;
   }
-  unify();
+
+//  std::cout << "Num pending initially: " << external_functions.num_pending_candidate_files() << std::endl;
+//  unify();
+//  std::cout << "Num pending after first: " << external_functions.num_pending_candidate_files() << std::endl;
+//
+//  if (!resolve_external_functions(pipeline_instance)) {
+//    return false;
+//  }
+//  unify();
+//  std::cout << "Num pending after second: " << external_functions.num_pending_candidate_files() << std::endl;
 
   return true;
 }
@@ -349,10 +391,46 @@ void App::maybe_show_visited_external_files() const {
   }
 }
 
+namespace {
+  template <typename T>
+  bool passes_error_filter(const T& arg,
+                           const ErrorFilter& filter,
+                           const TokenSourceMap& source_data) {
+    const auto source_token = arg->get_source_token();
+    const auto maybe_source_data = source_data.lookup(source_token);
+    if (maybe_source_data) {
+      const auto& file_path = maybe_source_data.value().file_descriptor->file_path;
+      return filter.matches_identifier(file_path);
+    } else {
+      return false;
+    }
+  }
+}
+
+std::vector<const TypeError*> App::filter_type_errors() const {
+  std::vector<const TypeError*> filtered_errs;
+  for (const auto& err : type_errors) {
+    if (passes_error_filter(err, maybe_error_filter.value(), source_data_by_token)) {
+      filtered_errs.push_back(err.get());
+    }
+  }
+  return filtered_errs;
+}
+
+void App::show_type_errors() const {
+  if (maybe_error_filter) {
+    const auto filtered_errs = filter_type_errors();
+    mt::show_type_errors(filtered_errs, source_data_by_token, type_to_string);
+
+  } else {
+    mt::show_type_errors(type_errors, source_data_by_token, type_to_string);
+  }
+}
+
 void App::maybe_show_errors() const {
   if (arguments.show_errors) {
     show_parse_errors(parse_errors, source_data_by_token, arguments);
-    show_type_errors(type_errors, source_data_by_token, type_to_string);
+    show_type_errors();
   }
 }
 

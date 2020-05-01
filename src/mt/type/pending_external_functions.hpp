@@ -96,7 +96,7 @@ struct PendingExternalFunctions {
   using ResolvedCandidates =
     std::unordered_map<FunctionSearchCandidate, Type*, CandidateHash>;
 
-  using PendingApplications =
+  using PendingFunctions =
     std::unordered_map<FunctionSearchCandidate,
                        std::unordered_set<PendingFunction, PendingFunction::Hash>,
                        CandidateHash>;
@@ -108,9 +108,11 @@ struct PendingExternalFunctions {
                    const PendingFunction& app);
   void add_visited_candidate(const FunctionSearchCandidate& candidate);
 
+  int64_t num_pending_candidate_files() const;
+
   VisitedCandidates visited_candidates;
   ResolvedCandidates resolved_candidates;
-  PendingApplications pending_applications;
+  PendingFunctions pending_functions;
 };
 
 }

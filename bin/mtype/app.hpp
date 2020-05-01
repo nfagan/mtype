@@ -30,8 +30,10 @@ private:
   bool check_for_recursive_types(const AstStoreEntries& entries,
                                  const PendingSchemes& pending_schemes);
   bool generate_type_constraints(const AstStoreEntries& entries);
+  bool unify_while_able(ParsePipelineInstanceData& pipeline_instance);
 
   void initialize();
+  void maybe_make_error_filter();
   void unify();
   void add_root_identifier(const std::string& name,
                            const SearchCandidate* source_candidate);
@@ -46,6 +48,9 @@ private:
   void maybe_show_diagnostics() const;
   void maybe_show_type_distribution() const;
   void maybe_show_asts() const;
+
+  std::vector<const TypeError*> filter_type_errors() const;
+  void show_type_errors() const;
 
 public:
   cmd::Arguments arguments;
@@ -74,6 +79,7 @@ public:
   ParseErrors parse_warnings;
 
   TypeErrors type_errors;
+  Optional<ErrorFilter> maybe_error_filter;
 };
 
 }

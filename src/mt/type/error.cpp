@@ -233,6 +233,13 @@ void ShowTypeErrors::show(const TypeErrors& errs, const TokenSourceMap& source_d
   }
 }
 
+void ShowTypeErrors::show(const std::vector<const TypeError*> errs,
+                          const TokenSourceMap& source_data) const {
+  for (int64_t i = 0; i < int64_t(errs.size()); i++) {
+    show(*errs[i], i+1, source_data);
+  }
+}
+
 const char* ShowTypeErrors::stylize(const char* code) const {
   return type_to_string.rich_text ? code : "";
 }

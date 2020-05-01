@@ -14,6 +14,8 @@ set(sources
         display.cpp
         error.hpp
         error.cpp
+        error_filter.hpp
+        error_filter.cpp
         fs.hpp
         handles.hpp
         identifier.hpp

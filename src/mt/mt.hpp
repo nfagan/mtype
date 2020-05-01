@@ -12,5 +12,6 @@
 #include "search_path.hpp"
 #include "source_data.hpp"
 #include "display.hpp"
+#include "error_filter.hpp"
 
 #include "utility.hpp"

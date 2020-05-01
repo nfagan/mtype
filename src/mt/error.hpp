@@ -34,6 +34,10 @@ public:
     //
   }
 
+  Token get_source_token() const {
+    return at_token;
+  }
+
   ~ParseError() = default;
 
 private:

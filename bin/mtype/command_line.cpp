@@ -35,7 +35,7 @@ namespace {
     return result;
   }
 
-  std::vector<std::string> get_pre_imports(const std::string& arg) {
+  std::vector<std::string> comma_split(const std::string& arg) {
     return mt::split_copy(arg.c_str(), arg.size(), Character(','));
   }
 }
@@ -247,7 +247,17 @@ void Arguments::build_parse_spec() {
     if (i >= argc-1) {
       return MatchResult{false, 1};
     } else {
-      pre_imports = get_pre_imports(argv[i + 1]);
+      pre_imports = comma_split(argv[i + 1]);
+      return MatchResult{true, 2};
+    }
+  });
+  arguments.emplace_back(ParameterName("--err-filt-identifiers", "-efi"), "`identifiers`",
+    "Only show errors in files matching `identifiers`.",
+    [this](int i, int argc, char** argv) {
+    if (i >= argc-1) {
+      return MatchResult{false, 1};
+    } else {
+      error_filter_identifiers = comma_split(argv[i + 1]);
       return MatchResult{true, 2};
     }
   });
