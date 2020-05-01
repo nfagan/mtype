@@ -215,6 +215,11 @@ void Arguments::build_parse_spec() {
     [this](int, int, char**) {
     return false_param(&show_warnings);
   });
+  arguments.emplace_back(ParameterName("--silent", "-s"), "Suppress all output.",
+    [this](int, int, char**) {
+    make_silent();
+    return MatchResult{true, 1};
+  });
   arguments.emplace_back(ParameterName("--path", "-p"), "`str`",
     "Use directories in the ':'-delimited `str` to build the search path.",
     [this](int i, int argc, char** argv) {
@@ -246,6 +251,17 @@ void Arguments::build_parse_spec() {
       return MatchResult{true, 2};
     }
   });
+}
+
+void Arguments::make_silent() {
+  show_ast = false;
+  show_local_variable_types = false;
+  show_diagnostics = false;
+  show_local_function_types = false;
+  show_errors = false;
+  show_warnings = false;
+  show_type_distribution = false;
+  show_visited_external_files = false;
 }
 
 bool Arguments::parse(int argc, char** argv) {

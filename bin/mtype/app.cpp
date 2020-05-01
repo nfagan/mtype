@@ -126,6 +126,31 @@ bool App::resolve_type_imports(AstStoreEntryPtr root_entry) {
   return resolution_result.success;
 }
 
+namespace {
+  void clear_destructured_tuple(TypeStore& store, types::DestructuredTuple& tuple) {
+    for (auto& member : tuple.members) {
+      if (!member->is_variable()) {
+        member = store.make_fresh_type_variable_reference();
+      }
+    }
+  }
+
+  void maybe_clear_destructured_tuple(TypeStore& store, Type* type) {
+    if (type->is_destructured_tuple()) {
+      clear_destructured_tuple(store, MT_DT_MUT_REF(*type));
+    }
+  }
+
+  void clear_abstraction(TypeStore& store, Type* current_type) {
+    auto current_source = current_type->scheme_source();
+    if (current_source->is_abstraction()) {
+      auto& abstr = MT_ABSTR_MUT_REF(*current_source);
+      maybe_clear_destructured_tuple(store, abstr.inputs);
+      maybe_clear_destructured_tuple(store, abstr.outputs);
+    }
+  }
+}
+
 void App::clear_function_types(const CodeFileDescriptor* for_file) {
   auto maybe_functions = functions_by_file.lookup(for_file);
   if (!maybe_functions) {
@@ -134,8 +159,10 @@ void App::clear_function_types(const CodeFileDescriptor* for_file) {
 
   const auto& funcs = *maybe_functions.value();
   for (const auto& func : funcs) {
-    auto replaced_type = type_store.make_fresh_type_variable_reference();
-    library.replace_local_function_type(func, replaced_type);
+    auto maybe_current_type = library.lookup_local_function(func);
+    if (maybe_current_type) {
+      clear_abstraction(type_store, maybe_current_type.value());
+    }
   }
 }
 

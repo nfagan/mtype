@@ -45,6 +45,7 @@ struct Arguments {
 private:
   bool evaluate() const;
   void build_parse_spec();
+  void make_silent();
 
 private:
   std::vector<Argument> arguments;
