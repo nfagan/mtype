@@ -3381,6 +3381,7 @@ Optional<BoxedTypeAnnot> AstGenerator::class_type_declaration(const Token& sourc
     parse_instance->library->emplace_declared_class_type(identifier, class_type);
   //  Should be checked above.
   assert(emplace_success);
+  (void) emplace_success;
 
   return Optional<BoxedTypeAnnot>(std::move(declare_node));
 }

@@ -6,10 +6,6 @@ import mt.scalar
 import mt.string
 import mt.float
 
-begin export
-  import mt.error
-end
-
 declare function nan :: [double] = (list<numeric>)
 declare function NaN :: [double] = (list<numeric>)
 declare function zeros :: [double] = (list<numeric>)

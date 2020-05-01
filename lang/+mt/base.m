@@ -9,6 +9,7 @@ import mt.int64
 import mt.float
 import mt.logical
 import mt.string
+import mt.error
 import mt.builtins
 
 end
