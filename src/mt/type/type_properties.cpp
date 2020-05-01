@@ -254,6 +254,10 @@ bool IsRecursiveInstance::visited(const Type* type) const {
   return visited_types.count(type) > 0;
 }
 
+void IsRecursiveInstance::unmark(const Type* type) {
+  visited_types.erase(type);
+}
+
 void IsRecursiveInstance::mark(const Type* type) {
   visited_types.insert(type);
 }
@@ -283,12 +287,14 @@ IsRecursive::IsRecursive(IsRecursiveInstance* instance) : instance(instance) {
 void IsRecursive::scheme(const types::Scheme& scheme) {
   MT_CHECK_VISITED_EARLY_RETURN(&scheme)
   scheme.type->accept_const(*this);
+  instance->unmark(&scheme);
 }
 
 void IsRecursive::abstraction(const types::Abstraction& abstr) {
   MT_CHECK_VISITED_EARLY_RETURN(&abstr)
   abstr.inputs->accept_const(*this);
   abstr.outputs->accept_const(*this);
+  instance->unmark(&abstr);
 }
 
 void IsRecursive::application(const types::Application& app) {
@@ -297,10 +303,13 @@ void IsRecursive::application(const types::Application& app) {
   app.abstraction->accept_const(*this);
   app.inputs->accept_const(*this);
   app.outputs->accept_const(*this);
+
+  instance->unmark(&app);
 }
 
 void IsRecursive::constant_value(const types::ConstantValue& cv) {
   MT_CHECK_VISITED_EARLY_RETURN(&cv)
+  instance->unmark(&cv);
 }
 
 void IsRecursive::alias(const types::Alias& alias) {
@@ -314,6 +323,8 @@ void IsRecursive::alias(const types::Alias& alias) {
   } else {
     alias.source->accept_const(*this);
   }
+
+  instance->unmark(&alias);
 }
 
 void IsRecursive::record(const types::Record& record) {
@@ -323,11 +334,14 @@ void IsRecursive::record(const types::Record& record) {
     field.name->accept_const(*this);
     field.type->accept_const(*this);
   }
+
+  instance->unmark(&record);
 }
 
 void IsRecursive::class_type(const types::Class& class_type) {
   MT_CHECK_VISITED_EARLY_RETURN(&class_type);
   class_type.source->accept_const(*this);
+  instance->unmark(&class_type);
 }
 
 void IsRecursive::subscript(const types::Subscript& sub) {
@@ -337,32 +351,38 @@ void IsRecursive::subscript(const types::Subscript& sub) {
   for (const auto& s : sub.subscripts) {
     visit(s.arguments);
   }
+  instance->unmark(&sub);
 }
 
 void IsRecursive::assignment(const types::Assignment& assign) {
   MT_CHECK_VISITED_EARLY_RETURN(&assign)
   assign.lhs->accept_const(*this);
   assign.rhs->accept_const(*this);
+  instance->unmark(&assign);
 }
 
 void IsRecursive::list(const types::List& list) {
   MT_CHECK_VISITED_EARLY_RETURN(&list)
   visit(list.pattern);
+  instance->unmark(&list);
 }
 
 void IsRecursive::tuple(const types::Tuple& tup) {
   MT_CHECK_VISITED_EARLY_RETURN(&tup)
   visit(tup.members);
+  instance->unmark(&tup);
 }
 
 void IsRecursive::destructured_tuple(const types::DestructuredTuple& tup) {
   MT_CHECK_VISITED_EARLY_RETURN(&tup)
   visit(tup.members);
+  instance->unmark(&tup);
 }
 
 void IsRecursive::union_type(const types::Union& union_type) {
   MT_CHECK_VISITED_EARLY_RETURN(&union_type)
   visit(union_type.members);
+  instance->unmark(&union_type);
 }
 
 void IsRecursive::visit(const TypePtrs& type_ptrs) {

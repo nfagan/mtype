@@ -75,9 +75,10 @@ struct IsRecursiveInstance {
   using RemappedAliasSources = std::unordered_map<const Type*, const Type*>;
 
   IsRecursiveInstance();
-  IsRecursiveInstance(const RemappedAliasSources* remapped_alias_sources);
+  explicit IsRecursiveInstance(const RemappedAliasSources* remapped_alias_sources);
 
   void mark(const Type* type);
+  void unmark(const Type* type);
   bool visited(const Type* type) const;
   Optional<const Type*> maybe_remapped_alias_source(const Type* alias) const;
 
@@ -88,7 +89,7 @@ struct IsRecursiveInstance {
 
 class IsRecursive : public TypeVisitor {
 public:
-  IsRecursive(IsRecursiveInstance* instance);
+  explicit IsRecursive(IsRecursiveInstance* instance);
 
   void scheme(const types::Scheme& scheme) override;
   void abstraction(const types::Abstraction& abstr) override;
