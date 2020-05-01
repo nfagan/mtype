@@ -45,6 +45,8 @@ declare method double abs :: [double] = (double)
 declare method double any :: [logical] = (double)
 declare method double all :: [logical] = (double)
 
+declare method double atan2 :: [double] = (double, double)
+
 declare method double eig :: [double, list<double>] = (double, list<double | char>)
 declare method double ei :: [double] = (double)
 declare method double eps :: [double] = (double)

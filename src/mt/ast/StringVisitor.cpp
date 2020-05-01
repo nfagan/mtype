@@ -668,6 +668,11 @@ std::string StringVisitor::infer_type_node(const InferTypeNode&) const {
   return "?";
 }
 
+std::string StringVisitor::cast_type_node(const CastTypeNode& node) const {
+  auto cast_str = "cast " + node.to_type->accept(*this) + "\n";
+  return cast_str + node.assignment_stmt->accept(*this);
+}
+
 std::string StringVisitor::scheme_type_node(const SchemeTypeNode& given) const {
   auto identifier_strs = string_registry->collect(given.identifiers);
   std::string given_str("given ");

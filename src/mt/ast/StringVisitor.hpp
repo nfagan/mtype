@@ -81,6 +81,7 @@ public:
   std::string declare_class_type_node(const DeclareClassTypeNode& node) const;
   std::string constructor_type_node(const ConstructorTypeNode& node) const;
   std::string infer_type_node(const InferTypeNode& node) const;
+  std::string cast_type_node(const CastTypeNode& node) const;
 
 private:
   std::string variable_def(const VariableDef& def) const;

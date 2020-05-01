@@ -100,6 +100,8 @@ enum class TokenType : unsigned int {
   keyword_declare,
   keyword_constructor,
   keyword_list,
+  keyword_cast,
+  keyword_presume,
   //  Typing meta
   type_annotation_macro,
   //  Meta

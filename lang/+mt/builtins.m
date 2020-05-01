@@ -21,6 +21,7 @@ declare function isstruct :: given T [logical] = (T)
 declare function iscell :: given T [logical] = (T)
 declare function isnan :: [logical] = (numeric)
 declare function isinf :: [logical] = (mt.float)
+declare function isnumeric :: given T [logical] = (T)
 
 declare function nargin :: [double] = ()
 declare function nargout :: [double] = ()

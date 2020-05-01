@@ -886,6 +886,11 @@ ConstructorTypeNode* IdentifierClassifier::constructor_type_node(ConstructorType
   return &node;
 }
 
+CastTypeNode* IdentifierClassifier::cast_type_node(CastTypeNode& node) {
+  conditional_reset(node.assignment_stmt, node.assignment_stmt->accept(*this));
+  return &node;
+}
+
 TypeAssertion* IdentifierClassifier::type_assertion(TypeAssertion& node) {
   conditional_reset(node.node, node.node->accept(*this));
   return &node;

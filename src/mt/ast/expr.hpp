@@ -240,6 +240,8 @@ struct FunctionCallExpr : public Expr {
     return true;
   }
 
+  Optional<const FunctionCallExpr*> extract_function_call_expr() const override;
+
   Token source_token;
   FunctionReferenceHandle reference_handle;
   std::vector<BoxedExpr> arguments;

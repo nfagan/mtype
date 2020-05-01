@@ -8,6 +8,11 @@ namespace mt {
 template <typename T>
 class Optional;
 
+enum class CastStrategy : uint8_t {
+  validate,
+  presume
+};
+
 enum class ConcatenationDirection : uint8_t {
   vertical = 0,
   horizontal

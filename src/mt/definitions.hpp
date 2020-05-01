@@ -353,6 +353,8 @@ struct ClassDef {
   ClassDef(ClassDef&& other) MSVC_MISSING_NOEXCEPT = default;
   ClassDef& operator=(ClassDef&& other) MSVC_MISSING_NOEXCEPT = default;
 
+  bool has_superclass(const MatlabIdentifier& name) const;
+
   Token source_token;
   MatlabIdentifier name;
   Superclasses superclasses;

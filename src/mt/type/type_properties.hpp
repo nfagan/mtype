@@ -53,6 +53,7 @@ public:
   bool destructured_tuple(const types::DestructuredTuple& tup) const;
   bool union_type(const types::Union& union_type) const;
   bool alias(const types::Alias& alias) const;
+  bool cast(const types::Cast& alias) const;
   bool record(const types::Record& record) const;
   bool class_type(const types::Class& class_type) const;
   bool scalar(const types::Scalar& scalar) const;
@@ -100,6 +101,7 @@ public:
   void destructured_tuple(const types::DestructuredTuple& tup) override;
   void union_type(const types::Union& union_type) override;
   void alias(const types::Alias& alias) override;
+  void cast(const types::Cast& alias) override;
   void record(const types::Record& record) override;
   void class_type(const types::Class& class_type) override;
   void subscript(const types::Subscript& sub) override;

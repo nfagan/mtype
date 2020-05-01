@@ -533,6 +533,16 @@ void TypeIdentifierResolver::infer_type_node(InferTypeNode& node) {
   instance->collectors.current().push(node.type);
 }
 
+void TypeIdentifierResolver::cast_type_node(CastTypeNode& node) {
+  auto maybe_to_type = collect_one_type(*this, *instance, node.to_type.get());
+  if (!maybe_to_type) {
+    return;
+  }
+
+  assert(!node.resolved_type);
+  node.resolved_type = maybe_to_type.value();
+}
+
 void TypeIdentifierResolver::fun_type_node(FunTypeNode& node) {
   //  Push polymorphic functions
   instance->polymorphic_function_state.push(true);
@@ -909,6 +919,52 @@ void TypeIdentifierResolver::class_def_node(ClassDefNode& node) {
     instance->library.method_store.add_method(class_type, MT_ABSTR_REF(*func_type), source_type);
   }
 }
+
+/*
+ * Stmt
+ */
+
+void TypeIdentifierResolver::try_stmt(TryStmt& stmt) {
+  stmt.try_block->accept(*this);
+  if (stmt.catch_block) {
+    stmt.catch_block.value().block->accept(*this);
+  }
+}
+
+void TypeIdentifierResolver::while_stmt(WhileStmt& stmt) {
+  stmt.body->accept(*this);
+}
+
+void TypeIdentifierResolver::for_stmt(ForStmt& stmt) {
+  stmt.body->accept(*this);
+}
+
+void TypeIdentifierResolver::if_branch(IfBranch& branch) {
+  branch.block->accept(*this);
+}
+
+void TypeIdentifierResolver::if_stmt(IfStmt& stmt) {
+  if_branch(stmt.if_branch);
+  for (auto& branch : stmt.elseif_branches) {
+    if_branch(branch);
+  }
+  if (stmt.else_branch) {
+    stmt.else_branch.value().block->accept(*this);
+  }
+}
+
+void TypeIdentifierResolver::switch_stmt(SwitchStmt& stmt) {
+  for (auto& case_stmt : stmt.cases) {
+    case_stmt.block->accept(*this);
+  }
+  if (stmt.otherwise) {
+    stmt.otherwise->accept(*this);
+  }
+}
+
+/*
+ * Util
+ */
 
 void TypeIdentifierResolver::add_unresolved_identifier(const Token &source_token,
                                                        const TypeIdentifier &ident) {

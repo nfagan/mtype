@@ -29,16 +29,6 @@ string_registry(string_registry) {
   push_monomorphic_functions();
 }
 
-void TypeConstraintGenerator::show_type_distribution() const {
-  auto counts = type_store.type_distribution();
-  const auto num_types = double(type_store.size());
-
-  for (const auto& ct : counts) {
-    std::cout << to_string(ct.first) << ": " << ct.second << " (";
-    std::cout << ct.second/num_types << ")" << std::endl;
-  }
-}
-
 void TypeConstraintGenerator::root_block(const RootBlock& block) {
   ScopeState<const MatlabScope>::Helper matlab_scope_helper(scopes, block.scope);
   ScopeState<const TypeScope>::Helper type_scope_helper(type_scopes, block.type_scope);
@@ -367,6 +357,28 @@ void TypeConstraintGenerator::scalar_type_node(const ScalarTypeNode&) {
 void TypeConstraintGenerator::infer_type_node(const InferTypeNode& node) {
   assert(node.type);
   push_type_equation_term(make_term(&node.source_token, node.type));
+}
+
+void TypeConstraintGenerator::cast_type_node(const CastTypeNode& node) {
+  assert(node.resolved_type);
+  const auto terms = assignment_stmt_terms(*node.assignment_stmt);
+
+  const auto& to_type = node.resolved_type; //  cast-to
+  const auto& from_type = terms.second.term;  //  rhs
+  const auto& actual_type = terms.first.term; //  lhs
+
+  auto cast_type = type_store.make_cast(from_type, to_type, node.strategy);
+  auto cast_var = make_fresh_type_variable_reference();
+
+  auto lhs_term = make_term(&node.source_token, cast_var);
+  auto rhs_term = make_term(&node.source_token, cast_type);
+  push_type_equation(make_eq(lhs_term, rhs_term));
+
+  auto assign_type = type_store.make_assignment(actual_type, to_type);
+  auto assign_var = make_fresh_type_variable_reference();
+  const auto lhs_assign_term = make_term(&node.source_token, assign_var);
+  const auto rhs_assign_term = make_term(&node.source_token, assign_type);
+  push_type_equation(make_eq(lhs_assign_term, rhs_assign_term));
 }
 
 void TypeConstraintGenerator::constructor_type_node(const ConstructorTypeNode& node) {
@@ -793,7 +805,8 @@ void TypeConstraintGenerator::expr_stmt(const ExprStmt& stmt) {
   stmt.expr->accept_const(*this);
 }
 
-void TypeConstraintGenerator::assignment_stmt(const AssignmentStmt& stmt) {
+TypeConstraintGenerator::TwoTerms
+TypeConstraintGenerator::assignment_stmt_terms(const AssignmentStmt& stmt) {
   assignment_state.push_assignment_target_rvalue();
   stmt.of_expr->accept_const(*this);
   assignment_state.pop_assignment_target_state();
@@ -803,6 +816,14 @@ void TypeConstraintGenerator::assignment_stmt(const AssignmentStmt& stmt) {
   stmt.to_expr->accept_const(*this);
   value_category_state.pop_side();
   auto lhs = pop_type_equation_term();
+
+  return TwoTerms{lhs, rhs};
+}
+
+void TypeConstraintGenerator::assignment_stmt(const AssignmentStmt& stmt) {
+  auto term_res = assignment_stmt_terms(stmt);
+  const auto& lhs = term_res.first;
+  const auto& rhs = term_res.second;
 
   const auto assignment = type_store.make_assignment(lhs.term, rhs.term);
   const auto assignment_var = make_fresh_type_variable_reference();

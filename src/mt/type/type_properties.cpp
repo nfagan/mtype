@@ -198,6 +198,12 @@ bool IsFullyConcrete::alias(const types::Alias& alias) const {
   return alias.source->accept(*this);
 }
 
+bool IsFullyConcrete::cast(const types::Cast& alias) const {
+  bool success = true;
+  two_types(alias.from, alias.to, &success);
+  return success;
+}
+
 bool IsFullyConcrete::record(const types::Record& record) const {
   bool success = true;
 
@@ -325,6 +331,14 @@ void IsRecursive::alias(const types::Alias& alias) {
   }
 
   instance->unmark(&alias);
+}
+
+void IsRecursive::cast(const types::Cast& cast) {
+  MT_CHECK_VISITED_EARLY_RETURN(&cast)
+
+  cast.from->accept_const(*this);
+  cast.to->accept_const(*this);
+  instance->unmark(&cast);
 }
 
 void IsRecursive::record(const types::Record& record) {

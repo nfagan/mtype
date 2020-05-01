@@ -123,6 +123,11 @@ public:
   }
 
   template <typename... Args>
+  types::Cast* make_cast(Args&&... args) {
+    return make_type<types::Cast>(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   TypeReference* make_type_reference(Args&&... args) {
     auto ref = std::make_unique<TypeReference>(std::forward<Args>(args)...);
     auto ptr = ref.get();

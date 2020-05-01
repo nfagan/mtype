@@ -16,6 +16,7 @@ class TypeStore;
 class Library;
 struct Type;
 class StringRegistry;
+struct IfBranch;
 
 namespace types {
   struct Scheme;
@@ -134,6 +135,7 @@ public:
   void declare_class_type_node(DeclareClassTypeNode& node) override;
   void namespace_type_node(NamespaceTypeNode& node) override;
   void infer_type_node(InferTypeNode& node) override;
+  void cast_type_node(CastTypeNode& node) override;
 
   void type_let(TypeLet& node) override;
 
@@ -141,6 +143,13 @@ public:
   void class_def_node(ClassDefNode& node) override;
   void property_node(PropertyNode& node) override;
   void method_node(MethodNode& node) override;
+
+  void try_stmt(TryStmt& stmt) override;
+  void while_stmt(WhileStmt& stmt) override;
+  void for_stmt(ForStmt& stmt) override;
+  void if_stmt(IfStmt& stmt) override;
+  void switch_stmt(SwitchStmt& stmt) override;
+  void if_branch(IfBranch& branch);
 
 private:
   void add_unresolved_identifier(const Token& source_token, const TypeIdentifier& ident);

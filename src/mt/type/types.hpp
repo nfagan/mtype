@@ -20,6 +20,44 @@ class Optional;
 namespace mt::types {
 
 /*
+ * Cast
+ */
+
+struct Cast : public Type {
+  using Strategy = mt::CastStrategy;
+
+  Cast() : Cast(nullptr, nullptr) {
+    //
+  }
+
+  Cast(Type* from, Type* to) : Cast(from, to, Strategy::validate) {
+    //
+  }
+
+  Cast(Type* from, Type* to, Strategy strategy) :
+  Type(Type::Tag::cast), from(from), to(to), strategy(strategy) {
+    //
+  }
+
+  MT_DEFAULT_COPY_CTOR_AND_ASSIGNMENT(Cast)
+  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(Cast)
+
+  ~Cast() override = default;
+
+  std::size_t bytes() const override;
+  void accept(const TypeToString& to_str, std::stringstream& into) const override;
+  bool accept(const IsFullyConcrete& is_fully_concrete) const override;
+  void accept(TypeVisitor& vis) override;
+  void accept_const(TypeVisitor& vis) const override;
+
+  int compare(const Type* b) const noexcept override;
+
+  Type* from;
+  Type* to;
+  Strategy strategy;
+};
+
+/*
  * Alias
  */
 
@@ -685,6 +723,7 @@ namespace mt {
 #define MT_RECORD_REF(a) static_cast<const mt::types::Record&>((a))
 #define MT_CONST_VAL_REF(a) static_cast<const mt::types::ConstantValue&>((a))
 #define MT_ALIAS_REF(a) static_cast<const mt::types::Alias&>((a))
+#define MT_CAST_REF(a) static_cast<const mt::types::Cast&>((a))
 
 #define MT_CLASS_PTR(a) static_cast<const mt::types::Class*>((a))
 #define MT_SCHEME_PTR(a) static_cast<const mt::types::Scheme*>((a))
@@ -692,6 +731,7 @@ namespace mt {
 #define MT_ALIAS_PTR(a) static_cast<const mt::types::Alias*>((a))
 #define MT_ABSTR_PTR(a) static_cast<const mt::types::Abstraction*>((a))
 #define MT_APP_PTR(a) static_cast<const mt::types::Application*>((a))
+#define MT_CAST_PTR(a) static_cast<const mt::types::Cast*>((a))
 
 #define MT_DT_MUT_REF(a) static_cast<mt::types::DestructuredTuple&>((a))
 #define MT_ABSTR_MUT_REF(a) static_cast<mt::types::Abstraction&>((a))
@@ -709,6 +749,7 @@ namespace mt {
 #define MT_RECORD_MUT_REF(a) static_cast<mt::types::Record&>((a))
 #define MT_CONST_VAL_MUT_REF(a) static_cast<mt::types::ConstantValue&>((a))
 #define MT_ALIAS_MUT_REF(a) static_cast<mt::types::Alias&>((a))
+#define MT_CAST_MUT_REF(a) static_cast<mt::types::Cast&>((a))
 
 #define MT_CLASS_MUT_PTR(a) static_cast<mt::types::Class*>((a))
 #define MT_SCALAR_MUT_PTR(a) static_cast<mt::types::Scalar*>((a))
@@ -717,4 +758,5 @@ namespace mt {
 #define MT_DT_MUT_PTR(a) static_cast<mt::types::DestructuredTuple*>((a))
 #define MT_ABSTR_MUT_PTR(a) static_cast<mt::types::Abstraction*>((a))
 #define MT_APP_MUT_PTR(a) static_cast<mt::types::Application*>((a))
+#define MT_CAST_MUT_PTR(a) static_cast<mt::types::Cast*>((a))
 #define MT_TYPE_MUT_PTR(a) static_cast<Type*>((a))

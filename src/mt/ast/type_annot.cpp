@@ -147,6 +147,26 @@ void DeclareFunctionTypeNode::accept(TypePreservingVisitor& vis) {
 }
 
 /*
+ * CastTypeNode
+ */
+
+std::string CastTypeNode::accept(const StringVisitor& vis) const {
+  return vis.cast_type_node(*this);
+}
+
+void CastTypeNode::accept_const(TypePreservingVisitor& vis) const {
+  vis.cast_type_node(*this);
+}
+
+void CastTypeNode::accept(TypePreservingVisitor& vis) {
+  vis.cast_type_node(*this);
+}
+
+CastTypeNode* CastTypeNode::accept(IdentifierClassifier& classifier) {
+  return classifier.cast_type_node(*this);
+}
+
+/*
  * DeclareClassTypeNode
  */
 

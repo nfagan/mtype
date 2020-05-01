@@ -176,6 +176,21 @@ struct RecursiveTypeError : public TypeError {
   const Token* source_token;
 };
 
+struct BadCastError : public TypeError {
+  explicit BadCastError(const Token* source_token, const Type* cast) :
+    source_token(source_token), cast(cast) {
+    //
+  }
+
+  ~BadCastError() override = default;
+
+  std::string get_text(const ShowTypeErrors& shower) const override;
+  Token get_source_token() const override;
+
+  const Token* source_token;
+  const Type* cast;
+};
+
 using BoxedTypeError = std::unique_ptr<TypeError>;
 using TypeErrors = std::vector<BoxedTypeError>;
 
@@ -185,6 +200,7 @@ BoxedTypeError make_unknown_isa_guarded_class_error(const Token* at_token);
 BoxedTypeError make_could_not_infer_type_error(const Token* at_token,
                                                std::string kind_str,
                                                const Type* in_type);
+BoxedTypeError make_bad_cast_error(const Token* at_token, const Type* cast);
 
 /*
  * ShowTypeErrors

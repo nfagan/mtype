@@ -26,6 +26,7 @@ struct TypeAnnotMacro;
 
 struct IdentifierReferenceExpr;
 struct CharLiteralExpr;
+struct FunctionCallExpr;
 struct VariableReferenceExpr;
 
 struct AstNode {
@@ -128,6 +129,10 @@ struct Expr : public AstNode {
   }
 
   virtual Optional<const VariableReferenceExpr*> extract_variable_reference_expr() const {
+    return NullOpt{};
+  }
+
+  virtual Optional<const FunctionCallExpr*> extract_function_call_expr() const {
     return NullOpt{};
   }
 

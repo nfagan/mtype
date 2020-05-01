@@ -347,16 +347,6 @@ bool App::visit_file(const FilePath& file_path) {
     return false;
   }
 
-//  std::cout << "Num pending initially: " << external_functions.num_pending_candidate_files() << std::endl;
-//  unify();
-//  std::cout << "Num pending after first: " << external_functions.num_pending_candidate_files() << std::endl;
-//
-//  if (!resolve_external_functions(pipeline_instance)) {
-//    return false;
-//  }
-//  unify();
-//  std::cout << "Num pending after second: " << external_functions.num_pending_candidate_files() << std::endl;
-
   return true;
 }
 
@@ -452,7 +442,13 @@ void App::maybe_show_diagnostics() const {
 
 void App::maybe_show_type_distribution() const {
   if (arguments.show_type_distribution) {
-    constraint_generator.show_type_distribution();
+    auto counts = type_store.type_distribution();
+    const auto num_types = double(type_store.size());
+
+    for (const auto& ct : counts) {
+      std::cout << to_string(ct.first) << ": " << ct.second << " (";
+      std::cout << ct.second/num_types << ")" << std::endl;
+    }
   }
 }
 

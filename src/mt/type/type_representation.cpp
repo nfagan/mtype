@@ -223,6 +223,12 @@ void TypeToString::apply(const types::Alias& alias, std::stringstream& into) con
   apply(alias.source, into);
 }
 
+void TypeToString::apply(const types::Cast& cast, std::stringstream& into) const {
+  apply(cast.from, into);
+  into << " as ";
+  apply(cast.to, into);
+}
+
 void TypeToString::apply(const TypePtrs& handles, std::stringstream& stream, const char* delim) const {
   const int64_t sz = handles.size();
   for (int64_t i = 0; i < sz; i++) {

@@ -60,6 +60,10 @@ bool TypeRelation::related_entry(const Type* a, const Type* b, bool rev) const {
   return related(a, b, rev);
 }
 
+bool TypeRelation::operator()(const Type* a, const Type* b) const {
+  return related_entry(a, b);
+}
+
 bool TypeRelation::related(const Type* a, const Type* b, bool rev) const {
   if (a->tag == b->tag) {
     return related_same_types(a, b, rev);
@@ -90,6 +94,10 @@ bool TypeRelation::related_same_types(const Type* a, const Type* b, bool rev) co
       return related(MT_CLASS_REF(*a), MT_CLASS_REF(*b), rev);
     case Type::Tag::alias:
       return related(MT_ALIAS_REF(*a).source, MT_ALIAS_REF(*b).source, rev);
+    case Type::Tag::record:
+      return related(MT_RECORD_REF(*a), MT_RECORD_REF(*b), rev);
+    case Type::Tag::constant_value:
+      return related(MT_CONST_VAL_REF(*a), MT_CONST_VAL_REF(*b), rev);
     default:
       type_printer().show2(a, b);
       std::cout << std::endl;
@@ -223,6 +231,45 @@ bool TypeRelation::related(const types::Scheme& a, const types::Scheme& b, bool 
 
 bool TypeRelation::related(const types::Class& a, const types::Class& b, bool rev) const {
   return relationship.related(&a, &b, rev);
+}
+
+bool TypeRelation::related(const types::Record& a, const types::Record& b, bool rev) const {
+  //  @TODO: Order-independent comparison.
+  if (a.num_fields() != b.num_fields()) {
+    return false;
+  }
+
+  const auto num_fields = a.num_fields();
+
+  for (int64_t i = 0; i < num_fields; i++) {
+    const auto& field0 = a.fields[i];
+    const auto& field1 = b.fields[i];
+
+    if (!related(field0.name, field1.name, rev) ||
+        !related(field0.type, field1.type, rev)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool TypeRelation::related(const types::ConstantValue& a, const types::ConstantValue& b, bool) const {
+  if (a.kind != b.kind) {
+    return false;
+  }
+
+  switch (a.kind) {
+    case types::ConstantValue::Kind::int_value:
+      return a.int_value == b.int_value;
+    case types::ConstantValue::Kind::double_value:
+      return a.double_value == b.double_value;
+    case types::ConstantValue::Kind::char_value:
+      return a.char_value == b.char_value;
+  }
+
+  assert(false && "Unhandled.");
+  return false;
 }
 
 bool TypeRelation::related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const {

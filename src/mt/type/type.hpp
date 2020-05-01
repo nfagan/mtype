@@ -42,7 +42,8 @@ struct Type {
     class_type,
     record,
     alias,
-    application
+    application,
+    cast
   };
 
   Type() = delete;
@@ -131,6 +132,10 @@ struct Type {
 
   MT_NODISCARD bool is_union() const {
     return tag == Tag::union_type;
+  }
+
+  MT_NODISCARD bool is_cast() const {
+    return tag == Tag::cast;
   }
 
   Tag tag;

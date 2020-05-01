@@ -224,6 +224,10 @@ std::string FunctionCallExpr::accept(const StringVisitor& vis) const {
   return vis.function_call_expr(*this);
 }
 
+Optional<const FunctionCallExpr*> FunctionCallExpr::extract_function_call_expr() const {
+  return Optional<decltype(this)>(this);
+}
+
 /*
  * IdentifierReferenceExpr
  */

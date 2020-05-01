@@ -80,6 +80,32 @@ struct ConstructorTypeNode : public TypeAnnot {
   IdentifierReferenceExpr* struct_function_call;
 };
 
+struct CastTypeNode : public TypeAnnot {
+  CastTypeNode(const Token& source_token,
+               BoxedType to_type,
+               std::unique_ptr<AssignmentStmt> assignment_stmt,
+               CastStrategy strategy) :
+               source_token(source_token),
+               to_type(std::move(to_type)),
+               assignment_stmt(std::move(assignment_stmt)),
+               resolved_type(nullptr),
+               strategy(strategy) {
+    //
+  }
+
+  ~CastTypeNode() override = default;
+  std::string accept(const StringVisitor& vis) const override;
+  void accept_const(TypePreservingVisitor& vis) const override;
+  void accept(TypePreservingVisitor& vis) override;
+  CastTypeNode* accept(IdentifierClassifier& classifier) override;
+
+  Token source_token;
+  BoxedType to_type;
+  std::unique_ptr<AssignmentStmt> assignment_stmt;
+  Type* resolved_type;
+  CastStrategy strategy;
+};
+
 struct DeclareFunctionTypeNode : public TypeAnnot {
   DeclareFunctionTypeNode(const Token& source_token,
                           const TypeIdentifier& identifier,

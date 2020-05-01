@@ -28,7 +28,6 @@ public:
   TypeConstraintGenerator(Substitution& substitution, Store& store, TypeStore& type_store,
                           Library& library, StringRegistry& string_registry);
 
-  void show_type_distribution() const;
   void show_variable_types(const TypeToString& printer) const;
 
   void root_block(const RootBlock& block) override;
@@ -73,6 +72,7 @@ public:
   void scalar_type_node(const ScalarTypeNode& node) override;
   void constructor_type_node(const ConstructorTypeNode& node) override;
   void infer_type_node(const InferTypeNode& node) override;
+  void cast_type_node(const CastTypeNode& node) override;
 
   void if_stmt(const IfStmt& stmt) override;
   void if_branch(const IfBranch& branch);
@@ -86,6 +86,8 @@ public:
   std::vector<BoxedTypeError>& get_warnings();
 
 private:
+  using TwoTerms = std::pair<TypeEquationTerm, TypeEquationTerm>;
+  TwoTerms assignment_stmt_terms(const AssignmentStmt& stmt);
   std::vector<Type*> grouping_expr_components(const GroupingExpr& expr);
 
   void gather_function_inputs(const MatlabScope& scope, const FunctionParameters& inputs, TypePtrs& into);

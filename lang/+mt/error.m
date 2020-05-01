@@ -5,6 +5,7 @@
 import mt.scalar
 
 declare function error :: [] = (char, list<integral>)
+declare function warning :: [] = (char, list<integral>)
 declare function assert :: [] = (logical, list<integral>)
 
 namespace matlab

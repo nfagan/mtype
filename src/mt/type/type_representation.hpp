@@ -39,6 +39,7 @@ public:
   void apply(const types::Class& cls, std::stringstream& into) const;
   void apply(const types::Record& record, std::stringstream& into) const;
   void apply(const types::Alias& alias, std::stringstream& into) const;
+  void apply(const types::Cast& cast, std::stringstream& into) const;
   void apply(const TypePtrs& handles, std::stringstream& into, const char* delim = ", ") const;
 
   const char* color(const char* color_code) const;

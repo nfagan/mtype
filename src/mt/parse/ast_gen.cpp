@@ -248,6 +248,12 @@ namespace {
     const auto msg = "Type schemes cannot be nested; an outer scheme is already present.";
     return ParseError(instance->source_text(), token, msg, instance->file_descriptor());
   }
+
+  ParseError make_error_expected_assignment_stmt_following_cast(const ParseInstance* instance,
+                                                                const Token& token) {
+    const auto msg = "Expected an assignment statement following cast.";
+    return ParseError(instance->source_text(), token, msg, instance->file_descriptor());
+  }
 }
 
 /*
@@ -2913,6 +2919,10 @@ Optional<BoxedTypeAnnot> AstGenerator::type_annotation(const Token& source_token
     case TokenType::keyword_constructor:
       return constructor_type(source_token);
 
+    case TokenType::keyword_cast:
+    case TokenType::keyword_presume:
+      return cast_type(source_token);
+
     default:
       auto possible_types = type_annotation_block_possible_types();
       add_error(make_error_expected_token_type(parse_instance, source_token, possible_types));
@@ -3517,6 +3527,43 @@ Optional<BoxedTypeAnnot> AstGenerator::declare_type(const Token& source_token) {
       assert(false);
       return Optional<BoxedTypeAnnot>(nullptr);
   }
+}
+
+Optional<BoxedTypeAnnot> AstGenerator::cast_type(const Token& source_token) {
+  iterator.advance();
+
+  auto type_res = type(iterator.peek());
+  if (!type_res) {
+    return NullOpt{};
+  }
+
+  auto end_err = consume(TokenType::keyword_end_type);
+  if (end_err) {
+    add_error(std::move(end_err.rvalue()));
+    return NullOpt{};
+  }
+
+  auto stmt_res = stmt();
+  if (!stmt_res) {
+    return NullOpt{};
+
+  } else if (!stmt_res.value()->is_assignment_stmt()) {
+    auto err =
+      make_error_expected_assignment_stmt_following_cast(parse_instance, source_token);
+    add_error(std::move(err));
+    return NullOpt{};
+  }
+
+  auto strategy = CastStrategy::validate;
+  if (source_token.type == TokenType::keyword_presume) {
+    strategy = CastStrategy::presume;
+  }
+
+  auto assignment_node = downcast<Stmt, AssignmentStmt>(stmt_res.rvalue());
+  auto cast_node = std::make_unique<CastTypeNode>(source_token, std::move(type_res.rvalue()),
+                                                  std::move(assignment_node), strategy);
+
+  return Optional<BoxedTypeAnnot>(std::move(cast_node));
 }
 
 Optional<BoxedTypeAnnot> AstGenerator::record_type_annot(const Token& source_token) {

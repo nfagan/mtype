@@ -38,6 +38,45 @@ namespace {
 }
 
 /*
+ * Cast
+ */
+
+std::size_t types::Cast::bytes() const {
+  return sizeof(Cast);
+}
+
+void types::Cast::accept(const TypeToString& to_str, std::stringstream& into) const {
+  to_str.apply(*this, into);
+}
+
+bool types::Cast::accept(const IsFullyConcrete& is_fully_concrete) const {
+  return is_fully_concrete.cast(*this);
+}
+
+void types::Cast::accept(TypeVisitor& vis) {
+  vis.cast(*this);
+}
+
+void types::Cast::accept_const(TypeVisitor& vis) const {
+  vis.cast(*this);
+}
+
+int types::Cast::compare(const Type* b) const noexcept {
+  MT_COMPARE_CHECK_TAG_EARLY_RETURN(b)
+  const auto& cast_b = MT_CAST_REF(*b);
+
+  MT_COMPARE_EARLY_RETURN(strategy, cast_b.strategy)
+
+  auto from_res = from->compare(cast_b.from);
+  MT_COMPARE_TEST0_EARLY_RETURN(from_res)
+
+  auto to_res = to->compare(cast_b.to);
+  MT_COMPARE_TEST0_EARLY_RETURN(to_res)
+
+  return 0;
+}
+
+/*
  * Alias
  */
 

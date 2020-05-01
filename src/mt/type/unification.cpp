@@ -208,6 +208,26 @@ void Unifier::check_abstraction(Type* source, TermRef term, const types::Abstrac
   }
 }
 
+void Unifier::check_cast(Type* source, TermRef term, const types::Cast& cast) {
+  if (is_visited_type(source) ||
+      !is_concrete_argument(cast.from) ||
+      !is_concrete_argument(cast.to)) {
+    return;
+  }
+
+  register_visited_type(source);
+  TypeRelation check_related(subtype_relationship, store);
+
+  const bool cast_okay =
+    cast.strategy == CastStrategy::presume ||
+    check_related(cast.from, cast.to) ||
+    check_related(cast.to, cast.from);
+
+  if (!cast_okay) {
+    add_error(make_bad_cast_error(term.source_token, source));
+  }
+}
+
 void Unifier::check_assignment(Type* source, TermRef term, const types::Assignment& assignment) {
   if (registered_assignments.count(source) > 0) {
     return;
@@ -283,6 +303,8 @@ bool Unifier::occurs(const Type* type, TermRef term, const Type* lhs) const {
       return occurs(MT_CONST_VAL_REF(*type), term, lhs);
     case Type::Tag::alias:
       return occurs(MT_ALIAS_REF(*type), term, lhs);
+    case Type::Tag::cast:
+      return occurs(MT_CAST_REF(*type), term, lhs);
     case Type::Tag::scalar:
       return false;
     case Type::Tag::variable:
@@ -369,6 +391,10 @@ bool Unifier::occurs(const types::ConstantValue&, TermRef, const Type*) const {
 
 bool Unifier::occurs(const types::Alias& alias, TermRef term, const Type* lhs) const {
   return occurs(alias.source, term, lhs);
+}
+
+bool Unifier::occurs(const types::Cast& cast, TermRef term, const Type* lhs) const {
+  return occurs(cast.from, term, lhs) || occurs(cast.to, term, lhs);
 }
 
 Type* Unifier::apply_to(types::Variable& var, TermRef) {
@@ -475,6 +501,14 @@ Type* Unifier::apply_to(types::Alias& alias, TermRef term) {
   return &alias;
 }
 
+Type* Unifier::apply_to(types::Cast& cast, TermRef term) {
+  cast.from = apply_to(cast.from, term);
+  cast.to = apply_to(cast.to, term);
+  check_cast(&cast, term, cast);
+
+  return &cast;
+}
+
 Type* Unifier::apply_to(Type* source, TermRef term) {
   switch (source->tag) {
     case Type::Tag::variable:
@@ -509,6 +543,8 @@ Type* Unifier::apply_to(Type* source, TermRef term) {
       return apply_to(MT_CONST_VAL_MUT_REF(*source), term);
     case Type::Tag::alias:
       return apply_to(MT_ALIAS_MUT_REF(*source), term);
+    case Type::Tag::cast:
+      return apply_to(MT_CAST_MUT_REF(*source), term);
     default:
       MT_SHOW1("Unhandled apply to: ", source);
       assert(false);
@@ -556,6 +592,8 @@ Type* Unifier::substitute_one(Type* source, TermRef term, TermRef lhs, TermRef r
       return substitute_one(MT_CONST_VAL_MUT_REF(*source), term, lhs, rhs);
     case Type::Tag::alias:
       return substitute_one(MT_ALIAS_MUT_REF(*source), term, lhs, rhs);
+    case Type::Tag::cast:
+      return substitute_one(MT_CAST_MUT_REF(*source), term, lhs, rhs);
     default:
       MT_SHOW1("Unhandled: ", source);
       assert(false);
@@ -604,6 +642,13 @@ Type* Unifier::substitute_one(types::ConstantValue& val, TermRef, TermRef, TermR
 Type* Unifier::substitute_one(types::Alias& alias, TermRef term, TermRef lhs, TermRef rhs) {
   alias.source = substitute_one(alias.source, term, lhs, rhs);
   return &alias;
+}
+
+Type* Unifier::substitute_one(types::Cast& cast, TermRef term, TermRef lhs, TermRef rhs) {
+  cast.from = substitute_one(cast.from, term, lhs, rhs);
+  cast.to = substitute_one(cast.to, term, lhs, rhs);
+  check_cast(&cast, term, cast);
+  return &cast;
 }
 
 Type* Unifier::substitute_one(types::Abstraction& func, TermRef term, TermRef lhs, TermRef rhs) {

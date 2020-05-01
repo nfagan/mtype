@@ -61,6 +61,7 @@ struct DeclareClassTypeNode;
 struct NamespaceTypeNode;
 struct ConstructorTypeNode;
 struct InferTypeNode;
+struct CastTypeNode;
 
 class TypePreservingVisitor {
 public:
@@ -101,6 +102,7 @@ public:
   MT_VISITOR_METHOD(property_node, PropertyNode)
   MT_VISITOR_METHOD(method_node, MethodNode)
 
+  MT_VISITOR_METHOD(cast_type_node, CastTypeNode)
   MT_VISITOR_METHOD(infer_type_node, InferTypeNode)
   MT_VISITOR_METHOD(constructor_type_node, ConstructorTypeNode)
   MT_VISITOR_METHOD(namespace_type_node, NamespaceTypeNode)

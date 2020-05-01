@@ -23,6 +23,7 @@ namespace types {
   struct Class;
   struct Record;
   struct Alias;
+  struct Cast;
 }
 
 class TypeVisitor {
@@ -43,6 +44,7 @@ public:
   MT_TYPE_VISITOR_METHOD(class_type, types::Class)
   MT_TYPE_VISITOR_METHOD(record, types::Record)
   MT_TYPE_VISITOR_METHOD(alias, types::Alias)
+  MT_TYPE_VISITOR_METHOD(cast, types::Cast)
 };
 
 #undef MT_TYPE_VISITOR_METHOD

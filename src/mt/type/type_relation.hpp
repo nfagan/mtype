@@ -25,6 +25,7 @@ public:
   }
 public:
   bool related_entry(const Type* a, const Type* b, bool rev = false) const;
+  bool operator()(const Type* a, const Type* b) const;
 
 private:
   using DT = types::DestructuredTuple;
@@ -46,6 +47,8 @@ private:
   bool related(const types::Abstraction& a, const types::Abstraction& b, bool rev) const;
   bool related(const types::Scheme& a, const types::Scheme& b, bool rev) const;
   bool related(const types::Class& a, const types::Class& b, bool rev) const;
+  bool related(const types::Record& a, const types::Record& b, bool rev) const;
+  bool related(const types::ConstantValue& a, const types::ConstantValue& b, bool rev) const;
 
   bool related_different_types(const types::Scheme& a, const Type* b, bool rev) const;
   bool related_different_types(const types::DestructuredTuple& a, const Type* b, bool rev) const;

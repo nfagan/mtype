@@ -26,6 +26,10 @@ BoxedTypeError make_could_not_infer_type_error(const Token* at_token,
   return std::make_unique<CouldNotInferTypeError>(at_token, std::move(kind_str), in_type);
 }
 
+BoxedTypeError make_bad_cast_error(const Token* at_token, const Type* cast) {
+  return std::make_unique<BadCastError>(at_token, cast);
+}
+
 /*
  * SimplificationFailure
  */
@@ -190,6 +194,20 @@ std::string RecursiveTypeError::get_text(const ShowTypeErrors& shower) const {
 }
 
 Token RecursiveTypeError::get_source_token() const {
+  return *source_token;
+}
+
+/*
+ * BadCastError
+ */
+
+std::string BadCastError::get_text(const ShowTypeErrors& shower) const {
+  auto cast_str = shower.type_to_string.apply(cast);
+  const std::string msg = shower.stylize("Cannot cast: ", style::red);
+  return msg + cast_str;
+}
+
+Token BadCastError::get_source_token() const {
   return *source_token;
 }
 

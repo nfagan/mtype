@@ -60,6 +60,8 @@ const char* to_string(Type::Tag tag) {
       return "record";
     case Tag::alias:
       return "alias";
+    case Tag::cast:
+      return "cast";
     default:
       assert(false && "Unhandled.");
   }

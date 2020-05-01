@@ -284,6 +284,7 @@ public:
   Optional<BoxedTypeAnnot> method_type_declaration(const Token& source_token);
   Optional<BoxedTypeAnnot> function_type_declaration(const Token& source_token);
   Optional<BoxedTypeAnnot> class_type_declaration(const Token& source_token);
+  Optional<BoxedTypeAnnot> cast_type(const Token& source_token);
 
   Optional<RecordTypeNode::Field> record_field();
   bool maybe_record_field(RecordTypeNode::Fields& fields, RecordTypeNode::FieldNames& field_names);

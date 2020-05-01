@@ -67,6 +67,10 @@ Optional<TypeReference*> TypeScope::lookup_type(const TypeIdentifier& ident) con
     it = copy_imports.begin();
   }
 
+  if (parent) {
+    return parent->lookup_type(ident);
+  }
+
   return NullOpt{};
 }
 

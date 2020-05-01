@@ -134,4 +134,13 @@ bool MatlabScope::has_local_variable(const MatlabIdentifier& name) const {
  * ClassDef
  */
 
+bool ClassDef::has_superclass(const MatlabIdentifier& test_name) const {
+  for (const auto& superclass : superclasses) {
+    if (superclass.name == test_name) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }
