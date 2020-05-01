@@ -13,8 +13,6 @@
 namespace mt {
 
 struct ScanError {
-  std::string message;
-
   ScanError() = default;
   explicit ScanError(const char* message) : message(message) {
     //
@@ -23,7 +21,8 @@ struct ScanError {
     //
   }
 
-  ~ScanError() = default;
+  std::string message;
+  static constexpr int context_amount = 30;
 };
 
 struct EndTerminatedKeywordCounts {

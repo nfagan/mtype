@@ -593,14 +593,18 @@ ScanError Scanner::make_error_unbalanced_grouping_character(int64_t start) const
 
 Result<ScanError, Token> Scanner::make_error_unterminated_string_literal(int64_t start) const {
   ScanError err;
+  const auto msg = "Unterminated string literal.";
   std::string_view text(iterator.data(), iterator.size());
-  err.message = mark_text_with_message_and_context(text, start, start, 100, "Unterminated string literal.");
+  err.message =
+    mark_text_with_message_and_context(text, start, start, ScanError::context_amount, msg);
   return make_error<ScanError, Token>(std::move(err));
 }
 
 ScanError Scanner::make_error_at_start(int64_t start, const char* message) const {
   std::string_view text(iterator.data(), iterator.size());
-  return ScanError(mark_text_with_message_and_context(text, start, start, 100, message));
+  auto msg =
+    mark_text_with_message_and_context(text, start, start, ScanError::context_amount, message);
+  return ScanError(std::move(msg));
 }
 
 }

@@ -62,13 +62,51 @@ FileScanResult scan_file(const FilePath& file_path) {
   return success;
 }
 
-const FileScanSuccess* try_scan_file(const FilePath& file_path, ScanResultStore& scan_results) {
+void show_scan_errors(ParsePipelineInstanceData&,
+                      const FilePath&,
+                      ScanErrors& errors) {
+  std::cout << std::endl;
+  for (const auto& err : errors) {
+    std::cout << err.message << std::endl;
+  }
+}
+
+void handle_scan_failure(ParsePipelineInstanceData& pipe_instance,
+                         const FilePath& file_path,
+                         FileScanError& err) {
+  std::cout << "Failed to scan file: " << file_path << ": ";
+
+  if (err.type == FileScanError::Type::error_scan_failure) {
+    show_scan_errors(pipe_instance, file_path, err.errors);
+
+  } else {
+    switch (err.type) {
+      case FileScanError::Type::error_file_io:
+        std::cout << "Error reading file.";
+        break;
+      case FileScanError::Type::error_non_utf8_source:
+        std::cout << "Source is invalid utf-8.";
+        break;
+      case FileScanError::Type::error_unspecified:
+        std::cout << "<unspecified>";
+        break;
+      default:
+        //
+        break;
+    }
+  }
+  std::cout << std::endl;
+}
+
+const FileScanSuccess* try_scan_file(ParsePipelineInstanceData& pipe_instance,
+                                     const FilePath& file_path) {
   auto tmp_scan_result = scan_file(file_path);
   if (!tmp_scan_result) {
-    std::cout << "Failed to scan file: " << file_path << std::endl;
+    handle_scan_failure(pipe_instance, file_path, tmp_scan_result.error);
     return nullptr;
   }
 
+  auto& scan_results = pipe_instance.scan_results;
   scan_results[file_path] = std::make_unique<FileScanSuccess>();
   auto& scan_result_val = *scan_results.at(file_path);
   swap(scan_result_val, tmp_scan_result.value);
@@ -522,17 +560,15 @@ AstStore::Entry* file_entry(ParsePipelineInstanceData& pipe_instance,
     return maybe_ast_entry;
   }
 
-  const auto scan_result = try_scan_file(file_path, pipe_instance.scan_results);
-  ParseSourceData source_data;
-
-  if (scan_result) {
-    source_data = scan_result->to_parse_source_data();
-    const auto& tokens = scan_result->scan_info.tokens;
-    store_scanned_tokens(source_data, tokens, pipe_instance.source_data_by_token);
-  } else {
+  const auto scan_result = try_scan_file(pipe_instance, file_path);
+  if (!scan_result) {
     pipe_instance.ast_store.emplace_parse_failure(file_path);
     return nullptr;
   }
+
+  ParseSourceData source_data = scan_result->to_parse_source_data();
+  const auto& tokens = scan_result->scan_info.tokens;
+  store_scanned_tokens(source_data, tokens, pipe_instance.source_data_by_token);
 
   ParseInstance parse_instance(&pipe_instance.store, &pipe_instance.type_store, &pipe_instance.library,
     &pipe_instance.string_registry, &pipe_instance.functions_by_file, source_data,
