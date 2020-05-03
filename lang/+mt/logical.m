@@ -21,6 +21,8 @@ declare method logical any :: [logical] = (logical)
 declare method logical all :: [logical] = (logical)
 declare method logical not :: [logical] = (logical)
 
+declare method logical subsindex :: [double] = (logical)
+
 end
 
 %}

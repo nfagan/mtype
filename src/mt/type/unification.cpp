@@ -43,6 +43,10 @@ bool Unifier::are_concrete_arguments(const mt::TypePtrs& handles) const {
   return IsConcreteArgument::are_concrete_arguments(handles);
 }
 
+int64_t Unifier::num_registered_types() const {
+  return registered_funcs.size() + registered_assignments.size();
+}
+
 void Unifier::resolve_function(Type* as_referenced, Type* as_defined,
                                const Token* source_token) {
   if (as_referenced->is_abstraction()) {

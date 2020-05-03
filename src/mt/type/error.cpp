@@ -233,7 +233,7 @@ void ShowTypeErrors::show(const TypeError& err, int64_t index, const TokenSource
   auto msg = mark_text_with_message_and_context(source_data.source, start, stop, context_amount, type_msg);
   msg = indent_spaces(msg, 2);
 
-  std::cout << stylize(style::bold) << index;
+  std::cout << stylize(style::underline) << index;
   std::cout << ". " << descriptor.file_path << " ";
 
   auto new_line_res = row_col_indices.line_info(start);
@@ -242,7 +242,7 @@ void ShowTypeErrors::show(const TypeError& err, int64_t index, const TokenSource
 
   std::cout << "" << row << ":" << col << "";
   std::cout << stylize(style::dflt) << std::endl << std::endl;
-  std::cout << msg << std::endl << std::endl;
+  std::cout << msg << std::endl << std::endl << std::endl;
 }
 
 void ShowTypeErrors::show(const TypeErrors& errs, const TokenSourceMap& source_data) const {

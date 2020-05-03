@@ -64,7 +64,7 @@ void ShowParseErrors::show(const ParseError& err, const TokenSourceMap& sources_
     const auto transformed = err.make_message(is_rich_text);
     const auto start = err.is_null_token() ? 0 : err.at_token.lexeme.data() - err.text.data();
 
-    std::cout << stylize(style::bold) << index;
+    std::cout << stylize(style::underline) << index;
 
     if (err.descriptor) {
       std::cout << ". " << err.descriptor->file_path << " ";
@@ -81,7 +81,7 @@ void ShowParseErrors::show(const ParseError& err, const TokenSourceMap& sources_
     }
 
     std::cout << stylize(style::dflt) << std::endl << std::endl;
-    std::cout << transformed << std::endl << std::endl;
+    std::cout << transformed << std::endl << std::endl << std::endl;
   }
 }
 

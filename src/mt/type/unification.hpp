@@ -55,6 +55,7 @@ public:
   MT_NODISCARD UnifyResult unify(Substitution* subst, PendingExternalFunctions* external_functions);
 
   void resolve_function(Type* as_referenced, Type* as_defined, const Token* source_token);
+  int64_t num_registered_types() const;
 
 private:
   void reset(Substitution* subst, PendingExternalFunctions* external_functions);

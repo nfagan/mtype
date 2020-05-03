@@ -36,6 +36,7 @@ declare function size :: given T [list<double>] = (T)
 declare function length :: given T [double] = (T)
 declare function isempty :: given T [logical] = (T)
 declare function isequal :: given T [logical] = (T, T)
+declare function isequaln :: given T [logical] = (T, T)
 
 declare function tic :: [uint64] = ()
 declare function toc :: [double] = (list<uint64>)

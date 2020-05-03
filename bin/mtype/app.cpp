@@ -432,6 +432,7 @@ void App::maybe_show_diagnostics() const {
     std::cout << "Num types: " << type_store.size() << std::endl;
     std::cout << "Num external functions: "
               << external_functions.resolved_candidates.size() << std::endl;
+    std::cout << "Num visited types in unifier: " << unifier.num_registered_types() << std::endl;
 //    std::cout << "Parse / check time: " << check_elapsed_ms << " (ms)" << std::endl;
 //    std::cout << "Build path time: " << build_search_path_elapsed_ms << " (ms)" << std::endl;
 //    std::cout << "Unify time: " << unify_time << " (ms)" << std::endl;
