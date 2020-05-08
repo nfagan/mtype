@@ -10,6 +10,8 @@ declare function contains :: [logical] = (mt.str, mt.str)
 declare function cellstr :: [mt.cellstr] = (mt.str)
 declare function strjoin :: [char] = (mt.cellstr)
 declare function char :: [char] = (integral)
+declare function sprintf :: [char] = (char, list<integral>)
+declare function fprintf :: [] = (char, list<integral>)
 
 namespace mt
   let cellstr = {list<char>}

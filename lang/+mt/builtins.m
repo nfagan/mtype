@@ -30,9 +30,10 @@ declare function nargoutchk :: [] = (double, double)
 
 declare function mfilename :: [char] = ()
 declare function class :: given T [char] = (T)
+declare function which :: [char] = (list<char>)
 
 declare function numel :: given T [double] = (T)
-declare function size :: given T [list<double>] = (T)
+declare function size :: given T [list<double>] = (T, list<double>)
 declare function length :: given T [double] = (T)
 declare function isempty :: given T [logical] = (T)
 declare function isequal :: given T [logical] = (T, T)
@@ -45,6 +46,10 @@ declare function repmat :: given T [T] = (T, list<numeric>)
 
 declare function sum :: [double] = (numeric)
 declare function nnz :: [double] = (numeric | logical)
+
+declare function save :: [] = (char, list<char>)
+declare function load :: given T [T] = (char)
+declare function exist :: [double] = (char, list<char>)
 
 end
 
