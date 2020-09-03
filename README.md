@@ -45,12 +45,11 @@ In `path-file.txt`, specify a newline-delimited list of directories in which to 
 * Polymorphic class types (soon).
 * Recursive types.
 * `events` and `enum` constructs in class definitions.
-* Windows support.
 * More tests.
 
 ## build
 
-`mtype` builds on macOS and linux, and requires a compiler with support for c++17. The build system is cmake. Assuming a valid default compiler and cmake install, clone this repository, `cd` into it, and run the following to make a release build:
+`mtype` builds on macOS, Windows, and linux, and requires a compiler with support for c++17. The build system is cmake. Assuming a valid default compiler and cmake install (version 3.5 or later), clone this repository, `cd` into it, and run the following to make a release build:
 ```sh
 mkdir build
 cd ./build
