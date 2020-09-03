@@ -4,6 +4,7 @@
 #include "../parse/identifier_classification.hpp"
 #include "visitor.hpp"
 #include <cassert>
+#include <algorithm>
 
 namespace mt {
 

@@ -9,6 +9,12 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   ${PROJECT_SOURCE_DIR}/src
 )
 
+if (MSVC)
+  target_include_directories(${PROJECT_NAME} PUBLIC
+    ${PROJECT_SOURCE_DIR}/deps/dirent/include
+  )
+endif()
+
 set(MT_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC

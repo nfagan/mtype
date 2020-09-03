@@ -3,6 +3,7 @@
 #include "type_properties.hpp"
 #include "type_visitor.hpp"
 #include <cassert>
+#include <algorithm>
 
 namespace mt {
 
@@ -487,9 +488,9 @@ void types::Abstraction::assign_kind(const MatlabIdentifier& ident) {
   name = ident;
 }
 
-void types::Abstraction::assign_kind(const MatlabIdentifier& name,
+void types::Abstraction::assign_kind(const MatlabIdentifier& nm,
                                      const FunctionReferenceHandle& handle) {
-  assign_kind(name);
+  assign_kind(nm);
   ref_handle = handle;
 }
 

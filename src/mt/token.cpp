@@ -90,7 +90,7 @@ const Token& TokenIterator::peek_nth(int64_t num) const {
 
   auto ind = num + current_index;
 
-  if (ind < 0 || ind > int64_t(tokens->size())) {
+  if (ind < 0 || ind >= int64_t(tokens->size())) {
     return null_token();
   } else {
     return (*tokens)[ind];

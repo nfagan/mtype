@@ -8,6 +8,10 @@
 #include <sys/stat.h>
 #endif
 
+#if MT_IS_MSVC
+#include <windows.h>
+#endif
+
 namespace mt::fs {
 
 Optional<std::unique_ptr<std::string>> read_file(const FilePath& path) {
@@ -32,7 +36,10 @@ bool file_exists(const FilePath& path) {
   return (sb.st_mode & S_IFMT) == S_IFREG;
 }
 #elif defined(MT_WIN)
-#error "Not yet implemented for Windows."
+bool file_exists(const FilePath& path) {
+  return !(INVALID_FILE_ATTRIBUTES == GetFileAttributes(path.c_str()) && 
+         GetLastError() == ERROR_FILE_NOT_FOUND);
+}
 #else
 #error "Expected one of Unix or Windows for OS."
 #endif

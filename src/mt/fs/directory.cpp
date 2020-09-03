@@ -1,10 +1,15 @@
 #include "directory.hpp"
 #include "../config.hpp"
 #include <cstring>
+//  Currently using third-party shim for Windows
+#include <dirent.h>
 
 #if defined(MT_UNIX)
-#include <dirent.h>
 #include <sys/stat.h>
+#endif
+
+#if MT_IS_MSVC
+#include <windows.h>
 #endif
 
 namespace mt {
@@ -122,7 +127,15 @@ bool fs::directory_exists(const FilePath& path) {
   return (sb.st_mode & S_IFMT) == S_IFDIR;
 }
 #elif defined(MT_WIN)
-#error "Not yet implemented for Windows."
+bool fs::directory_exists(const FilePath& path) {
+  auto attribs = GetFileAttributes(path.c_str());
+
+  if (attribs == INVALID_FILE_ATTRIBUTES) {
+    return false;
+  }
+
+  return attribs & FILE_ATTRIBUTE_DIRECTORY;
+}
 #else
 #error "Expected one of Unix or Windows for OS."
 #endif

@@ -32,7 +32,8 @@ public:
   using CandidateMap = std::unordered_map<std::string, SearchCandidate>;
 
   SearchPath() = default;
-  MT_DEFAULT_MOVE_CTOR_AND_ASSIGNMENT_NOEXCEPT(SearchPath)
+  SearchPath(SearchPath&& other) MSVC_MISSING_NOEXCEPT = default;
+  SearchPath& operator=(SearchPath&& other) MSVC_MISSING_NOEXCEPT = default;
 
   Optional<const SearchCandidate*> search_for(const std::string& name) const;
   Optional<const SearchCandidate*> search_for(const std::string& name,
