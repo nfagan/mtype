@@ -2,6 +2,7 @@
 #include "library.hpp"
 #include "../display.hpp"
 #include "../string.hpp"
+#include "../config.hpp"
 #include <cassert>
 
 namespace mt {
@@ -325,7 +326,11 @@ std::string TypeToString::constant_color() const {
 }
 
 const char* TypeToString::right_arrow() const {
+#if MT_IS_MSVC
+  return "->";
+#else
   return rich_text ? "→" : "->";
+#endif
 }
 
 }

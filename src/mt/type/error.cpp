@@ -4,6 +4,7 @@
 #include "../text.hpp"
 #include "../fs.hpp"
 #include "mt/source_data.hpp"
+#include "../config.hpp"
 #include <cassert>
 
 namespace mt {
@@ -39,7 +40,11 @@ std::string SimplificationFailure::get_text(const ShowTypeErrors& shower) const 
   const auto rhs_str = shower.type_to_string.apply(rhs_type);
 
   if (shower.type_to_string.rich_text) {
+#if MT_IS_MSVC
+    return lhs_str + " /= " + rhs_str + ".";
+#else
     return lhs_str + " ≠ " + rhs_str + ".";
+#endif
   } else {
     return lhs_str + " /= " + rhs_str + ".";
   }
